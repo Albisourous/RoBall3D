@@ -335,7 +335,12 @@ end)
 RunService.Heartbeat:Connect(function(dt)
 	for player, run in pairs(runs) do
 		local ball = run.ball
-		if ball and ball.Parent then
+		if ball and not ball.Parent then
+			-- Ball destroyed by something outside killRun (kill floor,
+			-- cleanup race, admin) — seal the run so the HUD can't hang
+			-- on a ghost run forever.
+			killRun(player, run)
+		elseif ball then
 			local z = ball.Position.Z
 			run.streamer:ensureAhead(z)
 			run.streamer:cleanup(z)

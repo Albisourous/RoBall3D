@@ -66,6 +66,11 @@ Config.Generation = {
 	StartY = 50, -- deck height runs start at
 	Grade = 0.16, -- studs of drop per stud traveled — constant downhill (~9deg)
 	RowSpacing = 600, -- per-player run lanes are this far apart in X
+	-- Deck crosses y=-500 around ~3.4km in (50 - Grade*dist); Roblox's default
+	-- FallenPartsDestroyHeight is -500 and silently Destroy()s any unanchored
+	-- part below it — the ball — leaving the run hung with a frozen HUD.
+	-- -50k (engine minimum) buys ~310km of track before the void wins.
+	FallenDestroyY = -50000,
 }
 
 -- Lethal geometry (DESIGN.md §2 REA): one reserved color, NEVER palette-shifted.

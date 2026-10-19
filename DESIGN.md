@@ -290,7 +290,11 @@ instantly. Ball touches `LethalColor` geometry → same outcome server-side via
 a live ball can never sit still — a ball whose position is frozen for
 `Config.Death.StallSeconds` (past `StallGraceDist`) is wedged in geometry and
 killed like any other death, converting what would be a silent hang into a
-normal run-over + instant retry. Effects: music pitch slides to 0.6, camera
+normal run-over + instant retry. **External destruction** (e.g.
+`FallenPartsDestroyHeight` — pushed to `Config.Generation.FallenDestroyY`
+because the default -500 ate the ball around 3.4km in) also seals the run:
+if `run.ball` loses its Parent, the heartbeat treats it as a death rather
+than leaving a ghost run. Effects: music pitch slides to 0.6, camera
 pulls back, death screen. No lives, no shields — they were explicitly
 deferred.
 

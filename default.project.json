@@ -12,6 +12,11 @@
       "StarterPlayerScripts": {
         "$path": "src/StarterPlayer/StarterPlayerScripts"
       }
+    },
+    "Workspace": {
+      "$properties": {
+        "FallenPartsDestroyHeight": -50000
+      }
     }
   }
 }
