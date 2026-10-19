@@ -150,7 +150,7 @@ function Ui.new(): Ui
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 7)
 	label(menuCol, "", 8, F_DATA, C_DIM, 8)
-	label(menuCol, "A/D steer   ·   W/S speed   ·   R instant restart", 14, F_DATA, C_DIM, 9)
+	label(menuCol, "A/D steer   ·   hold W to boost   ·   R instant restart", 14, F_DATA, C_DIM, 9)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -195,7 +195,7 @@ function Ui.new(): Ui
 	hud.Name = "Hud"
 	hud.AnchorPoint = Vector2.new(0.5, 0)
 	hud.Position = UDim2.new(0.5, 0, 0, 10)
-	hud.Size = UDim2.fromOffset(560, 86)
+	hud.Size = UDim2.fromOffset(560, 92)
 	hud.BackgroundTransparency = 1
 	hud.Visible = false
 	hud.Parent = gui
@@ -219,6 +219,23 @@ function Ui.new(): Ui
 	subText.Size = UDim2.new(1, 0, 0, 20)
 	subText.Parent = hud
 	self.subText = subText
+
+	-- Boost meter: thin bar under the subline. Cyan while charged/ready,
+	-- hot pink while actually boosting; sits empty when spent.
+	local boostTrack = Instance.new("Frame")
+	boostTrack.AnchorPoint = Vector2.new(0.5, 0)
+	boostTrack.Position = UDim2.new(0.5, 0, 0, 84)
+	boostTrack.Size = UDim2.fromOffset(220, 5)
+	boostTrack.BackgroundColor3 = C_PANEL
+	boostTrack.BackgroundTransparency = 0.4
+	boostTrack.BorderSizePixel = 0
+	boostTrack.Parent = hud
+	local boostFill = Instance.new("Frame")
+	boostFill.BackgroundColor3 = C_CYAN
+	boostFill.BorderSizePixel = 0
+	boostFill.Size = UDim2.fromScale(1, 1)
+	boostFill.Parent = boostTrack
+	self.boostFill = boostFill
 
 	--============================ DEATH =============================--
 	local death = Instance.new("Frame")
@@ -272,6 +289,11 @@ end
 function Ui:setHud(score: number, dist: number, gems: number, speed: number, seed: number)
 	self.scoreText.Text = tostring(score)
 	self.subText.Text = string.format("%d m  ·  gems +%d  ·  %d s/s  ·  seed %d", dist, gems, speed, seed)
+end
+
+function Ui:setBoost(frac: number, boosting: boolean)
+	self.boostFill.Size = UDim2.fromScale(math.clamp(frac, 0, 1), 1)
+	self.boostFill.BackgroundColor3 = boosting and C_PINK or C_CYAN
 end
 
 function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number)

@@ -56,8 +56,8 @@ leaderboard is the replay hook; a seed system lets players run identical maps.
   solvable.
 - **Momentum steering + no brake** — lateral velocity persists after release;
   skill = early small inputs, not late holds. Our damped-momentum model
-  already matches; our optional W/S throttle is a deliberate divergence for
-  skill expression at a score-rate cost.
+  already matches; the metered W boost is a deliberate divergence for
+  skill expression at a risk cost (no brake — momentum flow is identity).
 - **Restart must feel free.** Crash → new run in ~1.5s is the addiction loop.
   The pre-menu auto-restart already implements this.
 - **The look is neon wireframe on pure black — vaporwave-skinned.** Dark ball
@@ -96,8 +96,11 @@ explainable.
 
 - **Steering**: `A`/`D` or `Left`/`Right` apply lateral acceleration
   (momentum — the ball keeps drifting when released, damped slightly when idle).
-- **Throttle** (optional, `Speed.ThrottleEnabled`): `W` = +8% speed, `S` = -15%.
-  Lets skilled players brake for tight sections at a small score-rate cost.
+- **Boost** (`Config.Boost`): hold `W`/`↑` = ×`Mult` (1.3) speed while a
+  ~2.5s meter drains; release to recharge, emptying latches until ~35%
+  refilled. HUD bar under the score shows charge (cyan ready / pink
+  boosting). No brake — the old S-throttle was removed: braking fights
+  the momentum fantasy.
 - **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
   down server-side without firing `RunEnded` and without saving the score —
   restarting to dodge a death never banks it. Blank seed → fresh random.
@@ -384,7 +387,7 @@ Full spec: `AUDIO.md`. Binding decisions:
   by the section energy under the ball — drops roll lethal/spectacle,
   breaks roll breathers. Selection bias only; every §8.1 legality rule
   still gates what's allowed. Tier-up stings and set-pieces quantize to
-  phrase downbeats. Throttle drift vs the nominal speed schedule is
+  phrase downbeats. Boost drift vs the nominal speed schedule is
   bounded and accepted.
 - Gems stay on the heard beat grid (§8.4); `Music.BaseBpm` must equal
   `SongMap.bpm` or everything drifts. The pickup chime keeps the

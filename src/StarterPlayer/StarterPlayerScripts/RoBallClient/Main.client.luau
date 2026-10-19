@@ -56,12 +56,16 @@ local fwdSpeed = Config.Speed.Start
 local currentSeed = 0
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
+local boostCharge = 1 -- 0..1 boost meter (DESIGN.md §6)
+local boostSpent = false -- emptied latch until RechargeGate refills
 
 local function bindBall(b: Instance)
 	if b.Name == ballName and b:IsA("BasePart") then
 		ball = b :: BasePart
 		lateralVel = 0
 		fwdSpeed = Config.Speed.Start
+		boostCharge = 1
+		boostSpent = false
 		lastBallPos = ball.Position
 	end
 end
@@ -84,19 +88,6 @@ local function steerIntent(): number
 		intent += 1
 	end
 	return intent
-end
-
-local function throttle(): number
-	if not Config.Speed.ThrottleEnabled then
-		return 1
-	end
-	if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
-		return Config.Speed.ThrottleUp
-	end
-	if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then
-		return Config.Speed.ThrottleDown
-	end
-	return 1
 end
 
 --============================== wiring ==============================--
@@ -150,10 +141,27 @@ RunService.Heartbeat:Connect(function(dt)
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
 
-	-- Tier-paced forward speed, eased (DESIGN.md §9)
+	-- Tier-paced forward speed, eased (DESIGN.md §9). Hold W to boost while
+	-- the meter drains; it only refills once released, and an emptied meter
+	-- latches out until it recharges past RechargeGate.
 	local dist = math.max(0, -b.Position.Z)
-	local targetFwd = Tiers.speedAt(dist) * throttle()
+	local wantBoost = UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up)
+	local boosting = wantBoost and not boostSpent
+	if boosting then
+		boostCharge = math.max(0, boostCharge - dt / Config.Boost.Capacity)
+		if boostCharge == 0 then
+			boostSpent = true
+			boosting = false
+		end
+	elseif not wantBoost then
+		boostCharge = math.min(1, boostCharge + Config.Boost.RegenPerSec * dt)
+		if boostSpent and boostCharge >= Config.Boost.RechargeGate then
+			boostSpent = false
+		end
+	end
+	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -Config.Speed.Accel * dt, Config.Speed.Accel * dt)
+	ui:setBoost(boostCharge, boosting)
 
 	local v = b.AssemblyLinearVelocity
 	b.AssemblyLinearVelocity = Vector3.new(lateralVel, v.Y, -fwdSpeed)

@@ -29,11 +29,16 @@ Config.Speed = {
 	EndlessWidthShrink = 0.002, -- studs per meter
 	EndlessWidthMinFloor = 12, -- min gap (7) + rim margin (~5) fits a block row
 	EndlessWidthMaxFloor = 18,
-	-- Optional throttle: W speeds up slightly, S brakes. Gives players a
-	-- way to "play it safe" at a score cost. Toggleable.
-	ThrottleEnabled = true,
-	ThrottleUp = 1.08,
-	ThrottleDown = 0.85,
+}
+
+-- Boost (DESIGN.md §6): hold W/Up to push speed by Mult while a meter
+-- drains; release to recharge. Emptying latches it out until the meter
+-- refills past RechargeGate. No brake — momentum flow is the identity.
+Config.Boost = {
+	Mult = 1.3, -- forward speed multiplier while boosting
+	Capacity = 2.5, -- seconds of boost on a full meter
+	RegenPerSec = 0.2, -- meter fraction refilled per second while off-boost
+	RechargeGate = 0.35, -- emptied meter must refill this far to boost again
 }
 
 -- Steering is force/momentum based (Super Monkey Ball feel), not snapping.
