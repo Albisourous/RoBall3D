@@ -160,7 +160,10 @@ RunService.Heartbeat:Connect(function(dt)
 		end
 	end
 	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1)
-	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -Config.Speed.Accel * dt, Config.Speed.Accel * dt)
+	-- Boosting eases faster so the HUD s/s readout visibly jumps — the
+	-- boost has to FEEL like a kick, not a suggestion.
+	local fwdAccel = Config.Speed.Accel * (boosting and Config.Boost.AccelMult or 1)
+	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
 	ui:setBoost(boostCharge, boosting)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 

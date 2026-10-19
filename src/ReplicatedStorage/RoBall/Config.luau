@@ -33,11 +33,13 @@ Config.Speed = {
 
 -- Boost (DESIGN.md §6): hold W/Up to push speed by Mult while a meter
 -- drains; release to recharge. Emptying latches it out until the meter
--- refills past RechargeGate. No brake — momentum flow is the identity.
+-- refills past RechargeGate. Short meter = pick your moment. No brake —
+-- momentum flow is the identity.
 Config.Boost = {
-	Mult = 1.3, -- forward speed multiplier while boosting
-	Capacity = 2.5, -- seconds of boost on a full meter
-	RegenPerSec = 0.2, -- meter fraction refilled per second while off-boost
+	Mult = 1.5, -- forward speed multiplier while boosting — a real kick
+	AccelMult = 4, -- ease rate x Accel while boosting: the s/s HUD visibly JUMPS
+	Capacity = 1.2, -- seconds of boost on a full meter — spend it deliberately
+	RegenPerSec = 0.15, -- meter fraction refilled per second off (~6.7s to full)
 	RechargeGate = 0.35, -- emptied meter must refill this far to boost again
 }
 
