@@ -37,11 +37,17 @@ never inline magic numbers in gameplay code.
    delivers parts to the client — and RemoteEvent args that reference
    unreplicated instances arrive as nil. Client code finds its ball by name in
    Workspace (`<player>_Ball`) instead of trusting remote args.
-4. **Generation must stay pure & seeded.** `GenCore` takes `Random` and emits
+6. **Generation must stay pure & seeded.** `GenCore` takes `Random` and emits
    chunk specs — no `math.random`, no Instance creation inside it. Determinism
    is a leaderboard feature.
-5. Keep chunk builders constraint-honest: every chunk declares its entry
+7. Keep chunk builders constraint-honest: every chunk declares its entry
    width/speed requirements and its exit state (DESIGN.md §8.1).
+8. **Never set `workspace.FallenPartsDestroyHeight` from a game script** —
+   it requires plugin capability and crashes the script at startup (remotes
+   never replicate → client hangs). The canonical value is
+   `Config.Generation.FallenDestroyY` (-50000), applied declaratively via
+   `default.project.json`. Context: the default -500 silently destroys the
+   ball ~3.4km into a run.
 
 ## Verify before done
 
@@ -56,7 +62,10 @@ screenshot of the result.
 
 - Push to `origin/main`. Commits: `Albisourous
   <43053302+Albisourous@users.noreply.github.com>`, no co-author trailers.
-- `.rbxl`/`.rbxlx` binaries are gitignored — source of truth is `src/`.
+- `.rbxl`/`.rbxlx` binaries and `graphify-out/` are gitignored — source of
+  truth is `src/`. `graphify-out/` holds a knowledge graph of the repo
+  (`graph.json`, `GRAPH_REPORT.md`, `graph.html`) — query it for architecture
+  questions before re-reading everything.
 - Live experience: universe `10771950941`, root place `RoBall3D`
   (placeId `129613959669994`). Open it in Studio via
   `roblox-studio:1+launchmode:edit+task:EditPlace+placeId:129613959669994`.
