@@ -237,7 +237,6 @@ function Ui.new(): Ui
 	self.speedo = spd
 
 	local R_OUT = 96 -- main arc radius
-	local R_BOOST = 74 -- inner boost ring radius
 	local A0 = -135 -- dial zero angle (deg, 7 o'clock)
 	local A100 = 85 -- angle at 100 s/s
 	local AMAX = 135 -- needle hard stop (deg, 5 o'clock)
@@ -325,16 +324,6 @@ function Ui.new(): Ui
 	self.needle = needle
 	self.spdA = { A0 = A0, A100 = A100, AMAX = AMAX, OVR_TOP = OVR_TOP }
 
-	-- Inner boost ring: 10 slots around the dial's bottom half. Lit cyan =
-	-- charge; pink while boosting; dark when spent.
-	self.boostSegs = {}
-	for i = 1, 10 do
-		local a = A0 + (i - 0.5) / 10 * (AMAX - A0)
-		local s = seg(a, R_BOOST, 8, 5, C_PANEL, spd)
-		s.BackgroundTransparency = 0.3
-		table.insert(self.boostSegs, s)
-	end
-
 	-- Digital readout: big number center-lower, unit under it.
 	local digits = Instance.new("TextLabel")
 	digits.BackgroundTransparency = 1
@@ -357,6 +346,76 @@ function Ui.new(): Ui
 	unit.TextColor3 = C_DIM
 	unit.Text = "s/s"
 	unit.Parent = spd
+
+	--================== BOOST GAUGE (bottom-left) ==================--
+	-- Mirrored twin of the speedo: a fill-arc resource gauge, not a needle —
+	-- nitro reads as stored energy in every retro racer. Cyan slots = charge;
+	-- they flare pink while boosting; a gold tick marks the recharge gate.
+	local bst = Instance.new("Frame")
+	bst.Name = "BoostGauge"
+	bst.AnchorPoint = Vector2.new(0, 1)
+	bst.Position = UDim2.new(0, 16, 1, -14)
+	bst.Size = UDim2.fromOffset(196, 196)
+	bst.BackgroundTransparency = 1
+	bst.Visible = false
+	bst.Parent = gui
+	self.boostGauge = bst
+
+	local B_R = 80 -- slot arc radius
+	local B_A0 = 135 -- empty sits at 5 o'clock — faces the speedo's zero
+	local B_SWEEP = 220 -- sweeps counter-clockwise (mirror of the speedo)
+	local B_N = 14
+	self.boostSegs = {}
+	for i = 1, B_N do
+		local a = B_A0 - (i - 0.5) / B_N * B_SWEEP
+		local s = seg(a, B_R, 13, 5, C_PANEL, bst)
+		s.BackgroundTransparency = 0.4
+		table.insert(self.boostSegs, s)
+	end
+	-- Thin ghost ring behind the slots so the empty gauge still reads.
+	local guide = Instance.new("Frame")
+	guide.AnchorPoint = Vector2.new(0.5, 0.5)
+	guide.Position = UDim2.fromScale(0.5, 0.5)
+	guide.Size = UDim2.fromOffset(B_R * 2 + 18, B_R * 2 + 18)
+	guide.BackgroundTransparency = 1
+	guide.Parent = bst
+	local guideRing = Instance.new("UIStroke")
+	guideRing.Color = C_PANEL
+	guideRing.Transparency = 0.35
+	guideRing.Thickness = 1.5
+	guideRing.Parent = guide
+	local guideCorner = Instance.new("UICorner")
+	guideCorner.CornerRadius = UDim.new(1, 0)
+	guideCorner.Parent = guide
+
+	-- Gold gate tick is drawn lazily once Main tells us RechargeGate.
+	self.gateFrac = nil :: number?
+	self._gateDrawn = false
+	self._segFn = seg
+	self._bstFrame = bst
+	self._bstA = { A0 = B_A0, SWEEP = B_SWEEP, R = B_R, N = B_N }
+
+	local bHead = Instance.new("TextLabel")
+	bHead.BackgroundTransparency = 1
+	bHead.AnchorPoint = Vector2.new(0.5, 0.5)
+	bHead.Position = UDim2.new(0.5, 0, 0.5, -6)
+	bHead.Size = UDim2.fromOffset(120, 16)
+	bHead.Font = F_DATA
+	bHead.TextSize = 11
+	bHead.TextColor3 = C_DIM
+	bHead.Text = "BOOST"
+	bHead.Parent = bst
+	local bState = Instance.new("TextLabel")
+	bState.BackgroundTransparency = 1
+	bState.AnchorPoint = Vector2.new(0.5, 0.5)
+	bState.Position = UDim2.new(0.5, 0, 0.5, 18)
+	bState.Size = UDim2.fromOffset(140, 38)
+	bState.Font = F_DATA
+	bState.TextSize = 30
+	bState.TextColor3 = C_CYAN
+	bState.Text = "READY"
+	bState.Parent = bst
+	self.boostState = bState
 
 	--============================ DEATH =============================--
 	local death = Instance.new("Frame")
@@ -399,6 +458,7 @@ function Ui:showMenu(best: number)
 	self.death.Visible = false
 	self.hud.Visible = false
 	self.speedo.Visible = false
+	self.boostGauge.Visible = false
 	self.bestLabel.Text = "BEST " .. tostring(best or 0)
 end
 
@@ -407,6 +467,7 @@ function Ui:showHud()
 	self.death.Visible = false
 	self.hud.Visible = true
 	self.speedo.Visible = true
+	self.boostGauge.Visible = true
 end
 
 function Ui:setHud(score: number, dist: number, gems: number, _speed: number, seed: number)
@@ -415,8 +476,8 @@ function Ui:setHud(score: number, dist: number, gems: number, _speed: number, se
 	self.subText.Text = string.format("%d m  ·  gems +%d  ·  seed %d", dist, gems, seed)
 end
 
--- Speedometer + boost ring, called every heartbeat during a run.
-function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean)
+-- Speedometer + boost gauge, called every heartbeat during a run.
+function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boostSpent: boolean)
 	local a = self.spdA
 	-- 0-100 sweeps the cyan arc; past 100 the needle walks the pink
 	-- overshoot arc (compressed so deep runs still have travel).
@@ -436,18 +497,31 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean)
 	for _, s in ipairs(self.ovrSegs) do
 		s.BackgroundTransparency = pulse
 	end
-	-- Boost ring: one slot per 10% charge — cyan ready, pink while boosting.
-	for i, s in ipairs(self.boostSegs) do
-		local lit = boostFrac >= i / 10 - 1e-3
-		s.BackgroundColor3 = lit and (boosting and C_PINK or C_CYAN) or C_PANEL
-		s.BackgroundTransparency = lit and 0 or 0.5
+
+	--================ boost gauge ================--
+	local ba = self._bstA
+	-- Gold gate tick: drawn once we know RechargeGate (set by Main).
+	if self.gateFrac and not self._gateDrawn then
+		self._gateDrawn = true
+		local ga = ba.A0 - self.gateFrac * ba.SWEEP
+		self._segFn(ga, ba.R, 20, 4, C_GOLD, self._bstFrame)
 	end
+	local n = #self.boostSegs
+	local flash = boostSpent and not boosting and (math.sin(tick() * 10) > 0)
+	for i, s in ipairs(self.boostSegs) do
+		local lit = boostFrac >= i / n - 1e-3
+		s.BackgroundColor3 = lit and (boosting and C_PINK or C_CYAN) or C_PANEL
+		s.BackgroundTransparency = lit and 0 or (flash and 0.2 or 0.55)
+	end
+	self.boostState.Text = boosting and "GO!" or (boostSpent and "SPENT" or (boostFrac > 0.98 and "READY" or "CHRG"))
+	self.boostState.TextColor3 = boosting and C_PINK or (boostSpent and C_GOLD or C_CYAN)
 end
 
 function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number)
 	self.menu.Visible = false
 	self.hud.Visible = false
 	self.speedo.Visible = false
+	self.boostGauge.Visible = false
 	self.death.Visible = true
 	self.dScore.Text = "SCORE " .. tostring(score)
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)

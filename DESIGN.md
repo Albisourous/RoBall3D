@@ -99,9 +99,9 @@ explainable.
 - **Boost** (`Config.Boost`): hold `W`/`↑` = ×`Mult` (1.5) speed while a
   ~1.2s meter drains; release to recharge (~6.7s to full), emptying
   latches until ~35% refilled. Boosting also eases at 4× the normal
-  accel so the HUD s/s visibly jumps. HUD bar under the score shows
-  charge (cyan ready / pink boosting). No brake — the old S-throttle was
-  removed: braking fights the momentum fantasy.
+  accel so the HUD s/s visibly jumps. Charge lives on the bottom-left
+  boost dial (§12). No brake — the old S-throttle was removed: braking
+  fights the momentum fantasy.
 - **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
   down server-side without firing `RunEnded` and without saving the score —
   restarting to dodge a death never banks it. Blank seed → fresh random.

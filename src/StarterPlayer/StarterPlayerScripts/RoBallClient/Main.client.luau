@@ -48,6 +48,7 @@ local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunctio
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
+ui.gateFrac = Config.Boost.RechargeGate
 
 local mode: "menu" | "running" | "dead" = "menu"
 local ball: BasePart? = nil
@@ -164,7 +165,7 @@ RunService.Heartbeat:Connect(function(dt)
 	-- boost has to FEEL like a kick, not a suggestion.
 	local fwdAccel = Config.Speed.Accel * (boosting and Config.Boost.AccelMult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
-	ui:setSpeedo(fwdSpeed, boostCharge, boosting)
+	ui:setSpeedo(fwdSpeed, boostCharge, boosting, boostSpent)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity
