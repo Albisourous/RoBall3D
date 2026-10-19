@@ -89,6 +89,12 @@ end
 local sunParts: { { part: Part, base: Vector3 } } = {}
 local sunPulse = 0
 
+-- Mid-band punch: a client-local BloomEffect rides the same pulse —
+-- kicks bloom a little harder (AUDIO.md §8). Local to us; Lighting never
+-- replicates it. bloomBase preserves a place-authored intensity.
+local bloom: BloomEffect? = nil
+local bloomBase = 0
+
 local function makeSun(parent: Instance): Model
 	local model = Instance.new("Model")
 	model.Name = "Sun"
@@ -121,6 +127,21 @@ function Backdrop.init()
 	root.Name = "RoBallBackdrop"
 	root.Parent = workspace
 	sun = makeSun(root)
+	-- Mid-band bloom punch — reuse the place's BloomEffect if it has one,
+	-- keeping its tuned intensity as the pulse baseline.
+	bloom = game:GetService("Lighting"):FindFirstChildOfClass("BloomEffect")
+	if bloom then
+		bloomBase = bloom.Intensity
+	else
+		local b = Instance.new("BloomEffect")
+		b.Name = "AudioBloom"
+		b.Intensity = Art.BloomBase
+		b.Threshold = 0.85
+		b.Size = 24
+		b.Parent = game:GetService("Lighting")
+		bloom = b
+		bloomBase = Art.BloomBase
+	end
 	-- Towers are created parked and laid out on the first update, when the
 	-- ball's lane X is known (lanes sit at laneIndex * RowSpacing).
 	for side = -1, 1, 2 do
@@ -138,6 +159,9 @@ local seeded = false
 -- analyzer. Decorative only — the pulse never touches hue or hazards.
 function Backdrop.setPulse(p: number)
 	sunPulse = math.clamp(p, 0, 1)
+	if bloom then
+		bloom.Intensity = bloomBase + sunPulse * Art.BloomPulseGain
+	end
 end
 
 function Backdrop.update(anchor: Vector3)

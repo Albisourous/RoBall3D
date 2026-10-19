@@ -10,7 +10,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
-local SongMap = require(ReplicatedStorage.RoBall.SongMap)
 local Music = require(script.Parent.MusicController)
 
 local Sfx = {}
@@ -38,7 +37,7 @@ local function chime()
 	-- back to the generic pentatonic ladder off-grid / pre-init.
 	local scale = cfg.ComboScale
 	if Music.beatPos() > 0 then
-		scale = SongMap.sectionAtBeat(Music.beatPos()).scale
+		scale = Music.section().scale
 	end
 	local rise = 2 ^ (scale[math.min(combo + 1, #scale)] / 12)
 	local jitter = 1 + (math.random() * 2 - 1) * cfg.PitchJitter

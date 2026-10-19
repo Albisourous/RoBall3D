@@ -3,9 +3,14 @@
 -- (AudioPlayer + Wires + FX — Sound/SoundGroup are the discouraged path).
 --
 -- Modes:
---   single-track — one AudioPlayer on Config.Music.AssetId (works today)
---   layered     — one AudioPlayer + AudioFader per stem, tier-mixed by
---                 Config.Music.Layers, once every Stems id is filled in
+--   single-track — one AudioPlayer on the track's TrackAssets.AssetId
+--   layered      — one AudioPlayer + AudioFader per stem, tier-mixed by
+--                  Config.Music.Layers, once every Stems id resolves
+--
+-- Track rotation (AUDIO.md §3): each run plays SongMap.trackIdFor(seed,
+-- Tracklist) — GenCore stamps sections from the same pick. Switching
+-- tracks tears down and rebuilds the stem/single player set; the shared
+-- bus tail (filter/shifter/analyzer) and stings persist.
 --
 -- Shared behavior either way:
 --   PlaybackSpeed ramps with ball speed on every player (the speed signature)
@@ -45,6 +50,9 @@ local stingPlayers: { [string]: any } = {}
 local norm = 0 -- last speedNorm, kept so layer fades and stings see it
 local tier = 1
 local pulseSmooth = 0
+local curMap: SongMap.Map = SongMap -- active track's chart (default until a run picks)
+local curTrack: string? = nil
+local curAssets: any = nil -- active track's TrackAssets entry
 
 local STEM_ORDER = { "pad", "air", "bass", "drums", "arp", "lead" }
 
@@ -94,7 +102,7 @@ end
 -- Layer fades complete over FadeBars bars at the CURRENT heard tempo —
 -- mix moves land on bar lines, not mid-phrase.
 local function fadeSeconds(): number
-	return m.FadeBars * SongMap.beatsPerBar / (m.BaseBpm * ps() / 60)
+	return m.FadeBars * curMap.beatsPerBar / (curMap.bpm * ps() / 60)
 end
 
 local function applyLayers()
@@ -147,6 +155,112 @@ local function syncStems()
 	end
 end
 
+-- Tear down the current track's player set (track switch at run start).
+-- The bus tail, wind, and sting players are shared and survive.
+local function teardownPlayers()
+	for _, p in ipairs(players) do
+		p:Destroy()
+	end
+	for _, f in pairs(faders) do
+		f:Destroy()
+	end
+	table.clear(players)
+	table.clear(faders)
+	table.clear(stemByName)
+	stemMode = false
+	lead = nil
+end
+
+-- Readiness watchdog: stems take a few seconds to decode — poll for up
+-- to 15s. If any still isn't ready (bad id, or an rbxasset:// dev path
+-- on a published client) tear the layered set down to the track's full
+-- mix rather than ship a butchered mix or silence.
+local function watchStems()
+	local track = curTrack -- stale watchdogs yield to the new track's
+	task.spawn(function()
+		local deadline = os.clock() + 15
+		repeat
+			local allReady = true
+			for _, p in ipairs(players) do
+				if not p.IsReady then
+					allReady = false
+					break
+				end
+			end
+			if allReady or os.clock() > deadline then
+				break
+			end
+			task.wait(0.5)
+		until false
+		if not stemMode or curTrack ~= track then
+			return
+		end
+		for _, p in ipairs(players) do
+			if not p.IsReady then
+				teardownPlayers()
+				local mix = newPlayer(contentId(curAssets.AssetId), true)
+				mix.Volume = m.MenuVolume * m.Volume
+				wire(mix, lowpass)
+				table.insert(players, mix)
+				lead = mix
+				applySpeed()
+				mix:Play()
+				return
+			end
+		end
+	end)
+end
+
+-- Build the player set for one TrackAssets entry: layered when every stem
+-- resolves, else a single AudioPlayer on the full mix.
+local function buildPlayers(ta: any)
+	stemMode = type(ta.Stems) == "table"
+	if stemMode then
+		for _, name in ipairs(STEM_ORDER) do
+			local id = ta.Stems[name]
+			if id == nil or id == 0 or id == "" then
+				stemMode = false
+				break
+			end
+		end
+	end
+
+	if stemMode then
+		for _, name in ipairs(STEM_ORDER) do
+			local p = newPlayer(contentId(ta.Stems[name]), true)
+			local f = Instance.new("AudioFader")
+			f.Volume = 0 -- faded in by applyLayers
+			f.Parent = root
+			wire(p, f)
+			wire(f, lowpass)
+			table.insert(players, p)
+			stemByName[name] = p
+			faders[name] = f
+		end
+		lead = stemByName.lead or stemByName.drums or players[1]
+		lead.Looped:Connect(syncStems)
+		watchStems()
+	else
+		local p = newPlayer(contentId(ta.AssetId), true)
+		wire(p, lowpass)
+		table.insert(players, p)
+		lead = p
+	end
+end
+
+-- Point the runtime at a track: resolves its SongMap + assets and rebuilds
+-- the player set when it differs from what's playing.
+local function selectTrack(id: string)
+	if id == curTrack then
+		return
+	end
+	curTrack = id
+	curMap = SongMap.forTrack(id)
+	curAssets = (m.TrackAssets :: any)[id] or { AssetId = 0 }
+	teardownPlayers()
+	buildPlayers(curAssets)
+end
+
 function Music.init()
 	if root then
 		return
@@ -180,36 +294,8 @@ function Music.init()
 	analyzer.Parent = folder
 	wire(lowpass, analyzer) -- hears what you hear (post-filter)
 
-	-- Mode select: layered only when every stem has an asset id/URI
-	stemMode = true
-	for _, name in ipairs(STEM_ORDER) do
-		local id = (m.Stems :: any)[name]
-		if id == nil or id == 0 or id == "" then
-			stemMode = false
-			break
-		end
-	end
-
-	if stemMode then
-		for _, name in ipairs(STEM_ORDER) do
-			local p = newPlayer(contentId((m.Stems :: any)[name]), true)
-			local f = Instance.new("AudioFader")
-			f.Volume = 0 -- faded in by applyLayers
-			f.Parent = folder
-			wire(p, f)
-			wire(f, lowpass)
-			table.insert(players, p)
-			stemByName[name] = p
-			faders[name] = f
-		end
-		lead = stemByName.lead or stemByName.drums or players[1]
-		lead.Looped:Connect(syncStems)
-	else
-		local p = newPlayer(contentId(m.AssetId), true)
-		wire(p, lowpass)
-		table.insert(players, p)
-		lead = p
-	end
+	-- Menu boots on tracklist[1]; runs re-pick per seed in onStart.
+	selectTrack(m.Tracklist[1])
 
 	-- Speed-wind bed (optional until the asset is uploaded)
 	if m.WindAssetId ~= 0 then
@@ -238,54 +324,6 @@ function Music.init()
 	for _, p in ipairs(players) do
 		p:Play() -- queued until IsReady by the engine
 	end
-
-	-- Readiness watchdog: stems take a few seconds to decode — poll for up
-	-- to 15s. If any still isn't ready (bad id, or an rbxasset:// dev path
-	-- on a published client) tear the whole layered set down to the master
-	-- mix rather than ship a butchered mix or silence.
-	if stemMode then
-		task.spawn(function()
-			local deadline = os.clock() + 15
-			repeat
-				local allReady = true
-				for _, p in ipairs(players) do
-					if not p.IsReady then
-						allReady = false
-						break
-					end
-				end
-				if allReady or os.clock() > deadline then
-					break
-				end
-				task.wait(0.5)
-			until false
-			if not stemMode then
-				return
-			end
-			for _, p in ipairs(players) do
-				if not p.IsReady then
-					for _, q in ipairs(players) do
-						q:Destroy()
-					end
-					for _, f in pairs(faders) do
-						f:Destroy()
-					end
-					players = {}
-					faders = {}
-					stemByName = {}
-					stemMode = false
-					local mix = newPlayer(contentId(m.AssetId), true)
-					mix.Volume = m.MenuVolume * m.Volume
-					wire(mix, lowpass)
-					table.insert(players, mix)
-					lead = mix
-					applySpeed()
-					mix:Play()
-					return
-				end
-			end
-		end)
-	end
 end
 
 function Music.onStart(seed: number?)
@@ -293,14 +331,17 @@ function Music.onStart(seed: number?)
 		return
 	end
 	-- GD-style: every run opens on the grid. Instant restart is sacred —
-	-- no fade-in tax, filter snaps open on the count-in. The start offset
-	-- rotates by seed across accent downbeats (AUDIO.md §6) so repeat runs
-	-- don't all open on bar 0; GenCore seeds its clock the same way.
+	-- no fade-in tax, filter snaps open on the count-in. The seed picks
+	-- the track AND rotates the opening accent across downbeats
+	-- (AUDIO.md §3/§6); GenCore picks and seeds its clock identically.
+	if seed then
+		selectTrack(SongMap.trackIdFor(seed, m.Tracklist))
+	end
 	local startBeat = 0
 	if seed and Config.MusicSync.SeededStartOffset then
-		startBeat = SongMap.startBeatFor(seed)
+		startBeat = curMap.startBeatFor(seed)
 	end
-	local startSec = startBeat * 60 / m.BaseBpm
+	local startSec = startBeat * 60 / curMap.bpm
 	applySpeed()
 	for _, p in ipairs(players) do
 		p.Volume = m.Volume
@@ -375,11 +416,11 @@ function Music.beatPos(): number
 	if not lead then
 		return 0
 	end
-	return lead.TimePosition * m.BaseBpm / 60
+	return lead.TimePosition * curMap.bpm / 60
 end
 
-function Music.section(): { kind: string, energy: number }
-	return SongMap.sectionAtBeat(Music.beatPos())
+function Music.section(): SongMap.Section
+	return curMap.sectionAtBeat(Music.beatPos())
 end
 
 -- Beat-quantized one-shots (AUDIO.md §6): the sting waits for the next
@@ -390,8 +431,8 @@ function Music.playSting(name: string)
 		return
 	end
 	local beatsNow = Music.beatPos()
-	local nextBar = math.ceil(beatsNow / SongMap.beatsPerBar) * SongMap.beatsPerBar
-	local delay = math.max(0, (nextBar - beatsNow) / (m.BaseBpm * ps() / 60))
+	local nextBar = math.ceil(beatsNow / curMap.beatsPerBar) * curMap.beatsPerBar
+	local delay = math.max(0, (nextBar - beatsNow) / (curMap.bpm * ps() / 60))
 	if delay > 4 then
 		return -- pathological; a bar is never this far out
 	end

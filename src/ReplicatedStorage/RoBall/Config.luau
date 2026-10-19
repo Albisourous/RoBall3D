@@ -234,28 +234,48 @@ Config.GemFx = {
 }
 
 Config.Music = {
-	Track = "vaporwave_loop", -- SongMap id the runtime + generator key on
-	AssetId = 139067975647102, -- full mix (roball3d-audio, newest import)
-	-- Layered mode (AUDIO.md §4): when EVERY stem entry is non-zero the
-	-- MusicController plays one AudioPlayer per stem and fades layers by
-	-- tier instead of playing the single mix. Entries may be numeric
-	-- rbxassetids OR ContentId URIs — rbxasset:// resolves against Studio's
-	-- bundled content dir for local dev; upload the oggs from
-	-- roball3d-audio/stems/ and paste numeric ids for production. Any stem
-	-- that fails to load drops the whole set back to AssetId (watchdog).
-	Stems = {
-		pad = "rbxasset://roball3d/stem_pad.ogg",
-		bass = "rbxasset://roball3d/stem_bass.ogg",
-		drums = "rbxasset://roball3d/stem_drums.ogg",
-		lead = "rbxasset://roball3d/stem_lead.ogg",
-		arp = "rbxasset://roball3d/stem_arp.ogg",
-		air = "rbxasset://roball3d/stem_air.ogg",
+	-- Seeded track rotation (AUDIO.md §3): each run picks
+	-- SongMap.trackIdFor(seed, Tracklist); GenCore and MusicController share
+	-- the pick so stamped sections match the heard track. Per-track charts
+	-- live in SongMap_<id>.luau.
+	Tracklist = { "vaporwave_loop", "neon_descent" },
+	-- Per-track assets. AssetId = the full mix; numeric rbxassetid for
+	-- production or an rbxasset:// ContentId URI resolving to Studio's
+	-- bundled content dir for local dev. Stems: when EVERY entry resolves,
+	-- the MusicController plays one AudioPlayer per stem and fades layers by
+	-- tier (Layers); any stem failing to load drops the whole set back to
+	-- that track's AssetId (watchdog). Upload roball3d-audio/tracks/<id>/
+	-- oggs and paste numeric ids for production.
+	TrackAssets = {
+		vaporwave_loop = {
+			AssetId = 139067975647102, -- uploaded master mix
+			Stems = {
+				pad = "rbxasset://roball3d/vaporwave_loop/stems/stem_pad.ogg",
+				bass = "rbxasset://roball3d/vaporwave_loop/stems/stem_bass.ogg",
+				drums = "rbxasset://roball3d/vaporwave_loop/stems/stem_drums.ogg",
+				lead = "rbxasset://roball3d/vaporwave_loop/stems/stem_lead.ogg",
+				arp = "rbxasset://roball3d/vaporwave_loop/stems/stem_arp.ogg",
+				air = "rbxasset://roball3d/vaporwave_loop/stems/stem_air.ogg",
+			},
+		},
+		neon_descent = {
+			AssetId = "rbxasset://roball3d/neon_descent/neon_descent.ogg",
+			Stems = {
+				pad = "rbxasset://roball3d/neon_descent/stems/stem_pad.ogg",
+				bass = "rbxasset://roball3d/neon_descent/stems/stem_bass.ogg",
+				drums = "rbxasset://roball3d/neon_descent/stems/stem_drums.ogg",
+				lead = "rbxasset://roball3d/neon_descent/stems/stem_lead.ogg",
+				arp = "rbxasset://roball3d/neon_descent/stems/stem_arp.ogg",
+				air = "rbxasset://roball3d/neon_descent/stems/stem_air.ogg",
+			},
+		},
 	},
 	Volume = 0.5,
-	-- Native BPM of the track — gem clusters are placed on this beat grid
-	-- (beat interval = 60 / (BaseBpm * heard PlaybackSpeed), so pickups land
-	-- on musical subdivisions at any pace). Must equal SongMap.bpm —
-	-- vaporwave_loop is 16 bars = 43.6s => 88 BPM.
+	-- Default track tempo — the fallback beat grid for code paths without a
+	-- run map (beat interval = 60 / (bpm * heard PlaybackSpeed)). Must equal
+	-- the default track's SongMap.bpm — vaporwave_loop is 16 bars = 43.6s
+	-- => 88 BPM. Per-run lookups use the run map's own bpm (neon_descent
+	-- is 100 BPM), this is only the non-run default.
 	BaseBpm = 88,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
@@ -397,6 +417,11 @@ Config.Art = {
 	-- each point (0 = static black, 1 = full neon). Subtle — keeps the deck
 	-- dark while letting it drift with the gradient.
 	DeckTint = 0.14,
+	-- Audio-reactive bloom (AUDIO.md §8): Lighting bloom rides the
+	-- analyzer pulse — kicks punch the whole frame a little brighter.
+	-- BloomBase is only the fallback when the place has no BloomEffect.
+	BloomBase = 0.45,
+	BloomPulseGain = 0.35,
 }
 
 Config.Leaderboard = {

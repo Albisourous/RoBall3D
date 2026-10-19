@@ -28,10 +28,12 @@ function GenCore.new(seed: number): Gen
 	}
 	-- Musical clock (AUDIO.md §5.2): song-beats elapsed at st.dist on the
 	-- nominal speed schedule, accumulated incrementally per chunk so the
-	-- integral stays O(chunk) instead of re-summing from zero. The run
-	-- opens on a seed-rotated accent (AUDIO.md §6) — start the clock there
-	-- so stamped sections match what the player hears from beat one.
-	self.beatPos = Config.MusicSync.SeededStartOffset and SongMap.startBeatFor(seed) or 0
+	-- integral stays O(chunk) instead of re-summing from zero. The run's
+	-- track is the seeded pick the runtime shares (AUDIO.md §3), and it
+	-- opens on a seed-rotated accent (§6) — start the clock there so
+	-- stamped sections match what the player hears from beat one.
+	self.map = SongMap.forTrack(SongMap.trackIdFor(seed, Config.Music.Tracklist))
+	self.beatPos = Config.MusicSync.SeededStartOffset and self.map.startBeatFor(seed) or 0
 	self.introIndex = 0
 	self.intro = {
 		{ type = "Flat", length = 35, widthOut = 48 },
@@ -71,7 +73,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 	-- entry geometry, not the live state table.
 	-- Section the ball will be hearing when it reaches this chunk — passed
 	-- to builders so gem density and set-piece placement can ride the grid.
-	local songSection = MusicGrid.sectionAtBeat(self.beatPos)
+	local songSection = self.map.sectionAtBeat(self.beatPos)
 
 	local snap: ChunkDefs.GenState = {
 		zEnd = st.zEnd,
@@ -82,6 +84,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 		rng = self.rng,
 		beatPos = self.beatPos,
 		section = songSection,
+		map = self.map,
 	}
 
 	if self.introIndex < #self.intro then
@@ -108,7 +111,8 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				0,
 				Config.Gems.ValueSafe,
 				nil,
-				songSection.energy
+				songSection.energy,
+				self.map.bpm
 			) or nil,
 		}
 	else
@@ -146,7 +150,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 
 	-- Advance the musical clock by the beats this chunk spans, then the
 	-- state — next chunk's section lookup starts where this one ended.
-	self.beatPos += MusicGrid.beatsBetween(st.dist, st.dist + spec.length)
+	self.beatPos += MusicGrid.beatsBetween(st.dist, st.dist + spec.length, self.map.bpm)
 	st.zEnd -= spec.length
 	st.dist += spec.length
 	st.centerX = spec.endState.centerX

@@ -87,10 +87,13 @@ Per track, alongside `track.ogg` (the full mix, for menu/fallback):
 | Output | What | Why |
 |---|---|---|
 | `stems/{pad,bass,drums,lead,arp,air}.ogg` | Each bus rendered solo, **same sample count** `N_OUT` | Vertical mixing: fade layers by tier. Identical lengths = sample-locked sync. |
-| `SongMap.luau` | Generated module: `{ id, assetIds, bpm, beatsPerBar, loopBeats, sections, accentBeats }` | The generator's chart. Checked into `src/` — pure data, no audio parse at runtime. |
+| `SongMap_<id>.luau` | Generated module per track: `{ id, bpm, beatsPerBar, loopBeats, sections, accentBeats, scale ladders }` | The generator's chart. Checked into `src/` — pure data, no audio parse at runtime. |
 | `stings/{tier_up,death_fall,menu_start}.ogg` | One-shots rendered in-key | Beat-quantized stingers (§6). |
 
-`SongMap.luau` sketch (rendered, not hand-edited):
+`SongMap.luau` is a hand-written registry: it re-exports the default
+track's map (so `SongMap.sectionAtBeat(...)` keeps working) and adds
+`forTrack(id)` / `trackIdFor(seed, Tracklist)` — the seeded pick GenCore
+and MusicController share. Per-track chart sketch:
 
 ```luau
 return {
@@ -110,13 +113,16 @@ return {
 }
 ```
 
-### 3.2 Track canon
+### 3.2 Track canon — implemented
 
-Start with the one shipped loop, then grow a small canon (3–5 tracks in
-different keys/moods, all 16-bar loops, all emitting SongMaps). The run's
-seed picks the track: **same seed → same track + same map + same musical
-pacing** — the leaderboard row becomes a replayable "level" exactly like a
-GD ID. `SaveService` records `trackId` next to the seed.
+`Config.Music.Tracklist = { "vaporwave_loop", "neon_descent" }` — the run's
+seed picks the track via `SongMap.trackIdFor`: **same seed → same track +
+same map + same musical pacing** — the leaderboard row becomes a
+replayable "level" exactly like a GD ID. Both tracks carry full stem sets
+(`TrackAssets[id].Stems`) so tier-layering works on either; the seed also
+rotates the opening accent (§6). Grow the canon by adding a `TRACKS` spec
+in `generate_audio.py`, rendering, and appending the id + `TrackAssets`
+entry. `SaveService` records `trackId` next to the seed.
 
 ## 4. Runtime: migrate to the audio graph
 
