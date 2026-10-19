@@ -33,8 +33,12 @@ Config.Steering = {
 }
 
 Config.Camera = {
-	Offset = Vector3.new(0, 8, 14), -- behind + above the ball
-	LookAhead = 10, -- studs ahead of the ball the camera aims at
+	Offset = Vector3.new(0, 12, 12), -- behind + above; high + pitched = Slope's downhill read
+	LookAhead = 16, -- studs ahead of the ball the camera aims at
+	-- Aim drops with the track: target sits on the deck plane LookAhead
+	-- studs out, so the camera pitches into the slope, not at the horizon.
+	LookDrop = 1.5, -- extra studs below the deck plane (keeps track in frame)
+	LeanMax = 3, -- degrees of camera roll toward the steer direction
 	FovMin = 70,
 	FovMax = 88, -- FOV widens with speed for sense of velocity
 	SmoothTime = 0.12,
@@ -51,7 +55,7 @@ Config.Generation = {
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs
 	StartY = 50, -- deck height runs start at
-	Grade = 0.1, -- studs of drop per stud traveled — constant downhill (~5.7deg)
+	Grade = 0.16, -- studs of drop per stud traveled — constant downhill (~9deg)
 	RowSpacing = 600, -- per-player run lanes are this far apart in X
 }
 

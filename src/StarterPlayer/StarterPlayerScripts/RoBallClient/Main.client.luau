@@ -156,13 +156,19 @@ RunService.RenderStepped:Connect(function()
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
 		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
+		-- Aim at the deck plane LookAhead studs out: the drop = grade*ahead,
+		-- so the camera pitches into the slope and shows more track (the
+		-- Slope downhill read). Roll leans a few degrees into the steer.
 		local target = b.Position + Config.Generation.TravelAxis * cam.LookAhead
-		camera.CFrame = CFrame.lookAt(b.Position + cam.Offset, target)
+		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
+		local lean = -math.clamp(lateralVel / Config.Steering.MaxLateralSpeed, -1, 1) * math.rad(cam.LeanMax)
+		camera.CFrame = CFrame.lookAt(b.Position + cam.Offset, target) * CFrame.Angles(0, 0, lean)
 		Backdrop.update(b.Position)
 	elseif mode == "dead" then
 		-- Camera pulls back from the last known ball position (DESIGN.md §11)
-		camera.CFrame =
-			CFrame.lookAt(lastBallPos + cam.Offset * 1.6, lastBallPos + Config.Generation.TravelAxis * cam.LookAhead)
+		local target = lastBallPos + Config.Generation.TravelAxis * cam.LookAhead
+		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
+		camera.CFrame = CFrame.lookAt(lastBallPos + cam.Offset * 1.6, target)
 		Backdrop.update(lastBallPos)
 	else
 		-- Menu vista: slow orbit toward the track start

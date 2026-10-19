@@ -105,9 +105,12 @@ Y velocity is untouched — gravity handles falls, slopes, ramp arcs.
 
 ## 5. Camera
 
-Chase cam: offset `(0, 8, 14)` studs behind/above the ball, aimed `10` studs
-ahead. FOV eases `70 -> 88` with speed. Slight lateral lean toward steering
-input for readability. No vertical bob (keeps precision readable).
+Chase cam: offset `(0, 12, 12)` studs behind/above the ball. The aim point is
+not flat-ahead — it drops to the deck plane `LookAhead = 16` studs out
+(`target.y -= Grade*16 + LookDrop`), so the camera pitches into the slope
+(~28°) the way Slope does: ball low in frame, long readable runway ahead.
+FOV eases `70 -> 88` with speed. Up to `LeanMax = 3°` of roll into the steer
+direction for momentum readability. No vertical bob (keeps precision readable).
 
 ## 6. Run structure & menu
 
@@ -136,7 +139,7 @@ input for readability. No vertical bob (keeps precision readable).
 ### 8.1 Model
 
 Runs travel toward `-Z` and **always downhill**: every chunk's deck drops by
-`Generation.Grade` studs per stud traveled (0.1 ≈ 5.7°), so the track visibly
+`Generation.Grade` studs per stud traveled (0.16 ≈ 9°), so the track visibly
 descends and the auto-roll reads as rolling downhill (the Slope cue). Deck
 heights accumulate, so chunk `y` values drift down over a run; the kill plane
 always follows the local deck height via `yAt(z)`.
