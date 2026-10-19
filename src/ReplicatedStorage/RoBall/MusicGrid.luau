@@ -21,11 +21,30 @@ local MusicGrid = {}
 
 local m = Config.Music
 
+-- norm -> heard PlaybackSpeed: Min->Max ramp for norm 0..1, then a gentler
+-- Endless climb toward Ceil (ball speed is uncapped past the last tier, so
+-- the tempo keeps lifting forever). TempoStepSt snaps the result to
+-- semitone steps — speed-ups land on real intervals, and the generator's
+-- beat predictions snap identically because they call the same function.
+function MusicGrid.playbackSpeedForNorm(norm: number): number
+	local n = math.max(norm, 0)
+	local ps = m.PlaybackSpeedMin + (m.PlaybackSpeedMax - m.PlaybackSpeedMin) * math.min(n, 1)
+	if n > 1 then
+		ps = math.min(m.PlaybackSpeedCeil, ps + (n - 1) * m.PlaybackSpeedEndless)
+	end
+	if m.TempoStepSt > 0 then
+		local st = math.floor(math.log(ps) / math.log(2) * 12 / m.TempoStepSt + 0.5) * m.TempoStepSt
+		ps = 2 ^ (st / 12)
+	end
+	return ps
+end
+
 -- PlaybackSpeed the music runs at while the ball travels `speed` studs/s —
--- the same mapping MusicController applies live.
+-- the same mapping MusicController applies live. norm is intentionally
+-- UNclamped: past Speed.Max the endless ramp keeps raising the tempo.
 function MusicGrid.playbackSpeedAt(speed: number): number
-	local norm = math.clamp((speed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
-	return m.PlaybackSpeedMin + (m.PlaybackSpeedMax - m.PlaybackSpeedMin) * norm
+	local norm = (speed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start)
+	return MusicGrid.playbackSpeedForNorm(norm)
 end
 
 -- Song-beats elapsed per stud traveled at `speed` studs/s:

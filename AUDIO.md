@@ -162,6 +162,15 @@ e.g. a `RoBallAudio` Folder in `PlayerGui`):
   `PitchCompensation = 0` keeps the current coupled chipmunk ramp;
   `1` locks pitch while tempo still climbs. **Default 0.5**: half the
   squeak, all the urgency. Tunable in `Config.Music`.
+- **Stepped tempo, not warble** — speed IS the tempo: `ps(norm)` ramps
+  `PlaybackSpeedMin→Max` over `Speed.Start→Max`, then keeps climbing at
+  `PlaybackSpeedEndless` per over-norm past it (speed is uncapped, so the
+  tempo lifts forever) up to `PlaybackSpeedCeil`. `TempoStepSt` snaps the
+  result to semitone steps — the song modulates up a real interval each
+  time the ball crosses a threshold (a key-lift, GD-style) — gliding in
+  over `TempoStepGlide` s. `MusicGrid.playbackSpeedForNorm` is the single
+  mapping both the live players and the generator's beat predictions use,
+  so gem spacing/section timing stay on the heard grid at any speed.
 - **`AudioFilter` lowpass on the bus** — the "underwater/tape" pass for
   menu + death (§7).
 - **`AudioAnalyzer` tap on the bus** — `SpectrumEnabled`, bands → visuals

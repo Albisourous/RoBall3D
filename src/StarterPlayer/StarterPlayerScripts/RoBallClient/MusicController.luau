@@ -26,6 +26,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local SongMap = require(ReplicatedStorage.RoBall.SongMap)
+local MusicGrid = require(ReplicatedStorage.RoBall.MusicGrid)
 
 local m = Config.Music
 
@@ -80,16 +81,33 @@ local function newPlayer(asset: string, looped: boolean): any
 end
 
 local function ps(): number
-	return m.PlaybackSpeedMin + (m.PlaybackSpeedMax - m.PlaybackSpeedMin) * norm
+	return MusicGrid.playbackSpeedForNorm(norm)
 end
+
+local lastPs: number = 0 -- last applied step; steps glide, holds are free
 
 local function applySpeed()
 	local speed = ps()
-	for _, p in ipairs(players) do
-		p.PlaybackSpeed = speed
-	end
-	if shifter then
-		shifter.Pitch = speed ^ -m.PitchCompensation
+	if speed ~= lastPs then
+		-- Tempo steps (Config.Music.TempoStepSt): a new step glides in over
+		-- TempoStepGlide — reads as a deliberate tempo/key lift, not warble.
+		local glide = lastPs == 0 and 0 or m.TempoStepGlide
+		for _, p in ipairs(players) do
+			if glide > 0 then
+				TweenService:Create(p, TweenInfo.new(glide, Enum.EasingStyle.Quad), { PlaybackSpeed = speed }):Play()
+			else
+				p.PlaybackSpeed = speed
+			end
+		end
+		if shifter then
+			local pitch = speed ^ -m.PitchCompensation
+			if glide > 0 then
+				TweenService:Create(shifter, TweenInfo.new(glide, Enum.EasingStyle.Quad), { Pitch = pitch }):Play()
+			else
+				shifter.Pitch = pitch
+			end
+		end
+		lastPs = speed
 	end
 	if windFader then
 		windFader.Volume = m.WindVolume * norm * norm
@@ -392,9 +410,10 @@ function Music.onMenu()
 	setFilter(m.MenuCutoffHz, m.FilterSweepTime)
 end
 
--- speedNorm 0..1 (ball fwdSpeed between Speed.Start and Speed.Max).
+-- speedNorm (ball fwdSpeed vs Speed.Start..Max). The top is UNclamped —
+-- endless speed ramps forever, so the tempo keeps lifting past norm 1.
 function Music.setSpeedNorm(n: number)
-	norm = math.clamp(n, 0, 1)
+	norm = math.max(n, 0)
 	applySpeed()
 end
 

@@ -169,11 +169,8 @@ local GEM_BOUND = 0.92 -- keep lines off the last sliver of deck
 
 -- Studs between gems for a pickup interval of `subdiv` beats at `speed`.
 local function beatSpacing(speed: number, subdiv: number, bpm: number?): number
-	local mn, mx = Config.Speed.Start, Config.Speed.Max
-	local norm = math.clamp((speed - mn) / (mx - mn), 0, 1)
-	local m = Config.Music
-	local ps = m.PlaybackSpeedMin + (m.PlaybackSpeedMax - m.PlaybackSpeedMin) * norm
-	local beat = 60 / ((bpm or m.BaseBpm) * ps)
+	local ps = MusicGrid.playbackSpeedAt(speed)
+	local beat = 60 / ((bpm or Config.Music.BaseBpm) * ps)
 	return speed * beat / subdiv
 end
 

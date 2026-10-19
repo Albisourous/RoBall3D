@@ -206,6 +206,9 @@ Config.Gems = {
 
 Config.Score = {
 	PointsPerMeter = 1,
+	-- PB ghost (DESIGN.md §11): a translucent "BEST n" gate floats on the
+	-- deck at your record's end distance — you race your own shadow.
+	PbMarkerMinDist = 150, -- meters — don't bother marking stub runs
 }
 
 Config.GemSfx = {
@@ -249,6 +252,10 @@ Config.GemFx = {
 	PopTime = 0.42,
 	RingSize = 8, -- final ring diameter in studs
 	RingTime = 0.32,
+	-- "+N" score float that rises off the pickup
+	PopupRise = 3, -- studs the popup climbs
+	PopupTime = 0.7,
+	PopupSize = 15, -- text px
 }
 
 Config.Music = {
@@ -308,6 +315,17 @@ Config.Music = {
 	BaseBpm = 88,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
+	-- Speed IS the tempo (AUDIO.md §4): heard BPM = map.bpm * PlaybackSpeed
+	-- and norm rides ball speed, so the song literally accelerates with the
+	-- ball. Past norm 1 (endless speed is uncapped) tempo keeps climbing at
+	-- this rate per unit of over-norm, floored at PlaybackSpeedCeil.
+	PlaybackSpeedEndless = 0.12,
+	PlaybackSpeedCeil = 1.6,
+	-- TempoStepSt snaps the heard tempo to N-semitone steps — speed-ups
+	-- land on real pitch intervals (a GD-style key lift, not tape warble)
+	-- and each step glides in over TempoStepGlide seconds. 0 = continuous.
+	TempoStepSt = 1,
+	TempoStepGlide = 0.3,
 	DeathPitchFloor = 0.6, -- pitch slides to this on death
 	-- AudioPitchShifter compensation (AUDIO.md §4): Pitch = ps^-k.
 	-- 0 = full chipmunk ramp (pitch+tempo coupled), 1 = pitch-locked while
