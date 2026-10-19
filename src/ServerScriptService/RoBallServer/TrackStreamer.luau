@@ -12,7 +12,7 @@ local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
-local DECK_COLOR = Color3.fromRGB(5, 7, 9) -- near-black deck; the neon grid carries the read
+local DECK_COLOR = Color3.fromRGB(10, 6, 16) -- purple-black deck; the neon grid carries the read
 local EDGE_W = 0.6
 local EDGE_H = 0.25
 local GRID_H = 0.08

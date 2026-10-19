@@ -1,7 +1,8 @@
 --!strict
 -- Palette (DESIGN.md §8.5): a single hue wheel cycled by distance. Edges,
--- gems, grid lines and tower outlines all sample it so the scene laps
--- lime -> green -> emerald as you go deeper — always the green family.
+-- grid lines and tower outlines all sample it so the scene laps
+-- magenta -> violet -> blue -> cyan — always the vaporwave family, never
+-- red (red is the reserved lethal color).
 
 local Config = require(script.Parent.Config)
 

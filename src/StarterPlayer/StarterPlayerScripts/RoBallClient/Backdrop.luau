@@ -1,8 +1,9 @@
 --!strict
--- Backdrop (DESIGN.md §12): wireframe city canyon — rows of dark towers
--- outlined in neon green flanking the track, recycled as the ball passes.
--- All parts are client-local: zero replication cost, and they read as
--- parallax scenery because they sit in world space while the ball flies past.
+-- Backdrop (DESIGN.md §12): vaporwave canyon — rows of dark towers
+-- outlined in palette neon flanking the track, plus a giant striped
+-- synthwave sun parked far down the slope. All parts are client-local:
+-- zero replication cost, and they read as parallax scenery because they
+-- sit in world space while the ball flies past.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,6 +16,8 @@ local rng = Random.new()
 local Backdrop = {}
 
 local root: Folder
+local sun: Model
+local sunStrips: { Part } = {}
 
 type Seg = { part: Part, outline: SelectionBox }
 type Tower = { segs: { Seg }, side: number, row: number }
@@ -22,7 +25,7 @@ local towers: { Tower } = {}
 -- Per (side,row) frontier: the z where the next recycled tower goes.
 local frontZ: { [string]: number } = {}
 
-local FACE_COLOR = Color3.fromRGB(3, 5, 4)
+local FACE_COLOR = Color3.fromRGB(8, 4, 14)
 
 local function makeSeg(parent: Instance): Seg
 	local p = Instance.new("Part")
@@ -78,10 +81,43 @@ local function layTower(tower: Tower, x: number, baseY: number, z: number, color
 	end
 end
 
+-- The synthwave sun is built once as a stack of horizontal strips:
+-- chord width follows the disk's circle, color slides orange -> magenta
+-- top to bottom, and the gaps between strips widen downward (the classic
+-- striped-sunset read).
+local function makeSun(parent: Instance): Model
+	local model = Instance.new("Model")
+	model.Name = "Sun"
+	local r = Art.SunRadius
+	for i = 1, Art.SunStrips do
+		-- Strip centers run from near the top (+0.9R) to below center
+		-- (-0.55R); the lowest sliver area is left open so the disk reads
+		-- as dissolving into the horizon.
+		local t = (i - 1) / math.max(Art.SunStrips - 1, 1)
+		local y = r * (0.9 - 1.45 * t)
+		local halfChord = math.sqrt(math.max(r * r - y * y, 0))
+		local h = Art.SunMaxStripH + (Art.SunMinStripH - Art.SunMaxStripH) * t
+		local strip = Instance.new("Part")
+		strip.Anchored = true
+		strip.CanCollide = false
+		strip.CastShadow = false
+		strip.Material = Enum.Material.Neon
+		strip.Color = Art.SunTopColor:Lerp(Art.SunBottomColor, t)
+		strip.Size = Vector3.new(halfChord * 2, h, Art.SunDepth)
+		strip.Position = Vector3.new(0, y, 0)
+		strip.Parent = model
+		table.insert(sunStrips, strip)
+	end
+	model.PrimaryPart = sunStrips[1]
+	model.Parent = parent
+	return model
+end
+
 function Backdrop.init()
 	root = Instance.new("Folder")
 	root.Name = "RoBallBackdrop"
 	root.Parent = workspace
+	sun = makeSun(root)
 	-- Towers are created parked and laid out on the first update, when the
 	-- ball's lane X is known (lanes sit at laneIndex * RowSpacing).
 	for side = -1, 1, 2 do
@@ -112,6 +148,13 @@ function Backdrop.update(anchor: Vector3)
 		end
 	end
 
+	-- The sun rides a fixed distance ahead and hugs the descending deck
+	-- plane, so it always hangs on the horizon like the end of the track.
+	if sun then
+		local deckAhead = anchor.Y - Config.Generation.Grade * Art.SunDist
+		sun:PivotTo(CFrame.new(anchor.X, deckAhead + Art.SunRadius * 0.35, anchor.Z - Art.SunDist))
+	end
+
 	-- Towers: recycle any that fell behind the anchor to the front of their
 	-- row, re-randomized. Static world-z between recycles = real parallax.
 	-- Bases follow the deck's downhill grade so the canyon hugs the slope.
@@ -123,7 +166,10 @@ function Backdrop.update(anchor: Vector3)
 			local x = anchor.X + tower.side * (Art.CityMinX + (tower.row - 1) * Art.CityRowDX + rng:NextNumber(0, 40))
 			local ahead = math.max(anchor.Z - z, 0)
 			local baseY = anchor.Y - Config.Generation.Grade * ahead - rng:NextNumber(8, 30)
-			local tint = Palette.dimAt(dist + ahead * 0.5, Art.CityValue / (1 + (tower.row - 1) * 0.35))
+			-- Hue jitter per tower so the skyline mixes cyan/magenta/violet
+			-- instead of marching in lockstep.
+			local tint =
+				Palette.dimAt(dist + ahead * 0.5 + rng:NextNumber(0, 300), Art.CityValue / (1 + (tower.row - 1) * 0.35))
 			layTower(tower, x, baseY, z, tint)
 		end
 	end

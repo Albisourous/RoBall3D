@@ -17,33 +17,36 @@ local SaveService = require(script.Parent.SaveService)
 
 Players.CharacterAutoLoads = false
 
--- Night-sky + post FX (DESIGN.md §12): pure-black void, neon bloom, faint
--- green-leaning grade, thin haze so the wireframe city fades with depth.
+-- Night-sky + post FX (DESIGN.md §12): deep-purple void, restrained neon
+-- bloom (only true Neon parts glow — no full-screen smear), magenta haze
+-- so the vaporwave city fades into the distance.
 local function applyEnvironment()
 	Lighting.ClockTime = 0 -- night: dark skybox + stars
 	Lighting.GeographicLatitude = 0
-	Lighting.Ambient = Color3.fromRGB(16, 22, 18)
-	Lighting.OutdoorAmbient = Color3.fromRGB(10, 16, 12)
+	Lighting.Ambient = Color3.fromRGB(30, 18, 42)
+	Lighting.OutdoorAmbient = Color3.fromRGB(20, 12, 32)
 
+	-- Restrained bloom: Threshold above 1 means only emissive Neon pixels
+	-- bloom; low intensity/size keeps edges crisp instead of blurry.
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 1.15
-	bloom.Size = 30
-	bloom.Threshold = 0.8
+	bloom.Intensity = 0.55
+	bloom.Size = 16
+	bloom.Threshold = 1.3
 	bloom.Parent = Lighting
 
 	local cc = Instance.new("ColorCorrectionEffect")
-	cc.Saturation = 0.12
-	cc.Contrast = 0.08
-	cc.TintColor = Color3.fromRGB(232, 255, 240)
+	cc.Saturation = 0.08
+	cc.Contrast = 0.05
+	cc.TintColor = Color3.fromRGB(255, 238, 252)
 	cc.Parent = Lighting
 
 	local atmo = Instance.new("Atmosphere")
-	atmo.Density = 0.18 -- thin haze: distant towers should dim, not vanish
+	atmo.Density = 0.25 -- light haze: distant towers dim, not vanish
 	atmo.Offset = 0 -- keep the haze floor at y=0 so descending track stays clear
-	atmo.Color = Color3.fromRGB(4, 10, 7)
-	atmo.Decay = Color3.fromRGB(3, 14, 8)
-	atmo.Glare = 0.5
-	atmo.Haze = 2
+	atmo.Color = Color3.fromRGB(48, 22, 68)
+	atmo.Decay = Color3.fromRGB(26, 10, 44)
+	atmo.Glare = 0
+	atmo.Haze = 1.5
 	atmo.Parent = Lighting
 end
 applyEnvironment()
@@ -135,21 +138,22 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
 
-	-- Slope ball: five engine-rendered wireframe rings (3 axial + 2 diagonal).
-	-- They ride the adornee's CFrame, so the cage visibly rolls with the ball.
+	-- Vaporwave ball: five engine-rendered wireframe rings (3 cyan axial +
+	-- 2 magenta diagonal). They ride the adornee's CFrame, so the cage
+	-- visibly rolls with the ball.
 	for _, rot in ipairs({
-		CFrame.Angles(0, 0, 0),
-		CFrame.Angles(math.rad(90), 0, 0),
-		CFrame.Angles(0, 0, math.rad(90)),
-		CFrame.Angles(math.rad(45), 0, math.rad(90)),
-		CFrame.Angles(math.rad(-45), 0, math.rad(90)),
+		{ rot = CFrame.Angles(0, 0, 0), color = Config.Art.RingA },
+		{ rot = CFrame.Angles(math.rad(90), 0, 0), color = Config.Art.RingA },
+		{ rot = CFrame.Angles(0, 0, math.rad(90)), color = Config.Art.RingA },
+		{ rot = CFrame.Angles(math.rad(45), 0, math.rad(90)), color = Config.Art.RingB },
+		{ rot = CFrame.Angles(math.rad(-45), 0, math.rad(90)), color = Config.Art.RingB },
 	}) do
 		local ring = Instance.new("CylinderHandleAdornment")
 		ring.Adornee = ball
-		ring.CFrame = rot
+		ring.CFrame = rot.rot
 		ring.Radius = d / 2 + 0.08
 		ring.Height = 0.14
-		ring.Color3 = Palette.neonAt(0)
+		ring.Color3 = rot.color
 		ring.Parent = ball
 	end
 

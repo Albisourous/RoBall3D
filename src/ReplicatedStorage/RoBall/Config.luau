@@ -141,8 +141,8 @@ Config.Gems = {
 	Spacing = 3, -- studs between gems in a cluster
 	FloatY = 1.6, -- default hover height above the deck
 	Size = 0.9, -- studs
-	-- Reserved gold: collectible, never lethal, and reads against the green
-	-- world (cyan was too close to the emerald palette).
+	-- Reserved gold: collectible, never lethal, and reads as the "sunset"
+	-- accent against the magenta/cyan world.
 	Color = Color3.fromRGB(255, 212, 64),
 }
 
@@ -160,11 +160,10 @@ Config.Music = {
 }
 
 Config.Palette = {
-	-- Slope-green hue wheel, cycled by distance. Neon elements sample this.
-	-- The whole wheel stays in the green family (lime -> green -> emerald)
-	-- so the world keeps the signature green-on-black read while still
-	-- drifting subtly as you descend.
-	HueStops = { 150, 120, 105, 135, 150 }, -- emerald -> green -> lime -> green -> emerald
+	-- Vaporwave hue wheel, cycled by distance. Neon elements sample this.
+	-- The wheel laps magenta -> violet -> blue -> cyan -> magenta — always
+	-- the synthwave family, never red (red is reserved for lethal geometry).
+	HueStops = { 315, 275, 225, 185, 315 }, -- magenta -> violet -> blue -> cyan -> magenta
 	CycleDistance = 600, -- meters per full hue lap
 	Saturation = 0.95,
 	NeonValue = 1.0,
@@ -172,8 +171,9 @@ Config.Palette = {
 
 -- Presentation (DESIGN.md §12). All decorative — zero gameplay effect.
 Config.Art = {
-	-- Wireframe city canyon (Slope look): rows of dark towers outlined in
-	-- neon green, flanking the track on both sides, recycled for parallax.
+	-- Retro-futuristic city canyon (vaporwave look): rows of dark towers
+	-- outlined in palette neon, flanking the track on both sides, recycled
+	-- for parallax.
 	CityRows = 2, -- depth layers per side
 	CityMinX = 55, -- innermost lateral offset from lane center
 	CityRowDX = 100, -- extra offset per row
@@ -189,6 +189,20 @@ Config.Art = {
 	CityValue = 0.7, -- palette value scale for tower outlines
 	CityFaceValue = 0.10, -- near-black face fill
 	LineThickness = 0.12, -- SelectionBox edge thickness
+	-- Synthwave sun: a striped neon disk parked far down the slope, riding
+	-- the descent so it always hangs on the horizon. Built from horizontal
+	-- strips (orange -> magenta) with gaps that widen toward the bottom.
+	SunDist = 900, -- studs ahead of the ball
+	SunRadius = 150,
+	SunStrips = 11,
+	SunDepth = 3, -- strip thickness along z
+	SunTopColor = Color3.fromRGB(255, 176, 64), -- hot orange crown
+	SunBottomColor = Color3.fromRGB(255, 46, 160), -- magenta base
+	SunMinStripH = 0.5, -- thinnest strips at the bottom (classic fade)
+	SunMaxStripH = 3.2, -- tallest strips near the top
+	-- Ball wireframe: axial rings cyan, diagonals magenta.
+	RingA = Color3.fromRGB(0, 230, 255),
+	RingB = Color3.fromRGB(255, 64, 190),
 	-- Ball dressing: fading trail (no point light — glow smears the
 	-- wireframe under bloom).
 	TrailLifetime = 0.4,
