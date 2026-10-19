@@ -286,8 +286,13 @@ changing the generator contract.
 
 Ball leaves track → Y drops below kill plane (`trackY - 15`) → run over
 instantly. Ball touches `LethalColor` geometry → same outcome server-side via
-`Touched`. Effects: music pitch slides to 0.6, camera pulls back, death
-screen. No lives, no shields — they were explicitly deferred.
+`Touched`. **Stall watchdog**: ball velocity is client-forced every frame, so
+a live ball can never sit still — a ball whose position is frozen for
+`Config.Death.StallSeconds` (past `StallGraceDist`) is wedged in geometry and
+killed like any other death, converting what would be a silent hang into a
+normal run-over + instant retry. Effects: music pitch slides to 0.6, camera
+pulls back, death screen. No lives, no shields — they were explicitly
+deferred.
 
 ## 12. Presentation
 

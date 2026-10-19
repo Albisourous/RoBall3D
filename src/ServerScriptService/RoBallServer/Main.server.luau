@@ -90,6 +90,8 @@ type Run = {
 	dist: number, -- studs traveled (-Z), drives score
 	gemPts: number, -- gem pickups this run
 	t0: number, -- os.clock() at start; feeds the plausibility cap
+	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
+	stillT: number, -- seconds the ball has been frozen in place
 }
 
 local runs: { [Player]: Run } = {}
@@ -194,7 +196,7 @@ local function plausible(run: Run, score: number): boolean
 	local maxDist = Config.Speed.Max * Config.Speed.ThrottleUp * elapsed * 1.15
 	local gemCap = math.ceil(run.dist / 30)
 		* Config.Gems.ClustersPerChunkMax
-		* Config.Gems.ClusterSize
+		* Config.Gems.ClusterSizes[1]
 		* Config.Gems.ValueGapArc
 	return score <= maxDist + math.max(gemCap, 100)
 end
@@ -229,8 +231,17 @@ local function startRun(player: Player)
 	local laneIndex = laneOf[player] or 0
 	local seed = resolveSeed(player)
 	local streamer = TrackStreamer.new(laneIndex, seed)
-	local run: Run =
-		{ laneIndex = laneIndex, streamer = streamer, ball = nil, seed = seed, dist = 0, gemPts = 0, t0 = os.clock() }
+	local run: Run = {
+		laneIndex = laneIndex,
+		streamer = streamer,
+		ball = nil,
+		seed = seed,
+		dist = 0,
+		gemPts = 0,
+		t0 = os.clock(),
+		lastPos = nil,
+		stillT = 0,
+	}
 	runs[player] = run
 
 	streamer.onFatalTouch = function(hit)
@@ -321,7 +332,7 @@ Players.PlayerRemoving:Connect(function(player)
 	bestOf[player] = nil
 end)
 
-RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function(dt)
 	for player, run in pairs(runs) do
 		local ball = run.ball
 		if ball and ball.Parent then
@@ -335,6 +346,23 @@ RunService.Heartbeat:Connect(function()
 				run.dist = d
 				writeScore(player, run)
 			end
+
+			-- Stall watchdog: the client force-sets ball velocity every frame,
+			-- so a live ball can never sit still — a frozen position means it
+			-- wedged into geometry and would otherwise hang the run forever
+			-- (the "score stops counting" freeze). dt clamp keeps an editor
+			-- hitch from counting against a healthy run.
+			local pos = ball.Position
+			if run.lastPos and (pos - run.lastPos).Magnitude < 0.05 then
+				run.stillT += math.min(dt, 0.25)
+				if run.stillT > Config.Death.StallSeconds and run.dist > Config.Death.StallGraceDist then
+					killRun(player, run)
+					continue
+				end
+			else
+				run.stillT = 0
+			end
+			run.lastPos = pos
 
 			if ball.Position.Y < run.streamer:yAt(z) - KILL_DROP then
 				killRun(player, run)

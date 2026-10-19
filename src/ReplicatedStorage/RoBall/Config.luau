@@ -44,6 +44,15 @@ Config.Camera = {
 	SmoothTime = 0.12,
 }
 
+Config.Death = {
+	-- Stall watchdog (DESIGN.md §11): ball velocity is client-driven every
+	-- frame, so a ball whose position stops changing is wedged in geometry —
+	-- a dead run, not a live one. Killing it turns a silent freeze into a
+	-- normal RUN OVER the player can instantly retry from.
+	StallSeconds = 1.2, -- position frozen this long = dead
+	StallGraceDist = 10, -- meters of travel before the watchdog arms (spawn settle)
+}
+
 Config.Generation = {
 	TravelAxis = Vector3.new(0, 0, -1), -- runs go toward -Z
 	ChunkMinLength = 30, -- studs
