@@ -4,6 +4,9 @@
 -- shell: purple-black, hot pink + cyan accents, big centered score.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.RoBall.Config)
 
 local Ui = {}
 Ui.__index = Ui
@@ -165,7 +168,10 @@ function Ui.new(): Ui
 	board.Name = "Leaderboard"
 	board.AnchorPoint = Vector2.new(1, 0.5)
 	board.Position = UDim2.fromScale(0.96, 0.5)
-	board.Size = UDim2.fromOffset(320, 420)
+	-- Row count tracks Config.Leaderboard.TopCount so the fetch and the
+	-- panel never disagree.
+	local TOP_N = Config.Leaderboard.TopCount
+	board.Size = UDim2.fromOffset(320, 58 + TOP_N * 25)
 	board.BackgroundColor3 = C_PANEL
 	board.BackgroundTransparency = 0.25
 	board.BorderSizePixel = 0
@@ -182,7 +188,7 @@ function Ui.new(): Ui
 	boardBody.Parent = board
 	vlist(boardBody, 4)
 	self.boardRows = {}
-	for i = 1, 10 do
+	for i = 1, TOP_N do
 		local row = label(boardBody, "", 15, F_DATA, i % 2 == 0 and C_CYAN or C_WHITE, i)
 		row.TextXAlignment = Enum.TextXAlignment.Left
 		row.TextTruncate = Enum.TextTruncate.AtEnd
@@ -348,7 +354,7 @@ function Ui:showMenu(best: number)
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
 	self.boostBar.Visible = false
-	self.bestLabel.Text = "BEST " .. tostring(best or 0)
+	self:setBest(best)
 end
 
 function Ui:showHud()
@@ -400,6 +406,10 @@ function Ui:showDeath(score: number, dist: number, gems: number, best: number, s
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
 	self.dBest.Text = "BEST " .. tostring(best)
 	self.dSeed.Text = "SEED " .. tostring(seed)
+end
+
+function Ui:setBest(best: number)
+	self.bestLabel.Text = "BEST " .. tostring(best or 0)
 end
 
 function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)

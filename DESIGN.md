@@ -407,8 +407,15 @@ Full spec: `AUDIO.md`. Binding decisions:
 - `RoBall3D_Best_v1` (DataStore): personal best `{score, dist, seed}`.
 - `RoBall3D_Profile_v1` (DataStore): equipped cosmetic ids per slot (§18).
 - `RoBall3D_TopRuns_v1` (OrderedDataStore): global top scores, shown in menu.
+  A `_Meta` store beside it holds `{seed, score}` per user, written only when
+  a run beats the stored top — the board row's seed is always the seed that
+  earned that score. The menu panel sizes its rows from
+  `Config.Leaderboard.TopCount` and the client refetches whenever the menu
+  shows, so a just-saved score is immediately visible.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.1` + gem cap sanity.
+- Personal-best save happens on kill and on `BindToClose` flush — a
+  `PlayerRemoving` task-spawned save alone can lose the race on server close.
 - Studio playtests need "Enable Studio API Access" ON for DataStore writes —
   noted for setup.
 

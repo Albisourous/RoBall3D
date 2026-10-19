@@ -223,13 +223,28 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
+-- Leaderboard rows: fetched on boot and refreshed every time the menu
+-- shows — otherwise a score saved this session stays invisible until
+-- rejoin. RemoteFunction yields, so it runs off the render thread.
+local function refreshBoard()
+	task.spawn(function()
+		local rows = fnGetLeaderboard:InvokeServer()
+		ui:setLeaderboard(rows)
+	end)
+end
+
+-- The saved best loads async after join; the boot-time showMenu reads the
+-- attribute before it lands, so push late arrivals onto the menu label.
+player:GetAttributeChangedSignal("RoBallBest"):Connect(function()
+	if mode == "menu" then
+		ui:setBest(player:GetAttribute("RoBallBest") or 0)
+	end
+end)
+
 Backdrop.init()
 Music.init()
 Sfx.init()
 GemFx.init()
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
-task.spawn(function()
-	local rows = fnGetLeaderboard:InvokeServer()
-	ui:setLeaderboard(rows)
-end)
+refreshBoard()
 print("[RoBall3D] P4 client online — menu/HUD/death + steering + chase cam")

@@ -345,6 +345,15 @@ Players.PlayerRemoving:Connect(function(player)
 	bestOf[player] = nil
 end)
 
+-- Shutdown flush: PlayerRemoving's task.spawn'd saveBest can lose the race
+-- on server close — BindToClose yields are awaited (up to the ~30s grace),
+-- so pending bests actually land.
+game:BindToClose(function()
+	for player, saved in pairs(bestOf) do
+		SaveService.saveBest(player.UserId, saved)
+	end
+end)
+
 RunService.Heartbeat:Connect(function(dt)
 	for player, run in pairs(runs) do
 		local ball = run.ball

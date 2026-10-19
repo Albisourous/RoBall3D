@@ -82,12 +82,13 @@ function SaveService.submitTop(userId: number, score: number, seed: number)
 			local old = (topStore :: OrderedDataStore):GetAsync(key)
 			if typeof(old) ~= "number" or score > old then
 				(topStore :: OrderedDataStore):SetAsync(key, score)
+				if metaStore then
+					-- Meta tracks the run that SET the top score — writing it
+					-- unconditionally would pair a best with a later run's
+					-- seed.
+					(metaStore :: DataStore):SetAsync(key, { seed = seed, score = score })
+				end
 			end
-		end)
-	end
-	if metaStore then
-		pcall(function()
-			(metaStore :: DataStore):SetAsync("u" .. userId, { seed = seed, score = score })
 		end)
 	end
 end
@@ -103,25 +104,35 @@ function SaveService.getTop(count: number): { { name: string, score: number, see
 	if not ok or not pages then
 		return {}
 	end
-	local rows = {}
-	for _, entry in ipairs(pages:GetCurrentPage()) do
-		local userId = tonumber((entry.key :: string):sub(2)) or 0
-		local name = "player" .. userId
-		pcall(function()
-			name = Players:GetNameFromUserIdAsync(userId)
-		end)
-		local seed = 0
-		if metaStore then
+	-- Name + meta lookups yield; run all rows in parallel so a 20-entry
+	-- board doesn't serialize ~40 datastore/name calls.
+	local entries = pages:GetCurrentPage()
+	local rows: { { name: string, score: number, seed: number }? } = table.create(#entries)
+	local remaining = #entries
+	for i, entry in ipairs(entries) do
+		task.spawn(function()
+			local userId = tonumber((entry.key :: string):sub(2)) or 0
+			local name = "player" .. userId
 			pcall(function()
-				local meta = (metaStore :: DataStore):GetAsync("u" .. userId)
-				if typeof(meta) == "table" and typeof(meta.seed) == "number" then
-					seed = meta.seed
-				end
+				name = Players:GetNameFromUserIdAsync(userId)
 			end)
-		end
-		table.insert(rows, { name = name, score = entry.value, seed = seed })
+			local seed = 0
+			if metaStore then
+				pcall(function()
+					local meta = (metaStore :: DataStore):GetAsync("u" .. userId)
+					if typeof(meta) == "table" and typeof(meta.seed) == "number" then
+						seed = meta.seed
+					end
+				end)
+			end
+			rows[i] = { name = name, score = entry.value, seed = seed }
+			remaining -= 1
+		end)
 	end
-	return rows
+	while remaining > 0 do
+		task.wait()
+	end
+	return rows :: { { name: string, score: number, seed: number } }
 end
 
 return SaveService
