@@ -222,22 +222,141 @@ function Ui.new(): Ui
 	subText.Parent = hud
 	self.subText = subText
 
-	-- Boost meter: thin bar under the subline. Cyan while charged/ready,
-	-- hot pink while actually boosting; sits empty when spent.
-	local boostTrack = Instance.new("Frame")
-	boostTrack.AnchorPoint = Vector2.new(0.5, 0)
-	boostTrack.Position = UDim2.new(0.5, 0, 0, 84)
-	boostTrack.Size = UDim2.fromOffset(220, 5)
-	boostTrack.BackgroundColor3 = C_PANEL
-	boostTrack.BackgroundTransparency = 0.4
-	boostTrack.BorderSizePixel = 0
-	boostTrack.Parent = hud
-	local boostFill = Instance.new("Frame")
-	boostFill.BackgroundColor3 = C_CYAN
-	boostFill.BorderSizePixel = 0
-	boostFill.Size = UDim2.fromScale(1, 1)
-	boostFill.Parent = boostTrack
-	self.boostFill = boostFill
+	--================= SPEEDOMETER (bottom-right) =================--
+	-- Neon-ring tach (DESIGN.md §12): 270° dial, 0-100 main sweep in cyan,
+	-- overshoot arc 100+ in hot magenta, inner ring = boost charge.
+	-- Big digital readout — the gauge sells the fantasy, the number is truth.
+	local spd = Instance.new("Frame")
+	spd.Name = "Speedo"
+	spd.AnchorPoint = Vector2.new(1, 1)
+	spd.Position = UDim2.new(1, -16, 1, -14)
+	spd.Size = UDim2.fromOffset(226, 226)
+	spd.BackgroundTransparency = 1
+	spd.Visible = false
+	spd.Parent = gui
+	self.speedo = spd
+
+	local R_OUT = 96 -- main arc radius
+	local R_BOOST = 74 -- inner boost ring radius
+	local A0 = -135 -- dial zero angle (deg, 7 o'clock)
+	local A100 = 85 -- angle at 100 s/s
+	local AMAX = 135 -- needle hard stop (deg, 5 o'clock)
+	local OVR_TOP = 240 -- s/s mapped onto the overshoot arc's end
+
+	-- A spoke: invisible arm rotated at the dial center, child mark placed
+	-- `r` px up. Parent rotation does the geometry — no trig per element.
+	local function spoke(parent: Instance, r: number): Frame
+		local arm = Instance.new("Frame")
+		arm.BackgroundTransparency = 1
+		arm.AnchorPoint = Vector2.new(0.5, 0.5)
+		arm.Position = UDim2.fromScale(0.5, 0.5)
+		arm.Size = UDim2.fromOffset(0, 0)
+		arm.Parent = parent
+		local mark = Instance.new("Frame")
+		mark.AnchorPoint = Vector2.new(0.5, 0.5)
+		mark.Position = UDim2.fromOffset(0, -r)
+		mark.BorderSizePixel = 0
+		mark.Parent = arm
+		return mark, arm
+	end
+	local function seg(a: number, r: number, len: number, thick: number, col: Color3, parent: Instance): Frame
+		local mark, arm = spoke(parent, r)
+		mark.Size = UDim2.fromOffset(thick, len)
+		mark.BackgroundColor3 = col
+		arm.Rotation = a
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(1, 0)
+		c.Parent = mark
+		return mark
+	end
+
+	-- Main arc: cyan pills 0→100 (each = 10 s/s), overshoot pills past the
+	-- 100 tick in pink — the "beyond the bar" zone the needle travels into.
+	local arcA = (A100 - A0) / 22
+	for i = 0, 22 do
+		seg(A0 + i * arcA, R_OUT, 11, 4, C_CYAN, spd)
+	end
+	self.ovrSegs = {}
+	local ovrA = (AMAX - A100) / 5
+	for i = 1, 5 do
+		local s = seg(A100 + i * ovrA, R_OUT, 13, 5, C_PINK, spd)
+		table.insert(self.ovrSegs, s)
+	end
+	-- Major ticks + upright labels at 0 / 50 / 100 / 100+. Labels use
+	-- sin/cos placement (not arm rotation) so the text never tilts.
+	local function arcLabel(a: number, text: string, col: Color3)
+		local rad = math.rad(a)
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = UDim2.new(0.5, math.sin(rad) * (R_OUT + 17), 0.5, -math.cos(rad) * (R_OUT + 17))
+		l.Size = UDim2.fromOffset(40, 14)
+		l.Font = F_DATA
+		l.TextSize = 12
+		l.TextColor3 = col
+		l.Text = text
+		l.Parent = spd
+	end
+	for _, t in ipairs({ { 0, "0" }, { 50, "50" }, { 100, "100" } }) do
+		local a = A0 + (t[1] / 100) * (A100 - A0)
+		seg(a, R_OUT, 20, 5, C_WHITE, spd)
+		arcLabel(a, t[2], C_DIM)
+	end
+	arcLabel(AMAX, "100+", C_PINK)
+
+	-- Needle: pink arm pivoting at center; turns gold while boosting.
+	local needle, needleArm = spoke(spd, R_OUT - 16)
+	needle.AnchorPoint = Vector2.new(0.5, 1)
+	needle.Position = UDim2.fromOffset(0, 0)
+	needle.Size = UDim2.fromOffset(3, R_OUT - 16)
+	needle.BackgroundColor3 = C_PINK
+	needleArm.Rotation = A0
+	local hub = Instance.new("Frame")
+	hub.AnchorPoint = Vector2.new(0.5, 0.5)
+	hub.Position = UDim2.fromScale(0.5, 0.5)
+	hub.Size = UDim2.fromOffset(10, 10)
+	hub.BackgroundColor3 = C_WHITE
+	hub.BorderSizePixel = 0
+	hub.Parent = spd
+	local hc = Instance.new("UICorner")
+	hc.CornerRadius = UDim.new(1, 0)
+	hc.Parent = hub
+	self.needleArm = needleArm
+	self.needle = needle
+	self.spdA = { A0 = A0, A100 = A100, AMAX = AMAX, OVR_TOP = OVR_TOP }
+
+	-- Inner boost ring: 10 slots around the dial's bottom half. Lit cyan =
+	-- charge; pink while boosting; dark when spent.
+	self.boostSegs = {}
+	for i = 1, 10 do
+		local a = A0 + (i - 0.5) / 10 * (AMAX - A0)
+		local s = seg(a, R_BOOST, 8, 5, C_PANEL, spd)
+		s.BackgroundTransparency = 0.3
+		table.insert(self.boostSegs, s)
+	end
+
+	-- Digital readout: big number center-lower, unit under it.
+	local digits = Instance.new("TextLabel")
+	digits.BackgroundTransparency = 1
+	digits.AnchorPoint = Vector2.new(0.5, 0.5)
+	digits.Position = UDim2.new(0.5, 0, 0.5, 26)
+	digits.Size = UDim2.fromOffset(140, 44)
+	digits.Font = F_DATA
+	digits.TextSize = 40
+	digits.TextColor3 = C_WHITE
+	digits.Text = "0"
+	digits.Parent = spd
+	self.spdDigits = digits
+	local unit = Instance.new("TextLabel")
+	unit.BackgroundTransparency = 1
+	unit.AnchorPoint = Vector2.new(0.5, 0.5)
+	unit.Position = UDim2.new(0.5, 0, 0.5, 52)
+	unit.Size = UDim2.fromOffset(80, 14)
+	unit.Font = F_DATA
+	unit.TextSize = 11
+	unit.TextColor3 = C_DIM
+	unit.Text = "s/s"
+	unit.Parent = spd
 
 	--============================ DEATH =============================--
 	local death = Instance.new("Frame")
@@ -279,6 +398,7 @@ function Ui:showMenu(best: number)
 	self.menu.Visible = true
 	self.death.Visible = false
 	self.hud.Visible = false
+	self.speedo.Visible = false
 	self.bestLabel.Text = "BEST " .. tostring(best or 0)
 end
 
@@ -286,21 +406,48 @@ function Ui:showHud()
 	self.menu.Visible = false
 	self.death.Visible = false
 	self.hud.Visible = true
+	self.speedo.Visible = true
 end
 
-function Ui:setHud(score: number, dist: number, gems: number, speed: number, seed: number)
+function Ui:setHud(score: number, dist: number, gems: number, _speed: number, seed: number)
 	self.scoreText.Text = tostring(score)
-	self.subText.Text = string.format("%d m  ·  gems +%d  ·  %d s/s  ·  seed %d", dist, gems, speed, seed)
+	-- Speed lives on the dial now; the subline stays quiet.
+	self.subText.Text = string.format("%d m  ·  gems +%d  ·  seed %d", dist, gems, seed)
 end
 
-function Ui:setBoost(frac: number, boosting: boolean)
-	self.boostFill.Size = UDim2.fromScale(math.clamp(frac, 0, 1), 1)
-	self.boostFill.BackgroundColor3 = boosting and C_PINK or C_CYAN
+-- Speedometer + boost ring, called every heartbeat during a run.
+function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean)
+	local a = self.spdA
+	-- 0-100 sweeps the cyan arc; past 100 the needle walks the pink
+	-- overshoot arc (compressed so deep runs still have travel).
+	local ang
+	if speed <= 100 then
+		ang = a.A0 + (speed / 100) * (a.A100 - a.A0)
+	else
+		ang = a.A100 + math.min(1, (speed - 100) / (a.OVR_TOP - 100)) * (a.AMAX - a.A100)
+	end
+	self.needleArm.Rotation = ang
+	self.needle.BackgroundColor3 = boosting and C_GOLD or C_PINK
+	self.spdDigits.Text = tostring(math.floor(speed + 0.5))
+	self.spdDigits.TextColor3 = speed > 100 and C_PINK or C_WHITE
+
+	-- Overshoot arc breathes while pegged past 100.
+	local pulse = speed > 100 and (0.1 + 0.12 * math.sin(tick() * 7)) or 0.45
+	for _, s in ipairs(self.ovrSegs) do
+		s.BackgroundTransparency = pulse
+	end
+	-- Boost ring: one slot per 10% charge — cyan ready, pink while boosting.
+	for i, s in ipairs(self.boostSegs) do
+		local lit = boostFrac >= i / 10 - 1e-3
+		s.BackgroundColor3 = lit and (boosting and C_PINK or C_CYAN) or C_PANEL
+		s.BackgroundTransparency = lit and 0 or 0.5
+	end
 end
 
 function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number)
 	self.menu.Visible = false
 	self.hud.Visible = false
+	self.speedo.Visible = false
 	self.death.Visible = true
 	self.dScore.Text = "SCORE " .. tostring(score)
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)

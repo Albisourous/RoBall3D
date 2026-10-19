@@ -164,7 +164,7 @@ RunService.Heartbeat:Connect(function(dt)
 	-- boost has to FEEL like a kick, not a suggestion.
 	local fwdAccel = Config.Speed.Accel * (boosting and Config.Boost.AccelMult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
-	ui:setBoost(boostCharge, boosting)
+	ui:setSpeedo(fwdSpeed, boostCharge, boosting)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity

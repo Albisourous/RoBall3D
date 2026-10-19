@@ -352,8 +352,11 @@ deferred.
 - **Obstacles**: near-black bodies with red `SelectionBox` edge outlines —
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
-- **HUD**: one big pink score centered at the top; distance/speed/seed on a
-  dim lavender subline.
+- **HUD**: one big pink score centered at the top; distance/gems/seed on a
+  dim lavender subline. Bottom-right is a **neon-ring speedometer**: a
+  270° cyan dial (0–100), a magenta overshoot arc past the 100 tick that
+  pulses while the needle is pegged deep, a centered digital readout, and
+  an inner 10-slot ring that doubles as the boost charge meter.
 - **Post FX**: restrained `BloomEffect` (Intensity 0.55, Size 16, Threshold
   1.3 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur), subtle `ColorCorrection`, `Atmosphere` density
