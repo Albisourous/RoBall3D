@@ -30,6 +30,13 @@ never inline magic numbers in gameplay code.
 3. **Playtest loop**: `start_stop_play` → `get_console_output` → assert via
    `execute_luau` (Server datamodel during play) → `start_stop_play` to stop.
    "Edit" datamodel calls are rejected while playing.
+4. **`studio_id` rotates** on every play/stop transition — re-run
+   `list_roblox_studios` if a call says the instance isn't connected.
+5. **`workspace.StreamingEnabled` is OFF** (set in Edit mode). With
+   `CharacterAutoLoads = false` there is no character, so streaming never
+   delivers parts to the client — and RemoteEvent args that reference
+   unreplicated instances arrive as nil. Client code finds its ball by name in
+   Workspace (`<player>_Ball`) instead of trusting remote args.
 4. **Generation must stay pure & seeded.** `GenCore` takes `Random` and emits
    chunk specs — no `math.random`, no Instance creation inside it. Determinism
    is a leaderboard feature.
