@@ -45,8 +45,15 @@ stylua --check src/ && selene src/ && rojo build -o build/RoBall3D.rbxl
 Then an MCP playtest: start play, read console output for errors, capture a
 screenshot of the result.
 
-## Repo
+## Repo & deploy
 
 - Push to `origin/main`. Commits: `Albisourous
   <43053302+Albisourous@users.noreply.github.com>`, no co-author trailers.
 - `.rbxl`/`.rbxlx` binaries are gitignored — source of truth is `src/`.
+- Live experience: universe `10771950941`, root place `RoBall3D`
+  (placeId `129613959669994`). Open it in Studio via
+  `roblox-studio:1+launchmode:edit+task:EditPlace+placeId:129613959669994`.
+  Publish goes there via File → Publish.
+- Dev sync: `rojo serve` + Rojo Studio plugin (installed at
+  `~/Documents/Roblox/Plugins/RojoManagedPlugin.rbxm`, click its Connect
+  button once per session).
