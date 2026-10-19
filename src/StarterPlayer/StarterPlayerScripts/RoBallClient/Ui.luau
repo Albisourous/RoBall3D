@@ -222,244 +222,88 @@ function Ui.new(): Ui
 	subText.Parent = hud
 	self.subText = subText
 
-	--================= SPEEDOMETER (bottom-right) =================--
-	-- Neon-ring tach (DESIGN.md §12): 270° dial, 0-100 main sweep in cyan,
-	-- overshoot arc 100+ in hot magenta, inner ring = boost charge.
-	-- Big digital readout — the gauge sells the fantasy, the number is truth.
-	local spd = Instance.new("Frame")
-	spd.Name = "Speedo"
-	spd.AnchorPoint = Vector2.new(0.5, 1)
-	spd.Position = UDim2.new(0.72, 0, 1, -12)
-	spd.Size = UDim2.fromOffset(226, 226)
-	spd.BackgroundTransparency = 1
-	spd.Visible = false
-	spd.Parent = gui
-	self.speedo = spd
+	--=========== SPEED + BOOST (bottom corners) ===========--
+	-- Minimal vaporwave readout (DESIGN.md §12): the speed NUMBER is the
+	-- meter — it gradients cyan -> violet -> magenta as speed climbs and
+	-- snaps hot red past 100. No dial chrome; the digit does the work.
+	local spdNum = Instance.new("TextLabel")
+	spdNum.Name = "SpeedNum"
+	spdNum.AnchorPoint = Vector2.new(1, 1)
+	spdNum.Position = UDim2.new(0.82, 0, 1, -18)
+	spdNum.Size = UDim2.fromOffset(180, 62)
+	spdNum.BackgroundTransparency = 1
+	spdNum.Font = F_DATA
+	spdNum.TextSize = 56
+	spdNum.TextColor3 = C_CYAN
+	spdNum.TextStrokeTransparency = 0.55
+	spdNum.TextXAlignment = Enum.TextXAlignment.Right
+	spdNum.Text = "0"
+	spdNum.Visible = false
+	spdNum.Parent = gui
+	self.spdNum = spdNum
+	local numGrad = Instance.new("UIGradient")
+	numGrad.Rotation = 90
+	numGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 150, 255))
+	numGrad.Parent = spdNum
 
-	-- F-Zero pod chrome: a dark tilted housing disk, neon bezel, and
-	-- slanted vent slits — dresses a bare dial into a retro-future
-	-- dashboard pod. Drawn first so it sits behind the gauge parts.
-	local function podChrome(parent: Instance, rim: Color3, mirror: boolean)
-		local disk = Instance.new("Frame")
-		disk.AnchorPoint = Vector2.new(0.5, 0.5)
-		disk.Position = UDim2.fromScale(0.5, 0.52)
-		disk.Size = UDim2.fromOffset(214, 214)
-		disk.BackgroundColor3 = C_BG
-		disk.BackgroundTransparency = 0.16
-		disk.BorderSizePixel = 0
-		disk.Rotation = mirror and 4 or -4
-		disk.Parent = parent
-		local duc = Instance.new("UICorner")
-		duc.CornerRadius = UDim.new(0.16, 0)
-		duc.Parent = disk
-		local bezel = Instance.new("UIStroke")
-		bezel.Color = rim
-		bezel.Thickness = 2.5
-		bezel.Transparency = 0.15
-		bezel.Parent = disk
-		-- Inner bezel circle — the recessed instrument well.
-		local well = Instance.new("Frame")
-		well.AnchorPoint = Vector2.new(0.5, 0.5)
-		well.Position = UDim2.fromScale(0.5, 0.5)
-		well.Size = UDim2.fromOffset(196, 196)
-		well.BackgroundColor3 = Color3.fromRGB(4, 2, 8)
-		well.BackgroundTransparency = 0.25
-		well.BorderSizePixel = 0
-		well.Parent = parent
-		local wuc = Instance.new("UICorner")
-		wuc.CornerRadius = UDim.new(1, 0)
-		wuc.Parent = well
-		local wring = Instance.new("UIStroke")
-		wring.Color = rim
-		wring.Thickness = 1.5
-		wring.Transparency = 0.4
-		wring.Parent = well
-		-- Vent slits along the pod's top edge — pure F-Zero garnish.
-		local dir = mirror and -1 or 1
-		for i = 0, 2 do
-			local v = Instance.new("Frame")
-			v.AnchorPoint = Vector2.new(0.5, 0.5)
-			v.Position = UDim2.new(0.5, dir * (56 + i * 20), 0, 12)
-			v.Size = UDim2.fromOffset(16, 5)
-			v.Rotation = dir * -28
-			v.BackgroundColor3 = rim
-			v.BackgroundTransparency = 0.35
-			v.BorderSizePixel = 0
-			v.Parent = parent
-			local vc = Instance.new("UICorner")
-			vc.CornerRadius = UDim.new(1, 0)
-			vc.Parent = v
-		end
-	end
-	podChrome(spd, C_CYAN, false)
+	local spdUnit = Instance.new("TextLabel")
+	spdUnit.AnchorPoint = Vector2.new(1, 1)
+	spdUnit.Position = UDim2.new(0.82, 0, 1, -8)
+	spdUnit.Size = UDim2.fromOffset(180, 14)
+	spdUnit.BackgroundTransparency = 1
+	spdUnit.Font = F_DATA
+	spdUnit.TextSize = 12
+	spdUnit.TextColor3 = C_DIM
+	spdUnit.TextXAlignment = Enum.TextXAlignment.Right
+	spdUnit.Text = "S/S"
+	spdUnit.Visible = false
+	spdUnit.Parent = gui
+	self.spdUnit = spdUnit
 
-	local R_OUT = 96 -- main arc radius
-	local A0 = -135 -- dial zero angle (deg, 7 o'clock)
-	local A100 = 85 -- angle at 100 s/s
-	local AMAX = 135 -- needle hard stop (deg, 5 o'clock)
-	local OVR_TOP = 240 -- s/s mapped onto the overshoot arc's end
-
-	-- A spoke: invisible arm rotated at the dial center, child mark placed
-	-- `r` px up. Parent rotation does the geometry — no trig per element.
-	local function spoke(parent: Instance, r: number): Frame
-		local arm = Instance.new("Frame")
-		arm.BackgroundTransparency = 1
-		arm.AnchorPoint = Vector2.new(0.5, 0.5)
-		arm.Position = UDim2.fromScale(0.5, 0.5)
-		arm.Size = UDim2.fromOffset(0, 0)
-		arm.Parent = parent
-		local mark = Instance.new("Frame")
-		mark.AnchorPoint = Vector2.new(0.5, 0.5)
-		mark.Position = UDim2.fromOffset(0, -r)
-		mark.BorderSizePixel = 0
-		mark.Parent = arm
-		return mark, arm
-	end
-	local function seg(a: number, r: number, len: number, thick: number, col: Color3, parent: Instance): Frame
-		local mark, arm = spoke(parent, r)
-		mark.Size = UDim2.fromOffset(thick, len)
-		mark.BackgroundColor3 = col
-		arm.Rotation = a
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(1, 0)
-		c.Parent = mark
-		return mark
-	end
-
-	-- Main arc: cyan pills 0→100 (each = 10 s/s), overshoot pills past the
-	-- 100 tick in pink — the "beyond the bar" zone the needle travels into.
-	local arcA = (A100 - A0) / 22
-	for i = 0, 22 do
-		seg(A0 + i * arcA, R_OUT, 11, 4, C_CYAN, spd)
-	end
-	self.ovrSegs = {}
-	local ovrA = (AMAX - A100) / 5
-	for i = 1, 5 do
-		local s = seg(A100 + i * ovrA, R_OUT, 13, 5, C_PINK, spd)
-		table.insert(self.ovrSegs, s)
-	end
-	-- Major ticks + upright labels at 0 / 50 / 100 / 100+. Labels use
-	-- sin/cos placement (not arm rotation) so the text never tilts.
-	local function arcLabel(a: number, text: string, col: Color3)
-		local rad = math.rad(a)
-		local l = Instance.new("TextLabel")
-		l.BackgroundTransparency = 1
-		l.AnchorPoint = Vector2.new(0.5, 0.5)
-		l.Position = UDim2.new(0.5, math.sin(rad) * (R_OUT + 17), 0.5, -math.cos(rad) * (R_OUT + 17))
-		l.Size = UDim2.fromOffset(40, 14)
-		l.Font = F_DATA
-		l.TextSize = 12
-		l.TextColor3 = col
-		l.Text = text
-		l.Parent = spd
-	end
-	for _, t in ipairs({ { 0, "0" }, { 50, "50" }, { 100, "100" } }) do
-		local a = A0 + (t[1] / 100) * (A100 - A0)
-		seg(a, R_OUT, 20, 5, C_WHITE, spd)
-		arcLabel(a, t[2], C_DIM)
-	end
-	arcLabel(AMAX, "100+", C_PINK)
-
-	-- Needle: pink arm pivoting at center; turns gold while boosting.
-	local needle, needleArm = spoke(spd, R_OUT - 16)
-	needle.AnchorPoint = Vector2.new(0.5, 1)
-	needle.Position = UDim2.fromOffset(0, 0)
-	needle.Size = UDim2.fromOffset(3, R_OUT - 16)
-	needle.BackgroundColor3 = C_PINK
-	needleArm.Rotation = A0
-	local hub = Instance.new("Frame")
-	hub.AnchorPoint = Vector2.new(0.5, 0.5)
-	hub.Position = UDim2.fromScale(0.5, 0.5)
-	hub.Size = UDim2.fromOffset(10, 10)
-	hub.BackgroundColor3 = C_WHITE
-	hub.BorderSizePixel = 0
-	hub.Parent = spd
-	local hc = Instance.new("UICorner")
-	hc.CornerRadius = UDim.new(1, 0)
-	hc.Parent = hub
-	self.needleArm = needleArm
-	self.needle = needle
-	self.spdA = { A0 = A0, A100 = A100, AMAX = AMAX, OVR_TOP = OVR_TOP }
-
-	-- Digital readout: big number center-lower, unit under it.
-	local digits = Instance.new("TextLabel")
-	digits.BackgroundTransparency = 1
-	digits.AnchorPoint = Vector2.new(0.5, 0.5)
-	digits.Position = UDim2.new(0.5, 0, 0.5, 26)
-	digits.Size = UDim2.fromOffset(140, 44)
-	digits.Font = F_DATA
-	digits.TextSize = 44
-	digits.TextColor3 = C_WHITE
-	digits.TextStrokeTransparency = 0.55
-	digits.Text = "0"
-	digits.Parent = spd
-	self.spdDigits = digits
-	local unit = Instance.new("TextLabel")
-	unit.BackgroundTransparency = 1
-	unit.AnchorPoint = Vector2.new(0.5, 0.5)
-	unit.Position = UDim2.new(0.5, 0, 0.5, 52)
-	unit.Size = UDim2.fromOffset(80, 14)
-	unit.Font = F_DATA
-	unit.TextSize = 11
-	unit.TextColor3 = C_DIM
-	unit.Text = "s/s"
-	unit.Parent = spd
-
-	--================== BOOST GAUGE (bottom-left) ==================--
-	-- Mirrored twin of the speedo: a fill-arc resource gauge, not a needle —
-	-- nitro reads as stored energy in every retro racer. Cyan slots = charge;
-	-- they flare pink while boosting; a gold tick marks the recharge gate.
-	local bst = Instance.new("Frame")
-	bst.Name = "BoostGauge"
-	bst.AnchorPoint = Vector2.new(0.5, 1)
-	bst.Position = UDim2.new(0.28, 0, 1, -12)
-	bst.Size = UDim2.fromOffset(226, 226)
-	bst.BackgroundTransparency = 1
-	bst.Visible = false
-	bst.Parent = gui
-	self.boostGauge = bst
-	podChrome(bst, C_PINK, true)
-
-	local B_R = 80 -- slot arc radius
-	local B_A0 = 135 -- empty sits at 5 o'clock — faces the speedo's zero
-	local B_SWEEP = 220 -- sweeps counter-clockwise (mirror of the speedo)
-	local B_N = 14
-	self.boostSegs = {}
-	for i = 1, B_N do
-		local a = B_A0 - (i - 0.5) / B_N * B_SWEEP
-		local s = seg(a, B_R, 13, 5, C_PANEL, bst)
-		s.BackgroundTransparency = 0.4
-		table.insert(self.boostSegs, s)
-	end
-	-- Gold gate tick is drawn lazily once Main tells us RechargeGate.
-	self.gateFrac = nil :: number?
-	self._gateDrawn = false
-	self._segFn = seg
-	self._bstFrame = bst
-	self._bstA = { A0 = B_A0, SWEEP = B_SWEEP, R = B_R, N = B_N }
-
-	local bHead = Instance.new("TextLabel")
-	bHead.BackgroundTransparency = 1
-	bHead.AnchorPoint = Vector2.new(0.5, 0.5)
-	bHead.Position = UDim2.new(0.5, 0, 0.5, -6)
-	bHead.Size = UDim2.fromOffset(120, 16)
-	bHead.Font = F_DATA
-	bHead.TextSize = 11
-	bHead.TextColor3 = C_DIM
-	bHead.Text = "BOOST"
-	bHead.Parent = bst
-	local bState = Instance.new("TextLabel")
-	bState.BackgroundTransparency = 1
-	bState.AnchorPoint = Vector2.new(0.5, 0.5)
-	bState.Position = UDim2.new(0.5, 0, 0.5, 18)
-	bState.Size = UDim2.fromOffset(140, 38)
-	bState.Font = F_DATA
-	bState.TextSize = 30
-	bState.TextColor3 = C_CYAN
-	bState.TextStrokeTransparency = 0.55
-	bState.Text = "READY"
-	bState.Parent = bst
-	self.boostState = bState
+	-- Boost bar: a glanceable horizontal nitro bar. Cyan fill over a dark
+	-- track, gold gate tick at RechargeGate, flares pink while boosting,
+	-- blinks while latched out.
+	local bWrap = Instance.new("Frame")
+	bWrap.Name = "BoostBar"
+	bWrap.AnchorPoint = Vector2.new(0, 1)
+	bWrap.Position = UDim2.new(0.18, 0, 1, -22)
+	bWrap.Size = UDim2.fromOffset(220, 16)
+	bWrap.BackgroundColor3 = C_BG
+	bWrap.BackgroundTransparency = 0.25
+	bWrap.BorderSizePixel = 0
+	bWrap.Visible = false
+	bWrap.Parent = gui
+	self.boostBar = bWrap
+	local bStroke = Instance.new("UIStroke")
+	bStroke.Color = C_CYAN
+	bStroke.Thickness = 1.5
+	bStroke.Transparency = 0.35
+	bStroke.Parent = bWrap
+	local bFill = Instance.new("Frame")
+	bFill.BackgroundColor3 = C_CYAN
+	bFill.BorderSizePixel = 0
+	bFill.Size = UDim2.fromScale(1, 1)
+	bFill.Parent = bWrap
+	self.boostFill = bFill
+	local bGate = Instance.new("Frame") -- gate tick; positioned by gateFrac
+	bGate.AnchorPoint = Vector2.new(0.5, 0)
+	bGate.Position = UDim2.fromScale(0.35, 0)
+	bGate.Size = UDim2.fromOffset(2, 16)
+	bGate.BackgroundColor3 = C_GOLD
+	bGate.BorderSizePixel = 0
+	bGate.Parent = bWrap
+	self.boostGate = bGate
+	local bLab = Instance.new("TextLabel")
+	bLab.AnchorPoint = Vector2.new(0, 1)
+	bLab.Position = UDim2.fromOffset(0, -3)
+	bLab.Size = UDim2.fromOffset(220, 13)
+	bLab.BackgroundTransparency = 1
+	bLab.Font = F_DATA
+	bLab.TextSize = 11
+	bLab.TextColor3 = C_DIM
+	bLab.TextXAlignment = Enum.TextXAlignment.Left
+	bLab.Text = "BOOST  ·  W"
+	bLab.Parent = bWrap
 
 	--============================ DEATH =============================--
 	local death = Instance.new("Frame")
@@ -501,8 +345,9 @@ function Ui:showMenu(best: number)
 	self.menu.Visible = true
 	self.death.Visible = false
 	self.hud.Visible = false
-	self.speedo.Visible = false
-	self.boostGauge.Visible = false
+	self.spdNum.Visible = false
+	self.spdUnit.Visible = false
+	self.boostBar.Visible = false
 	self.bestLabel.Text = "BEST " .. tostring(best or 0)
 end
 
@@ -510,8 +355,9 @@ function Ui:showHud()
 	self.menu.Visible = false
 	self.death.Visible = false
 	self.hud.Visible = true
-	self.speedo.Visible = true
-	self.boostGauge.Visible = true
+	self.spdNum.Visible = true
+	self.spdUnit.Visible = true
+	self.boostBar.Visible = true
 end
 
 function Ui:setHud(score: number, dist: number, gems: number, _speed: number, seed: number)
@@ -520,52 +366,35 @@ function Ui:setHud(score: number, dist: number, gems: number, _speed: number, se
 	self.subText.Text = string.format("%d m  ·  gems +%d  ·  seed %d", dist, gems, seed)
 end
 
--- Speedometer + boost gauge, called every heartbeat during a run.
+-- Speed number + boost bar, called every heartbeat during a run.
+-- The digit's hue IS the speed read: cyan 0 -> magenta 100 -> hot red
+-- pegged past it. The boost bar pulses pink while W is held and blinks
+-- while the meter is latched out below RechargeGate.
 function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boostSpent: boolean)
-	local a = self.spdA
-	-- 0-100 sweeps the cyan arc; past 100 the needle walks the pink
-	-- overshoot arc (compressed so deep runs still have travel).
-	local ang
-	if speed <= 100 then
-		ang = a.A0 + (speed / 100) * (a.A100 - a.A0)
+	self.spdNum.Text = tostring(math.floor(speed + 0.5))
+	if speed >= 100 then
+		-- Over the line: flat hot red, pulsing so it reads as "pegged".
+		local v = 0.85 + 0.15 * math.sin(tick() * 9)
+		self.spdNum.TextColor3 = Color3.fromRGB(255, 40, 60):Lerp(Color3.fromRGB(255, 120, 140), v)
 	else
-		ang = a.A100 + math.min(1, (speed - 100) / (a.OVR_TOP - 100)) * (a.AMAX - a.A100)
+		-- Gradient hue cyan(0.53) -> violet(0.75) -> magenta(0.88) with speed.
+		local h = 0.53 + (speed / 100) * 0.35
+		self.spdNum.TextColor3 = Color3.fromHSV(h, 0.92, 1)
 	end
-	self.needleArm.Rotation = ang
-	self.needle.BackgroundColor3 = boosting and C_GOLD or C_PINK
-	self.spdDigits.Text = tostring(math.floor(speed + 0.5))
-	self.spdDigits.TextColor3 = speed > 100 and C_PINK or C_WHITE
-
-	-- Overshoot arc breathes while pegged past 100.
-	local pulse = speed > 100 and (0.1 + 0.12 * math.sin(tick() * 7)) or 0.45
-	for _, s in ipairs(self.ovrSegs) do
-		s.BackgroundTransparency = pulse
+	if self.gateFrac then
+		self.boostGate.Position = UDim2.fromScale(self.gateFrac, 0)
 	end
-
-	--================ boost gauge ================--
-	local ba = self._bstA
-	-- Gold gate tick: drawn once we know RechargeGate (set by Main).
-	if self.gateFrac and not self._gateDrawn then
-		self._gateDrawn = true
-		local ga = ba.A0 - self.gateFrac * ba.SWEEP
-		self._segFn(ga, ba.R, 20, 4, C_GOLD, self._bstFrame)
-	end
-	local n = #self.boostSegs
-	local flash = boostSpent and not boosting and (math.sin(tick() * 10) > 0)
-	for i, s in ipairs(self.boostSegs) do
-		local lit = boostFrac >= i / n - 1e-3
-		s.BackgroundColor3 = lit and (boosting and C_PINK or C_CYAN) or C_PANEL
-		s.BackgroundTransparency = lit and 0 or (flash and 0.2 or 0.55)
-	end
-	self.boostState.Text = boosting and "GO!" or (boostSpent and "SPENT" or (boostFrac > 0.98 and "READY" or "CHRG"))
-	self.boostState.TextColor3 = boosting and C_PINK or (boostSpent and C_GOLD or C_CYAN)
+	self.boostFill.Size = UDim2.fromScale(math.clamp(boostFrac, 0, 1), 1)
+	local blink = boostSpent and math.sin(tick() * 10) > 0
+	self.boostFill.BackgroundColor3 = (boosting or blink) and C_PINK or C_CYAN
 end
 
 function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number)
 	self.menu.Visible = false
 	self.hud.Visible = false
-	self.speedo.Visible = false
-	self.boostGauge.Visible = false
+	self.spdNum.Visible = false
+	self.spdUnit.Visible = false
+	self.boostBar.Visible = false
 	self.death.Visible = true
 	self.dScore.Text = "SCORE " .. tostring(score)
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)

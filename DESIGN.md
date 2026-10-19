@@ -353,13 +353,12 @@ deferred.
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
 - **HUD**: one big pink score centered at the top; distance/gems/seed on a
-  dim lavender subline. Bottom-right is a **neon-ring speedometer**: a
-  270° cyan dial (0–100), a magenta overshoot arc past the 100 tick that
-  pulses while the needle is pegged deep, and a centered digital readout.
-  Bottom-left is its mirrored twin, the **boost gauge**: a 14-slot fill
-  arc (charge), pink flare while boosting, gold tick at the
-  `RechargeGate`, center label cycling READY / GO! / CHRG / SPENT —
-  twin-dial dashboard, retro-racer style.
+  dim lavender subline. Bottom-right is a single big **speed number** —
+  the digits themselves are the meter: hue gradients cyan → violet →
+  magenta across 0–100 and snaps hot red + pulsing past it. Bottom-left
+  is a glanceable **boost bar**: cyan fill on a dark track, gold tick at
+  `RechargeGate`, pink flare while boosting, blink while latched out.
+  Dial pods were tried and rejected — minimal chrome keeps eyes on track.
 - **Post FX**: restrained `BloomEffect` (Intensity 0.55, Size 16, Threshold
   1.3 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur), subtle `ColorCorrection`, `Atmosphere` density
@@ -406,6 +405,7 @@ Full spec: `AUDIO.md`. Binding decisions:
 ## 14. Persistence & leaderboard
 
 - `RoBall3D_Best_v1` (DataStore): personal best `{score, dist, seed}`.
+- `RoBall3D_Profile_v1` (DataStore): equipped cosmetic ids per slot (§18).
 - `RoBall3D_TopRuns_v1` (OrderedDataStore): global top scores, shown in menu.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.1` + gem cap sanity.
@@ -425,21 +425,26 @@ src/
     GenCore.luau                   -- pure generator: (rng, state) -> chunk spec
     SongMap.luau                   -- generated beat/section chart (renderer
                                    --   output, required by GenCore + client)
+    Cosmetics.luau                 -- cosmetic catalog: items, slots, bundles (§18)
+    BallDress.luau                 -- shared ball dresser (rings + trail) for
+                                   --   server spawn and the client menu preview
   ServerScriptService/RoBallServer/
-    Main.server.luau               -- boot/wiring (exists)
-    RunManager.luau                -- per-player run lifecycle, lanes, state
+    Main.server.luau               -- boot/wiring (exists): run lifecycle folded
+                                   --   in (remotes, spawn, kill, heartbeat)
     TrackStreamer.luau             -- spec -> Instances, cleanup behind ball
-    BallDriver.luau                -- heartbeat velocity control + kill plane
-    ScoreService.luau              -- distance + gems, death, validation
-    SaveService.luau               -- DataStore best + OrderedDataStore top
-    Remotes.luau                   -- RemoteEvent/RemoteFunction registry
+    SaveService.luau               -- DataStore best/profile + OrderedDataStore top
+    ShopService.luau               -- pass ownership, equip validate+save,
+                                   --   purchase-finished auto-equip (§18)
   StarterPlayer/StarterPlayerScripts/RoBallClient/
     Main.client.luau               -- boot, state machine, drive, chase cam
-    Ui.luau                        -- menu + HUD + death screen, all in code
+    Ui.luau                        -- menu + HUD + death screen + garage, all in code
     Backdrop.luau                  -- synthwave sun + neon city canyon (client-local)
     MusicController.luau           -- stem graph, tempo ramp, beat clock (AUDIO.md)
     SfxController.luau             -- gem pickup chime, pentatonic combo runs
     GemFx.luau                     -- pickup juice: pop diamond + sparkles + ring
+    DeathFx.luau                   -- death burst variants at last ball pos (§18)
+    CosmeticFx.luau                -- menu preview ball + animated skin/trail fx
+                                   --   (rainbow/pulse), all client-local
 ```
 
 Generation runs **server-side** (authoritative + leaderboard integrity);
@@ -461,7 +466,68 @@ Generation runs **server-side** (authoritative + leaderboard integrity);
 ## 17. Explicitly out of scope (backlog)
 
 Jump/dash, moving obstacles (sweepers/moving walls), tunnels, power-ups
-(shield/magnet/slow-mo), mobile/touch controls, alternate biomes, ball skin
-shop, parties/social. All have designed-for extension points (chunk features,
-`datamodel` hooks) — nothing blocks them. (Static lethal blocks landed in the
-Slope map pass; motion variants ride the same `ChunkSpec.obstacles` path.)
+(shield/magnet/slow-mo — if sold, runs must submit to the assisted board,
+§18), mobile/touch controls, alternate biomes, gem bank + dev products
+(§18 phase 2), music packs, parties/social. All have designed-for extension
+points (chunk features, `datamodel` hooks) — nothing blocks them. (Static
+lethal blocks landed in the Slope map pass; motion variants ride the same
+`ChunkSpec.obstacles` path.)
+
+## 18. Monetization
+
+**Phase 1 = cosmetics only.** The leaderboard is the replay hook, so v1
+sells looks, never power. Death stays final — revives were considered and
+explicitly rejected (a paid continue is just buying board position). Every
+item is a pure visual in one of four slots: `skin`, `trail`, `gemFx`,
+`deathFx`.
+
+**Catalog**: items live in `Cosmetics.luau` (ReplicatedStorage) — each is a
+data record `{ slot, name, ...colors/params }`, so a new look is config,
+not code. Items ship in **themed bundle gamepasses** (one pass = a matched
+set across slots): passes are the platform's permanent-unlock primitive and
+keep the dashboard surface small. Pass ids live in
+`Config.Monetization.Passes`; `0` means the pass isn't created on the
+Creator Dashboard yet — the shop shows SOON and everything else still works
+(same stub pattern as `Music.Stems`).
+
+**Color law**: cosmetics must never sample or resemble `LethalColor`
+(255,32,48, hue ~356°). The allowed space is the vaporwave family
+(magenta → violet → blue → cyan), gold, orange sun-tones, and mono. This is
+the same rule the world palette already enforces; the shop obeys it too.
+
+**Persistence**: `RoBall3D_Profile_v1` stores `equipped` ids only —
+ownership is derived live from `UserOwnsGamePassAsync`, so passes are the
+single source of truth and nothing can desync. The server caches ownership
+per session and mirrors equipped ids onto player attributes
+(`RoBallEq_skin` / `_trail` / `_gemFx` / `_deathFx`) plus a `RoBallOwned`
+CSV of owned bundle keys, so client FX and the menu preview read state
+without a fetch remote.
+
+**Buying**: client calls `PromptGamePassPurchase`; the server's
+`PromptGamePassPurchaseFinished` handler refreshes ownership attributes and
+auto-equips the bundle's items so a purchase is felt immediately. The
+`EquipItem` RemoteFunction re-validates slot + ownership server-side before
+saving — client UI is only a suggestion.
+
+**Show surfaces**: private lanes hide other players, so the flex surfaces
+are the run itself and the **menu preview ball** — a client-local dressed
+ball parked in the menu vista that rebuilds on every equip change
+(`BallDress` is shared so server spawn and preview draw the same way).
+Animated flags (`fx = "rainbow" | "pulse"` on skins, `"rainbow"` on
+trails/gemfx) are evaluated in the client render loop.
+
+**Score integrity contract**: the leaderboard meta row carries
+`assisted = false` today. Any future advantage item (bounded power-ups sit
+in the §17 backlog) must set it and submit to a separate `*_Assisted`
+OrderedDataStore — clean and assisted boards never mix.
+
+**Phases**:
+- **P1 (this)**: cosmetic catalog + bundle passes + garage UI + profile
+  store. 2 free alternates per slot so the equip system is live for
+  everyone.
+- **P2 (backlog)**: gem bank (dual-purpose gems — banked currency is never
+  score), gem pack dev products, per-item prices, "2x bank" pass.
+- **P3 (backlog)**: themed monthly bundles, music packs (renderer mints
+  tracks for free), seed-of-the-day retention board.
+- **Never**: energy systems, timers, pay-to-restart, fake urgency, paid
+  random items without PolicyService + disclosed odds.
