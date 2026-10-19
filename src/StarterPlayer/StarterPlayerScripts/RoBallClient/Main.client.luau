@@ -9,14 +9,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
+local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
 local Sfx = require(script.Parent.SfxController)
 local GemFx = require(script.Parent.GemFx)
+local DeathFx = require(script.Parent.DeathFx)
+local CosmeticFx = require(script.Parent.CosmeticFx)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -45,6 +49,7 @@ local evStart = remotes:WaitForChild("RequestStart") :: RemoteEvent
 local evRunStarted = remotes:WaitForChild("RunStarted") :: RemoteEvent
 local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
+local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -59,6 +64,61 @@ local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
 local boostCharge = 1 -- 0..1 boost meter (DESIGN.md §6)
 local boostSpent = false -- emptied latch until RechargeGate refills
+
+--============================ garage ==============================--
+-- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids
+-- and the RoBallOwned CSV of owned bundles. The panel re-renders on every
+-- attribute change, so server-side auto-equip lands visibly.
+
+local function equippedId(slot: string): string?
+	local id = player:GetAttribute("RoBallEq_" .. slot)
+	return if typeof(id) == "string" then id else nil
+end
+
+local function ownedPasses(): { [string]: boolean }
+	local set = {}
+	local csv = player:GetAttribute("RoBallOwned")
+	if typeof(csv) == "string" then
+		for key in string.gmatch(csv, "[^,]+") do
+			set[key] = true
+		end
+	end
+	return set
+end
+
+local priceCache: { [string]: number } = {}
+
+local function slotNames(): { [string]: string }
+	local names = {}
+	for _, slot in ipairs(Cosmetics.Slots) do
+		local item = Cosmetics.item(equippedId(slot))
+		names[slot] = if item then item.name else "—"
+	end
+	return names
+end
+
+local function packStates(): { [string]: { label: string, enabled: boolean } }
+	local owned = ownedPasses()
+	local states = {}
+	for _, b in ipairs(Cosmetics.Bundles) do
+		local passId = Config.Monetization.Passes[b.id] or 0
+		if passId == 0 then
+			states[b.id] = { label = "SOON", enabled = false } -- pass not created yet
+		elseif owned[b.id] then
+			states[b.id] = { label = "OWNED", enabled = false }
+		else
+			states[b.id] = {
+				label = "R$" .. tostring(priceCache[b.id] or Config.Monetization.Price[b.id] or "?"),
+				enabled = true,
+			}
+		end
+	end
+	return states
+end
+
+local function refreshGarage()
+	ui:setGarage(slotNames(), packStates())
+end
 
 local function bindBall(b: Instance)
 	if b.Name == ballName and b:IsA("BasePart") then
@@ -99,16 +159,75 @@ end
 ui.onPlay = requestStart
 ui.onRetry = requestStart
 
+-- Equip arrows: cycle within the OWNED ids for that slot, wrap around.
+-- The server re-validates ownership — this is only a suggestion.
+ui.onEquipCycle = function(slot, dir)
+	local owned = ownedPasses()
+	local ids = {}
+	for _, id in ipairs(Cosmetics.Order[slot]) do
+		if Cosmetics.owns(owned, id) then
+			table.insert(ids, id)
+		end
+	end
+	if #ids == 0 then
+		return
+	end
+	local idx = table.find(ids, equippedId(slot)) or 1
+	local nxt = ids[((idx - 1 + dir) % #ids) + 1]
+	pcall(function()
+		fnEquipItem:InvokeServer(nxt)
+	end)
+end
+
+ui.onBuy = function(bundleId)
+	local passId = Config.Monetization.Passes[bundleId] or 0
+	if passId > 0 then
+		MarketplaceService:PromptGamePassPurchase(player, passId)
+	end
+end
+
+-- Leaderboard rows: fetched on boot and refreshed every time the menu
+-- shows — otherwise a score saved this session stays invisible until
+-- rejoin. RemoteFunction yields, so it runs off the render thread.
+local function refreshBoard()
+	task.spawn(function()
+		local rows = fnGetLeaderboard:InvokeServer()
+		ui:setLeaderboard(rows)
+	end)
+end
+
+-- Death screen -> menu: the garage lives on the menu (§18), so this is
+-- also how players reach the shop between runs.
+ui.onMenu = function()
+	mode = "menu"
+	CosmeticFx.onMode("menu")
+	ui:showMenu(player:GetAttribute("RoBallBest") or 0)
+	Music.onMenu()
+	refreshGarage()
+	refreshBoard()
+end
+
+-- The saved best loads async after join; the boot-time showMenu reads the
+-- attribute before it lands, so push late arrivals onto the menu label.
+player:GetAttributeChangedSignal("RoBallBest"):Connect(function()
+	if mode == "menu" then
+		ui:setBest(player:GetAttribute("RoBallBest") or 0)
+	end
+end)
+
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
 	controlAt = tick() + 0.8 -- DESIGN.md §6: "rolling…" settle before control
+	CosmeticFx.onMode("running")
 	ui:showHud()
 	Music.onStart(seed)
 end)
 
 evRunEnded.OnClientEvent:Connect(function(score: number, dist: number, gems: number, best: number, seed: number)
 	mode = "dead"
+	CosmeticFx.onMode("dead")
+	DeathFx.burst(lastBallPos)
 	ui:showDeath(score, dist, gems, best, seed)
 	Music.onDeath()
 end)
@@ -224,28 +343,39 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- Leaderboard rows: fetched on boot and refreshed every time the menu
--- shows — otherwise a score saved this session stays invisible until
--- rejoin. RemoteFunction yields, so it runs off the render thread.
-local function refreshBoard()
-	task.spawn(function()
-		local rows = fnGetLeaderboard:InvokeServer()
-		ui:setLeaderboard(rows)
+-- Garage refresh on state changes: equipped ids re-render names + preview;
+-- ownership changes re-render pack buttons.
+player:GetAttributeChangedSignal("RoBallOwned"):Connect(refreshGarage)
+for _, slot in ipairs(Cosmetics.Slots) do
+	player:GetAttributeChangedSignal("RoBallEq_" .. slot):Connect(function()
+		refreshGarage()
+		CosmeticFx.refresh()
 	end)
 end
-
--- The saved best loads async after join; the boot-time showMenu reads the
--- attribute before it lands, so push late arrivals onto the menu label.
-player:GetAttributeChangedSignal("RoBallBest"):Connect(function()
-	if mode == "menu" then
-		ui:setBest(player:GetAttribute("RoBallBest") or 0)
-	end
-end)
 
 Backdrop.init()
 Music.init()
 Sfx.init()
 GemFx.init()
+CosmeticFx.init()
+CosmeticFx.onMode("menu")
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
+refreshGarage()
 refreshBoard()
+task.spawn(function()
+	-- Real prices beat the Config fallback display (§18): GetProductInfo
+	-- returns what the dashboard pass actually costs.
+	for _, b in ipairs(Cosmetics.Bundles) do
+		local passId = Config.Monetization.Passes[b.id] or 0
+		if passId > 0 then
+			local ok, info = pcall(function()
+				return MarketplaceService:GetProductInfo(passId, Enum.InfoType.GamePass)
+			end)
+			if ok and info and info.PriceInRobux then
+				priceCache[b.id] = info.PriceInRobux
+			end
+		end
+	end
+	refreshGarage()
+end)
 print("[RoBall3D] P4 client online — menu/HUD/death + steering + chase cam")

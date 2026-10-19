@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 
 local Ui = {}
 Ui.__index = Ui
@@ -80,6 +81,9 @@ function Ui.new(): Ui
 	local self = setmetatable({}, Ui)
 	self.onPlay = nil :: ((seedText: string) -> ())?
 	self.onRetry = nil :: (() -> ())?
+	self.onMenu = nil :: (() -> ())?
+	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
+	self.onBuy = nil :: ((bundleId: string) -> ())?
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "RoBallGui"
@@ -163,14 +167,14 @@ function Ui.new(): Ui
 		end
 	end)
 
-	-- Leaderboard: right-side panel, filled via GetLeaderboard remote.
+	-- Leaderboard: right-side panel, filled via GetLeaderboard remote. Row
+	-- count tracks Config.Leaderboard.TopCount so the fetch and the panel
+	-- never disagree.
+	local TOP_N = Config.Leaderboard.TopCount
 	local board = Instance.new("Frame")
 	board.Name = "Leaderboard"
 	board.AnchorPoint = Vector2.new(1, 0.5)
 	board.Position = UDim2.fromScale(0.96, 0.5)
-	-- Row count tracks Config.Leaderboard.TopCount so the fetch and the
-	-- panel never disagree.
-	local TOP_N = Config.Leaderboard.TopCount
 	board.Size = UDim2.fromOffset(320, 58 + TOP_N * 25)
 	board.BackgroundColor3 = C_PANEL
 	board.BackgroundTransparency = 0.25
@@ -195,6 +199,138 @@ function Ui.new(): Ui
 		self.boardRows[i] = row
 	end
 	self:setLeaderboard(nil)
+
+	--============================ GARAGE ============================--
+	-- Neon shop (DESIGN.md §18): left-panel mirror of the leaderboard.
+	-- Equip arrows cycle OWNED items per slot; pack buttons prompt the
+	-- bundle gamepass. Pure presentation — Main feeds names/status via
+	-- setGarage and owns onEquipCycle / onBuy.
+	local garage = Instance.new("Frame")
+	garage.Name = "Garage"
+	garage.AnchorPoint = Vector2.new(0, 0.5)
+	garage.Position = UDim2.fromScale(0.04, 0.5)
+	garage.Size = UDim2.fromOffset(330, 434)
+	garage.BackgroundColor3 = C_PANEL
+	garage.BackgroundTransparency = 0.25
+	garage.BorderSizePixel = 0
+	garage.Parent = menu
+	local gcorner = Instance.new("UICorner")
+	gcorner.CornerRadius = UDim.new(0, 10)
+	gcorner.Parent = garage
+
+	label(garage, "GARAGE", 22, F_DISPLAY, C_PINK, 0).Position = UDim2.fromOffset(0, 8)
+
+	local function arrowButton(parent, text, x, y)
+		local b = Instance.new("TextButton")
+		b.BackgroundTransparency = 1
+		b.AutoButtonColor = false
+		b.Font = F_DATA
+		b.TextSize = 20
+		b.TextColor3 = C_CYAN
+		b.Text = text
+		b.Position = UDim2.fromOffset(x, y)
+		b.Size = UDim2.fromOffset(26, 30)
+		b.Parent = parent
+		return b
+	end
+
+	-- Slot rows: "SKIN   < ITEM NAME >". Cycle wraps within owned ids.
+	self.slotItem = {}
+	for i, slot in ipairs(Cosmetics.Slots) do
+		local y = 42 + (i - 1) * 32
+		local sl = Instance.new("TextLabel")
+		sl.BackgroundTransparency = 1
+		sl.Font = F_DATA
+		sl.TextSize = 12
+		sl.TextColor3 = C_DIM
+		sl.TextXAlignment = Enum.TextXAlignment.Left
+		sl.Text = Cosmetics.SlotName[slot]
+		sl.Position = UDim2.fromOffset(14, y)
+		sl.Size = UDim2.fromOffset(56, 30)
+		sl.Parent = garage
+
+		local nm = Instance.new("TextLabel")
+		nm.BackgroundTransparency = 1
+		nm.Font = F_DATA
+		nm.TextSize = 15
+		nm.TextColor3 = C_WHITE
+		nm.Text = "—"
+		nm.Position = UDim2.fromOffset(102, y)
+		nm.Size = UDim2.fromOffset(182, 30)
+		nm.Parent = garage
+		self.slotItem[slot] = nm
+
+		local left = arrowButton(garage, "<", 72, y)
+		left.MouseButton1Click:Connect(function()
+			if self.onEquipCycle then
+				self.onEquipCycle(slot, -1)
+			end
+		end)
+		local right = arrowButton(garage, ">", 288, y)
+		right.MouseButton1Click:Connect(function()
+			if self.onEquipCycle then
+				self.onEquipCycle(slot, 1)
+			end
+		end)
+	end
+
+	label(garage, "PACKS", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 172)
+
+	-- Pack rows: name + contents left, price button right. Button state
+	-- comes from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
+	self.packBtn = {}
+	self.packStroke = {}
+	self.packEnabled = {}
+	for i, b in ipairs(Cosmetics.Bundles) do
+		local y = 196 + (i - 1) * 54
+		local nl = Instance.new("TextLabel")
+		nl.BackgroundTransparency = 1
+		nl.Font = F_DATA
+		nl.TextSize = 14
+		nl.TextColor3 = C_WHITE
+		nl.TextXAlignment = Enum.TextXAlignment.Left
+		nl.Text = b.name
+		nl.Position = UDim2.fromOffset(14, y)
+		nl.Size = UDim2.fromOffset(210, 18)
+		nl.Parent = garage
+
+		local dl = Instance.new("TextLabel")
+		dl.BackgroundTransparency = 1
+		dl.Font = F_DATA
+		dl.TextSize = 10
+		dl.TextColor3 = C_DIM
+		dl.TextXAlignment = Enum.TextXAlignment.Left
+		dl.Text = b.desc
+		dl.Position = UDim2.fromOffset(14, y + 17)
+		dl.Size = UDim2.fromOffset(210, 14)
+		dl.Parent = garage
+
+		local btn = Instance.new("TextButton")
+		btn.BackgroundTransparency = 1
+		btn.AutoButtonColor = false
+		btn.Font = F_DATA
+		btn.TextSize = 14
+		btn.TextColor3 = C_PINK
+		btn.Text = "R$?"
+		btn.Position = UDim2.fromOffset(232, y + 4)
+		btn.Size = UDim2.fromOffset(84, 32)
+		btn.Parent = garage
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = C_PINK
+		stroke.Thickness = 1.5
+		stroke.Parent = btn
+		self.packBtn[b.id] = btn
+		self.packStroke[b.id] = stroke
+		btn.MouseButton1Click:Connect(function()
+			if self.packEnabled[b.id] and self.onBuy then
+				self.onBuy(b.id)
+			end
+		end)
+	end
+
+	local hint = label(garage, "buy once · keep forever", 11, F_DATA, C_DIM, 0)
+	hint.Position = UDim2.fromOffset(0, 406)
+	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
 	-- Slope read: one big green score centered at the top; a thin subline
@@ -341,7 +477,7 @@ function Ui.new(): Ui
 
 	local dCol = Instance.new("Frame")
 	dCol.BackgroundTransparency = 1
-	dCol.Size = UDim2.fromOffset(460, 320)
+	dCol.Size = UDim2.fromOffset(460, 360)
 	dCol.Position = UDim2.fromScale(0.5, 0.42)
 	dCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	dCol.Parent = death
@@ -360,6 +496,14 @@ function Ui.new(): Ui
 		end
 	end)
 	label(dCol, "or press R", 13, F_DATA, C_DIM, 7)
+	-- Back to the menu = garage access (§18): the shop lives on the menu.
+	local toMenu = outlineButton(dCol, "MENU", 16, 8)
+	toMenu.Size = UDim2.fromOffset(140, 34)
+	toMenu.MouseButton1Click:Connect(function()
+		if self.onMenu then
+			self.onMenu()
+		end
+	end)
 
 	return self
 end
@@ -427,6 +571,22 @@ function Ui:showDeath(score: number, dist: number, gems: number, best: number, s
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
 	self.dBest.Text = "BEST " .. tostring(best)
 	self.dSeed.Text = "SEED " .. tostring(seed)
+end
+
+-- Garage state push (§18): equipped item names per slot + per-pack button
+-- state {label, enabled}. Main computes both from attributes + catalog.
+function Ui:setGarage(slotNames: { [string]: string }, packStates: { [string]: { label: string, enabled: boolean } })
+	for slot, l in pairs(self.slotItem) do
+		l.Text = slotNames[slot] or "—"
+	end
+	for id, btn in pairs(self.packBtn) do
+		local st = packStates[id]
+		local enabled = st ~= nil and st.enabled == true
+		btn.Text = if st then st.label else "SOON"
+		btn.TextColor3 = enabled and C_PINK or C_DIM
+		self.packStroke[id].Color = enabled and C_PINK or C_DIM
+		self.packEnabled[id] = enabled
+	end
 end
 
 function Ui:setBest(best: number)

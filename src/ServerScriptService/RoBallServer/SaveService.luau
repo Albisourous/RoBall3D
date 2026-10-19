@@ -16,6 +16,7 @@ local SaveService = {}
 local bestStore: DataStore? = nil
 local topStore: OrderedDataStore? = nil
 local metaStore: DataStore? = nil
+local profileStore: DataStore? = nil
 
 -- DataStores can throw in Studio without API access; probe once, then all
 -- calls become cheap no-ops.
@@ -31,6 +32,7 @@ local function ensureStores(): boolean
 		bestStore = DataStoreService:GetDataStore(Config.Leaderboard.BestStore)
 		topStore = DataStoreService:GetOrderedDataStore(Config.Leaderboard.TopRunsStore)
 		metaStore = DataStoreService:GetDataStore(Config.Leaderboard.TopRunsStore .. "_Meta")
+		profileStore = DataStoreService:GetDataStore(Config.Leaderboard.ProfileStore)
 		-- A real read, not just handle creation — proves API access works.
 		if bestStore then
 			bestStore:GetAsync("__probe__")
@@ -71,6 +73,30 @@ function SaveService.saveBest(userId: number, best: { score: number, dist: numbe
 	end)
 end
 
+-- Cosmetic profile (§18): equipped item ids per slot only — pass ownership
+-- is derived live from MarketplaceService, never stored.
+function SaveService.loadProfile(userId: number): { equipped: { [string]: string } }?
+	if not ensureStores() or not profileStore then
+		return nil
+	end
+	local ok, data = pcall(function()
+		return (profileStore :: DataStore):GetAsync("u" .. userId)
+	end)
+	if ok and typeof(data) == "table" then
+		return data
+	end
+	return nil
+end
+
+function SaveService.saveProfile(userId: number, profile: { equipped: { [string]: string } })
+	if not ensureStores() or not profileStore then
+		return
+	end
+	pcall(function()
+		(profileStore :: DataStore):SetAsync("u" .. userId, profile)
+	end)
+end
+
 -- Submit to the global top board (score only) + meta row (seed for display).
 function SaveService.submitTop(userId: number, score: number, seed: number)
 	if not ensureStores() then
@@ -85,8 +111,9 @@ function SaveService.submitTop(userId: number, score: number, seed: number)
 				if metaStore then
 					-- Meta tracks the run that SET the top score — writing it
 					-- unconditionally would pair a best with a later run's
-					-- seed.
-					(metaStore :: DataStore):SetAsync(key, { seed = seed, score = score })
+					-- seed. `assisted` (§18): advantage items submit to a
+					-- separate board so clean/assisted never mix.
+					(metaStore :: DataStore):SetAsync(key, { seed = seed, score = score, assisted = false })
 				end
 			end
 		end)

@@ -427,8 +427,25 @@ Config.Art = {
 Config.Leaderboard = {
 	TopRunsStore = "RoBall3D_TopRuns_v1", -- OrderedDataStore: userId -> best score
 	BestStore = "RoBall3D_Best_v1", -- DataStore: personal best + last seed
+	ProfileStore = "RoBall3D_Profile_v1", -- DataStore: equipped cosmetic ids (§18)
 	TopCount = 20,
 	SaveRetryCount = 3,
+}
+
+-- Monetization (DESIGN.md §18). Phase 1 = cosmetics only: bundle gamepasses
+-- grant themed item sets from Cosmetics.luau. Pass ids are created on the
+-- Creator Dashboard (Monetization -> Passes) — 0 = not created yet; the
+-- garage shows SOON and everything else still works (same stub pattern as
+-- Music.Stems). Price is the display fallback; the shop prefers the live
+-- GetProductInfo PriceInRobux when the pass exists.
+Config.Monetization = {
+	Passes = {
+		starter = 0, -- STARTER NEON — solar skin + sunset trail + sunset pop (~49)
+		synthwave = 0, -- SYNTHWAVE — full prism set, rainbow fx (~149)
+		midas = 0, -- MIDAS — full gold set (~149)
+		vip = 0, -- VOID VIP — violet set + pulse skin (~199)
+	},
+	Price = { starter = 49, synthwave = 149, midas = 149, vip = 199 },
 }
 
 return Config

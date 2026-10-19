@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 
 local player = Players.LocalPlayer
 local ballName = player.Name .. "_Ball"
@@ -18,13 +19,20 @@ local ballName = player.Name .. "_Ball"
 local Fx = {}
 local lastGems = 0
 
+-- Equipped gemFx item picks the flourish color (§18); "rainbow" resolves
+-- to a per-burst hue inside colorOf.
+local function gemColor(): Color3
+	local item = Cosmetics.item(player:GetAttribute("RoBallEq_gemFx") :: string?)
+	return Cosmetics.colorOf(item and item.color, Config.Gems.Color)
+end
+
 local function ballPos(): Vector3?
 	local b = workspace:FindFirstChild(ballName)
 	return if b and b:IsA("BasePart") then b.Position else nil
 end
 
 -- Ghost of the collected gem: pops oversize, rises, spins, fades.
-local function popGem(pos: Vector3)
+local function popGem(pos: Vector3, color: Color3)
 	local fx = Config.GemFx
 	local g = Instance.new("Part")
 	g.Name = "GemPopFx"
@@ -32,7 +40,7 @@ local function popGem(pos: Vector3)
 	g.CanCollide = false
 	g.CastShadow = false
 	g.Size = Vector3.one * Config.Gems.Size
-	g.Color = Config.Gems.Color
+	g.Color = color
 	g.Material = Enum.Material.Neon
 	-- same corner-cube diamond silhouette the real gems use
 	g.CFrame = CFrame.new(pos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
@@ -48,8 +56,8 @@ local function popGem(pos: Vector3)
 	}):Play()
 end
 
--- Gold sparkles scatter up-and-out.
-local function sparkle(pos: Vector3)
+-- Sparkles scatter up-and-out.
+local function sparkle(pos: Vector3, color: Color3)
 	local fx = Config.GemFx
 	local anchor = Instance.new("Part")
 	anchor.Name = "GemSparkFx"
@@ -61,7 +69,7 @@ local function sparkle(pos: Vector3)
 	anchor.Position = pos
 	local pe = Instance.new("ParticleEmitter")
 	pe.Texture = "rbxasset://textures/particles/sparkles.png"
-	pe.Color = ColorSequence.new(Config.Gems.Color)
+	pe.Color = ColorSequence.new(color)
 	pe.Size = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 1.1),
 		NumberSequenceKeypoint.new(1, 0),
@@ -79,7 +87,7 @@ local function sparkle(pos: Vector3)
 end
 
 -- Thin neon ring that flashes outward across the deck — the "collected!" read.
-local function ring(pos: Vector3)
+local function ring(pos: Vector3, color: Color3)
 	local fx = Config.GemFx
 	local r = Instance.new("Part")
 	r.Name = "GemRingFx"
@@ -89,7 +97,7 @@ local function ring(pos: Vector3)
 	-- cylinder axis is X; pitch it 90° so the disc lies flat in XZ
 	r.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, math.rad(90))
 	r.Size = Vector3.new(0.15, 0.6, 0.6)
-	r.Color = Config.Gems.Color
+	r.Color = color
 	r.Material = Enum.Material.Neon
 	r.Transparency = 0.15
 	r.Parent = workspace
@@ -105,9 +113,10 @@ local function burst()
 	if not pos then
 		return
 	end
-	popGem(pos)
-	sparkle(pos)
-	ring(pos)
+	local color = gemColor()
+	popGem(pos, color)
+	sparkle(pos, color)
+	ring(pos, color)
 end
 
 function Fx.init()

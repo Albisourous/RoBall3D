@@ -11,10 +11,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
-local Palette = require(ReplicatedStorage.RoBall.Palette)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
+local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
+local BallDress = require(ReplicatedStorage.RoBall.BallDress)
 local TrackStreamer = require(script.Parent.TrackStreamer)
 local SaveService = require(script.Parent.SaveService)
+local ShopService = require(script.Parent.ShopService)
 
 Players.CharacterAutoLoads = false
 
@@ -79,6 +81,9 @@ evRunEnded.Parent = remotes
 local fnGetLeaderboard = Instance.new("RemoteFunction")
 fnGetLeaderboard.Name = "GetLeaderboard"
 fnGetLeaderboard.Parent = remotes
+local fnEquipItem = Instance.new("RemoteFunction")
+fnEquipItem.Name = "EquipItem"
+fnEquipItem.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 local KILL_DROP = 15 -- studs below deck = dead (DESIGN.md §11)
@@ -135,46 +140,13 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	ball.Size = Vector3.new(d, d, d)
 	ball.CustomPhysicalProperties =
 		PhysicalProperties.new(Config.Ball.Density, Config.Ball.Friction, Config.Ball.Elasticity, 1, 1)
-	-- Slope look: near-black core + engine-rendered wireframe sphere. The
-	-- adornment does the neon; the part underneath just needs to be dark.
-	ball.Color = Color3.fromRGB(4, 8, 6)
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
 
-	-- Vaporwave ball: five engine-rendered wireframe rings (3 cyan axial +
-	-- 2 magenta diagonal). They ride the adornee's CFrame, so the cage
-	-- visibly rolls with the ball.
-	for _, rot in ipairs({
-		{ rot = CFrame.Angles(0, 0, 0), color = Config.Art.RingA },
-		{ rot = CFrame.Angles(math.rad(90), 0, 0), color = Config.Art.RingA },
-		{ rot = CFrame.Angles(0, 0, math.rad(90)), color = Config.Art.RingA },
-		{ rot = CFrame.Angles(math.rad(45), 0, math.rad(90)), color = Config.Art.RingB },
-		{ rot = CFrame.Angles(math.rad(-45), 0, math.rad(90)), color = Config.Art.RingB },
-	}) do
-		local ring = Instance.new("CylinderHandleAdornment")
-		ring.Adornee = ball
-		ring.CFrame = rot.rot
-		ring.Radius = d / 2 + 0.08
-		ring.Height = 0.14
-		ring.Color3 = rot.color
-		ring.Parent = ball
-	end
-
-	local a0 = Instance.new("Attachment")
-	a0.Position = Vector3.new(0, d * 0.3, 0)
-	a0.Parent = ball
-	local a1 = Instance.new("Attachment")
-	a1.Position = Vector3.new(0, -d * 0.3, 0)
-	a1.Parent = ball
-	local trail = Instance.new("Trail")
-	trail.Attachment0 = a0
-	trail.Attachment1 = a1
-	trail.Lifetime = Config.Art.TrailLifetime
-	trail.LightEmission = 1
-	trail.Color = ColorSequence.new(Palette.neonAt(0))
-	trail.Transparency = NumberSequence.new(0.5, 1)
-	trail.WidthScale = NumberSequence.new(0.35, 0.05)
-	trail.Parent = ball
+	-- Vaporwave ball (§18): skin item picks the cage/core colors — the same
+	-- BallDress code the client's menu preview uses, so WYSIWYG.
+	local eq = ShopService.equipped(player)
+	BallDress.dress(ball, Cosmetics.item(eq.skin), Cosmetics.item(eq.trail))
 
 	ball.Parent = workspace
 	ball:SetNetworkOwner(player)
@@ -297,11 +269,29 @@ evRequestStart.OnServerEvent:Connect(function(player, seedText)
 	startRun(player)
 end)
 
+-- Live re-dress (§18): an equip landing while a ball exists — mid-run or
+-- the async profile load racing a fast first spawn — repaints it. Rings
+-- carry RingGroup tags so retint never guesses child order.
+local function retintEquipped(player: Player)
+	local run = runs[player]
+	if run and run.ball then
+		local eq = ShopService.equipped(player)
+		BallDress.retint(run.ball, Cosmetics.item(eq.skin), Cosmetics.item(eq.trail))
+	end
+end
+
 local function onPlayerAdded(player: Player)
 	if not laneOf[player] then
 		laneOf[player] = nextLane
 		nextLane += 1
 	end
+	player:GetAttributeChangedSignal("RoBallEq_skin"):Connect(function()
+		retintEquipped(player)
+	end)
+	player:GetAttributeChangedSignal("RoBallEq_trail"):Connect(function()
+		retintEquipped(player)
+	end)
+	ShopService.onPlayerAdded(player)
 	-- Load persisted best (async — the menu reads the attribute whenever it
 	-- lands; P5 store may be unreachable in Studio, which is fine).
 	task.spawn(function()
@@ -318,6 +308,15 @@ end
 fnGetLeaderboard.OnServerInvoke = function(_player)
 	return SaveService.getTop(Config.Leaderboard.TopCount)
 end
+
+fnEquipItem.OnServerInvoke = function(player, itemId)
+	if typeof(itemId) ~= "string" then
+		return false
+	end
+	return ShopService.equip(player, itemId)
+end
+
+ShopService.init()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 -- Catch anyone who joined before the connection was made (playtest races).
