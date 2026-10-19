@@ -30,6 +30,8 @@ type Run = {
 	laneIndex: number,
 	streamer: TrackStreamer.Streamer,
 	ball: BasePart?,
+	dist: number, -- studs traveled (-Z), drives score
+	gemPts: number, -- gem pickups this run
 }
 
 local runs: { [Player]: Run } = {}
@@ -65,6 +67,8 @@ local function killRun(player: Player, run: Run)
 	if run.ball then
 		run.ball:Destroy()
 	end
+	-- Seal the score on death (DESIGN.md §10) for the death screen.
+	player:SetAttribute("RoBallLastScore", player:GetAttribute("RoBallScore") or 0)
 	run.streamer:destroy()
 	runs[player] = nil
 	task.delay(1.5, function()
@@ -74,10 +78,19 @@ local function killRun(player: Player, run: Run)
 	end)
 end
 
+local function writeScore(player: Player, run: Run)
+	-- Score = whole meters + gem points (DESIGN.md §10). Attributes drive the
+	-- HUD (P4) and later feed the leaderboard save (P5).
+	local score = math.floor(run.dist) + run.gemPts
+	player:SetAttribute("RoBallScore", score)
+	player:SetAttribute("RoBallDist", math.floor(run.dist))
+	player:SetAttribute("RoBallGems", run.gemPts)
+end
+
 startRun = function(player: Player, laneIndex: number)
 	local seed = randomSeed()
 	local streamer = TrackStreamer.new(laneIndex, seed)
-	local run: Run = { laneIndex = laneIndex, streamer = streamer, ball = nil }
+	local run: Run = { laneIndex = laneIndex, streamer = streamer, ball = nil, dist = 0, gemPts = 0 }
 	runs[player] = run
 
 	streamer.onFatalTouch = function(hit)
@@ -85,10 +98,21 @@ startRun = function(player: Player, laneIndex: number)
 			killRun(player, run)
 		end
 	end
+	streamer.onGem = function(hit, value)
+		if run.ball and hit == run.ball then
+			run.gemPts += value
+			writeScore(player, run)
+			return true -- consumed: despawn the gem
+		end
+		return false
+	end
 
 	streamer:ensureAhead(0) -- build the full window before the ball drops
 	run.ball = spawnBall(player, laneIndex, streamer:yAt(2))
 	player:SetAttribute("RoBallSeed", seed)
+	player:SetAttribute("RoBallScore", 0)
+	player:SetAttribute("RoBallDist", 0)
+	player:SetAttribute("RoBallGems", 0)
 end
 
 local function onPlayerAdded(player: Player)
@@ -123,6 +147,13 @@ RunService.Heartbeat:Connect(function()
 			local z = ball.Position.Z
 			run.streamer:ensureAhead(z)
 			run.streamer:cleanup(z)
+
+			-- Distance is authoritative server-side: spawn z=2, travel is -Z.
+			local d = 2 - z
+			if d > run.dist then
+				run.dist = d
+				writeScore(player, run)
+			end
 
 			if ball.Position.Y < run.streamer:yAt(z) - KILL_DROP then
 				killRun(player, run)

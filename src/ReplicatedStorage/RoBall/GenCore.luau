@@ -27,7 +27,7 @@ function GenCore.new(seed: number): Gen
 	self.introIndex = 0
 	self.intro = {
 		{ type = "Flat", length = 35, widthOut = 48 },
-		{ type = "Flat", length = 35, widthOut = 44 },
+		{ type = "Flat", length = 35, widthOut = 44, gems = true }, -- teaches: gems exist
 		{ type = "Slalom", length = 45, amp = 8, periods = 0.6 },
 		{ type = "Narrow", length = 55, widthOut = 32 },
 	}
@@ -85,6 +85,9 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				width = chunk.widthOut or snap.width,
 				y = snap.y - Config.Generation.Grade * chunk.length,
 			},
+			gems = chunk.gems
+					and ChunkDefs.gemLine(chunk.length, 0.3, 0, Config.Gems.ValueSafe, Config.Gems.ClusterSize)
+				or nil,
 		}
 	else
 		local tier = Tiers.forDistance(st.dist)

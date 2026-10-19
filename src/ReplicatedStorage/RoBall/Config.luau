@@ -121,8 +121,8 @@ Config.Tiers = {
 }
 
 Config.Gems = {
-	-- Gems sit on risky lines: near edges, on beams, over gaps.
-	-- Value scales with how dangerous the placement is.
+	-- Gems sit on risky lines: near edges, on beams, over gaps, through
+	-- obstacle corridors. Value scales with how dangerous the placement is.
 	ValueSafe = 10,
 	ValueEdge = 15,
 	ValueBeam = 25,
@@ -131,6 +131,9 @@ Config.Gems = {
 	ClustersPerChunkMax = 3,
 	ClusterSize = 3, -- gems per line cluster
 	Spacing = 3, -- studs between gems in a cluster
+	FloatY = 1.6, -- default hover height above the deck
+	Size = 0.9, -- studs
+	Color = Color3.fromRGB(0, 255, 240), -- reserved cyan: collectible, never lethal
 }
 
 Config.Score = {

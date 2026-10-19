@@ -44,6 +44,8 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.folder.Parent = lanesRoot
 	-- Optional: set by Main. Fired when something touches lethal geometry.
 	self.onFatalTouch = nil :: ((hit: BasePart) -> ())?
+	-- Optional: set by Main. Fired when the ball touches a gem: (hit, value).
+	self.onGem = nil :: ((hit: BasePart, value: number) -> ())?
 	return self
 end
 
@@ -135,6 +137,26 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	return b
 end
 
+-- Gems hover above the deck (or along the ramp arc). CanCollide stays off —
+-- contact means collected, never an obstruction.
+local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, g: ChunkDefs.GemSpot)
+	local s = spec.section(g.t)
+	local p = Instance.new("Part")
+	p.Name = "Gem"
+	p.Shape = Enum.PartType.Ball
+	p.Anchored = true
+	p.CanCollide = false
+	p.Size = Vector3.new(Config.Gems.Size, Config.Gems.Size, Config.Gems.Size)
+	p.Position =
+		Vector3.new(laneX + s.centerX + g.xOff, s.y + (g.yOff or Config.Gems.FloatY), spec.startZ - g.t * spec.length)
+	p.Color = Config.Gems.Color
+	p.Material = Enum.Material.Neon
+	p:SetAttribute("GemValue", g.value)
+	p:SetAttribute("ChunkType", spec.type)
+	p.Parent = parent
+	return p
+end
+
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	local holder = Instance.new("Folder")
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
@@ -185,6 +207,22 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			block.Touched:Connect(function(hit)
 				if self.onFatalTouch then
 					self.onFatalTouch(hit)
+				end
+			end)
+		end
+	end
+
+	if spec.gems then
+		for _, g in ipairs(spec.gems) do
+			local gem = makeGem(holder, self.laneX, spec, g)
+			local taken = false
+			gem.Touched:Connect(function(hit)
+				if taken then
+					return
+				end
+				if self.onGem and self.onGem(hit, g.value) then
+					taken = true
+					gem:Destroy()
 				end
 			end)
 		end
