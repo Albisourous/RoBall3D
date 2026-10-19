@@ -9,10 +9,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local GenCore = require(ReplicatedStorage.RoBall.GenCore)
 local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
+local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
 local DECK_COLOR = Color3.fromRGB(15, 15, 20)
-local EDGE_COLOR = Color3.fromRGB(255, 45, 120) -- placeholder; P6 palette drive
 local EDGE_W = 0.6
 local EDGE_H = 0.25
 
@@ -78,7 +78,8 @@ local function makeEdgeStrip(
 	zMid: number,
 	pitch: number,
 	roll: number,
-	chunkType: string
+	chunkType: string,
+	color: Color3
 )
 	local e = Instance.new("Part")
 	e.Name = "Edge"
@@ -86,7 +87,7 @@ local function makeEdgeStrip(
 	e.CanCollide = false
 	e.Size = Vector3.new(EDGE_W, EDGE_H, SEG_LEN + 0.2)
 	e.CFrame = CFrame.new(worldX, topY + EDGE_H / 2, zMid) * CFrame.Angles(pitch, 0, roll)
-	e.Color = EDGE_COLOR
+	e.Color = color
 	e.Material = Enum.Material.Neon
 	e:SetAttribute("ChunkType", chunkType)
 	e.Parent = parent
@@ -162,6 +163,10 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
 	holder.Parent = self.folder
 
+	-- Edges sample the distance-cycled palette: the world laps the vaporwave
+	-- hue wheel as you roll deeper (DESIGN.md §8.5).
+	local edgeColor = Palette.neonAt(-spec.startZ)
+
 	local len = spec.length
 	for zTop = spec.startZ, spec.startZ - len + 0.001, -SEG_LEN do
 		local t0 = (spec.startZ - zTop) / len
@@ -184,14 +189,14 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				local rightC = centerX + mid.cutout / 2 + rail / 2
 				makeSlicePart(holder, leftC, topY, zMid, rail, pitch, roll, spec.type)
 				makeSlicePart(holder, rightC, topY, zMid, rail, pitch, roll, spec.type)
-				makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type)
-				makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type)
-				makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type)
-				makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type)
+				makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
 			else
 				makeSlicePart(holder, centerX, topY, zMid, width, pitch, roll, spec.type)
-				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type)
-				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type)
+				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
 			end
 
 			if mid.wallH and mid.wallH > 0.1 then

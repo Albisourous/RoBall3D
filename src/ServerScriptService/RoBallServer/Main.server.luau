@@ -5,15 +5,48 @@
 -- and waits for the next request — an entered seed is reused on retry
 -- (DESIGN.md §6-7); blank seed = fresh random each run.
 
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Palette = require(ReplicatedStorage.RoBall.Palette)
 local TrackStreamer = require(script.Parent.TrackStreamer)
 local SaveService = require(script.Parent.SaveService)
 
 Players.CharacterAutoLoads = false
+
+-- Night-sky + post FX (DESIGN.md §12): near-black space backdrop, neon bloom,
+-- magenta-leaning color grade, purple haze for depth.
+local function applyEnvironment()
+	Lighting.ClockTime = 0 -- night: dark skybox + stars
+	Lighting.GeographicLatitude = 0
+	Lighting.Ambient = Color3.fromRGB(40, 24, 66)
+	Lighting.OutdoorAmbient = Color3.fromRGB(30, 18, 50)
+
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 1.15
+	bloom.Size = 30
+	bloom.Threshold = 0.85
+	bloom.Parent = Lighting
+
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Saturation = 0.18
+	cc.Contrast = 0.07
+	cc.TintColor = Color3.fromRGB(255, 236, 250)
+	cc.Parent = Lighting
+
+	local atmo = Instance.new("Atmosphere")
+	atmo.Density = 0.18 -- thin haze: distant neon (sun ~380 studs) must survive
+	atmo.Offset = 0 -- keep the haze floor at y=0 so descending track stays clear
+	atmo.Color = Color3.fromRGB(16, 8, 32)
+	atmo.Decay = Color3.fromRGB(28, 12, 58)
+	atmo.Glare = 0.5
+	atmo.Haze = 2
+	atmo.Parent = Lighting
+end
+applyEnvironment()
 
 -- The world is fully generated; the template baseplate/spawn only get in the
 -- way once the track starts descending.
@@ -96,9 +129,32 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	ball.Size = Vector3.new(d, d, d)
 	ball.CustomPhysicalProperties =
 		PhysicalProperties.new(Config.Ball.Density, Config.Ball.Friction, Config.Ball.Elasticity, 1, 1)
-	ball.Color = Color3.fromRGB(255, 45, 120) -- placeholder until P6 skin pass
+	ball.Color = Palette.neonAt(0) -- palette-driven skin (DESIGN.md §12)
 	ball.Material = Enum.Material.Neon
 	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
+
+	local light = Instance.new("PointLight")
+	light.Color = Palette.neonAt(0)
+	light.Range = Config.Art.BallLightRange
+	light.Brightness = 1.6
+	light.Parent = ball
+
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, d * 0.3, 0)
+	a0.Parent = ball
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -d * 0.3, 0)
+	a1.Parent = ball
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Lifetime = Config.Art.TrailLifetime
+	trail.LightEmission = 1
+	trail.Color = ColorSequence.new(Palette.neonAt(0), Config.Gems.Color)
+	trail.Transparency = NumberSequence.new(0.25, 1)
+	trail.WidthScale = NumberSequence.new(1, 0.15)
+	trail.Parent = ball
+
 	ball.Parent = workspace
 	ball:SetNetworkOwner(player)
 	return ball

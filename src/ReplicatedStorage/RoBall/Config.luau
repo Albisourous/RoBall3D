@@ -157,6 +157,32 @@ Config.Palette = {
 	NeonValue = 1.0,
 }
 
+-- Presentation (DESIGN.md §12). All decorative — zero gameplay effect.
+Config.Art = {
+	-- Retro sun: striped neon disc parked on the horizon ahead of the ball.
+	SunRadius = 160,
+	SunDistance = 380, -- studs ahead of the ball (-Z); inside the haze band
+	-- Deck drops Grade*studs ahead; keep the disc center just above the deck
+	-- plane at that distance so the lower stripes submerge — sunset read.
+	SunDrop = 18,
+	SunDepth = 5, -- stripe part thickness
+	-- Wireframe mountains: neon A-frame peaks recycled in rows each side.
+	MountainRows = 3, -- depth layers per side
+	MountainMinX = 140, -- innermost lateral offset from lane center
+	MountainRowDX = 170, -- extra offset per row
+	MountainSpacing = 170, -- z spacing between peaks in a row
+	MountainSpan = 1500, -- z window; peaks leaving the tail wrap forward
+	MountainMinH = 55,
+	MountainMaxH = 190,
+	MountainMinW = 90,
+	MountainMaxW = 230,
+	MountainValue = 0.5, -- palette value scale (silhouettes stay dim)
+	BarThickness = 2.0,
+	-- Ball dressing: magenta point light + fading trail.
+	BallLightRange = 16,
+	TrailLifetime = 0.55,
+}
+
 Config.Leaderboard = {
 	TopRunsStore = "RoBall3D_TopRuns_v1", -- OrderedDataStore: userId -> best score
 	BestStore = "RoBall3D_Best_v1", -- DataStore: personal best + last seed

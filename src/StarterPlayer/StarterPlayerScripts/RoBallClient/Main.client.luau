@@ -13,6 +13,8 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local Ui = require(script.Parent.Ui)
+local Backdrop = require(script.Parent.Backdrop)
+local Music = require(script.Parent.MusicController)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -89,11 +91,13 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	currentSeed = seed
 	controlAt = tick() + 0.8 -- DESIGN.md §6: "rolling…" settle before control
 	ui:showHud()
+	Music.onStart()
 end)
 
 evRunEnded.OnClientEvent:Connect(function(score: number, dist: number, gems: number, best: number, seed: number)
 	mode = "dead"
 	ui:showDeath(score, dist, gems, best, seed)
+	Music.onDeath()
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -131,6 +135,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local v = b.AssemblyLinearVelocity
 	b.AssemblyLinearVelocity = Vector3.new(lateralVel, v.Y, -fwdSpeed)
 	lastBallPos = b.Position
+	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 
 	-- HUD: attributes arrive from the server; only rebuild on visible change
 	local score = player:GetAttribute("RoBallScore") or 0
@@ -153,18 +158,23 @@ RunService.RenderStepped:Connect(function()
 		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
 		local target = b.Position + Config.Generation.TravelAxis * cam.LookAhead
 		camera.CFrame = CFrame.lookAt(b.Position + cam.Offset, target)
+		Backdrop.update(b.Position)
 	elseif mode == "dead" then
 		-- Camera pulls back from the last known ball position (DESIGN.md §11)
 		camera.CFrame =
 			CFrame.lookAt(lastBallPos + cam.Offset * 1.6, lastBallPos + Config.Generation.TravelAxis * cam.LookAhead)
+		Backdrop.update(lastBallPos)
 	else
 		-- Menu vista: slow orbit toward the track start
 		local t = tick() * 0.12
 		local p = Vector3.new(math.sin(t) * 55, 40, 30 + math.cos(t) * 25)
 		camera.CFrame = CFrame.lookAt(p, Vector3.new(0, Config.Generation.StartY - 15, -120))
+		Backdrop.update(Vector3.new(0, Config.Generation.StartY, -60))
 	end
 end)
 
+Backdrop.init()
+Music.init()
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 task.spawn(function()
 	local rows = fnGetLeaderboard:InvokeServer()

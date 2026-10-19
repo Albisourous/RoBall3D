@@ -249,16 +249,20 @@ screen. No lives, no shields — they were explicitly deferred.
 
 ## 12. Presentation
 
-- **Skybox**: near-black space + star points.
+- **Skybox**: near-black space + star points (`Lighting.ClockTime = 0`).
 - **Backdrop**: giant striped retro sun sitting on the horizon ahead;
   procedural wireframe mountain silhouettes flanking the track (generated
-  from thin `Part`s/`Beam`s, tinted by palette).
-- **Ball**: dark sphere + neon wireframe grid texture (generated decal,
-  uploaded via `upload_image`/`store_image` MCP tools) + PointLight + Trail.
-  Option A from the design Q&A; revisit after seeing it live.
-- **Track**: dark body, neon edge rails/stripes tinted from palette.
+  from thin `Part`s/`Beam`s, tinted by palette). **Backdrop is client-local**
+  (`Backdrop.luau`): zero replication cost, world-space recycling gives real
+  parallax. The sun tracks the ball at `SunDistance` ahead — keep it inside
+  the Atmosphere's visible band (density haze erases parts past ~600 studs).
+- **Ball**: palette-neon sphere + PointLight + Trail. Grid-decal skin
+  (`upload_image` MCP) remains a polish option, revisit after seeing it live.
+- **Track**: dark body, neon edge rails/stripes tinted from palette — edge
+  color is sampled per chunk from `Palette.neonAt(dist)` so the world laps
+  the hue wheel as distance grows.
 - **Post FX**: `BloomEffect`, subtle `ColorCorrection` saturation, `Atmosphere`
-  density for depth haze.
+  density for depth haze (Density 0.18 / Offset 0 — sun sits at ~380 studs).
 
 ## 13. Audio
 
@@ -298,6 +302,7 @@ src/
   StarterPlayer/StarterPlayerScripts/RoBallClient/
     Main.client.luau               -- boot, state machine, drive, chase cam
     Ui.luau                        -- menu + HUD + death screen, all in code
+    Backdrop.luau                  -- retro sun + wireframe mountains (client-local)
     MusicController.luau           -- tempo ramp + death slide (P6)
 ```
 
