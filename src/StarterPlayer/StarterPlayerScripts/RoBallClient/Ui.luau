@@ -311,6 +311,23 @@ function Ui.new(): Ui
 	bLab.Text = "BOOST  ·  W"
 	bLab.Parent = bWrap
 
+	-- Seed tag pinned to the true bottom-right corner — replantable info,
+	-- kept dim and tiny so it never competes with the speed number.
+	local seedTag = Instance.new("TextLabel")
+	seedTag.Name = "SeedTag"
+	seedTag.AnchorPoint = Vector2.new(1, 1)
+	seedTag.Position = UDim2.new(1, -8, 1, -6)
+	seedTag.Size = UDim2.fromOffset(220, 14)
+	seedTag.BackgroundTransparency = 1
+	seedTag.Font = F_DATA
+	seedTag.TextSize = 12
+	seedTag.TextColor3 = C_DIM
+	seedTag.TextXAlignment = Enum.TextXAlignment.Right
+	seedTag.Text = ""
+	seedTag.Visible = false
+	seedTag.Parent = gui
+	self.seedTag = seedTag
+
 	--============================ DEATH =============================--
 	local death = Instance.new("Frame")
 	death.Name = "Death"
@@ -354,6 +371,7 @@ function Ui:showMenu(best: number)
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
 	self.boostBar.Visible = false
+	self.seedTag.Visible = false
 	self:setBest(best)
 end
 
@@ -364,12 +382,14 @@ function Ui:showHud()
 	self.spdNum.Visible = true
 	self.spdUnit.Visible = true
 	self.boostBar.Visible = true
+	self.seedTag.Visible = true
 end
 
 function Ui:setHud(score: number, dist: number, gems: number, _speed: number, seed: number)
 	self.scoreText.Text = tostring(score)
 	-- Speed lives on the dial now; the subline stays quiet.
-	self.subText.Text = string.format("%d m  ·  gems +%d  ·  seed %d", dist, gems, seed)
+	self.subText.Text = string.format("%d m  ·  gems +%d", dist, gems)
+	self.seedTag.Text = string.format("seed %d", seed)
 end
 
 -- Speed number + boost bar, called every heartbeat during a run.
@@ -401,6 +421,7 @@ function Ui:showDeath(score: number, dist: number, gems: number, best: number, s
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
 	self.boostBar.Visible = false
+	self.seedTag.Visible = false
 	self.death.Visible = true
 	self.dScore.Text = "SCORE " .. tostring(score)
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
