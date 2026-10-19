@@ -355,8 +355,11 @@ deferred.
 - **HUD**: one big pink score centered at the top; distance/gems/seed on a
   dim lavender subline. Bottom-right is a **neon-ring speedometer**: a
   270° cyan dial (0–100), a magenta overshoot arc past the 100 tick that
-  pulses while the needle is pegged deep, a centered digital readout, and
-  an inner 10-slot ring that doubles as the boost charge meter.
+  pulses while the needle is pegged deep, and a centered digital readout.
+  Bottom-left is its mirrored twin, the **boost gauge**: a 14-slot fill
+  arc (charge), pink flare while boosting, gold tick at the
+  `RechargeGate`, center label cycling READY / GO! / CHRG / SPENT —
+  twin-dial dashboard, retro-racer style.
 - **Post FX**: restrained `BloomEffect` (Intensity 0.55, Size 16, Threshold
   1.3 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur), subtle `ColorCorrection`, `Atmosphere` density
