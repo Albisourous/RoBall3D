@@ -296,12 +296,9 @@ src/
     SaveService.luau               -- DataStore best + OrderedDataStore top
     Remotes.luau                   -- RemoteEvent/RemoteFunction registry
   StarterPlayer/StarterPlayerScripts/RoBallClient/
-    Main.client.luau               -- boot (exists)
-    InputController.luau           -- A/D/W/S -> lateral/throttle intent
-    CameraController.luau          -- chase cam + FOV speed ramp
-    MenuController.luau            -- title/seed/leaderboard/death screens
-    HudController.luau             -- distance, score, tier flash
-    MusicController.luau           -- tempo ramp + death slide
+    Main.client.luau               -- boot, state machine, drive, chase cam
+    Ui.luau                        -- menu + HUD + death screen, all in code
+    MusicController.luau           -- tempo ramp + death slide (P6)
 ```
 
 Generation runs **server-side** (authoritative + leaderboard integrity);
@@ -322,7 +319,8 @@ Generation runs **server-side** (authoritative + leaderboard integrity);
 
 ## 17. Explicitly out of scope (backlog)
 
-Jump/dash, deadly obstacles (red blocks, sweepers, moving walls), power-ups
+Jump/dash, moving obstacles (sweepers/moving walls), tunnels, power-ups
 (shield/magnet/slow-mo), mobile/touch controls, alternate biomes, ball skin
 shop, parties/social. All have designed-for extension points (chunk features,
-`datamodel` hooks) — nothing blocks them.
+`datamodel` hooks) — nothing blocks them. (Static lethal blocks landed in the
+Slope map pass; motion variants ride the same `ChunkSpec.obstacles` path.)
