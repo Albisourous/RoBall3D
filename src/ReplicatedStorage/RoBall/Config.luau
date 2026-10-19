@@ -192,6 +192,10 @@ Config.Gems = {
 	ClusterWeights = { 1.5, 4, 3, 2 }, -- big runs are treats, pairs are bread
 	FloatY = 1.6, -- default hover height above the deck
 	Size = 1.0, -- studs (cube side; corner-balanced so the diamond reads ~1.7 tall)
+	-- Beat pulse (AUDIO.md §8): gems swell by this fraction on every beat,
+	-- decaying over the beat; downbeats hit ~30% harder (BeatPulse client).
+	BeatPulse = 0.22,
+	BeatPulseRadius = 140, -- studs from camera — farther gems skip the pulse
 	-- Reserved gold: collectible, never lethal, and reads as the "sunset"
 	-- accent against the magenta/cyan world.
 	Color = Color3.fromRGB(255, 212, 64),

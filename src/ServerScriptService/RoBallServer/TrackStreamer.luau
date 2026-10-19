@@ -4,6 +4,7 @@
 -- ball, destroys chunks BehindDistance behind it. Owns the deck-height lookup
 -- used by the kill plane.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
@@ -228,6 +229,7 @@ local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpe
 	p.Material = Enum.Material.Neon
 	p:SetAttribute("GemValue", g.value)
 	p:SetAttribute("ChunkType", spec.type)
+	CollectionService:AddTag(p, "RoBallGem") -- client BeatPulse subscribes
 	p.Parent = parent
 	return p
 end

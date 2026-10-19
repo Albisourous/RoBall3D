@@ -266,9 +266,11 @@ Anything that *sounds* musical lands on the grid:
   don't always open on bar 0 — deterministic, still "same seed = same
   level."
 - **Gem chime** — pickups are physically on the grid already (their
-  spacing *is* the beat), so chimes are self-quantizing. Keep the
-  pentatonic ladder; cap runaway combos by wrapping to a lower octave
-  after `ComboScale` instead of clamping the top note.
+  spacing *is* the beat), so chimes are self-quantizing. The combo ladder
+  is section-aware: `SongMap.sections[].scale` is the union of live chord
+  tones under the ball right now (E7b9's b9 spice shows up in drop
+  pickups, Am9's 9th in intro), generated from the score's chord chart —
+  falling back to `Config.GemSfx.ComboScale` when the clock isn't running.
 
 ## 7. Scene scoring — menu, death, wind
 
@@ -292,6 +294,9 @@ hue, never near `LethalColor`):
 
 - **Bass band** → synthwave sun strip scale pulse + grid-strip brightness
   thump (the deck breathes on the kick).
+- **Beat clock** → gems swell on every beat (`BeatPulse.client`), sharp
+  attack + beat-long decay, downbeats ~30% harder — the GD world-pulse
+  read, driven by the same clock the pickups are placed on.
 - **Mid band** → palette neon `Saturation`/`NeonValue` nudge; bloom
   `Intensity` +0.05 max.
 - **RmsLevel** → HUD score pop on downbeats only (4-beat gate — not every
