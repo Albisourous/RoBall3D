@@ -181,6 +181,10 @@ Config.Art = {
 	-- Ball dressing: magenta point light + fading trail.
 	BallLightRange = 16,
 	TrailLifetime = 0.55,
+	-- Floor readability: neon grid lines across the deck every GridEvery
+	-- studs — sells the vaporwave grid floor AND improves depth perception.
+	GridEvery = 10,
+	GridValue = 0.4, -- palette value scale for grid lines (dimmer than edges)
 }
 
 Config.Leaderboard = {

@@ -12,9 +12,10 @@ local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
-local DECK_COLOR = Color3.fromRGB(15, 15, 20)
+local DECK_COLOR = Color3.fromRGB(28, 23, 46) -- readable dark violet, not pitch black
 local EDGE_W = 0.6
 local EDGE_H = 0.25
+local GRID_H = 0.08
 
 local TrackStreamer = {}
 TrackStreamer.__index = TrackStreamer
@@ -93,6 +94,32 @@ local function makeEdgeStrip(
 	e.Parent = parent
 end
 
+-- Transverse neon grid strip across the deck top — floor readability + the
+-- vaporwave grid signature (DESIGN.md §12).
+local function makeGridStrip(
+	parent: Instance,
+	worldX: number,
+	topY: number,
+	zMid: number,
+	width: number,
+	pitch: number,
+	roll: number,
+	chunkType: string,
+	color: Color3
+)
+	local g = Instance.new("Part")
+	g.Name = "Grid"
+	g.Anchored = true
+	g.CanCollide = false
+	g.CastShadow = false
+	g.Size = Vector3.new(math.max(width - 1, 0.5), GRID_H, 0.5)
+	g.CFrame = CFrame.new(worldX, topY + GRID_H / 2 + 0.02, zMid) * CFrame.Angles(pitch, 0, roll)
+	g.Color = color
+	g.Material = Enum.Material.Neon
+	g:SetAttribute("ChunkType", chunkType)
+	g.Parent = parent
+end
+
 local function makeWall(
 	parent: Instance,
 	worldX: number,
@@ -166,9 +193,11 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	-- Edges sample the distance-cycled palette: the world laps the vaporwave
 	-- hue wheel as you roll deeper (DESIGN.md §8.5).
 	local edgeColor = Palette.neonAt(-spec.startZ)
+	local gridColor = Palette.dimAt(-spec.startZ, Config.Art.GridValue)
 
 	local len = spec.length
 	for zTop = spec.startZ, spec.startZ - len + 0.001, -SEG_LEN do
+		local gridline = (spec.startZ - zTop) % Config.Art.GridEvery < SEG_LEN
 		local t0 = (spec.startZ - zTop) / len
 		local t1 = math.min(t0 + SEG_LEN / len, 1)
 		local tMid = (t0 + t1) / 2
@@ -193,10 +222,17 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
 				makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
 				makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				if gridline then
+					makeGridStrip(holder, leftC, topY, zMid, rail, pitch, roll, spec.type, gridColor)
+					makeGridStrip(holder, rightC, topY, zMid, rail, pitch, roll, spec.type, gridColor)
+				end
 			else
 				makeSlicePart(holder, centerX, topY, zMid, width, pitch, roll, spec.type)
 				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
 				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				if gridline then
+					makeGridStrip(holder, centerX, topY, zMid, width, pitch, roll, spec.type, gridColor)
+				end
 			end
 
 			if mid.wallH and mid.wallH > 0.1 then
