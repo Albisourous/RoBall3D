@@ -13,6 +13,17 @@ local TrackStreamer = require(script.Parent.TrackStreamer)
 
 Players.CharacterAutoLoads = false
 
+-- The world is fully generated; the template baseplate/spawn only get in the
+-- way once the track starts descending.
+local baseplate = workspace:FindFirstChild("Baseplate")
+if baseplate then
+	baseplate:Destroy()
+end
+local spawn = workspace:FindFirstChild("SpawnLocation")
+if spawn then
+	spawn:Destroy()
+end
+
 local KILL_DROP = 15 -- studs below deck = dead (DESIGN.md §11)
 
 type Run = {
@@ -28,7 +39,7 @@ local function randomSeed(): number
 	return math.floor(tick() * 1000) % 2147483647 + math.random(1, 1000000)
 end
 
-local function spawnBall(player: Player, laneIndex: number): BasePart
+local function spawnBall(player: Player, laneIndex: number, deckY: number): BasePart
 	local x = laneIndex * Config.Generation.RowSpacing
 	local d = Config.Ball.Diameter
 	local ball = Instance.new("Part")
@@ -39,7 +50,7 @@ local function spawnBall(player: Player, laneIndex: number): BasePart
 		PhysicalProperties.new(Config.Ball.Density, Config.Ball.Friction, Config.Ball.Elasticity, 1, 1)
 	ball.Color = Color3.fromRGB(255, 45, 120) -- placeholder until P6 skin pass
 	ball.Material = Enum.Material.Neon
-	ball.Position = Vector3.new(x, Config.Generation.StartY + Config.Generation.TrackThickness / 2 + d / 2 + 0.5, 2)
+	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
 	ball.Parent = workspace
 	ball:SetNetworkOwner(player)
 	return ball
@@ -52,15 +63,23 @@ local function startRun(player: Player, laneIndex: number)
 	runs[player] = run
 
 	streamer:ensureAhead(0) -- build the full window before the ball drops
-	run.ball = spawnBall(player, laneIndex)
+	run.ball = spawnBall(player, laneIndex, streamer:yAt(2))
 	player:SetAttribute("RoBallSeed", seed)
 end
 
-Players.PlayerAdded:Connect(function(player)
+local function onPlayerAdded(player: Player)
 	local laneIndex = nextLane
 	nextLane += 1
+	print("[RoBall3D] onPlayerAdded", player.Name, "lane", laneIndex)
 	startRun(player, laneIndex)
-end)
+	print("[RoBall3D] run started, seed", player:GetAttribute("RoBallSeed"))
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+-- Catch anyone who joined before the connection was made (playtest races).
+for _, player in ipairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end
 
 Players.PlayerRemoving:Connect(function(player)
 	local run = runs[player]

@@ -98,7 +98,20 @@ input for readability. No vertical bob (keeps precision readable).
 
 ### 8.1 Model
 
-Runs travel toward `-Z`. Track = ordered sequence of **chunks**, each
+Runs travel toward `-Z` and **always downhill**: every chunk's deck drops by
+`Generation.Grade` studs per stud traveled (0.1 ≈ 5.7°), so the track visibly
+descends and the auto-roll reads as rolling downhill (the Slope cue). Deck
+heights accumulate, so chunk `y` values drift down over a run; the kill plane
+always follows the local deck height via `yAt(z)`.
+
+**Closure contract**: section functions are evaluated lazily (at build time,
+and again later by `yAt`), after the generator state has advanced — so
+`nextChunk` hands every builder a frozen snapshot of the entry state
+(`centerX/width/y/zEnd`). Sections must never read the live `self.state`
+table; that bug once made geometry shift per-chunk and `yAt` return the
+generation frontier, spawning the ball under the world.
+
+Track = ordered sequence of **chunks**, each
 30–90 studs long. The generator keeps `AheadDistance = 400` studs of track
 alive ahead of the ball and destroys anything `BehindDistance = 250` studs
 behind it. Each player's run lives in a private lane offset `600` studs apart

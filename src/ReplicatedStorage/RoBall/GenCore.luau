@@ -58,27 +58,39 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 	local st = self.state
 	local spec: ChunkDefs.ChunkSpec
 
+	-- Section closures are evaluated later (buildChunk/yAt), after self.state
+	-- has already advanced — hand builders a frozen snapshot so they capture
+	-- entry geometry, not the live state table.
+	local snap: ChunkDefs.GenState = {
+		zEnd = st.zEnd,
+		centerX = st.centerX,
+		width = st.width,
+		y = st.y,
+		dist = st.dist,
+		rng = self.rng,
+	}
+
 	if self.introIndex < #self.intro then
 		self.introIndex += 1
 		local chunk = self.intro[self.introIndex]
-		local section = introSection(st, chunk)
+		local section = ChunkDefs.wrapGrade(chunk.length, introSection(snap, chunk))
 		spec = {
 			type = "Intro_" .. chunk.type,
 			length = chunk.length,
-			startZ = st.zEnd,
+			startZ = snap.zEnd,
 			section = section,
 			endState = {
-				centerX = (chunk.type == "Slalom") and st.centerX + chunk.amp * math.sin(chunk.periods * math.pi * 2)
-					or st.centerX,
-				width = chunk.widthOut or st.width,
-				y = st.y,
+				centerX = (chunk.type == "Slalom") and snap.centerX + chunk.amp * math.sin(chunk.periods * math.pi * 2)
+					or snap.centerX,
+				width = chunk.widthOut or snap.width,
+				y = snap.y - Config.Generation.Grade * chunk.length,
 			},
 		}
 	else
 		local tier = Tiers.forDistance(st.dist)
 		local pool = tier.chunkPool
 		local name = pool[self.rng:NextInteger(1, #pool)]
-		spec = ChunkDefs[name](self.rng, st, tier)
+		spec = ChunkDefs[name](self.rng, snap, tier)
 	end
 
 	st.zEnd -= spec.length

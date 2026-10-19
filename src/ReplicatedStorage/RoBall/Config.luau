@@ -51,6 +51,7 @@ Config.Generation = {
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs
 	StartY = 50, -- deck height runs start at
+	Grade = 0.1, -- studs of drop per stud traveled — constant downhill (~5.7deg)
 	RowSpacing = 600, -- per-player run lanes are this far apart in X
 }
 

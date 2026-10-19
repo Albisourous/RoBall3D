@@ -53,6 +53,23 @@ end
 
 local ChunkDefs = {}
 
+-- Constant downhill grade (DESIGN.md §8.1): every section's deck drops by
+-- Grade per stud of travel, so the whole track visibly descends and the
+-- auto-roll reads as "rolling downhill". Applied here so all chunk types
+-- inherit it.
+local function applyGrade(length: number, section: (t: number) -> Section): (t: number) -> Section
+	local grade = Config.Generation.Grade
+	return function(t: number)
+		local s = section(t)
+		s.y -= grade * t * length
+		return s
+	end
+end
+
+function ChunkDefs.wrapGrade(length: number, section: (t: number) -> Section): (t: number) -> Section
+	return applyGrade(length, section)
+end
+
 local function spec(
 	name: string,
 	st: GenState,
@@ -60,7 +77,10 @@ local function spec(
 	section: (t: number) -> Section,
 	endState: { centerX: number, width: number, y: number }
 ): ChunkSpec
-	return { type = name, length = length, startZ = st.zEnd, section = section, endState = endState }
+	local graded = applyGrade(length, section)
+	local gradedEnd =
+		{ centerX = endState.centerX, width = endState.width, y = endState.y - Config.Generation.Grade * length }
+	return { type = name, length = length, startZ = st.zEnd, section = graded, endState = gradedEnd }
 end
 
 -- Flat: plain ribbon; width may drift toward a random in-tier target.
