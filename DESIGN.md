@@ -275,9 +275,18 @@ from the wheel.
 ## 9. Difficulty & speed
 
 Tier table is in `Config.Tiers`. Crossing a tier threshold:
-- target speed steps up (40 → 106 by 2000m, cap 110), eased at `6 studs/s²`
+- target speed steps up (40 → 106 by 2000m), eased at `6 studs/s²`
 - new chunk types join the RNG pool
 - allowed width range tightens (24 → 4 min)
+
+**Endless mode** — there is no speed cap. Past the last listed tier
+(2000m), `Tiers.forDistance` extrapolates: speed rises by
+`Speed.EndlessRamp` per meter (+12 s/s per km — ~142 s/s at 5km, ~200 at
+10km) and the width window keeps shrinking toward `EndlessWidth*Floor`
+(6/14). The chunk pool stays tier-6's — difficulty comes from collapsing
+reaction time and narrowing ribbons, not new hazard types.
+`Config.Speed.Max` only normalizes presentation (FOV, music ramp, gem
+beat spacing all saturate at it).
 
 Hazards: **falling off the deck** and **touching `LethalColor` geometry** —
 both instant death, per the Slope model (§2 REA). Moving obstacles, tunnels

@@ -17,7 +17,16 @@ Config.Ball = {
 Config.Speed = {
 	Start = 40, -- studs/s
 	Accel = 6, -- studs/s^2 ease toward tier target
+	-- Reference speed for 0..1 normalization (FOV, music ramp, gem beat
+	-- spacing) — those saturate at Max. Actual speed is UNCAPPED: past the
+	-- last tier, Tiers.speedAt grows by EndlessRamp per meter forever.
 	Max = 110,
+	EndlessRamp = 0.012, -- studs/s gained per meter past the last tier (+12/km)
+	-- Track keeps narrowing forever too: widthMin/widthMax shrink by this
+	-- per meter past the last tier, floored at the values below.
+	EndlessWidthShrink = 0.004, -- studs per meter
+	EndlessWidthMinFloor = 6, -- just over CorridorMin — a corridor-wide ribbon
+	EndlessWidthMaxFloor = 14,
 	-- Optional throttle: W speeds up slightly, S brakes. Gives players a
 	-- way to "play it safe" at a score cost. Toggleable.
 	ThrottleEnabled = true,

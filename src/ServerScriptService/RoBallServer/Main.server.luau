@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
+local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local TrackStreamer = require(script.Parent.TrackStreamer)
 local SaveService = require(script.Parent.SaveService)
 
@@ -189,11 +190,23 @@ local function writeScore(player: Player, run: Run)
 	player:SetAttribute("RoBallGems", run.gemPts)
 end
 
--- Lite plausibility check (DESIGN.md §14): dist can't exceed max achievable
--- speed * elapsed * margin, and gems can't exceed ~cluster cap per chunk.
+-- Lite plausibility check (DESIGN.md §14): dist can't exceed the distance
+-- reachable by holding W for the whole run under the real eased speed curve
+-- (uncapped past the last tier), and gems can't exceed ~cluster cap per chunk.
+local function maxPossibleDist(elapsed: number): number
+	local d, fwd, t, step = 0, Config.Speed.Start, 0, 0.25
+	while t < elapsed do
+		local target = Tiers.speedAt(d) * Config.Speed.ThrottleUp
+		fwd += math.clamp(target - fwd, -Config.Speed.Accel * step, Config.Speed.Accel * step)
+		d += fwd * step
+		t += step
+	end
+	return d * 1.15
+end
+
 local function plausible(run: Run, score: number): boolean
 	local elapsed = math.max(os.clock() - run.t0, 1)
-	local maxDist = Config.Speed.Max * Config.Speed.ThrottleUp * elapsed * 1.15
+	local maxDist = maxPossibleDist(elapsed)
 	local gemCap = math.ceil(run.dist / 30)
 		* Config.Gems.ClustersPerChunkMax
 		* Config.Gems.ClusterSizes[1]
