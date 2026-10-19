@@ -60,14 +60,15 @@ local function makeSlicePart(
 	span: number,
 	pitch: number,
 	roll: number,
-	chunkType: string
+	chunkType: string,
+	color: Color3
 ): Part
 	local p = Instance.new("Part")
 	p.Name = "Deck"
 	p.Anchored = true
 	p.Size = Vector3.new(width, Config.Generation.TrackThickness, span + 0.2) -- slight overlap hides seams
 	p.CFrame = CFrame.new(worldX, topY - Config.Generation.TrackThickness / 2, zMid) * CFrame.Angles(pitch, 0, roll)
-	p.Color = DECK_COLOR
+	p.Color = color
 	p.Material = Enum.Material.SmoothPlastic
 	p:SetAttribute("ChunkType", chunkType)
 	p.Parent = parent
@@ -158,14 +159,15 @@ local function makeWall(
 	span: number,
 	pitch: number,
 	roll: number,
-	chunkType: string
+	chunkType: string,
+	color: Color3
 )
 	local w = Instance.new("Part")
 	w.Name = "Wall"
 	w.Anchored = true
 	w.Size = Vector3.new(1, height, span + 0.2)
 	w.CFrame = CFrame.new(worldX, topY + height / 2, zMid) * CFrame.Angles(pitch, 0, roll)
-	w.Color = DECK_COLOR
+	w.Color = color
 	w.Material = Enum.Material.SmoothPlastic
 	w:SetAttribute("ChunkType", chunkType)
 	w.Parent = parent
@@ -203,18 +205,25 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	return b
 end
 
--- Gems hover above the deck (or along the ramp arc). CanCollide stays off —
--- contact means collected, never an obstruction.
-local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, g: ChunkDefs.GemSpot)
+-- Gems hover above the deck (or along the ramp arc). Shape: a cube balanced
+-- on a corner — 35.26° pitch + 45° yaw puts a vertex straight up, giving a
+-- hexagonal diamond silhouette that reads as a gem at speed. (A two-pyramid
+-- octahedron via SpecialMesh was tried: MeshType.Pyramid renders nothing in
+-- the current engine.) CanCollide stays off — contact means collected,
+-- never an obstruction.
+local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, g: ChunkDefs.GemSpot): Part
 	local s = spec.section(g.t)
 	local p = Instance.new("Part")
 	p.Name = "Gem"
-	p.Shape = Enum.PartType.Ball
 	p.Anchored = true
 	p.CanCollide = false
+	p.CastShadow = false
 	p.Size = Vector3.new(Config.Gems.Size, Config.Gems.Size, Config.Gems.Size)
-	p.Position =
-		Vector3.new(laneX + s.centerX + g.xOff, s.y + (g.yOff or Config.Gems.FloatY), spec.startZ - g.t * spec.length)
+	p.CFrame = CFrame.new(
+		laneX + s.centerX + g.xOff,
+		s.y + (g.yOff or Config.Gems.FloatY),
+		spec.startZ - g.t * spec.length
+	) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
 	p.Color = Config.Gems.Color
 	p.Material = Enum.Material.Neon
 	p:SetAttribute("GemValue", g.value)
@@ -228,13 +237,39 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
 	holder.Parent = self.folder
 
-	-- Edges sample the distance-cycled palette: the world laps the green
-	-- band as you roll deeper (DESIGN.md §8.5).
-	local edgeColor = Palette.neonAt(-spec.startZ)
-	local gridColor = Palette.dimAt(-spec.startZ, Config.Art.GridValue)
-
+	-- Neon accents sample the distance-cycled palette PER SEGMENT, not once
+	-- per chunk: edge rails and the center line are split into <=GridEvery
+	-- pieces and grid strips sample at their own z, so color flows
+	-- continuously down the course like a real vaporwave gradient instead
+	-- of banding per chunk (DESIGN.md §8.5). The deck gets a subtle palette
+	-- tint so the floor itself drifts with the gradient.
 	local len = spec.length
 	local n = math.max(1, math.round(len / SEG_LEN))
+
+	-- One deck box can't gradient, but tinting it toward the palette (dark,
+	-- DeckTint-weighted) lets the floor drift with the flow.
+	local function deckColorAt(zMid: number): Color3
+		return DECK_COLOR:Lerp(Palette.neonAt(-zMid), Config.Art.DeckTint)
+	end
+
+	-- Runs a longitudinal strip (edge rail / center line) in <=GridEvery
+	-- pieces along a run; each piece samples the palette at its own z.
+	-- topY(z) follows the deck box's pitch so pieces sit flush.
+	local function eachStripSeg(
+		span: number,
+		zMid: number,
+		topY: number,
+		pitch: number,
+		fn: (number, number, number) -> ()
+	)
+		local nSeg = math.max(1, math.ceil(span / Config.Art.GridEvery))
+		local sub = span / nSeg
+		for i = 0, nSeg - 1 do
+			local z0 = zMid + span / 2 - (i + 0.5) * sub
+			local y0 = topY - math.tan(pitch) * (z0 - zMid)
+			fn(z0, y0, sub)
+		end
+	end
 
 	-- Sample the section once, then emit the fewest boxes that describe it:
 	-- consecutive intervals whose profile (width/centerX/roll/cutout/wallH)
@@ -270,27 +305,44 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		local roll = math.rad(mid.rollDeg)
 		local centerX = self.laneX + mid.centerX
 		local width = mid.width
+		local deckColor = deckColorAt(zMid)
 
 		if mid.cutout and mid.cutout > 1 then
 			local rail = (width - mid.cutout) / 2
 			local leftC = centerX - mid.cutout / 2 - rail / 2
 			local rightC = centerX + mid.cutout / 2 + rail / 2
-			makeSlicePart(holder, leftC, topY, zMid, rail, span, pitch, roll, spec.type)
-			makeSlicePart(holder, rightC, topY, zMid, rail, span, pitch, roll, spec.type)
-			makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
-			makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
-			makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
-			makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+			makeSlicePart(holder, leftC, topY, zMid, rail, span, pitch, roll, spec.type, deckColor)
+			makeSlicePart(holder, rightC, topY, zMid, rail, span, pitch, roll, spec.type, deckColor)
+			eachStripSeg(span, zMid, topY, pitch, function(z0, y0, sub)
+				local c = Palette.neonAt(-z0)
+				makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+			end)
 		else
-			makeSlicePart(holder, centerX, topY, zMid, width, span, pitch, roll, spec.type)
-			makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
-			makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
-			makeCenterStrip(holder, centerX, topY, zMid, span, pitch, roll, spec.type, gridColor)
+			makeSlicePart(holder, centerX, topY, zMid, width, span, pitch, roll, spec.type, deckColor)
+			eachStripSeg(span, zMid, topY, pitch, function(z0, y0, sub)
+				local c = Palette.neonAt(-z0)
+				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				makeCenterStrip(
+					holder,
+					centerX,
+					y0,
+					z0,
+					sub,
+					pitch,
+					roll,
+					spec.type,
+					Palette.dimAt(-z0, Config.Art.GridValue)
+				)
+			end)
 		end
 
 		if mid.wallH and mid.wallH > 0.1 then
-			makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type)
-			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type)
+			makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
+			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
 		end
 	end
 
@@ -324,6 +376,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			local roll = math.rad(mid.rollDeg)
 			local centerX = self.laneX + mid.centerX
 			local zMid = spec.startZ - off
+			local stripColor = Palette.dimAt(-zMid, Config.Art.GridValue)
 			if mid.cutout and mid.cutout > 1 then
 				local rail = (mid.width - mid.cutout) / 2
 				makeGridStrip(
@@ -335,7 +388,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 					pitch,
 					roll,
 					spec.type,
-					gridColor
+					stripColor
 				)
 				makeGridStrip(
 					holder,
@@ -346,10 +399,10 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 					pitch,
 					roll,
 					spec.type,
-					gridColor
+					stripColor
 				)
 			else
-				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, gridColor)
+				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, stripColor)
 			end
 		end
 	end

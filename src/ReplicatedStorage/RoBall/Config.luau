@@ -146,7 +146,7 @@ Config.Gems = {
 	ClusterSizes = { 8, 4, 2, 1 },
 	ClusterWeights = { 1.5, 4, 3, 2 }, -- big runs are treats, pairs are bread
 	FloatY = 1.6, -- default hover height above the deck
-	Size = 0.9, -- studs
+	Size = 1.0, -- studs (cube side; corner-balanced so the diamond reads ~1.7 tall)
 	-- Reserved gold: collectible, never lethal, and reads as the "sunset"
 	-- accent against the magenta/cyan world.
 	Color = Color3.fromRGB(255, 212, 64),
@@ -187,7 +187,7 @@ Config.Palette = {
 	-- The wheel laps magenta -> violet -> blue -> cyan -> magenta — always
 	-- the synthwave family, never red (red is reserved for lethal geometry).
 	HueStops = { 315, 275, 225, 185, 315 }, -- magenta -> violet -> blue -> cyan -> magenta
-	CycleDistance = 600, -- meters per full hue lap
+	CycleDistance = 800, -- meters per full hue lap — slow drift, real vaporwave flow
 	Saturation = 0.95,
 	NeonValue = 1.0,
 }
@@ -233,8 +233,15 @@ Config.Art = {
 	TrailLifetime = 0.4,
 	-- Floor readability: neon grid lines across the deck every GridEvery
 	-- studs — sells the wireframe grid floor AND improves depth perception.
+	-- Longitudinal neon (edge rails, center line) is also emitted in
+	-- GridEvery-length pieces so each piece samples the palette at its own
+	-- distance — the color flows continuously instead of banding per chunk.
 	GridEvery = 10,
 	GridValue = 0.5, -- palette value scale for grid lines (dimmer than edges)
+	-- Deck tint: how far the purple-black floor leans toward the palette at
+	-- each point (0 = static black, 1 = full neon). Subtle — keeps the deck
+	-- dark while letting it drift with the gradient.
+	DeckTint = 0.14,
 }
 
 Config.Leaderboard = {
