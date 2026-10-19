@@ -143,6 +143,10 @@ e.g. a `RoBallAudio` Folder in `PlayerGui`):
   every stem (the speed ramp survives migration — `PlaybackSpeed` exists on
   `AudioPlayer`). `Play(atTime)` supports scheduled starts if we want
   sample-tight stem entry.
+  Entries also accept full ContentId URIs: `rbxasset://roball3d/*.ogg`
+  resolves from Studio's bundled `content/` dir for local dev before the
+  oggs are uploaded — a readiness watchdog drops back to the single mix if
+  any stem never becomes ready (e.g. dev paths on a published client).
 - **`AudioFader` per stem** — tier layer mix (§5), ramps over beats, not
   seconds.
 - **`AudioPitchShifter` (optional)** — `Pitch = ps^(−PitchCompensation)`.

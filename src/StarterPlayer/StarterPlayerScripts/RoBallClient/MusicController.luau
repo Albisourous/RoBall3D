@@ -55,6 +55,12 @@ local function wire(src: Instance, dst: Instance)
 	w.Parent = root
 end
 
+-- Stem/sting ids may be numeric (rbxassetid) or full ContentId strings —
+-- rbxasset:// entries point at Studio's bundled content dir for local dev.
+local function contentId(v: any): string
+	return type(v) == "string" and v or "rbxassetid://" .. tostring(v)
+end
+
 local function newPlayer(asset: string, looped: boolean): any
 	local p = Instance.new("AudioPlayer")
 	p.Asset = asset
@@ -120,7 +126,7 @@ local function playStingNowOrQueued(name: string)
 	end
 	local p = stingPlayers[name]
 	if not p then
-		p = newPlayer("rbxassetid://" .. tostring(id), false)
+		p = newPlayer(contentId(id), false)
 		wire(p, lowpass)
 		stingPlayers[name] = p
 	end
@@ -174,10 +180,11 @@ function Music.init()
 	analyzer.Parent = folder
 	wire(lowpass, analyzer) -- hears what you hear (post-filter)
 
-	-- Mode select: layered only when every stem has an asset id
+	-- Mode select: layered only when every stem has an asset id/URI
 	stemMode = true
 	for _, name in ipairs(STEM_ORDER) do
-		if (m.Stems :: any)[name] == nil or (m.Stems :: any)[name] == 0 then
+		local id = (m.Stems :: any)[name]
+		if id == nil or id == 0 or id == "" then
 			stemMode = false
 			break
 		end
@@ -185,7 +192,7 @@ function Music.init()
 
 	if stemMode then
 		for _, name in ipairs(STEM_ORDER) do
-			local p = newPlayer("rbxassetid://" .. tostring((m.Stems :: any)[name]), true)
+			local p = newPlayer(contentId((m.Stems :: any)[name]), true)
 			local f = Instance.new("AudioFader")
 			f.Volume = 0 -- faded in by applyLayers
 			f.Parent = folder
@@ -198,7 +205,7 @@ function Music.init()
 		lead = stemByName.lead or stemByName.drums or players[1]
 		lead.Looped:Connect(syncStems)
 	else
-		local p = newPlayer("rbxassetid://" .. tostring(m.AssetId), true)
+		local p = newPlayer(contentId(m.AssetId), true)
 		wire(p, lowpass)
 		table.insert(players, p)
 		lead = p
@@ -206,7 +213,7 @@ function Music.init()
 
 	-- Speed-wind bed (optional until the asset is uploaded)
 	if m.WindAssetId ~= 0 then
-		windPlayer = newPlayer("rbxassetid://" .. tostring(m.WindAssetId), true)
+		windPlayer = newPlayer(contentId(m.WindAssetId), true)
 		windFilter = Instance.new("AudioFilter")
 		windFilter.FilterType = Enum.AudioFilterType.Lowpass12dB
 		windFilter.Frequency = m.WindCutMin
@@ -230,6 +237,54 @@ function Music.init()
 	applySpeed()
 	for _, p in ipairs(players) do
 		p:Play() -- queued until IsReady by the engine
+	end
+
+	-- Readiness watchdog: stems take a few seconds to decode — poll for up
+	-- to 15s. If any still isn't ready (bad id, or an rbxasset:// dev path
+	-- on a published client) tear the whole layered set down to the master
+	-- mix rather than ship a butchered mix or silence.
+	if stemMode then
+		task.spawn(function()
+			local deadline = os.clock() + 15
+			repeat
+				local allReady = true
+				for _, p in ipairs(players) do
+					if not p.IsReady then
+						allReady = false
+						break
+					end
+				end
+				if allReady or os.clock() > deadline then
+					break
+				end
+				task.wait(0.5)
+			until false
+			if not stemMode then
+				return
+			end
+			for _, p in ipairs(players) do
+				if not p.IsReady then
+					for _, q in ipairs(players) do
+						q:Destroy()
+					end
+					for _, f in pairs(faders) do
+						f:Destroy()
+					end
+					players = {}
+					faders = {}
+					stemByName = {}
+					stemMode = false
+					local mix = newPlayer(contentId(m.AssetId), true)
+					mix.Volume = m.MenuVolume * m.Volume
+					wire(mix, lowpass)
+					table.insert(players, mix)
+					lead = mix
+					applySpeed()
+					mix:Play()
+					return
+				end
+			end
+		end)
 	end
 end
 
@@ -272,6 +327,25 @@ function Music.onDeath()
 		TweenService:Create(windFader, TweenInfo.new(m.FilterSweepTime), { Volume = 0 }):Play()
 	end
 	playStingNowOrQueued("deathFall")
+end
+
+-- Back to the menu (§18: the garage lives there): reverse the tape-stop —
+-- playback speed and the lowpass ease back to the muffled menu bed.
+function Music.onMenu()
+	norm = 0
+	local speed = ps()
+	for _, p in ipairs(players) do
+		TweenService:Create(p, TweenInfo.new(m.FilterSweepTime), { PlaybackSpeed = speed }):Play()
+		p.Volume = m.MenuVolume * m.Volume
+	end
+	if shifter then
+		TweenService:Create(
+			shifter,
+			TweenInfo.new(m.FilterSweepTime),
+			{ Pitch = speed ^ -m.PitchCompensation }
+		):Play()
+	end
+	setFilter(m.MenuCutoffHz, m.FilterSweepTime)
 end
 
 -- speedNorm 0..1 (ball fwdSpeed between Speed.Start and Speed.Max).

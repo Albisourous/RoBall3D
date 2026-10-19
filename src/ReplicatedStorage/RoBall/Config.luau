@@ -230,11 +230,21 @@ Config.GemFx = {
 Config.Music = {
 	Track = "vaporwave_loop", -- SongMap id the runtime + generator key on
 	AssetId = 139067975647102, -- full mix (roball3d-audio, newest import)
-	-- Layered mode (AUDIO.md §4): when EVERY stem id is non-zero the
+	-- Layered mode (AUDIO.md §4): when EVERY stem entry is non-zero the
 	-- MusicController plays one AudioPlayer per stem and fades layers by
-	-- tier instead of playing the single mix. Zeros => single-track mode.
-	-- (Stems render to roball3d-audio/stems/ — upload, paste ids here.)
-	Stems = { pad = 0, bass = 0, drums = 0, lead = 0, arp = 0, air = 0 },
+	-- tier instead of playing the single mix. Entries may be numeric
+	-- rbxassetids OR ContentId URIs — rbxasset:// resolves against Studio's
+	-- bundled content dir for local dev; upload the oggs from
+	-- roball3d-audio/stems/ and paste numeric ids for production. Any stem
+	-- that fails to load drops the whole set back to AssetId (watchdog).
+	Stems = {
+		pad = "rbxasset://roball3d/stem_pad.ogg",
+		bass = "rbxasset://roball3d/stem_bass.ogg",
+		drums = "rbxasset://roball3d/stem_drums.ogg",
+		lead = "rbxasset://roball3d/stem_lead.ogg",
+		arp = "rbxasset://roball3d/stem_arp.ogg",
+		air = "rbxasset://roball3d/stem_air.ogg",
+	},
 	Volume = 0.5,
 	-- Native BPM of the track — gem clusters are placed on this beat grid
 	-- (beat interval = 60 / (BaseBpm * heard PlaybackSpeed), so pickups land
@@ -268,10 +278,15 @@ Config.Music = {
 	OpenCutoffHz = 18000,
 	DeathCutoffHz = 700,
 	FilterSweepTime = 0.5,
-	-- Beat-quantized stings (AUDIO.md §6) — 0 = not uploaded yet.
-	Stings = { tierUp = 0, deathFall = 0, menuStart = 0 },
+	-- Beat-quantized stings (AUDIO.md §6) — same id-or-URI rule as Stems;
+	-- these dev paths resolve in Studio, upload for production.
+	Stings = {
+		tierUp = "rbxasset://roball3d/tier_up.ogg",
+		deathFall = "rbxasset://roball3d/death_fall.ogg",
+		menuStart = "rbxasset://roball3d/menu_start.ogg",
+	},
 	-- Speed wind bed (AUDIO.md §7): looped noise faded/filtered by speed.
-	WindAssetId = 0,
+	WindAssetId = "rbxasset://roball3d/wind_loop.ogg",
 	WindVolume = 0.4,
 	WindCutMin = 500,
 	WindCutMax = 4200,
