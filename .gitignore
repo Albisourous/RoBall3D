@@ -4,3 +4,4 @@
 *.rbxl.lock
 *.rbxlx.lock
 build/
+graphify-out/
