@@ -17,7 +17,6 @@ local Backdrop = {}
 
 local root: Folder
 local sun: Model
-local sunStrips: { Part } = {}
 
 type Seg = { part: Part, outline: SelectionBox }
 type Tower = { segs: { Seg }, side: number, row: number }
@@ -106,9 +105,7 @@ local function makeSun(parent: Instance): Model
 		strip.Size = Vector3.new(halfChord * 2, h, Art.SunDepth)
 		strip.Position = Vector3.new(0, y, 0)
 		strip.Parent = model
-		table.insert(sunStrips, strip)
 	end
-	model.PrimaryPart = sunStrips[1]
 	model.Parent = parent
 	return model
 end
@@ -148,11 +145,11 @@ function Backdrop.update(anchor: Vector3)
 		end
 	end
 
-	-- The sun rides a fixed distance ahead and hugs the descending deck
-	-- plane, so it always hangs on the horizon like the end of the track.
+	-- The sun rides a fixed distance ahead and a fixed lift above the ball,
+	-- so it always hangs in the upper frame like a sunset at the end of the
+	-- slope — deck-relative heights would sink it below the horizon.
 	if sun then
-		local deckAhead = anchor.Y - Config.Generation.Grade * Art.SunDist
-		sun:PivotTo(CFrame.new(anchor.X, deckAhead + Art.SunRadius * 0.35, anchor.Z - Art.SunDist))
+		sun:PivotTo(CFrame.new(anchor.X, anchor.Y + Art.SunLift, anchor.Z - Art.SunDist))
 	end
 
 	-- Towers: recycle any that fell behind the anchor to the front of their

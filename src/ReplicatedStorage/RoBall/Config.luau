@@ -192,8 +192,10 @@ Config.Art = {
 	-- Synthwave sun: a striped neon disk parked far down the slope, riding
 	-- the descent so it always hangs on the horizon. Built from horizontal
 	-- strips (orange -> magenta) with gaps that widen toward the bottom.
-	SunDist = 900, -- studs ahead of the ball
-	SunRadius = 150,
+	SunDist = 380, -- studs ahead; close enough that atmosphere doesn't fade it
+	SunRadius = 90,
+	SunLift = 58, -- studs above the ball — puts ~2/3 of the disk in the
+	-- frame's upper band against the camera's downward pitch
 	SunStrips = 11,
 	SunDepth = 3, -- strip thickness along z
 	SunTopColor = Color3.fromRGB(255, 176, 64), -- hot orange crown
