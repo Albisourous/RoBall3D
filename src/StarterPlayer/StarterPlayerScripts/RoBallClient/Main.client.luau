@@ -20,6 +20,25 @@ local GemFx = require(script.Parent.GemFx)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+local Lighting = game:GetService("Lighting")
+
+-- Speed-blur meter (DESIGN.md §12): BlurEffect for the screen smear +
+-- the place's DepthOfField retuned so only the horizon goes soft, both
+-- ramping off fwdSpeed in the render loop. The DoF ships in the place
+-- file with a near focus that blurred the whole track — we take it over.
+local speedBlur = Lighting:FindFirstChild("SpeedBlur") :: BlurEffect?
+if not speedBlur then
+	speedBlur = Instance.new("BlurEffect")
+	speedBlur.Name = "SpeedBlur"
+	speedBlur.Size = 0
+	speedBlur.Parent = Lighting
+end
+local dof = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
+if dof then
+	dof.FocusDistance = Config.Blur.DofFocusDistance
+	dof.InFocusRadius = Config.Blur.DofFocusDistance * 0.6
+	dof.NearIntensity = 0
+end
 
 local remotes = ReplicatedStorage:WaitForChild("RoBallRemotes")
 local evStart = remotes:WaitForChild("RequestStart") :: RemoteEvent
@@ -160,6 +179,13 @@ RunService.RenderStepped:Connect(function()
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
 		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
+		-- Blur meter: slow smear that keeps deepening past the old cap —
+		-- the gradient ride is visual speed, not a penalty.
+		local over = math.max(0, fwdSpeed - Config.Blur.StartSpeed);
+		(speedBlur :: BlurEffect).Size = math.min(Config.Blur.MaxBlur, over * Config.Blur.BlurPerSpeed)
+		if dof then
+			dof.FarIntensity = math.min(Config.Blur.DofFarMax, over * Config.Blur.DofFarPerSpeed)
+		end
 		-- Aim at the deck plane LookAhead studs out: the drop = grade*ahead,
 		-- so the camera pitches into the slope and shows more track (the
 		-- Slope downhill read). Roll leans a few degrees into the steer.

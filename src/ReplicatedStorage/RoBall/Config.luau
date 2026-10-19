@@ -53,6 +53,19 @@ Config.Camera = {
 	SmoothTime = 0.12,
 }
 
+-- Speed blur (DESIGN.md §12): the world smears as the ball gets faster —
+-- a BlurEffect plus the DepthOfField's far-field intensity, both driven
+-- by forward speed. Deliberately slow: nothing below StartSpeed, and the
+-- slopes are shallow so blur only becomes obvious deep into endless mode.
+Config.Blur = {
+	StartSpeed = 55, -- s/s before any blur appears (early game stays crisp)
+	BlurPerSpeed = 0.07, -- Blur.Size gained per s/s over StartSpeed
+	MaxBlur = 12, -- Blur.Size ceiling (engine max is 24; 12 is a heavy smear)
+	DofFarPerSpeed = 0.004, -- DoF FarIntensity gained per s/s over StartSpeed
+	DofFarMax = 0.45,
+	DofFocusDistance = 300, -- studs — visible track stays sharp, horizon blurs
+}
+
 Config.Death = {
 	-- Stall watchdog (DESIGN.md §11): ball velocity is client-driven every
 	-- frame, so a ball whose position stops changing is wedged in geometry —
