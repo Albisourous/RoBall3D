@@ -182,6 +182,20 @@ Config.GemSfx = {
 	PitchJitter = 0.03, -- +-3% so repeats never sound identical
 }
 
+Config.GemFx = {
+	-- Pickup flourish (GemFx.luau): ghost diamond pop + sparkle burst + ring
+	-- flash, client-local. All gold — reuses Gems.Color.
+	SparkleCount = 14,
+	SparkleSpeed = 16, -- studs/s outward
+	SparkleLife = 0.5, -- max particle seconds
+	PopRise = 4, -- studs the ghost gem climbs
+	PopScale = 1.6, -- overshoot multiplier before it fades
+	PopSpin = 170, -- degrees of tumble while rising
+	PopTime = 0.42,
+	RingSize = 8, -- final ring diameter in studs
+	RingTime = 0.32,
+}
+
 Config.Music = {
 	-- Single synthwave loop; PlaybackSpeed ramps with ball speed.
 	AssetId = 139067975647102, -- vaporwave_loop (roball3d-audio, newest import)

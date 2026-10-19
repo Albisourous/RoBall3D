@@ -235,9 +235,16 @@ Value scales with risk class:
 safe `10` / edge `15` / beam `25` / gap-arc `40`. 0–3 clusters per chunk.
 Gems are a single Neon `Part` — a cube balanced on a corner (35.26° pitch
 + 45° yaw), giving a hexagonal diamond silhouette — with a server touched
-handler → `Score += value`, pickup FX. (Two-pyramid octahedron via
+handler → `Score += value`. (Two-pyramid octahedron via
 `MeshType.Pyramid` was tried: that legacy mesh type renders nothing in the
 current engine.)
+
+**Pickup juice** (`GemFx.luau`, client): the gem itself is `Destroy`ed
+instantly server-side, so the flourish is client-local at the ball's
+position when `RoBallGems` ticks up — a ghost diamond pops oversize and
+rises/fades while tumbling, a gold sparkle burst scatters (built-in
+sparkles texture, always resolvable), and a thin neon ring flashes
+outward across the deck. All one-shots, gone in ~0.5s.
 
 **Rhythmic clusters** (`gemRhythmLine`): gem spacing rides the music's beat
 grid. Cluster sizes are note groupings — 8 = sixteenths, 4 = eighths,
@@ -383,6 +390,7 @@ src/
     Backdrop.luau                  -- synthwave sun + neon city canyon (client-local)
     MusicController.luau           -- tempo ramp + death slide (P6)
     SfxController.luau             -- gem pickup chime, pentatonic combo runs
+    GemFx.luau                     -- pickup juice: pop diamond + sparkles + ring
 ```
 
 Generation runs **server-side** (authoritative + leaderboard integrity);

@@ -16,6 +16,7 @@ local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
 local Sfx = require(script.Parent.SfxController)
+local GemFx = require(script.Parent.GemFx)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -185,6 +186,7 @@ end)
 Backdrop.init()
 Music.init()
 Sfx.init()
+GemFx.init()
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 task.spawn(function()
 	local rows = fnGetLeaderboard:InvokeServer()
