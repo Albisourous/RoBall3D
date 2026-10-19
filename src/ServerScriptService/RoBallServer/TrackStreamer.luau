@@ -57,6 +57,7 @@ local function makeSlicePart(
 	topY: number,
 	zMid: number,
 	width: number,
+	span: number,
 	pitch: number,
 	roll: number,
 	chunkType: string
@@ -64,7 +65,7 @@ local function makeSlicePart(
 	local p = Instance.new("Part")
 	p.Name = "Deck"
 	p.Anchored = true
-	p.Size = Vector3.new(width, Config.Generation.TrackThickness, SEG_LEN + 0.2) -- slight overlap hides seams
+	p.Size = Vector3.new(width, Config.Generation.TrackThickness, span + 0.2) -- slight overlap hides seams
 	p.CFrame = CFrame.new(worldX, topY - Config.Generation.TrackThickness / 2, zMid) * CFrame.Angles(pitch, 0, roll)
 	p.Color = DECK_COLOR
 	p.Material = Enum.Material.SmoothPlastic
@@ -78,6 +79,7 @@ local function makeEdgeStrip(
 	worldX: number,
 	topY: number,
 	zMid: number,
+	span: number,
 	pitch: number,
 	roll: number,
 	chunkType: string,
@@ -87,7 +89,7 @@ local function makeEdgeStrip(
 	e.Name = "Edge"
 	e.Anchored = true
 	e.CanCollide = false
-	e.Size = Vector3.new(EDGE_W, EDGE_H, SEG_LEN + 0.2)
+	e.Size = Vector3.new(EDGE_W, EDGE_H, span + 0.2)
 	e.CFrame = CFrame.new(worldX, topY + EDGE_H / 2, zMid) * CFrame.Angles(pitch, 0, roll)
 	e.Color = color
 	e.Material = Enum.Material.Neon
@@ -153,6 +155,7 @@ local function makeWall(
 	topY: number,
 	zMid: number,
 	height: number,
+	span: number,
 	pitch: number,
 	roll: number,
 	chunkType: string
@@ -160,7 +163,7 @@ local function makeWall(
 	local w = Instance.new("Part")
 	w.Name = "Wall"
 	w.Anchored = true
-	w.Size = Vector3.new(1, height, SEG_LEN + 0.2)
+	w.Size = Vector3.new(1, height, span + 0.2)
 	w.CFrame = CFrame.new(worldX, topY + height / 2, zMid) * CFrame.Angles(pitch, 0, roll)
 	w.Color = DECK_COLOR
 	w.Material = Enum.Material.SmoothPlastic
@@ -225,55 +228,128 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
 	holder.Parent = self.folder
 
-	-- Edges sample the distance-cycled palette: the world laps the vaporwave
-	-- hue wheel as you roll deeper (DESIGN.md §8.5).
+	-- Edges sample the distance-cycled palette: the world laps the green
+	-- band as you roll deeper (DESIGN.md §8.5).
 	local edgeColor = Palette.neonAt(-spec.startZ)
 	local gridColor = Palette.dimAt(-spec.startZ, Config.Art.GridValue)
 
 	local len = spec.length
-	for zTop = spec.startZ, spec.startZ - len + 0.001, -SEG_LEN do
-		local gridline = (spec.startZ - zTop) % Config.Art.GridEvery < SEG_LEN
-		local t0 = (spec.startZ - zTop) / len
-		local t1 = math.min(t0 + SEG_LEN / len, 1)
-		local tMid = (t0 + t1) / 2
-		local s0 = spec.section(t0)
-		local s1 = spec.section(t1)
-		local mid = spec.section(tMid)
+	local n = math.max(1, math.round(len / SEG_LEN))
+
+	-- Sample the section once, then emit the fewest boxes that describe it:
+	-- consecutive intervals whose profile (width/centerX/roll/cutout/wallH)
+	-- and deck slope stay constant merge into a single long part. Straight
+	-- chunks (Flat, intro, obstacle rows) collapse to ~4 parts; curved ones
+	-- (Slalom, Tilt, Pinch) keep fine SEG_LEN slices.
+	local samples = table.create(n + 1)
+	for i = 0, n do
+		samples[i + 1] = spec.section(i / n)
+	end
+
+	local function sameShape(a: ChunkDefs.Section, b: ChunkDefs.Section): boolean
+		return math.abs(a.width - b.width) <= 0.06
+			and math.abs(a.centerX - b.centerX) <= 0.06
+			and math.abs(a.rollDeg - b.rollDeg) <= 0.06
+			and math.abs((a.cutout or 0) - (b.cutout or 0)) <= 0.06
+			and math.abs((a.wallH or 0) - (b.wallH or 0)) <= 0.06
+	end
+
+	-- One straight deck box (or twin rails for a cutout) spanning tA..tB.
+	local function emitDeck(tA: number, tB: number)
+		local tM = (tA + tB) / 2
+		local sA = spec.section(tA)
+		local sB = spec.section(tB)
+		local mid = spec.section(tM)
+		if mid.width <= 0.5 then
+			return
+		end
+		local span = (tB - tA) * len
+		local zMid = spec.startZ - tM * len
+		local topY = (sA.y + sB.y) / 2
+		local pitch = math.atan((sB.y - sA.y) / span)
+		local roll = math.rad(mid.rollDeg)
+		local centerX = self.laneX + mid.centerX
+		local width = mid.width
+
+		if mid.cutout and mid.cutout > 1 then
+			local rail = (width - mid.cutout) / 2
+			local leftC = centerX - mid.cutout / 2 - rail / 2
+			local rightC = centerX + mid.cutout / 2 + rail / 2
+			makeSlicePart(holder, leftC, topY, zMid, rail, span, pitch, roll, spec.type)
+			makeSlicePart(holder, rightC, topY, zMid, rail, span, pitch, roll, spec.type)
+			makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+			makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+			makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+			makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+		else
+			makeSlicePart(holder, centerX, topY, zMid, width, span, pitch, roll, spec.type)
+			makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+			makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, edgeColor)
+			makeCenterStrip(holder, centerX, topY, zMid, span, pitch, roll, spec.type, gridColor)
+		end
+
+		if mid.wallH and mid.wallH > 0.1 then
+			makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type)
+			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type)
+		end
+	end
+
+	local k = 1
+	while k <= n do
+		local s0 = samples[k]
+		local yStep = samples[k + 1].y - s0.y -- deck drop across this interval
+		local runEnd = k
+		while
+			runEnd < n
+			and sameShape(samples[runEnd + 1], s0)
+			and math.abs(samples[runEnd + 2].y - samples[runEnd + 1].y - yStep) <= 0.1
+		do
+			runEnd += 1
+		end
+		emitDeck((k - 1) / n, runEnd / n)
+		k = runEnd + 1
+	end
+
+	-- Transverse grid strips on a fixed GridEvery cadence, independent of how
+	-- the deck was sliced above.
+	for off = Config.Art.GridEvery, len - 0.01, Config.Art.GridEvery do
+		local t = off / len
+		local mid = spec.section(t)
 		if mid.width > 0.5 then
-			local zMid = zTop - (tMid - t0) * len
-			local topY = (s0.y + s1.y) / 2
-			local pitch = math.atan((s1.y - s0.y) / math.max((t1 - t0) * len, 0.001))
+			local tA = math.max(t - 0.02, 0)
+			local tB = math.min(t + 0.02, 1)
+			local sA = spec.section(tA)
+			local sB = spec.section(tB)
+			local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
 			local roll = math.rad(mid.rollDeg)
 			local centerX = self.laneX + mid.centerX
-			local width = mid.width
-
+			local zMid = spec.startZ - off
 			if mid.cutout and mid.cutout > 1 then
-				local rail = (width - mid.cutout) / 2
-				local leftC = centerX - mid.cutout / 2 - rail / 2
-				local rightC = centerX + mid.cutout / 2 + rail / 2
-				makeSlicePart(holder, leftC, topY, zMid, rail, pitch, roll, spec.type)
-				makeSlicePart(holder, rightC, topY, zMid, rail, pitch, roll, spec.type)
-				makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
-				makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
-				makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
-				makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
-				if gridline then
-					makeGridStrip(holder, leftC, topY, zMid, rail, pitch, roll, spec.type, gridColor)
-					makeGridStrip(holder, rightC, topY, zMid, rail, pitch, roll, spec.type, gridColor)
-				end
+				local rail = (mid.width - mid.cutout) / 2
+				makeGridStrip(
+					holder,
+					centerX - mid.cutout / 2 - rail / 2,
+					mid.y,
+					zMid,
+					rail,
+					pitch,
+					roll,
+					spec.type,
+					gridColor
+				)
+				makeGridStrip(
+					holder,
+					centerX + mid.cutout / 2 + rail / 2,
+					mid.y,
+					zMid,
+					rail,
+					pitch,
+					roll,
+					spec.type,
+					gridColor
+				)
 			else
-				makeSlicePart(holder, centerX, topY, zMid, width, pitch, roll, spec.type)
-				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
-				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
-				makeCenterStrip(holder, centerX, topY, zMid, SEG_LEN, pitch, roll, spec.type, gridColor)
-				if gridline then
-					makeGridStrip(holder, centerX, topY, zMid, width, pitch, roll, spec.type, gridColor)
-				end
-			end
-
-			if mid.wallH and mid.wallH > 0.1 then
-				makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, pitch, roll, spec.type)
-				makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, pitch, roll, spec.type)
+				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, gridColor)
 			end
 		end
 	end

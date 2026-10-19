@@ -159,6 +159,13 @@ alive ahead of the ball and destroys anything `BehindDistance = 250` studs
 behind it. Each player's run lives in a private lane offset `600` studs apart
 in `X` (invisible to others under fog).
 
+**Build cost**: the streamer samples each chunk at `SEG_LEN` intervals but
+emits the *fewest boxes that describe it* — consecutive intervals with
+constant profile (width/centerX/roll/cutout/wallH) and constant deck slope
+merge into one long part. Straight chunks (Flat, intro, obstacle rows) build
+as ~4 parts; curved chunks keep fine slices. Transverse grid strips emit on
+their own `GridEvery` cadence, independent of slicing.
+
 Two hazard classes live on the deck (REA §2): **edges** (ambient threat) and
 **lethal obstacles** (mid-track threat — parts colored `Config.LethalColor`,
 always reserved hot-red). Obstacle chunks emit block/wall specs alongside
