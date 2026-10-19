@@ -66,12 +66,13 @@ Config.Camera = {
 -- a BlurEffect plus the DepthOfField's far-field intensity, both driven
 -- by forward speed. Power curve, not linear: Size = MaxBlur * t^Exponent
 -- where t = (speed - StartSpeed)/(CurveTop - StartSpeed) clamped 0..1.
--- Exponent > 1 keeps 0–100 s/s essentially clear and lets blur climb hard
--- past it — the endless-mode wall reads as the world literally smearing.
+-- Exponent > 1 keeps everything under 100 s/s perfectly clear — blur is
+-- strictly an endless-mode effect — then climbs hard: ~1.7 at 150, ~8 at
+-- 200 — the deep-run wall reads as the world literally smearing.
 Config.Blur = {
-	StartSpeed = 50, -- s/s before any blur appears (early game stays crisp)
+	StartSpeed = 100, -- s/s before any blur appears (0–100 stays razor sharp)
 	CurveTop = 220, -- s/s where the curve saturates at MaxBlur
-	Exponent = 2.2, -- >1 = progressively steeper: ~0.5 at 100, ~8 at 200
+	Exponent = 2.2, -- >1 = progressively steeper
 	MaxBlur = 12, -- Blur.Size ceiling (engine max is 24; 12 is a heavy smear)
 	DofFarMax = 0.45,
 	DofFocusDistance = 300, -- studs — visible track stays sharp, horizon blurs
