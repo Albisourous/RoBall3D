@@ -273,9 +273,11 @@ screen. No lives, no shields — they were explicitly deferred.
   grade so the canyon hugs the slope. **Backdrop is client-local**
   (`Backdrop.luau`): zero replication cost. The Atmosphere dims towers past
   ~600 studs; `CitySpan` stays inside the visible band.
-- **Ball**: near-black sphere + `SelectionSphere` wireframe (engine-rendered
-  lat/long grid — the Slope ball) + a slim palette Trail. No PointLight —
-  self-glow smears the wireframe under bloom.
+- **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe
+  rings (3 axial + 2 diagonal) — a clean green cage that rolls with the
+  ball's spin, the Slope ball. Slim palette Trail. No PointLight —
+  self-glow smears the wireframe under bloom. (`SelectionSphere` was tried
+  first: its lat/long grid is too dense at 3 studs and renders as a blob.)
 - **Track**: near-black deck, neon edge rails + transverse grid strips +
   longitudinal center line, all tinted from `Palette` — the world laps the
   green band as distance grows.
