@@ -228,13 +228,70 @@ function Ui.new(): Ui
 	-- Big digital readout — the gauge sells the fantasy, the number is truth.
 	local spd = Instance.new("Frame")
 	spd.Name = "Speedo"
-	spd.AnchorPoint = Vector2.new(1, 1)
-	spd.Position = UDim2.new(1, -16, 1, -14)
+	spd.AnchorPoint = Vector2.new(0.5, 1)
+	spd.Position = UDim2.new(0.72, 0, 1, -12)
 	spd.Size = UDim2.fromOffset(226, 226)
 	spd.BackgroundTransparency = 1
 	spd.Visible = false
 	spd.Parent = gui
 	self.speedo = spd
+
+	-- F-Zero pod chrome: a dark tilted housing disk, neon bezel, and
+	-- slanted vent slits — dresses a bare dial into a retro-future
+	-- dashboard pod. Drawn first so it sits behind the gauge parts.
+	local function podChrome(parent: Instance, rim: Color3, mirror: boolean)
+		local disk = Instance.new("Frame")
+		disk.AnchorPoint = Vector2.new(0.5, 0.5)
+		disk.Position = UDim2.fromScale(0.5, 0.52)
+		disk.Size = UDim2.fromOffset(214, 214)
+		disk.BackgroundColor3 = C_BG
+		disk.BackgroundTransparency = 0.16
+		disk.BorderSizePixel = 0
+		disk.Rotation = mirror and 4 or -4
+		disk.Parent = parent
+		local duc = Instance.new("UICorner")
+		duc.CornerRadius = UDim.new(0.16, 0)
+		duc.Parent = disk
+		local bezel = Instance.new("UIStroke")
+		bezel.Color = rim
+		bezel.Thickness = 2.5
+		bezel.Transparency = 0.15
+		bezel.Parent = disk
+		-- Inner bezel circle — the recessed instrument well.
+		local well = Instance.new("Frame")
+		well.AnchorPoint = Vector2.new(0.5, 0.5)
+		well.Position = UDim2.fromScale(0.5, 0.5)
+		well.Size = UDim2.fromOffset(196, 196)
+		well.BackgroundColor3 = Color3.fromRGB(4, 2, 8)
+		well.BackgroundTransparency = 0.25
+		well.BorderSizePixel = 0
+		well.Parent = parent
+		local wuc = Instance.new("UICorner")
+		wuc.CornerRadius = UDim.new(1, 0)
+		wuc.Parent = well
+		local wring = Instance.new("UIStroke")
+		wring.Color = rim
+		wring.Thickness = 1.5
+		wring.Transparency = 0.4
+		wring.Parent = well
+		-- Vent slits along the pod's top edge — pure F-Zero garnish.
+		local dir = mirror and -1 or 1
+		for i = 0, 2 do
+			local v = Instance.new("Frame")
+			v.AnchorPoint = Vector2.new(0.5, 0.5)
+			v.Position = UDim2.new(0.5, dir * (56 + i * 20), 0, 12)
+			v.Size = UDim2.fromOffset(16, 5)
+			v.Rotation = dir * -28
+			v.BackgroundColor3 = rim
+			v.BackgroundTransparency = 0.35
+			v.BorderSizePixel = 0
+			v.Parent = parent
+			local vc = Instance.new("UICorner")
+			vc.CornerRadius = UDim.new(1, 0)
+			vc.Parent = v
+		end
+	end
+	podChrome(spd, C_CYAN, false)
 
 	local R_OUT = 96 -- main arc radius
 	local A0 = -135 -- dial zero angle (deg, 7 o'clock)
@@ -331,8 +388,9 @@ function Ui.new(): Ui
 	digits.Position = UDim2.new(0.5, 0, 0.5, 26)
 	digits.Size = UDim2.fromOffset(140, 44)
 	digits.Font = F_DATA
-	digits.TextSize = 40
+	digits.TextSize = 44
 	digits.TextColor3 = C_WHITE
+	digits.TextStrokeTransparency = 0.55
 	digits.Text = "0"
 	digits.Parent = spd
 	self.spdDigits = digits
@@ -353,13 +411,14 @@ function Ui.new(): Ui
 	-- they flare pink while boosting; a gold tick marks the recharge gate.
 	local bst = Instance.new("Frame")
 	bst.Name = "BoostGauge"
-	bst.AnchorPoint = Vector2.new(0, 1)
-	bst.Position = UDim2.new(0, 16, 1, -14)
-	bst.Size = UDim2.fromOffset(196, 196)
+	bst.AnchorPoint = Vector2.new(0.5, 1)
+	bst.Position = UDim2.new(0.28, 0, 1, -12)
+	bst.Size = UDim2.fromOffset(226, 226)
 	bst.BackgroundTransparency = 1
 	bst.Visible = false
 	bst.Parent = gui
 	self.boostGauge = bst
+	podChrome(bst, C_PINK, true)
 
 	local B_R = 80 -- slot arc radius
 	local B_A0 = 135 -- empty sits at 5 o'clock — faces the speedo's zero
@@ -372,22 +431,6 @@ function Ui.new(): Ui
 		s.BackgroundTransparency = 0.4
 		table.insert(self.boostSegs, s)
 	end
-	-- Thin ghost ring behind the slots so the empty gauge still reads.
-	local guide = Instance.new("Frame")
-	guide.AnchorPoint = Vector2.new(0.5, 0.5)
-	guide.Position = UDim2.fromScale(0.5, 0.5)
-	guide.Size = UDim2.fromOffset(B_R * 2 + 18, B_R * 2 + 18)
-	guide.BackgroundTransparency = 1
-	guide.Parent = bst
-	local guideRing = Instance.new("UIStroke")
-	guideRing.Color = C_PANEL
-	guideRing.Transparency = 0.35
-	guideRing.Thickness = 1.5
-	guideRing.Parent = guide
-	local guideCorner = Instance.new("UICorner")
-	guideCorner.CornerRadius = UDim.new(1, 0)
-	guideCorner.Parent = guide
-
 	-- Gold gate tick is drawn lazily once Main tells us RechargeGate.
 	self.gateFrac = nil :: number?
 	self._gateDrawn = false
@@ -413,6 +456,7 @@ function Ui.new(): Ui
 	bState.Font = F_DATA
 	bState.TextSize = 30
 	bState.TextColor3 = C_CYAN
+	bState.TextStrokeTransparency = 0.55
 	bState.Text = "READY"
 	bState.Parent = bst
 	self.boostState = bState
