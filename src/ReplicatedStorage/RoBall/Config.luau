@@ -217,7 +217,7 @@ Config.GemSfx = {
 	-- built-in Roblox ping — always resolvable if the asset fails to load.
 	AssetId = 125591495745947, -- gem_pickup (roball3d-audio, newest import)
 	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.5,
+	Volume = 0.25, -- half of the original — the chime was drowning the mix
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
 	ComboScale = { 0, 2, 4, 7, 9, 12, 14, 16 }, -- A-minor pentatonic semitones
 	PitchJitter = 0.03, -- +-3% so repeats never sound identical
@@ -468,7 +468,7 @@ Config.Art = {
 	-- analyzer pulse — kicks punch the whole frame a little brighter.
 	-- BloomBase is only the fallback when the place has no BloomEffect.
 	BloomBase = 0.45,
-	BloomPulseGain = 0.35,
+	BloomPulseGain = 0.2, -- kicks nudge the frame, they don't blow it out
 }
 
 Config.Leaderboard = {

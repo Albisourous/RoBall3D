@@ -32,9 +32,9 @@ local function applyEnvironment()
 	-- Restrained bloom: Threshold above 1 means only emissive Neon pixels
 	-- bloom; low intensity/size keeps edges crisp instead of blurry.
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.55
-	bloom.Size = 16
-	bloom.Threshold = 1.3
+	bloom.Intensity = 0.35
+	bloom.Size = 10
+	bloom.Threshold = 1.5
 	bloom.Parent = Lighting
 
 	local cc = Instance.new("ColorCorrectionEffect")

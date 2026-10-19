@@ -372,9 +372,9 @@ deferred.
   `+N` points popup with the ghost-diamond burst — the pickup's exact
   value read off the cumulative `RoBallGems` delta. Dial pods were tried
   and rejected — minimal chrome keeps eyes on track.
-- **Post FX**: restrained `BloomEffect` (Intensity 0.55, Size 16, Threshold
-  1.3 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
-  the whole frame into blur), subtle `ColorCorrection`, `Atmosphere` density
+- **Post FX**: restrained `BloomEffect` (Intensity 0.35, Size 10, Threshold
+  1.5 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
+  the whole frame into blur, and 0.55/16/1.3 still glowed too hot), subtle `ColorCorrection`, `Atmosphere` density
   0.25 for depth haze. **Speed blur** is a meter, not a constant: a
   `BlurEffect` + the `DepthOfField`'s far intensity ramp off `fwdSpeed` —
   a power curve (`MaxBlur * t^Exponent`, t normalized `StartSpeed`→`CurveTop`,
