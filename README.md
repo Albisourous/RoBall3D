@@ -38,9 +38,7 @@ backdrop with a striped sun, wireframe-cage ball + trail, restrained
 bloom/atmosphere grade, `R` restart in any mode, stall watchdog +
 deep-run kill-floor fix.
 
-Not yet: a real music asset (`Config.Music.AssetId = 0` — the tempo-ramp
-controller is wired and waits for it; `GemSfx` falls back to a built-in
-ping), moving obstacles, ball skins.
+Not yet: moving obstacles, ball skins.
 
 The full spec — controls, physics numbers, generator rules, difficulty
 tiers, scoring, UI, architecture — lives in [DESIGN.md](./DESIGN.md).

@@ -339,13 +339,15 @@ deferred.
 
 ## 13. Audio
 
-One looped synthwave track (`Music.AssetId` TBD — needs a marketplace/uploaded
-asset). `Sound.PlaybackSpeed` maps ball speed `0.9x -> 1.35x` so the music
+One looped synthwave track — `vaporwave_loop` (generated in
+`roball3d-audio`, 88 BPM native — 16 bars ≈ 43.6s — set as `Music.AssetId`).
+`Sound.PlaybackSpeed` maps ball speed `0.9x -> 1.35x` so the music
 literally accelerates with the run. Death slides pitch to floor, restart
-restores. Gem pickup chime (`SfxController` + `GemSfx`): rapid pickups climb
-an A-minor pentatonic semitone ladder so rhythm clusters play as runs —
-same beat grid the gems are placed on. SFX backlog: tier-up sting, wind
-noise w/ speed.
+restores. Gem pickup chime (`SfxController` + `GemSfx`, `gem_pickup`
+asset): rapid pickups climb an A-minor pentatonic semitone ladder so
+rhythm clusters play as runs — same beat grid the gems are placed on
+(`Music.BaseBpm` = 88 must match the track's real BPM or the beat grid
+drifts). SFX backlog: tier-up sting, wind noise w/ speed.
 
 ## 14. Persistence & leaderboard
 

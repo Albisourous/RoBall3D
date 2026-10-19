@@ -173,9 +173,8 @@ Config.Score = {
 Config.GemSfx = {
 	-- Gem pickup chime (SfxController): rapid pickups climb a pentatonic
 	-- ladder so cluster lines play little runs. rbxasset:// fallback is a
-	-- built-in Roblox ping — always resolvable; set AssetId to a real bell
-	-- once one is uploaded.
-	AssetId = 0,
+	-- built-in Roblox ping — always resolvable if the asset fails to load.
+	AssetId = 125591495745947, -- gem_pickup (roball3d-audio, newest import)
 	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
 	Volume = 0.5,
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
@@ -185,12 +184,14 @@ Config.GemSfx = {
 
 Config.Music = {
 	-- Single synthwave loop; PlaybackSpeed ramps with ball speed.
-	AssetId = 0, -- TODO: pick/upload a synthwave track and set the asset id
+	AssetId = 139067975647102, -- vaporwave_loop (roball3d-audio, newest import)
 	Volume = 0.5,
 	-- Native BPM of the track — gem clusters are placed on this beat grid
 	-- (beat interval = 60 / (BaseBpm * heard PlaybackSpeed), so pickups land
-	-- on musical subdivisions at any pace). Update when AssetId is chosen.
-	BaseBpm = 110,
+	-- on musical subdivisions at any pace). vaporwave_loop is 16 bars =
+	-- 43.6s => 88 BPM (the generate_audio.py tape-slow lands it at 88, not
+	-- the script's stated 128 target — measure TimeLength, don't guess).
+	BaseBpm = 88,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
 	DeathPitchFloor = 0.6, -- pitch slides to this on death
