@@ -193,12 +193,13 @@ RunService.RenderStepped:Connect(function()
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
 		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
-		-- Blur meter: slow smear that keeps deepening past the old cap —
-		-- the gradient ride is visual speed, not a penalty.
-		local over = math.max(0, fwdSpeed - Config.Blur.StartSpeed);
-		(speedBlur :: BlurEffect).Size = math.min(Config.Blur.MaxBlur, over * Config.Blur.BlurPerSpeed)
+		-- Blur meter: power curve — clear through the 0-100 game, smear
+		-- climbs hard into endless mode, capped at MaxBlur.
+		local bl = Config.Blur
+		local curve = math.clamp((fwdSpeed - bl.StartSpeed) / (bl.CurveTop - bl.StartSpeed), 0, 1) ^ bl.Exponent;
+		(speedBlur :: BlurEffect).Size = curve * bl.MaxBlur
 		if dof then
-			dof.FarIntensity = math.min(Config.Blur.DofFarMax, over * Config.Blur.DofFarPerSpeed)
+			dof.FarIntensity = curve * bl.DofFarMax
 		end
 		-- Aim at the deck plane LookAhead studs out: the drop = grade*ahead,
 		-- so the camera pitches into the slope and shows more track (the

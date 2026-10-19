@@ -363,8 +363,10 @@ deferred.
   1.3 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur), subtle `ColorCorrection`, `Atmosphere` density
   0.25 for depth haze. **Speed blur** is a meter, not a constant: a
-  `BlurEffect` + the `DepthOfField`'s far intensity ramp off `fwdSpeed` from
-  `Blur.StartSpeed` (55 s/s) with shallow `*PerSpeed` slopes — crystal at
+  `BlurEffect` + the `DepthOfField`'s far intensity ramp off `fwdSpeed` —
+  a power curve (`MaxBlur * t^Exponent`, t normalized `StartSpeed`→`CurveTop`)
+  so 0–100 stays essentially clear and the smear climbs exponentially past
+  it, capped at MaxBlur — crystal at
   tier pace, smearing only deep into endless mode. The place-file DoF used
   to sit at a near focus (track permanently soft); the client retunes it to
   `DofFocusDistance` so only the horizon blurs.
