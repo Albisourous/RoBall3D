@@ -12,10 +12,11 @@ local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
-local DECK_COLOR = Color3.fromRGB(28, 23, 46) -- readable dark violet, not pitch black
+local DECK_COLOR = Color3.fromRGB(5, 7, 9) -- near-black deck; the neon grid carries the read
 local EDGE_W = 0.6
 local EDGE_H = 0.25
 local GRID_H = 0.08
+local CENTER_W = 0.35 -- longitudinal grid line down the deck middle
 
 local TrackStreamer = {}
 TrackStreamer.__index = TrackStreamer
@@ -94,6 +95,32 @@ local function makeEdgeStrip(
 	e.Parent = parent
 end
 
+-- Longitudinal neon line down the deck center — pairs with the transverse
+-- grid strips to sell the full wireframe floor (DESIGN.md §12).
+local function makeCenterStrip(
+	parent: Instance,
+	worldX: number,
+	topY: number,
+	zMid: number,
+	segLen: number,
+	pitch: number,
+	roll: number,
+	chunkType: string,
+	color: Color3
+)
+	local c = Instance.new("Part")
+	c.Name = "GridC"
+	c.Anchored = true
+	c.CanCollide = false
+	c.CastShadow = false
+	c.Size = Vector3.new(CENTER_W, GRID_H, segLen + 0.15)
+	c.CFrame = CFrame.new(worldX, topY + GRID_H / 2 + 0.02, zMid) * CFrame.Angles(pitch, 0, roll)
+	c.Color = color
+	c.Material = Enum.Material.Neon
+	c:SetAttribute("ChunkType", chunkType)
+	c.Parent = parent
+end
+
 -- Transverse neon grid strip across the deck top — floor readability + the
 -- vaporwave grid signature (DESIGN.md §12).
 local function makeGridStrip(
@@ -158,9 +185,17 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	b.Size = Vector3.new(ob.w, ob.h, ob.d)
 	b.CFrame = CFrame.new(laneX + mid.centerX + ob.xOff, mid.y + ob.h / 2, spec.startZ - ob.t * spec.length)
 		* CFrame.Angles(pitch, 0, roll)
-	b.Color = Config.LethalColor
-	b.Material = Enum.Material.Neon
+	-- Slope look: black body, red edge outline — the same one-color lethal
+	-- language, but wireframe instead of solid fill.
+	b.Color = Config.Obstacles.FaceColor
+	b.Material = Enum.Material.SmoothPlastic
 	b:SetAttribute("ChunkType", spec.type)
+	local outline = Instance.new("SelectionBox")
+	outline.Adornee = b
+	outline.Color3 = Config.LethalColor
+	outline.LineThickness = Config.Obstacles.OutlineThickness
+	outline.SurfaceTransparency = 1
+	outline.Parent = b
 	b.Parent = parent
 	return b
 end
@@ -230,6 +265,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				makeSlicePart(holder, centerX, topY, zMid, width, pitch, roll, spec.type)
 				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
 				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, pitch, roll, spec.type, edgeColor)
+				makeCenterStrip(holder, centerX, topY, zMid, SEG_LEN, pitch, roll, spec.type, gridColor)
 				if gridline then
 					makeGridStrip(holder, centerX, topY, zMid, width, pitch, roll, spec.type, gridColor)
 				end

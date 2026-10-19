@@ -1,0 +1,256 @@
+{
+  "communities": {
+    "0": [
+      "script_parent_saveservice",
+      "script_parent_trackstreamer",
+      "src_replicatedstorage_roball_gencore_gencore_new",
+      "src_serverscriptservice_roballserver_main_server",
+      "src_serverscriptservice_roballserver_main_server_applyenvironment",
+      "src_serverscriptservice_roballserver_main_server_hashseed",
+      "src_serverscriptservice_roballserver_main_server_killrun",
+      "src_serverscriptservice_roballserver_main_server_onplayeradded",
+      "src_serverscriptservice_roballserver_main_server_plausible",
+      "src_serverscriptservice_roballserver_main_server_randomseed",
+      "src_serverscriptservice_roballserver_main_server_resolveseed",
+      "src_serverscriptservice_roballserver_main_server_spawnball",
+      "src_serverscriptservice_roballserver_main_server_startrun",
+      "src_serverscriptservice_roballserver_main_server_writescore",
+      "src_serverscriptservice_roballserver_saveservice",
+      "src_serverscriptservice_roballserver_saveservice_ensurestores",
+      "src_serverscriptservice_roballserver_saveservice_saveservice_gettop",
+      "src_serverscriptservice_roballserver_saveservice_saveservice_loadbest",
+      "src_serverscriptservice_roballserver_saveservice_saveservice_savebest",
+      "src_serverscriptservice_roballserver_saveservice_saveservice_submittop",
+      "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_new"
+    ],
+    "1": [
+      "script_parent_backdrop",
+      "script_parent_musiccontroller",
+      "script_parent_ui",
+      "src_replicatedstorage_roball_chunkdefs",
+      "src_replicatedstorage_roball_chunkdefs_applygrade",
+      "src_replicatedstorage_roball_chunkdefs_chunkdefs_wrapgrade",
+      "src_replicatedstorage_roball_chunkdefs_lerp",
+      "src_replicatedstorage_roball_config",
+      "src_replicatedstorage_roball_gencore",
+      "src_replicatedstorage_roball_gencore_gencore_nextchunk",
+      "src_replicatedstorage_roball_gencore_introsection",
+      "src_replicatedstorage_roball_tiers",
+      "src_replicatedstorage_roball_tiers_tiers_fordistance",
+      "src_replicatedstorage_roball_tiers_tiers_speedat",
+      "src_starterplayer_starterplayerscripts_roballclient_main_client",
+      "src_starterplayer_starterplayerscripts_roballclient_musiccontroller",
+      "src_starterplayer_starterplayerscripts_roballclient_musiccontroller_music_init",
+      "src_starterplayer_starterplayerscripts_roballclient_musiccontroller_music_ondeath",
+      "src_starterplayer_starterplayerscripts_roballclient_musiccontroller_music_onstart",
+      "src_starterplayer_starterplayerscripts_roballclient_musiccontroller_music_setspeednorm"
+    ],
+    "2": [
+      "agents_md",
+      "design_md",
+      "readme_md",
+      "src_replicatedstorage_roball_chunkdefs_luau",
+      "src_replicatedstorage_roball_config_luau",
+      "src_replicatedstorage_roball_gencore_luau",
+      "src_replicatedstorage_roball_palette_luau",
+      "src_replicatedstorage_roball_seeds_luau",
+      "src_serverscriptservice_roballserver_balldriver_luau",
+      "src_serverscriptservice_roballserver_main_server_luau",
+      "src_serverscriptservice_roballserver_remotes_luau",
+      "src_serverscriptservice_roballserver_runmanager_luau",
+      "src_serverscriptservice_roballserver_saveservice_luau",
+      "src_serverscriptservice_roballserver_scoreservice_luau",
+      "src_serverscriptservice_roballserver_trackstreamer_luau",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_luau",
+      "src_starterplayer_starterplayerscripts_roballclient_main_client_luau",
+      "src_starterplayer_starterplayerscripts_roballclient_musiccontroller_luau",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_luau"
+    ],
+    "3": [
+      "script_parent_config",
+      "src_replicatedstorage_roball_palette",
+      "src_replicatedstorage_roball_palette_palette_dimat",
+      "src_replicatedstorage_roball_palette_palette_hueat",
+      "src_replicatedstorage_roball_palette_palette_neonat",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_backdrop_init",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_backdrop_update",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_bar",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_initsun",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_laypeak",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_makepeak",
+      "src_starterplayer_starterplayerscripts_roballclient_backdrop_paintsun"
+    ],
+    "4": [
+      "src_serverscriptservice_roballserver_trackstreamer",
+      "src_serverscriptservice_roballserver_trackstreamer_makeblock",
+      "src_serverscriptservice_roballserver_trackstreamer_makeedgestrip",
+      "src_serverscriptservice_roballserver_trackstreamer_makegem",
+      "src_serverscriptservice_roballserver_trackstreamer_makegridstrip",
+      "src_serverscriptservice_roballserver_trackstreamer_makeslicepart",
+      "src_serverscriptservice_roballserver_trackstreamer_makewall",
+      "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_buildchunk",
+      "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_cleanup",
+      "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_destroy",
+      "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_ensureahead",
+      "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_yat"
+    ],
+    "5": [
+      "src_starterplayer_starterplayerscripts_roballclient_ui",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_label",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_outlinebutton",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_new",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_seedtext",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_sethud",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_setleaderboard",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_showdeath",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_showhud",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_ui_showmenu",
+      "src_starterplayer_starterplayerscripts_roballclient_ui_vlist"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1523809523809524,
+    "1": 0.1368421052631579,
+    "2": 0.2807017543859649,
+    "3": 0.28205128205128205,
+    "4": 0.2727272727272727,
+    "5": 0.2545454545454545
+  },
+  "gods": [
+    {
+      "id": "design_md",
+      "label": "DESIGN.md \u2014 RoBall3D design document",
+      "degree": 18
+    },
+    {
+      "id": "src_serverscriptservice_roballserver_trackstreamer_trackstreamer_buildchunk",
+      "label": "TrackStreamer:buildChunk()",
+      "degree": 10
+    },
+    {
+      "id": "src_replicatedstorage_roball_config_luau",
+      "label": "Config.luau \u2014 all tunables",
+      "degree": 10
+    },
+    {
+      "id": "src_serverscriptservice_roballserver_main_server_startrun",
+      "label": "startRun()",
+      "degree": 6
+    },
+    {
+      "id": "src_replicatedstorage_roball_gencore_luau",
+      "label": "GenCore.luau \u2014 pure seeded generator",
+      "degree": 6
+    },
+    {
+      "id": "src_serverscriptservice_roballserver_trackstreamer_luau",
+      "label": "TrackStreamer.luau \u2014 spec -> Instances",
+      "degree": 6
+    },
+    {
+      "id": "src_replicatedstorage_roball_palette_palette_neonat",
+      "label": "Palette.neonAt()",
+      "degree": 5
+    },
+    {
+      "id": "src_serverscriptservice_roballserver_main_server_killrun",
+      "label": "killRun()",
+      "degree": 5
+    },
+    {
+      "id": "src_starterplayer_starterplayerscripts_roballclient_ui_ui_new",
+      "label": "Ui.new()",
+      "degree": 5
+    },
+    {
+      "id": "agents_md",
+      "label": "AGENTS.md \u2014 agent workflow contract",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "DESIGN.md \u2014 RoBall3D design document",
+      "target": "Seeds.luau \u2014 seed parse/hash",
+      "source_files": [
+        "DESIGN.md",
+        "src/ReplicatedStorage/RoBall/Seeds.luau"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "crosses file types (doc \u2194 code); connects across different repos/directories; peripheral node `Seeds.luau \u2014 seed parse/hash` unexpectedly reaches hub `DESIGN.md \u2014 RoBall3D design document`"
+    },
+    {
+      "source": "DESIGN.md \u2014 RoBall3D design document",
+      "target": "SaveService.luau \u2014 DataStore persistence",
+      "source_files": [
+        "DESIGN.md",
+        "src/ServerScriptService/RoBallServer/SaveService.luau"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "crosses file types (doc \u2194 code); connects across different repos/directories; peripheral node `SaveService.luau \u2014 DataStore persistence` unexpectedly reaches hub `DESIGN.md \u2014 RoBall3D design document`"
+    },
+    {
+      "source": "AGENTS.md \u2014 agent workflow contract",
+      "target": "ChunkDefs.luau \u2014 chunk type table + builders",
+      "source_files": [
+        "AGENTS.md",
+        "src/ReplicatedStorage/RoBall/ChunkDefs.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (doc \u2194 code); connects across different repos/directories"
+    },
+    {
+      "source": "DESIGN.md \u2014 RoBall3D design document",
+      "target": "ChunkDefs.luau \u2014 chunk type table + builders",
+      "source_files": [
+        "DESIGN.md",
+        "src/ReplicatedStorage/RoBall/ChunkDefs.luau"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "crosses file types (doc \u2194 code); connects across different repos/directories"
+    },
+    {
+      "source": "DESIGN.md \u2014 RoBall3D design document",
+      "target": "Config.luau \u2014 all tunables",
+      "source_files": [
+        "DESIGN.md",
+        "src/ReplicatedStorage/RoBall/Config.luau"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "crosses file types (doc \u2194 code); connects across different repos/directories"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `TrackStreamer:buildChunk()` connect `Community 4` to `Community 3`?",
+      "why": "High betweenness centrality (0.017) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 2 inferred relationships involving `TrackStreamer:buildChunk()` (e.g. with `Palette.dimAt()` and `Palette.neonAt()`) actually correct?",
+      "why": "`TrackStreamer:buildChunk()` has 2 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 1` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.1368421052631579 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 5 inferred relationships involving `Config.luau \u2014 all tunables` (e.g. with `ChunkDefs.luau \u2014 chunk type table + builders` and `GenCore.luau \u2014 pure seeded generator`) actually correct?",
+      "why": "`Config.luau \u2014 all tunables` has 5 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 4 inferred relationships involving `GenCore.luau \u2014 pure seeded generator` (e.g. with `ChunkDefs.luau \u2014 chunk type table + builders` and `Config.luau \u2014 all tunables`) actually correct?",
+      "why": "`GenCore.luau \u2014 pure seeded generator` has 4 INFERRED edges - model-reasoned connections that need verification."
+    }
+  ]
+}

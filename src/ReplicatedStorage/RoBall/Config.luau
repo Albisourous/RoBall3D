@@ -65,6 +65,10 @@ Config.Obstacles = {
 	BlockDepth = 4,
 	WallHeight = 9, -- WallSlot slab height
 	WallDepth = 2.5,
+	-- Slope look: lethal blocks are near-black solids with a hot red edge
+	-- outline (SelectionBox), not solid red fill.
+	FaceColor = Color3.fromRGB(30, 4, 8),
+	OutlineThickness = 0.09,
 }
 
 -- Difficulty tiers. Crossing `dist` (meters) activates the tier: speed
@@ -133,7 +137,9 @@ Config.Gems = {
 	Spacing = 3, -- studs between gems in a cluster
 	FloatY = 1.6, -- default hover height above the deck
 	Size = 0.9, -- studs
-	Color = Color3.fromRGB(0, 255, 240), -- reserved cyan: collectible, never lethal
+	-- Reserved gold: collectible, never lethal, and reads against the green
+	-- world (cyan was too close to the emerald palette).
+	Color = Color3.fromRGB(255, 212, 64),
 }
 
 Config.Score = {
@@ -150,41 +156,42 @@ Config.Music = {
 }
 
 Config.Palette = {
-	-- Vaporwave hue wheel, cycled by distance. Neon elements sample this.
-	HueStops = { 320, 275, 230, 190, 320 }, -- magenta -> purple -> blue -> cyan -> magenta
-	CycleDistance = 400, -- meters per full hue lap
-	Saturation = 0.85,
+	-- Slope-green hue wheel, cycled by distance. Neon elements sample this.
+	-- The whole wheel stays in the green family (lime -> green -> emerald)
+	-- so the world keeps the signature green-on-black read while still
+	-- drifting subtly as you descend.
+	HueStops = { 150, 120, 105, 135, 150 }, -- emerald -> green -> lime -> green -> emerald
+	CycleDistance = 600, -- meters per full hue lap
+	Saturation = 0.95,
 	NeonValue = 1.0,
 }
 
 -- Presentation (DESIGN.md §12). All decorative — zero gameplay effect.
 Config.Art = {
-	-- Retro sun: striped neon disc parked on the horizon ahead of the ball.
-	SunRadius = 160,
-	SunDistance = 380, -- studs ahead of the ball (-Z); inside the haze band
-	-- Deck drops Grade*studs ahead; keep the disc center just above the deck
-	-- plane at that distance so the lower stripes submerge — sunset read.
-	SunDrop = 18,
-	SunDepth = 5, -- stripe part thickness
-	-- Wireframe mountains: neon A-frame peaks recycled in rows each side.
-	MountainRows = 3, -- depth layers per side
-	MountainMinX = 140, -- innermost lateral offset from lane center
-	MountainRowDX = 170, -- extra offset per row
-	MountainSpacing = 170, -- z spacing between peaks in a row
-	MountainSpan = 1500, -- z window; peaks leaving the tail wrap forward
-	MountainMinH = 55,
-	MountainMaxH = 190,
-	MountainMinW = 90,
-	MountainMaxW = 230,
-	MountainValue = 0.5, -- palette value scale (silhouettes stay dim)
-	BarThickness = 2.0,
-	-- Ball dressing: magenta point light + fading trail.
+	-- Wireframe city canyon (Slope look): rows of dark towers outlined in
+	-- neon green, flanking the track on both sides, recycled for parallax.
+	CityRows = 2, -- depth layers per side
+	CityMinX = 62, -- innermost lateral offset from lane center
+	CityRowDX = 110, -- extra offset per row
+	CitySpacing = 150, -- z spacing between towers in a row
+	CitySpan = 1000, -- z window; towers leaving the tail wrap forward
+	CityMinH = 40,
+	CityMaxH = 200,
+	CityMinW = 26,
+	CityMaxW = 70,
+	CityMinD = 30,
+	CityMaxD = 90,
+	CitySegsMax = 3, -- stacked block segments per tower (1..SegsMax)
+	CityValue = 0.55, -- palette value scale for tower outlines
+	CityFaceValue = 0.10, -- near-black face fill
+	LineThickness = 0.09, -- SelectionBox edge thickness
+	-- Ball dressing: green point light + fading trail.
 	BallLightRange = 16,
 	TrailLifetime = 0.55,
 	-- Floor readability: neon grid lines across the deck every GridEvery
-	-- studs — sells the vaporwave grid floor AND improves depth perception.
+	-- studs — sells the wireframe grid floor AND improves depth perception.
 	GridEvery = 10,
-	GridValue = 0.4, -- palette value scale for grid lines (dimmer than edges)
+	GridValue = 0.5, -- palette value scale for grid lines (dimmer than edges)
 }
 
 Config.Leaderboard = {

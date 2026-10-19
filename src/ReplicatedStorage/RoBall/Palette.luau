@@ -1,7 +1,7 @@
 --!strict
 -- Palette (DESIGN.md §8.5): a single hue wheel cycled by distance. Edges,
--- gems, sun stripes and mountain wireframes all sample it so the whole scene
--- laps magenta -> purple -> blue -> cyan as you go deeper.
+-- gems, grid lines and tower outlines all sample it so the scene laps
+-- lime -> green -> emerald as you go deeper — always the green family.
 
 local Config = require(script.Parent.Config)
 

@@ -1,19 +1,20 @@
 --!strict
 -- RoBall3D UI — menu, HUD, death screen, all built in code (DESIGN.md §6:
--- everything lives in git, nothing hand-placed in StarterGui). Vaporwave
--- shell: dark gradient, SciFi display font, Code data font, cyan/magenta.
+-- everything lives in git, nothing hand-placed in StarterGui). Slope shell:
+-- near-black, neon green on black, big centered score while you run.
 
 local Players = game:GetService("Players")
 
 local Ui = {}
 Ui.__index = Ui
 
-local C_BG = Color3.fromRGB(10, 7, 18)
-local C_PANEL = Color3.fromRGB(14, 10, 26)
-local C_MAGENTA = Color3.fromRGB(255, 45, 120)
-local C_CYAN = Color3.fromRGB(0, 255, 240)
-local C_DIM = Color3.fromRGB(140, 130, 160)
-local C_WHITE = Color3.fromRGB(240, 240, 250)
+local C_BG = Color3.fromRGB(3, 5, 4)
+local C_PANEL = Color3.fromRGB(6, 12, 9)
+local C_GREEN = Color3.fromRGB(0, 255, 120)
+local C_LIME = Color3.fromRGB(150, 255, 80)
+local C_GOLD = Color3.fromRGB(255, 212, 64)
+local C_DIM = Color3.fromRGB(80, 140, 105)
+local C_WHITE = Color3.fromRGB(235, 255, 242)
 
 local F_DISPLAY = Enum.Font.SciFi
 local F_DATA = Enum.Font.Code
@@ -37,12 +38,12 @@ local function outlineButton(parent, text, size, order)
 	b.AutoButtonColor = false
 	b.Font = F_DISPLAY
 	b.TextSize = size
-	b.TextColor3 = C_CYAN
+	b.TextColor3 = C_GREEN
 	b.Text = text
 	b.Size = UDim2.fromOffset(size * 6, size * 1.7)
 	b.LayoutOrder = order or 0
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = C_CYAN
+	stroke.Color = C_GREEN
 	stroke.Thickness = 2
 	stroke.Parent = b
 	local pad = Instance.new("UIPadding")
@@ -50,12 +51,12 @@ local function outlineButton(parent, text, size, order)
 	pad.PaddingRight = UDim.new(0, 8)
 	pad.Parent = b
 	b.MouseEnter:Connect(function()
-		b.TextColor3 = C_MAGENTA
-		stroke.Color = C_MAGENTA
+		b.TextColor3 = C_LIME
+		stroke.Color = C_LIME
 	end)
 	b.MouseLeave:Connect(function()
-		b.TextColor3 = C_CYAN
-		stroke.Color = C_CYAN
+		b.TextColor3 = C_GREEN
+		stroke.Color = C_GREEN
 	end)
 	b.Parent = parent
 	return b
@@ -99,9 +100,9 @@ function Ui.new(): Ui
 	local grad = Instance.new("UIGradient")
 	grad.Rotation = 115
 	grad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 8, 40)),
-		ColorSequenceKeypoint.new(0.55, Color3.fromRGB(10, 7, 18)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 20, 44)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(4, 26, 14)),
+		ColorSequenceKeypoint.new(0.55, Color3.fromRGB(3, 5, 4)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(2, 14, 9)),
 	})
 	grad.Parent = menu
 
@@ -115,7 +116,7 @@ function Ui.new(): Ui
 
 	local title = label(menuCol, "ROBALL3D", 72, F_DISPLAY, C_WHITE, 1)
 	local tgrad = Instance.new("UIGradient")
-	tgrad.Color = ColorSequence.new(C_MAGENTA, C_CYAN)
+	tgrad.Color = ColorSequence.new(C_LIME, C_GREEN)
 	tgrad.Rotation = 90
 	tgrad.Parent = title
 
@@ -133,7 +134,7 @@ function Ui.new(): Ui
 	seedBox.BackgroundTransparency = 0.35
 	seedBox.Font = F_DATA
 	seedBox.TextSize = 18
-	seedBox.TextColor3 = C_CYAN
+	seedBox.TextColor3 = C_GREEN
 	seedBox.PlaceholderText = "random"
 	seedBox.PlaceholderColor3 = C_DIM
 	seedBox.Text = ""
@@ -147,7 +148,7 @@ function Ui.new(): Ui
 	seedBox.Parent = menuCol
 	self.seedBox = seedBox
 
-	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_MAGENTA, 7)
+	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_LIME, 7)
 	label(menuCol, "", 8, F_DATA, C_DIM, 8)
 	label(menuCol, "A/D steer   ·   W/S speed   ·   R retry after death", 14, F_DATA, C_DIM, 9)
 
@@ -171,7 +172,7 @@ function Ui.new(): Ui
 	boardCorner.CornerRadius = UDim.new(0, 10)
 	boardCorner.Parent = board
 
-	label(board, "TOP RUNS", 22, F_DISPLAY, C_MAGENTA, 0)
+	label(board, "TOP RUNS", 22, F_DISPLAY, C_GREEN, 0)
 	local boardBody = Instance.new("Frame")
 	boardBody.BackgroundTransparency = 1
 	boardBody.Size = UDim2.new(1, -24, 1, -50)
@@ -180,7 +181,7 @@ function Ui.new(): Ui
 	vlist(boardBody, 4)
 	self.boardRows = {}
 	for i = 1, 10 do
-		local row = label(boardBody, "", 15, F_DATA, i % 2 == 0 and C_CYAN or C_WHITE, i)
+		local row = label(boardBody, "", 15, F_DATA, i % 2 == 0 and C_LIME or C_WHITE, i)
 		row.TextXAlignment = Enum.TextXAlignment.Left
 		row.TextTruncate = Enum.TextTruncate.AtEnd
 		self.boardRows[i] = row
@@ -188,36 +189,36 @@ function Ui.new(): Ui
 	self:setLeaderboard(nil)
 
 	--============================= HUD ==============================--
+	-- Slope read: one big green score centered at the top; a thin subline
+	-- carries distance/speed/seed without competing for attention.
 	local hud = Instance.new("Frame")
 	hud.Name = "Hud"
 	hud.AnchorPoint = Vector2.new(0.5, 0)
-	hud.Position = UDim2.new(0.5, 0, 0, 14)
-	hud.Size = UDim2.fromOffset(560, 40)
-	hud.BackgroundColor3 = C_BG
-	hud.BackgroundTransparency = 0.45
-	hud.BorderSizePixel = 0
+	hud.Position = UDim2.new(0.5, 0, 0, 10)
+	hud.Size = UDim2.fromOffset(560, 86)
+	hud.BackgroundTransparency = 1
 	hud.Visible = false
 	hud.Parent = gui
 	self.hud = hud
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = hud
 
-	local hudText = Instance.new("TextLabel")
-	hudText.BackgroundTransparency = 1
-	hudText.Font = F_DATA
-	hudText.TextSize = 20
-	hudText.TextColor3 = C_CYAN
-	hudText.Size = UDim2.fromScale(1, 1)
-	hudText.Parent = hud
-	self.hudText = hudText
+	local scoreText = Instance.new("TextLabel")
+	scoreText.BackgroundTransparency = 1
+	scoreText.Font = F_DATA
+	scoreText.TextSize = 52
+	scoreText.TextColor3 = C_GREEN
+	scoreText.Size = UDim2.new(1, 0, 0, 58)
+	scoreText.Parent = hud
+	self.scoreText = scoreText
 
-	local hudAccent = Instance.new("Frame")
-	hudAccent.BackgroundColor3 = C_MAGENTA
-	hudAccent.BorderSizePixel = 0
-	hudAccent.Size = UDim2.new(1, 0, 0, 2)
-	hudAccent.Position = UDim2.new(0, 0, 1, -2)
-	hudAccent.Parent = hud
+	local subText = Instance.new("TextLabel")
+	subText.BackgroundTransparency = 1
+	subText.Font = F_DATA
+	subText.TextSize = 15
+	subText.TextColor3 = C_DIM
+	subText.Position = UDim2.fromOffset(0, 60)
+	subText.Size = UDim2.new(1, 0, 0, 20)
+	subText.Parent = hud
+	self.subText = subText
 
 	--============================ DEATH =============================--
 	local death = Instance.new("Frame")
@@ -238,10 +239,10 @@ function Ui.new(): Ui
 	dCol.Parent = death
 	vlist(dCol, 10)
 
-	label(dCol, "RUN OVER", 52, F_DISPLAY, C_MAGENTA, 1)
-	self.dScore = label(dCol, "SCORE 0", 34, F_DATA, C_CYAN, 2)
+	label(dCol, "RUN OVER", 52, F_DISPLAY, C_GREEN, 1)
+	self.dScore = label(dCol, "SCORE 0", 34, F_DATA, C_LIME, 2)
 	self.dBreakdown = label(dCol, "0 m · 0 gems", 18, F_DATA, C_WHITE, 3)
-	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_MAGENTA, 4)
+	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_GOLD, 4)
 	self.dSeed = label(dCol, "SEED 0", 14, F_DATA, C_DIM, 5)
 	local retry = outlineButton(dCol, "RETRY", 30, 6)
 	retry.Size = UDim2.fromOffset(300, 56)
@@ -269,8 +270,8 @@ function Ui:showHud()
 end
 
 function Ui:setHud(score: number, dist: number, gems: number, speed: number, seed: number)
-	self.hudText.Text =
-		string.format("SCORE %d  ·  %d m  ·  GEMS +%d  ·  %d s/s  ·  SEED %d", score, dist, gems, speed, seed)
+	self.scoreText.Text = tostring(score)
+	self.subText.Text = string.format("%d m  ·  gems +%d  ·  %d s/s  ·  seed %d", dist, gems, speed, seed)
 end
 
 function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number)

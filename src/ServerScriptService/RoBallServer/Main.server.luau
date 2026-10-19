@@ -17,31 +17,31 @@ local SaveService = require(script.Parent.SaveService)
 
 Players.CharacterAutoLoads = false
 
--- Night-sky + post FX (DESIGN.md §12): near-black space backdrop, neon bloom,
--- magenta-leaning color grade, purple haze for depth.
+-- Night-sky + post FX (DESIGN.md §12): pure-black void, neon bloom, faint
+-- green-leaning grade, thin haze so the wireframe city fades with depth.
 local function applyEnvironment()
 	Lighting.ClockTime = 0 -- night: dark skybox + stars
 	Lighting.GeographicLatitude = 0
-	Lighting.Ambient = Color3.fromRGB(40, 24, 66)
-	Lighting.OutdoorAmbient = Color3.fromRGB(30, 18, 50)
+	Lighting.Ambient = Color3.fromRGB(16, 22, 18)
+	Lighting.OutdoorAmbient = Color3.fromRGB(10, 16, 12)
 
 	local bloom = Instance.new("BloomEffect")
 	bloom.Intensity = 1.15
 	bloom.Size = 30
-	bloom.Threshold = 0.85
+	bloom.Threshold = 0.8
 	bloom.Parent = Lighting
 
 	local cc = Instance.new("ColorCorrectionEffect")
-	cc.Saturation = 0.18
-	cc.Contrast = 0.07
-	cc.TintColor = Color3.fromRGB(255, 236, 250)
+	cc.Saturation = 0.12
+	cc.Contrast = 0.08
+	cc.TintColor = Color3.fromRGB(232, 255, 240)
 	cc.Parent = Lighting
 
 	local atmo = Instance.new("Atmosphere")
-	atmo.Density = 0.18 -- thin haze: distant neon (sun ~380 studs) must survive
+	atmo.Density = 0.18 -- thin haze: distant towers should dim, not vanish
 	atmo.Offset = 0 -- keep the haze floor at y=0 so descending track stays clear
-	atmo.Color = Color3.fromRGB(16, 8, 32)
-	atmo.Decay = Color3.fromRGB(28, 12, 58)
+	atmo.Color = Color3.fromRGB(4, 10, 7)
+	atmo.Decay = Color3.fromRGB(3, 14, 8)
 	atmo.Glare = 0.5
 	atmo.Haze = 2
 	atmo.Parent = Lighting
@@ -129,9 +129,17 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	ball.Size = Vector3.new(d, d, d)
 	ball.CustomPhysicalProperties =
 		PhysicalProperties.new(Config.Ball.Density, Config.Ball.Friction, Config.Ball.Elasticity, 1, 1)
-	ball.Color = Palette.neonAt(0) -- palette-driven skin (DESIGN.md §12)
-	ball.Material = Enum.Material.Neon
+	-- Slope look: near-black core + engine-rendered wireframe sphere. The
+	-- adornment does the neon; the part underneath just needs to be dark.
+	ball.Color = Color3.fromRGB(4, 8, 6)
+	ball.Material = Enum.Material.SmoothPlastic
 	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
+
+	local wire = Instance.new("SelectionSphere")
+	wire.Adornee = ball
+	wire.Color3 = Palette.neonAt(0)
+	wire.SurfaceTransparency = 1
+	wire.Parent = ball
 
 	local light = Instance.new("PointLight")
 	light.Color = Palette.neonAt(0)
