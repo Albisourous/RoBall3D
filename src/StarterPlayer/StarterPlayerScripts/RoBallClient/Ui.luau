@@ -126,7 +126,9 @@ function Ui.new(): Ui
 	local play = outlineButton(menuCol, "PLAY", 40, 4)
 	play.Size = UDim2.fromOffset(260, 68)
 
-	local seedLabel = label(menuCol, "seed — blank = random", 14, F_DATA, C_DIM, 5)
+	label(menuCol, "or press R", 13, F_DATA, C_DIM, 5).TextTransparency = 0.25
+
+	local seedLabel = label(menuCol, "seed — blank = random", 14, F_DATA, C_DIM, 6)
 	seedLabel.TextTransparency = 0.2
 
 	local seedBox = Instance.new("TextBox")
@@ -140,7 +142,7 @@ function Ui.new(): Ui
 	seedBox.Text = ""
 	seedBox.Size = UDim2.fromOffset(260, 34)
 	seedBox.ClearTextOnFocus = false
-	seedBox.LayoutOrder = 6
+	seedBox.LayoutOrder = 7
 	local seedStroke = Instance.new("UIStroke")
 	seedStroke.Color = C_DIM
 	seedStroke.Transparency = 0.4
@@ -148,9 +150,9 @@ function Ui.new(): Ui
 	seedBox.Parent = menuCol
 	self.seedBox = seedBox
 
-	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 7)
-	label(menuCol, "", 8, F_DATA, C_DIM, 8)
-	label(menuCol, "A/D steer   ·   hold W to boost   ·   R instant restart", 14, F_DATA, C_DIM, 9)
+	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 8)
+	label(menuCol, "", 8, F_DATA, C_DIM, 9)
+	label(menuCol, "A/D steer   ·   hold W to boost   ·   R instant restart", 14, F_DATA, C_DIM, 10)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
