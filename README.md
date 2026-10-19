@@ -17,8 +17,10 @@ world narrows and speeds up at distance milestones, and one fall ends the run.
 - **Vaporwave wireframe** — Slope's downhill read re-skinned: neon-cage ball,
   flowing magenta/violet/cyan gradient deck, red-edged lethal obstacles, a
   neon city canyon and a striped synthwave sun at the horizon
-- **Music that accelerates** — the synthwave track's playback speed follows
-  your ball speed
+- **Music that drives the level** — the synthwave track's playback speed
+  follows your ball speed (~79 → ~119 BPM); the design spec grows this into
+  layered stems that build with tiers and chunk generation synced to the
+  song's own sections (see [AUDIO.md](./AUDIO.md))
 - **Global leaderboard** — personal best + top 20 runs, each tagged with its
   seed so great runs are replayable
 

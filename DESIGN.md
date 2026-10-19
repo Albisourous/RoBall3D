@@ -346,15 +346,36 @@ deferred.
 
 ## 13. Audio
 
-One looped synthwave track — `vaporwave_loop` (generated in
-`roball3d-audio`, 88 BPM native — 16 bars ≈ 43.6s — set as `Music.AssetId`).
-`Sound.PlaybackSpeed` maps ball speed `0.9x -> 1.35x` so the music
-literally accelerates with the run. Death slides pitch to floor, restart
-restores. Gem pickup chime (`SfxController` + `GemSfx`, `gem_pickup`
-asset): rapid pickups climb an A-minor pentatonic semitone ladder so
-rhythm clusters play as runs — same beat grid the gems are placed on
-(`Music.BaseBpm` = 88 must match the track's real BPM or the beat grid
-drifts). SFX backlog: tier-up sting, wind noise w/ speed.
+Full spec: `AUDIO.md`. Binding decisions:
+
+- Music is a **generation input**, not background. The renderer
+  (`roball3d-audio/generate_audio.py`) owns the soundtrack: it emits the
+  loop, per-bus stems, stingers, and a `SongMap.luau` beat/section chart
+  that GenCore reads. Self-rendered = free stems, free beat maps, zero
+  copyright surface.
+- Shipped loop: `vaporwave_loop` (16 bars ≈ 43.6s, **88 BPM**, A minor —
+  `Music.AssetId`). `PlaybackSpeed` maps ball speed `0.9x -> 1.35x`, so
+  the heard tempo runs ~79 → ~119 BPM as the run accelerates. Optional
+  `AudioPitchShifter` (`Music.PitchCompensation`) softens the squeak
+  while tempo keeps climbing.
+- Runtime migrates `Sound` → the audio-graph API: one
+  `AudioPlayer` + fader per stem (equal-length streams stay
+  sample-locked; a watchdog resyncs on `Looped`), `AudioFilter`
+  tape-stop on death/menu, `AudioAnalyzer` tap feeding decorative
+  audio-reactive visuals — never tinting toward `LethalColor`.
+- **Songform sync**: bar position is a pure function of distance
+  (`beats/m = BaseBpm·ps(v)/(60·v)`), so GenCore weights chunk families
+  by the section energy under the ball — drops roll lethal/spectacle,
+  breaks roll breathers. Selection bias only; every §8.1 legality rule
+  still gates what's allowed. Tier-up stings and set-pieces quantize to
+  phrase downbeats. Throttle drift vs the nominal speed schedule is
+  bounded and accepted.
+- Gems stay on the heard beat grid (§8.4); `Music.BaseBpm` must equal
+  `SongMap.bpm` or everything drifts. The pickup chime keeps the
+  pentatonic ladder (`SfxController` + `GemSfx`, `gem_pickup` asset).
+- Once a track canon exists, the seed picks the track: same seed → same
+  track + map + musical pacing — leaderboard rows become replayable
+  "levels", GD-style.
 
 ## 14. Persistence & leaderboard
 
@@ -376,6 +397,8 @@ src/
     ChunkDefs.luau                 -- chunk type table: weights, width rules,
                                    --   entry/exit constraints, builders
     GenCore.luau                   -- pure generator: (rng, state) -> chunk spec
+    SongMap.luau                   -- generated beat/section chart (renderer
+                                   --   output, required by GenCore + client)
   ServerScriptService/RoBallServer/
     Main.server.luau               -- boot/wiring (exists)
     RunManager.luau                -- per-player run lifecycle, lanes, state
@@ -388,7 +411,7 @@ src/
     Main.client.luau               -- boot, state machine, drive, chase cam
     Ui.luau                        -- menu + HUD + death screen, all in code
     Backdrop.luau                  -- synthwave sun + neon city canyon (client-local)
-    MusicController.luau           -- tempo ramp + death slide (P6)
+    MusicController.luau           -- stem graph, tempo ramp, beat clock (AUDIO.md)
     SfxController.luau             -- gem pickup chime, pentatonic combo runs
     GemFx.luau                     -- pickup juice: pop diamond + sparkles + ring
 ```
