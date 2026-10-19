@@ -50,6 +50,7 @@ Config.Generation = {
 	BaseWidth = 24, -- widest ribbon
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs
+	StartY = 50, -- deck height runs start at
 	RowSpacing = 600, -- per-player run lanes are this far apart in X
 }
 

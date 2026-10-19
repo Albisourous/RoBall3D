@@ -1,8 +1,9 @@
 --!strict
--- RoBall3D client entry point — Phase 1: input -> velocity drive + chase cam.
+-- RoBall3D client entry point — Phase 2: input -> velocity drive + chase cam
+-- + tier-paced forward speed.
 -- We drive the ball directly — the server gives us network ownership, so
 -- velocity writes are lag-free (DESIGN.md §4). The ball is found by name in
--- Workspace; Waiting for replication is more reliable than remote args.
+-- Workspace; waiting for replication is more reliable than remote args.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,18 +11,21 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 local ballName = player.Name .. "_Ball"
 local lateralVel = 0
+local fwdSpeed = Config.Speed.Start
 local ball: BasePart? = nil
 
 local function bindBall(b: Instance)
 	if b.Name == ballName and b:IsA("BasePart") then
 		ball = b :: BasePart
 		lateralVel = 0
+		fwdSpeed = Config.Speed.Start
 	end
 end
 for _, c in ipairs(workspace:GetChildren()) do
@@ -60,12 +64,18 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 
 	local steer = Config.Steering
-	local targetLat = steerIntent() * steer.MaxLateralSpeed
-	local accel = if steerIntent() == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
+	local intent = steerIntent()
+	local targetLat = intent * steer.MaxLateralSpeed
+	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
 
+	-- Tier-paced forward speed, eased (DESIGN.md §9)
+	local dist = math.max(0, -b.Position.Z)
+	local targetFwd = Tiers.speedAt(dist) * throttle()
+	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -Config.Speed.Accel * dt, Config.Speed.Accel * dt)
+
 	local v = b.AssemblyLinearVelocity
-	b.AssemblyLinearVelocity = Vector3.new(lateralVel, v.Y, -Config.Speed.Start * throttle())
+	b.AssemblyLinearVelocity = Vector3.new(lateralVel, v.Y, -fwdSpeed)
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -75,8 +85,7 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	local cam = Config.Camera
-	local forwardSpeed = math.abs(b.AssemblyLinearVelocity.Z)
-	local speedT = math.clamp((forwardSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
+	local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
 
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
@@ -85,4 +94,4 @@ RunService.RenderStepped:Connect(function()
 	camera.CFrame = CFrame.lookAt(b.Position + cam.Offset, target)
 end)
 
-print("[RoBall3D] P1 client online — input + chase cam ready")
+print("[RoBall3D] P2 client online — steering + tier speed + chase cam")

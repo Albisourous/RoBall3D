@@ -1,0 +1,92 @@
+--!strict
+-- Pure seeded track generator (DESIGN.md §8). Emits ChunkSpecs only —
+-- no Instances, no math.random, fully determined by the seed.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.RoBall.Config)
+local Tiers = require(ReplicatedStorage.RoBall.Tiers)
+local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
+
+local GenCore = {}
+GenCore.__index = GenCore
+
+export type Gen = typeof(setmetatable({} :: any, GenCore))
+
+function GenCore.new(seed: number): Gen
+	local self = setmetatable({}, GenCore)
+	self.seed = seed
+	self.rng = Random.new(seed)
+	self.state = {
+		zEnd = 15, -- first chunk starts a bit ahead of the ball's z=0 spawn
+		centerX = 0,
+		width = Config.Generation.BaseWidth,
+		y = Config.Generation.StartY,
+		dist = 0,
+	}
+	self.introIndex = 0
+	self.intro = {
+		{ type = "Flat", length = 35, widthOut = 26 },
+		{ type = "Flat", length = 35, widthOut = 24 },
+		{ type = "Slalom", length = 45, amp = 6, periods = 0.6 },
+		{ type = "Narrow", length = 55, widthOut = 16 },
+	}
+	return self
+end
+
+local function introSection(st, chunk)
+	return function(t: number)
+		if chunk.type == "Slalom" then
+			return {
+				width = st.width,
+				centerX = st.centerX + chunk.amp * math.sin(t * chunk.periods * math.pi * 2),
+				y = st.y,
+				rollDeg = 0,
+			}
+		end
+		local widthOut = chunk.widthOut or st.width
+		return {
+			width = st.width + (widthOut - st.width) * t,
+			centerX = st.centerX,
+			y = st.y,
+			rollDeg = 0,
+		}
+	end
+end
+
+function GenCore:nextChunk(): ChunkDefs.ChunkSpec
+	local st = self.state
+	local spec: ChunkDefs.ChunkSpec
+
+	if self.introIndex < #self.intro then
+		self.introIndex += 1
+		local chunk = self.intro[self.introIndex]
+		local section = introSection(st, chunk)
+		spec = {
+			type = "Intro_" .. chunk.type,
+			length = chunk.length,
+			startZ = st.zEnd,
+			section = section,
+			endState = {
+				centerX = (chunk.type == "Slalom") and st.centerX + chunk.amp * math.sin(chunk.periods * math.pi * 2)
+					or st.centerX,
+				width = chunk.widthOut or st.width,
+				y = st.y,
+			},
+		}
+	else
+		local tier = Tiers.forDistance(st.dist)
+		local pool = tier.chunkPool
+		local name = pool[self.rng:NextInteger(1, #pool)]
+		spec = ChunkDefs[name](self.rng, st, tier)
+	end
+
+	st.zEnd -= spec.length
+	st.dist += spec.length
+	st.centerX = spec.endState.centerX
+	st.width = spec.endState.width
+	st.y = spec.endState.y
+	return spec
+end
+
+return GenCore
