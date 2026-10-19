@@ -218,6 +218,23 @@ Config.GemSfx = {
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
 	ComboScale = { 0, 2, 4, 7, 9, 12, 14, 16 }, -- A-minor pentatonic semitones
 	PitchJitter = 0.03, -- +-3% so repeats never sound identical
+	-- Ear candy (AUDIO.md §6): a combo isn't a flat ladder climb — pickups
+	-- climb the section's chord-tone scale, WRAPPING into the next octave
+	-- rather than stalling on the top rung, and every CadenceEvery-th pickup
+	-- resolves to the root one octave up, so a run of gems plays an
+	-- arpeggio that lands on its octave — a little phrase, not a siren.
+	-- Past two octaves the phrase folds back down (keeps pitches sweet).
+	CadenceEvery = 4,
+	MaxOctaves = 2,
+	-- Harmony gloss: from the 2nd pickup of a combo on, a quiet perfect
+	-- fifth rides under the melody note — consonant against any chord tone
+	-- and instantly thicker. Shares the melody's jitter so it stays in tune.
+	HarmonySemi = 7,
+	HarmonyVolume = 0.35,
+	-- Combos swell slightly louder as they run — a run of pickups should
+	-- feel like it's BUILDING, capped so it never overpowers the mix.
+	ComboVolGain = 0.04,
+	ComboVolCap = 1.35,
 }
 
 Config.GemFx = {

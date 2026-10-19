@@ -277,6 +277,14 @@ Anything that *sounds* musical lands on the grid:
   tones under the ball right now (E7b9's b9 spice shows up in drop
   pickups, Am9's 9th in intro), generated from the score's chord chart —
   falling back to `Config.GemSfx.ComboScale` when the clock isn't running.
+  The ladder is a *phrase*, not a siren: it wraps into the next octave
+  instead of stalling on the top rung, every `CadenceEvery`-th pickup
+  resolves UP to the root's next octave (the run lands on its octave like
+  a cadence), and past `MaxOctaves` it folds back down so pitches stay
+  sweet. From the second pickup of a combo, a quiet perfect fifth rides
+  under the melody at `HarmonyVolume` — consonant against any chord tone —
+  and combo volume swells by `ComboVolGain` (capped). Same jitter on both
+  voices so the dyad stays in tune.
 
 ## 7. Scene scoring — menu, death, wind
 

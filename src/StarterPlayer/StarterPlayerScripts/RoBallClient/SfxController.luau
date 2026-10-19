@@ -19,8 +19,9 @@ local lastGems = 0
 local lastAt = 0
 local combo = 0
 
-local function chime()
-	local cfg = Config.GemSfx
+-- One physical Sound per voice; shares a PlaybackSpeed ratio so a dyad
+-- stays consonant.
+local function spawnChime(cfg, semi: number, volume: number, jitter: number)
 	local s = Instance.new("Sound")
 	s.Name = "GemPickup"
 	if cfg.AssetId ~= 0 then
@@ -28,6 +29,17 @@ local function chime()
 	else
 		s.SoundId = cfg.FallbackId
 	end
+	s.PlaybackSpeed = 2 ^ (semi / 12) * jitter
+	s.Volume = volume
+	s.Parent = SoundService
+	s:Play()
+	s.Ended:Connect(function()
+		s:Destroy()
+	end)
+end
+
+local function chime()
+	local cfg = Config.GemSfx
 	local now = tick()
 	combo = if now - lastAt < cfg.ComboWindow then combo + 1 else 0
 	lastAt = now
@@ -39,15 +51,28 @@ local function chime()
 	if Music.beatPos() > 0 then
 		scale = Music.section().scale
 	end
-	local rise = 2 ^ (scale[math.min(combo + 1, #scale)] / 12)
+	-- Phrase shape: walk the ladder, wrapping into the next octave so long
+	-- combos keep rising instead of stalling on the top rung; every
+	-- CadenceEvery-th pickup resolves UP to the root's next octave — the
+	-- run lands "on the octave" like a phrase cadence. Past MaxOctaves the
+	-- line folds back down so pitches stay sweet, never shrill.
+	local n = #scale
+	local semi = scale[combo % n + 1] + 12 * math.floor(combo / n)
+	if cfg.CadenceEvery > 0 and (combo + 1) % cfg.CadenceEvery == 0 then
+		semi = scale[1] + 12 * (math.floor(semi / 12) + 1)
+	end
+	local cap = 12 * cfg.MaxOctaves
+	if semi > cap then
+		semi -= cap
+	end
+	local vol = cfg.Volume * math.min(cfg.ComboVolCap, 1 + combo * cfg.ComboVolGain)
 	local jitter = 1 + (math.random() * 2 - 1) * cfg.PitchJitter
-	s.PlaybackSpeed = rise * jitter
-	s.Volume = cfg.Volume
-	s.Parent = SoundService
-	s:Play()
-	s.Ended:Connect(function()
-		s:Destroy()
-	end)
+	spawnChime(cfg, semi, vol, jitter)
+	-- Harmony gloss from the second pickup on: a quiet perfect fifth under
+	-- the melody — consonant against any chord tone, reads as a shimmer.
+	if combo >= 1 then
+		spawnChime(cfg, semi + cfg.HarmonySemi, cfg.Volume * cfg.HarmonyVolume, jitter)
+	end
 end
 
 function Sfx.init()
