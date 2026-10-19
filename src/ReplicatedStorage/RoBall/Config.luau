@@ -256,7 +256,7 @@ Config.Music = {
 	-- SongMap.trackIdFor(seed, Tracklist); GenCore and MusicController share
 	-- the pick so stamped sections match the heard track. Per-track charts
 	-- live in SongMap_<id>.luau.
-	Tracklist = { "vaporwave_loop", "neon_descent" },
+	Tracklist = { "vaporwave_loop", "neon_descent", "retro_wave" },
 	-- Per-track assets. AssetId = the full mix; numeric rbxassetid for
 	-- production or an rbxasset:// ContentId URI resolving to Studio's
 	-- bundled content dir for local dev. Stems: when EVERY entry resolves,
@@ -285,6 +285,17 @@ Config.Music = {
 				lead = "rbxasset://roball3d/neon_descent/stems/stem_lead.ogg",
 				arp = "rbxasset://roball3d/neon_descent/stems/stem_arp.ogg",
 				air = "rbxasset://roball3d/neon_descent/stems/stem_air.ogg",
+			},
+		},
+		retro_wave = {
+			AssetId = "rbxasset://roball3d/retro_wave/retro_wave.ogg",
+			Stems = {
+				pad = "rbxasset://roball3d/retro_wave/stem_pad.ogg",
+				bass = "rbxasset://roball3d/retro_wave/stem_bass.ogg",
+				drums = "rbxasset://roball3d/retro_wave/stem_drums.ogg",
+				lead = "rbxasset://roball3d/retro_wave/stem_lead.ogg",
+				arp = "rbxasset://roball3d/retro_wave/stem_arp.ogg",
+				air = "rbxasset://roball3d/retro_wave/stem_air.ogg",
 			},
 		},
 	},

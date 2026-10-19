@@ -115,14 +115,17 @@ return {
 
 ### 3.2 Track canon — implemented
 
-`Config.Music.Tracklist = { "vaporwave_loop", "neon_descent" }` — the run's
-seed picks the track via `SongMap.trackIdFor`: **same seed → same track +
-same map + same musical pacing** — the leaderboard row becomes a
-replayable "level" exactly like a GD ID. Both tracks carry full stem sets
-(`TrackAssets[id].Stems`) so tier-layering works on either; the seed also
-rotates the opening accent (§6). Grow the canon by adding a `TRACKS` spec
-in `generate_audio.py`, rendering, and appending the id + `TrackAssets`
-entry. `SaveService` records `trackId` next to the seed.
+`Config.Music.Tracklist = { "vaporwave_loop", "neon_descent", "retro_wave" }`
+— the run's seed picks the track via `SongMap.trackIdFor`: **same seed →
+same track + same map + same musical pacing** — the leaderboard row becomes
+a replayable "level" exactly like a GD ID. All three tracks carry full stem
+sets (`TrackAssets[id].Stems`) so tier-layering works on any; the seed also
+rotates the opening accent (§6). `retro_wave` is the outrun-flavored entry
+(100 BPM, Am9 → Gadd9 → Fmaj7 → Em9 arc landing Gadd9 → E7b9 in the drop,
+tape-dragged master) modeled on the Envato "Retro Wave" reference. Grow the
+canon by adding a `TRACKS` spec in `generate_audio.py`, rendering, and
+appending the id + `TrackAssets` entry. `SaveService` records `trackId`
+next to the seed.
 
 ## 4. Runtime: migrate to the audio graph
 

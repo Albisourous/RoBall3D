@@ -10,6 +10,7 @@
 
 local SongMapVaporwave = require(script.Parent.SongMap_vaporwave_loop)
 local SongMapNeonDescent = require(script.Parent.SongMap_neon_descent)
+local SongMapRetroWave = require(script.Parent.SongMap_retro_wave)
 
 export type Section = SongMapVaporwave.Section
 export type Map = typeof(SongMapVaporwave)
@@ -17,6 +18,7 @@ export type Map = typeof(SongMapVaporwave)
 local maps: { [string]: Map } = {
 	vaporwave_loop = SongMapVaporwave,
 	neon_descent = SongMapNeonDescent,
+	retro_wave = SongMapRetroWave,
 }
 
 local SongMap: Map = SongMapVaporwave -- default track = tracklist[1]
