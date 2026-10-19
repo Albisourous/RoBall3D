@@ -84,6 +84,11 @@ end
 -- chord width follows the disk's circle, color slides orange -> magenta
 -- top to bottom, and the gaps between strips widen downward (the classic
 -- striped-sunset read).
+-- Sun strips keep their authored sizes so the analyzer pulse can breathe
+-- the disk without drifting (AUDIO.md §8).
+local sunParts: { { part: Part, base: Vector3 } } = {}
+local sunPulse = 0
+
 local function makeSun(parent: Instance): Model
 	local model = Instance.new("Model")
 	model.Name = "Sun"
@@ -105,6 +110,7 @@ local function makeSun(parent: Instance): Model
 		strip.Size = Vector3.new(halfChord * 2, h, Art.SunDepth)
 		strip.Position = Vector3.new(0, y, 0)
 		strip.Parent = model
+		table.insert(sunParts, { part = strip, base = strip.Size })
 	end
 	model.Parent = parent
 	return model
@@ -128,6 +134,12 @@ end
 
 local seeded = false
 
+-- Audio-reactive drive (AUDIO.md §8): 0..1 energy from MusicController's
+-- analyzer. Decorative only — the pulse never touches hue or hazards.
+function Backdrop.setPulse(p: number)
+	sunPulse = math.clamp(p, 0, 1)
+end
+
 function Backdrop.update(anchor: Vector3)
 	if not root then
 		return
@@ -150,6 +162,11 @@ function Backdrop.update(anchor: Vector3)
 	-- slope — deck-relative heights would sink it below the horizon.
 	if sun then
 		sun:PivotTo(CFrame.new(anchor.X, anchor.Y + Art.SunLift, anchor.Z - Art.SunDist))
+		-- Bass pulse: the disk breathes ±10% with the music's low end.
+		local s = 1 + sunPulse * 0.10
+		for _, sp in ipairs(sunParts) do
+			sp.part.Size = Vector3.new(sp.base.X * s, sp.base.Y * s, sp.base.Z)
+		end
 	end
 
 	-- Towers: recycle any that fell behind the anchor to the front of their

@@ -21,6 +21,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
+local MusicGrid = require(ReplicatedStorage.RoBall.MusicGrid)
+local SongMap = require(ReplicatedStorage.RoBall.SongMap)
 
 export type GenState = {
 	zEnd: number,
@@ -29,6 +31,11 @@ export type GenState = {
 	y: number,
 	dist: number,
 	rng: Random,
+	-- Musical clock (AUDIO.md §5.2): song-beats elapsed at chunk start and
+	-- the SongMap section the ball hears across it. Optional so hand-built
+	-- specs (intro) and tests can omit them.
+	beatPos: number?,
+	section: { kind: string, energy: number }?,
 }
 
 export type Section = {
@@ -170,18 +177,27 @@ end
 -- Written subdivision per size: 8s read as 16ths, 4s as 8ths, 2s as
 -- quarters. If a line wouldn't fit, retry one step denser (32nd-note
 -- buzz rolls at high speed) before dropping the size.
-local function rollRhythm(rng: Random, speed: number, maxSpan: number): (number, number)
+-- `energy` (AUDIO.md §5.2): drops prefer the denser read, breaks cap at
+-- quarter-note clusters so calm music isn't machine-gunned.
+local function rollRhythm(rng: Random, speed: number, maxSpan: number, energy: number?): (number, number)
+	local e = energy or 0.5
 	local sizes = Config.Gems.ClusterSizes
 	local weights = Config.Gems.ClusterWeights
 	local total = 0
 	local picks = {}
 	for i, sz in ipairs(sizes) do
-		for _, subdiv in ipairs({ math.max(1, sz / 2), math.max(1, sz) }) do
-			local sp = beatSpacing(speed, subdiv)
-			if (sz - 1) * sp <= maxSpan then
-				picks[sz] = sp
-				total += weights[i]
-				break
+		if not (e < 0.4 and sz > 4) then
+			local subdivs = { math.max(1, sz / 2), math.max(1, sz) }
+			if Config.MusicSync.DropDenseGems and e > 0.8 then
+				subdivs = { subdivs[2], subdivs[1] } -- densest first in drops
+			end
+			for _, subdiv in ipairs(subdivs) do
+				local sp = beatSpacing(speed, subdiv)
+				if (sz - 1) * sp <= maxSpan then
+					picks[sz] = sp
+					total += weights[i]
+					break
+				end
 			end
 		end
 	end
@@ -209,9 +225,10 @@ local function gemRhythmLine(
 	tHi: number,
 	xOff: number,
 	value: number,
-	yOff: number?
+	yOff: number?,
+	energy: number?
 ): { GemSpot }
-	local size, spacing = rollRhythm(rng, speed, (GEM_BOUND - tLo) * length)
+	local size, spacing = rollRhythm(rng, speed, (GEM_BOUND - tLo) * length, energy)
 	local span = (size - 1) * spacing
 	local hi = math.min(tHi, GEM_BOUND - span / length)
 	local t0 = rng:NextNumber(tLo, math.max(tLo, hi))
@@ -220,6 +237,26 @@ end
 
 ChunkDefs.gemRhythmLine = gemRhythmLine
 ChunkDefs.beatSpacing = beatSpacing
+
+-- Section energy the generator stamped on this chunk's state — 0.5 is the
+-- neutral default for hand-built specs and tests with no SongMap context.
+local function energyOf(st: GenState): number
+	return (st.section and st.section.energy) or 0.5
+end
+
+-- Phrase quantization (AUDIO.md §5.2): studs from this chunk's start to
+-- the next accent downbeat, or nil when the clock isn't running
+-- (hand-built specs/tests). Set pieces slide their feature onto it.
+local function studsToAccent(st: GenState): number?
+	if not Config.MusicSync.QuantizeSetPieces or not st.beatPos then
+		return nil
+	end
+	local bps = MusicGrid.beatsPerStud(Tiers.speedAt(st.dist))
+	if bps <= 0 then
+		return nil
+	end
+	return (SongMap.nextAccentBeat(st.beatPos) - st.beatPos) / bps
+end
 
 -- Flat: plain ribbon; width may drift toward a random in-tier target.
 -- Gems: safe center lines or edge-rail lines (riskier, worth more).
@@ -239,7 +276,17 @@ function ChunkDefs.Flat(rng: Random, st: GenState, tier): ChunkSpec
 		local xOff = if edge then (rng:NextInteger(0, 1) * 2 - 1) * (halfW - 2) else 0
 		appendAll(
 			gems,
-			gemRhythmLine(rng, speed, length, 0.15, 0.7, xOff, edge and Config.Gems.ValueEdge or Config.Gems.ValueSafe)
+			gemRhythmLine(
+				rng,
+				speed,
+				length,
+				0.15,
+				0.7,
+				xOff,
+				edge and Config.Gems.ValueEdge or Config.Gems.ValueSafe,
+				nil,
+				energyOf(st)
+			)
 		)
 	end
 	return spec("Flat", st, length, function(t)
@@ -257,7 +304,8 @@ function ChunkDefs.Slalom(rng: Random, st: GenState, tier): ChunkSpec
 		return st.centerX + amp * math.sin(phase + t * periods * math.pi * 2)
 	end
 	-- xOff=0 rides the swaying centerline — following gems teaches the curve.
-	local gems = gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.2, 0.5, 0, Config.Gems.ValueSafe)
+	local gems =
+		gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.2, 0.5, 0, Config.Gems.ValueSafe, nil, energyOf(st))
 	return spec("Slalom", st, length, function(t)
 		return { width = st.width, centerX = center(t), y = st.y, rollDeg = 0 }
 	end, { centerX = center(1), width = st.width, y = st.y }, nil, gems)
@@ -270,7 +318,8 @@ function ChunkDefs.Narrow(rng: Random, st: GenState, tier): ChunkSpec
 	local lower = math.max(tier.widthMin, Config.Generation.MinWidth)
 	local target = rng:NextNumber(lower, math.max(lower, upper))
 	-- Beam line down the narrowing middle — the risky but rewarding line.
-	local gems = gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.6, 0, Config.Gems.ValueBeam)
+	local gems =
+		gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.6, 0, Config.Gems.ValueBeam, nil, energyOf(st))
 	return spec("Narrow", st, length, function(t)
 		return { width = lerp(st.width, target, t), centerX = st.centerX, y = st.y, rollDeg = 0 }
 	end, { centerX = st.centerX, width = target, y = st.y }, nil, gems)
@@ -290,8 +339,17 @@ function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
 		return roll
 	end
 	local side = roll >= 0 and -1 or 1 -- gems sit on the downhill edge line
-	local gems =
-		gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.5, side * (st.width / 2 - 2), Config.Gems.ValueEdge)
+	local gems = gemRhythmLine(
+		rng,
+		Tiers.speedAt(st.dist),
+		length,
+		0.3,
+		0.5,
+		side * (st.width / 2 - 2),
+		Config.Gems.ValueEdge,
+		nil,
+		energyOf(st)
+	)
 	return spec("Tilt", st, length, function(t)
 		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = rollAt(t) }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
@@ -302,7 +360,8 @@ function ChunkDefs.Pinch(rng: Random, st: GenState, _tier): ChunkSpec
 	local length = rng:NextInteger(45, 70)
 	local pinchW = math.max(3, st.width * 0.22)
 	-- Thread the pinch for beam value.
-	local gems = gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.45, 0, Config.Gems.ValueBeam)
+	local gems =
+		gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.45, 0, Config.Gems.ValueBeam, nil, energyOf(st))
 	return spec("Pinch", st, length, function(t)
 		local bump = (1 - math.cos(t * math.pi * 2)) / 2 -- 0 -> 1 -> 0, peak at t=0.5
 		return {
@@ -327,7 +386,7 @@ function ChunkDefs.SplitGap(rng: Random, st: GenState, _tier): ChunkSpec
 	-- Rail-center lines through the middle where the split is full.
 	-- Both rails share one roll so the pair reads as the same grouping.
 	local railOff = cutout / 2 + rail / 2
-	local size, spacing = rollRhythm(rng, Tiers.speedAt(st.dist), (GEM_BOUND - 0.35) * length)
+	local size, spacing = rollRhythm(rng, Tiers.speedAt(st.dist), (GEM_BOUND - 0.35) * length, energyOf(st))
 	local gems = {}
 	appendAll(gems, gemLine(length, 0.35, -railOff, Config.Gems.ValueBeam, size, nil, spacing))
 	appendAll(gems, gemLine(length, 0.35, railOff, Config.Gems.ValueBeam, size, nil, spacing))
@@ -353,8 +412,8 @@ function ChunkDefs.Bowl(rng: Random, st: GenState, _tier): ChunkSpec
 	-- Dense safe canyon — the breather pays out.
 	local speed = Tiers.speedAt(st.dist)
 	local gems = {}
-	appendAll(gems, gemRhythmLine(rng, speed, length, 0.2, 0.35, 0, Config.Gems.ValueSafe))
-	appendAll(gems, gemRhythmLine(rng, speed, length, 0.55, 0.7, 0, Config.Gems.ValueSafe))
+	appendAll(gems, gemRhythmLine(rng, speed, length, 0.2, 0.35, 0, Config.Gems.ValueSafe, nil, energyOf(st)))
+	appendAll(gems, gemRhythmLine(rng, speed, length, 0.55, 0.7, 0, Config.Gems.ValueSafe, nil, energyOf(st)))
 	return spec("Bowl", st, length, function(t)
 		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, wallH = wallAt(t) }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
@@ -368,6 +427,12 @@ function ChunkDefs.RampGap(_rng: Random, st: GenState, tier): ChunkSpec
 	local rampH = 8
 	local gapLen = math.clamp(speed * 0.35, 18, 34) -- tuned vs launch arc (DESIGN.md §8.3)
 	local landingLen = 45
+	-- Phrase quantization: the launch apex (mid-gap) is the spectacle beat —
+	-- stretch the run-up so the void's middle lands on the accent downbeat.
+	local zAcc = studsToAccent(st)
+	if zAcc then
+		rampLen = math.clamp(zAcc - gapLen / 2, 12, 40)
+	end
 	local drop = 4
 	local length = rampLen + gapLen + landingLen
 	local landW = math.min(st.width * 1.3, Config.Generation.BaseWidth) -- forgiving landing
@@ -515,10 +580,18 @@ end
 function ChunkDefs.WallSlot(rng: Random, st: GenState, _tier): ChunkSpec
 	local length = rng:NextInteger(35, 55)
 	local halfW = st.width / 2
-	local obstacles, gx = gateRow(rng, halfW, 0.5, Config.Obstacles.WallHeight, Config.Obstacles.WallDepth)
+	local tWall = 0.5
+	local zAcc = studsToAccent(st)
+	if zAcc then
+		local t = zAcc / length -- wall hits on the downbeat
+		if t > 0.25 and t < 0.8 then
+			tWall = t
+		end
+	end
+	local obstacles, gx = gateRow(rng, halfW, tWall, Config.Obstacles.WallHeight, Config.Obstacles.WallDepth)
 	local gems = {}
 	if gx then
-		table.insert(gems, { t = 0.5, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
+		table.insert(gems, { t = tWall, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
 	end
 	return spec(
 		"WallSlot",

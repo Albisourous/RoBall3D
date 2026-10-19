@@ -226,18 +226,88 @@ Config.GemFx = {
 }
 
 Config.Music = {
-	-- Single synthwave loop; PlaybackSpeed ramps with ball speed.
-	AssetId = 139067975647102, -- vaporwave_loop (roball3d-audio, newest import)
+	Track = "vaporwave_loop", -- SongMap id the runtime + generator key on
+	AssetId = 139067975647102, -- full mix (roball3d-audio, newest import)
+	-- Layered mode (AUDIO.md §4): when EVERY stem id is non-zero the
+	-- MusicController plays one AudioPlayer per stem and fades layers by
+	-- tier instead of playing the single mix. Zeros => single-track mode.
+	-- (Stems render to roball3d-audio/stems/ — upload, paste ids here.)
+	Stems = { pad = 0, bass = 0, drums = 0, lead = 0, arp = 0, air = 0 },
 	Volume = 0.5,
 	-- Native BPM of the track — gem clusters are placed on this beat grid
 	-- (beat interval = 60 / (BaseBpm * heard PlaybackSpeed), so pickups land
-	-- on musical subdivisions at any pace). vaporwave_loop is 16 bars =
-	-- 43.6s => 88 BPM (the generate_audio.py tape-slow lands it at 88, not
-	-- the script's stated 128 target — measure TimeLength, don't guess).
+	-- on musical subdivisions at any pace). Must equal SongMap.bpm —
+	-- vaporwave_loop is 16 bars = 43.6s => 88 BPM.
 	BaseBpm = 88,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
 	DeathPitchFloor = 0.6, -- pitch slides to this on death
+	-- AudioPitchShifter compensation (AUDIO.md §4): Pitch = ps^-k.
+	-- 0 = full chipmunk ramp (pitch+tempo coupled), 1 = pitch-locked while
+	-- tempo climbs. 0.5 halves the squeak, keeps the urgency.
+	PitchCompensation = 0.5,
+	-- Layer fades ride the beat grid: a tier's mix change completes over
+	-- this many bars, landing on bar lines not mid-phrase.
+	FadeBars = 2,
+	SyncDriftMs = 40, -- stem watchdog: snap followers beyond this drift
+	-- Tier layer mix (AUDIO.md §5.1): fader target per stem per tier index.
+	Layers = {
+		pad = { 1, 1, 1, 1, 1, 1 },
+		air = { 1, 1, 1, 1, 1, 1 },
+		bass = { 0.7, 1, 1, 1, 1, 1 },
+		drums = { 0, 0.6, 0.85, 1, 1, 1 },
+		arp = { 0, 0, 0.6, 1, 1, 1 },
+		lead = { 0, 0, 0, 0.7, 1, 1 },
+	},
+	-- Scene scoring (AUDIO.md §7): menu runs the same track muffled under a
+	-- lowpass; death sweeps it shut with the pitch slide.
+	MenuCutoffHz = 1800,
+	MenuVolume = 0.35,
+	OpenCutoffHz = 18000,
+	DeathCutoffHz = 700,
+	FilterSweepTime = 0.5,
+	-- Beat-quantized stings (AUDIO.md §6) — 0 = not uploaded yet.
+	Stings = { tierUp = 0, deathFall = 0, menuStart = 0 },
+	-- Speed wind bed (AUDIO.md §7): looped noise faded/filtered by speed.
+	WindAssetId = 0,
+	WindVolume = 0.4,
+	WindCutMin = 500,
+	WindCutMax = 4200,
+}
+
+-- Songform sync (AUDIO.md §5.2): the generator weights chunk families by
+-- the music section under the ball. Selection bias ONLY — every legality
+-- rule in DESIGN.md §8.1 still gates what may spawn.
+Config.MusicSync = {
+	Enabled = true,
+	-- Chunk family -> weight lerp across section energy (lo = break feel,
+	-- hi = drop feel). e=0 favors breathers, e=1 favors lethal/spectacle.
+	Families = {
+		breather = { lo = 1.6, hi = 0.3 },
+		technical = { lo = 0.7, hi = 1.3 },
+		lethal = { lo = 0.3, hi = 2.0 },
+		spectacle = { lo = 0.6, hi = 2.5 },
+	},
+	ChunkFamily = {
+		Flat = "breather",
+		Bowl = "breather",
+		Slalom = "technical",
+		Narrow = "technical",
+		Tilt = "technical",
+		Pinch = "technical",
+		SplitGap = "technical",
+		BlockGate = "lethal",
+		BlockField = "lethal",
+		WallSlot = "lethal",
+		RampGap = "spectacle",
+	},
+	-- Phrase quantization (AUDIO.md §5.2): single-feature set pieces
+	-- (WallSlot wall, RampGap apex) shift their t so the feature lands on
+	-- the next accentBeat downbeat when it falls inside the chunk.
+	QuantizeSetPieces = true,
+	-- Drop sections may roll one subdivision denser; breaks cap at
+	-- quarter-note clusters (ChunkDefs.rollRhythm).
+	DropDenseGems = true,
 }
 
 Config.Palette = {

@@ -162,6 +162,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -Config.Speed.Accel * dt, Config.Speed.Accel * dt)
 	ui:setBoost(boostCharge, boosting)
+	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity
 	b.AssemblyLinearVelocity = Vector3.new(lateralVel, v.Y, -fwdSpeed)
@@ -182,6 +183,7 @@ end)
 RunService.RenderStepped:Connect(function()
 	camera.CameraType = Enum.CameraType.Scriptable
 	local cam = Config.Camera
+	Backdrop.setPulse(Music.sample()) -- analyzer energy -> sun breathing (AUDIO.md §8)
 
 	local b = ball
 	if b then
