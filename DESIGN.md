@@ -274,7 +274,8 @@ screen. No lives, no shields — they were explicitly deferred.
   (`Backdrop.luau`): zero replication cost. The Atmosphere dims towers past
   ~600 studs; `CitySpan` stays inside the visible band.
 - **Ball**: near-black sphere + `SelectionSphere` wireframe (engine-rendered
-  lat/long grid — the Slope ball), palette PointLight + Trail.
+  lat/long grid — the Slope ball) + a slim palette Trail. No PointLight —
+  self-glow smears the wireframe under bloom.
 - **Track**: near-black deck, neon edge rails + transverse grid strips +
   longitudinal center line, all tinted from `Palette` — the world laps the
   green band as distance grows.

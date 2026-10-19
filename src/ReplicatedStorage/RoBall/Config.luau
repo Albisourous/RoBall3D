@@ -33,7 +33,7 @@ Config.Steering = {
 }
 
 Config.Camera = {
-	Offset = Vector3.new(0, 12, 12), -- behind + above; high + pitched = Slope's downhill read
+	Offset = Vector3.new(0, 13, 12), -- behind + above; high + pitched = Slope's downhill read
 	LookAhead = 16, -- studs ahead of the ball the camera aims at
 	-- Aim drops with the track: target sits on the deck plane LookAhead
 	-- studs out, so the camera pitches into the slope, not at the horizon.
@@ -175,23 +175,23 @@ Config.Art = {
 	-- Wireframe city canyon (Slope look): rows of dark towers outlined in
 	-- neon green, flanking the track on both sides, recycled for parallax.
 	CityRows = 2, -- depth layers per side
-	CityMinX = 62, -- innermost lateral offset from lane center
-	CityRowDX = 110, -- extra offset per row
-	CitySpacing = 150, -- z spacing between towers in a row
+	CityMinX = 55, -- innermost lateral offset from lane center
+	CityRowDX = 100, -- extra offset per row
+	CitySpacing = 125, -- z spacing between towers in a row
 	CitySpan = 1000, -- z window; towers leaving the tail wrap forward
 	CityMinH = 40,
-	CityMaxH = 200,
+	CityMaxH = 220,
 	CityMinW = 26,
 	CityMaxW = 70,
 	CityMinD = 30,
 	CityMaxD = 90,
 	CitySegsMax = 3, -- stacked block segments per tower (1..SegsMax)
-	CityValue = 0.55, -- palette value scale for tower outlines
+	CityValue = 0.7, -- palette value scale for tower outlines
 	CityFaceValue = 0.10, -- near-black face fill
-	LineThickness = 0.09, -- SelectionBox edge thickness
-	-- Ball dressing: green point light + fading trail.
-	BallLightRange = 16,
-	TrailLifetime = 0.55,
+	LineThickness = 0.12, -- SelectionBox edge thickness
+	-- Ball dressing: fading trail (no point light — glow smears the
+	-- wireframe under bloom).
+	TrailLifetime = 0.4,
 	-- Floor readability: neon grid lines across the deck every GridEvery
 	-- studs — sells the wireframe grid floor AND improves depth perception.
 	GridEvery = 10,

@@ -135,17 +135,23 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
 
-	local wire = Instance.new("SelectionSphere")
-	wire.Adornee = ball
-	wire.Color3 = Palette.neonAt(0)
-	wire.SurfaceTransparency = 1
-	wire.Parent = ball
-
-	local light = Instance.new("PointLight")
-	light.Color = Palette.neonAt(0)
-	light.Range = Config.Art.BallLightRange
-	light.Brightness = 1.6
-	light.Parent = ball
+	-- Slope ball: five engine-rendered wireframe rings (3 axial + 2 diagonal).
+	-- They ride the adornee's CFrame, so the cage visibly rolls with the ball.
+	for _, rot in ipairs({
+		CFrame.Angles(0, 0, 0),
+		CFrame.Angles(math.rad(90), 0, 0),
+		CFrame.Angles(0, 0, math.rad(90)),
+		CFrame.Angles(math.rad(45), 0, math.rad(90)),
+		CFrame.Angles(math.rad(-45), 0, math.rad(90)),
+	}) do
+		local ring = Instance.new("CylinderHandleAdornment")
+		ring.Adornee = ball
+		ring.CFrame = rot
+		ring.Radius = d / 2 + 0.08
+		ring.Height = 0.14
+		ring.Color3 = Palette.neonAt(0)
+		ring.Parent = ball
+	end
 
 	local a0 = Instance.new("Attachment")
 	a0.Position = Vector3.new(0, d * 0.3, 0)
@@ -158,9 +164,9 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	trail.Attachment1 = a1
 	trail.Lifetime = Config.Art.TrailLifetime
 	trail.LightEmission = 1
-	trail.Color = ColorSequence.new(Palette.neonAt(0), Config.Gems.Color)
-	trail.Transparency = NumberSequence.new(0.25, 1)
-	trail.WidthScale = NumberSequence.new(1, 0.15)
+	trail.Color = ColorSequence.new(Palette.neonAt(0))
+	trail.Transparency = NumberSequence.new(0.5, 1)
+	trail.WidthScale = NumberSequence.new(0.35, 0.05)
 	trail.Parent = ball
 
 	ball.Parent = workspace
