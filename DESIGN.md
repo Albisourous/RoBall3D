@@ -86,6 +86,7 @@ Menu (PLAY + optional seed) -> Run starts (scripted intro)
   -> tiers escalate speed/track danger
   -> fall = instant death
   -> death screen (score, best, seed) -> one-key instant restart
+     (`R` also restarts mid-run — abandons the run with no save)
 ```
 
 Target session feel: first run ~30–60s, good runs 2–5min, deaths always
@@ -97,6 +98,9 @@ explainable.
   (momentum — the ball keeps drifting when released, damped slightly when idle).
 - **Throttle** (optional, `Speed.ThrottleEnabled`): `W` = +8% speed, `S` = -15%.
   Lets skilled players brake for tight sections at a small score-rate cost.
+- **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
+  down server-side without firing `RunEnded` and without saving the score —
+  restarting to dodge a death never banks it. Blank seed → fresh random.
 - **No jump** in MVP.
 - Keyboard only in MVP; touch later.
 
@@ -228,9 +232,18 @@ Gems cluster on **risky lines** (this was the explicit choice): edge rails,
 narrow beams, arcs over `RampGap` voids, and straight through the middle of
 obstacle gaps (the corridor you're meant to thread — highest risk/reward).
 Value scales with risk class:
-safe `10` / edge `15` / beam `25` / gap-arc `40`. 0–3 clusters per chunk,
-3 gems per cluster, 3 studs apart. Gems are `Part` + `TouchInterest`-style
-server touched handler → `Score += value`, pickup FX.
+safe `10` / edge `15` / beam `25` / gap-arc `40`. 0–3 clusters per chunk.
+Gems are `Part` + `TouchInterest`-style server touched handler →
+`Score += value`, pickup FX.
+
+**Rhythmic clusters** (`gemRhythmLine`): gem spacing rides the music's beat
+grid. Cluster sizes are note groupings — 8 = sixteenths, 4 = eighths,
+2 = quarters, 1 = accent (`Gems.ClusterSizes/ClusterWeights`) — and
+`beatSpacing` sets stud spacing to `speed × beatInterval / subdivision`,
+where the heard BPM is `Music.BaseBpm × PlaybackSpeed`. Since PlaybackSpeed
+ramps with the same speed curve the ball uses, the pickup interval stays a
+constant note value at any pace. `rollRhythm` picks the largest cluster that
+fits the chunk span (retrying one subdivision denser before dropping size).
 
 ### 8.5 Palette gradient
 
@@ -305,7 +318,10 @@ screen. No lives, no shields — they were explicitly deferred.
 One looped synthwave track (`Music.AssetId` TBD — needs a marketplace/uploaded
 asset). `Sound.PlaybackSpeed` maps ball speed `0.9x -> 1.35x` so the music
 literally accelerates with the run. Death slides pitch to floor, restart
-restores. SFX backlog: gem pickup chirp, tier-up sting, wind noise w/ speed.
+restores. Gem pickup chime (`SfxController` + `GemSfx`): rapid pickups climb
+an A-minor pentatonic semitone ladder so rhythm clusters play as runs —
+same beat grid the gems are placed on. SFX backlog: tier-up sting, wind
+noise w/ speed.
 
 ## 14. Persistence & leaderboard
 
@@ -340,6 +356,7 @@ src/
     Ui.luau                        -- menu + HUD + death screen, all in code
     Backdrop.luau                  -- synthwave sun + neon city canyon (client-local)
     MusicController.luau           -- tempo ramp + death slide (P6)
+    SfxController.luau             -- gem pickup chime, pentatonic combo runs
 ```
 
 Generation runs **server-side** (authoritative + leaderboard integrity);

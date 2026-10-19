@@ -150,7 +150,7 @@ function Ui.new(): Ui
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 7)
 	label(menuCol, "", 8, F_DATA, C_DIM, 8)
-	label(menuCol, "A/D steer   ·   W/S speed   ·   R retry after death", 14, F_DATA, C_DIM, 9)
+	label(menuCol, "A/D steer   ·   W/S speed   ·   R instant restart", 14, F_DATA, C_DIM, 9)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then

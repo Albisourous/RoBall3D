@@ -85,9 +85,15 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				width = chunk.widthOut or snap.width,
 				y = snap.y - Config.Generation.Grade * chunk.length,
 			},
-			gems = chunk.gems
-					and ChunkDefs.gemLine(chunk.length, 0.3, 0, Config.Gems.ValueSafe, Config.Gems.ClusterSize)
-				or nil,
+			gems = chunk.gems and ChunkDefs.gemRhythmLine(
+				self.rng,
+				Config.Speed.Start,
+				chunk.length,
+				0.2,
+				0.55,
+				0,
+				Config.Gems.ValueSafe
+			) or nil,
 		}
 	else
 		local tier = Tiers.forDistance(st.dist)

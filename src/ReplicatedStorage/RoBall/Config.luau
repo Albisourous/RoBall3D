@@ -137,8 +137,14 @@ Config.Gems = {
 	ValueGapArc = 40,
 	ClustersPerChunkMin = 0,
 	ClustersPerChunkMax = 3,
-	ClusterSize = 3, -- gems per line cluster
-	Spacing = 3, -- studs between gems in a cluster
+	-- Rhythmic clusters: pickups land on heard-beat subdivisions. Cluster
+	-- sizes are note groupings — 8 = sixteenths, 4 = eighths, 2 = quarters,
+	-- 1 = accent — and spacing scales with ball speed so the pickup
+	-- INTERVAL is a constant note value no matter the pace (the music's
+	-- PlaybackSpeed ramps with the same speed curve). See ChunkDefs'
+	-- beatSpacing/rollRhythm/gemRhythmLine.
+	ClusterSizes = { 8, 4, 2, 1 },
+	ClusterWeights = { 1.5, 4, 3, 2 }, -- big runs are treats, pairs are bread
 	FloatY = 1.6, -- default hover height above the deck
 	Size = 0.9, -- studs
 	-- Reserved gold: collectible, never lethal, and reads as the "sunset"
@@ -150,10 +156,27 @@ Config.Score = {
 	PointsPerMeter = 1,
 }
 
+Config.GemSfx = {
+	-- Gem pickup chime (SfxController): rapid pickups climb a pentatonic
+	-- ladder so cluster lines play little runs. rbxasset:// fallback is a
+	-- built-in Roblox ping — always resolvable; set AssetId to a real bell
+	-- once one is uploaded.
+	AssetId = 0,
+	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.5,
+	ComboWindow = 0.9, -- seconds between pickups that still count as a run
+	ComboScale = { 0, 2, 4, 7, 9, 12, 14, 16 }, -- A-minor pentatonic semitones
+	PitchJitter = 0.03, -- +-3% so repeats never sound identical
+}
+
 Config.Music = {
 	-- Single synthwave loop; PlaybackSpeed ramps with ball speed.
 	AssetId = 0, -- TODO: pick/upload a synthwave track and set the asset id
 	Volume = 0.5,
+	-- Native BPM of the track — gem clusters are placed on this beat grid
+	-- (beat interval = 60 / (BaseBpm * heard PlaybackSpeed), so pickups land
+	-- on musical subdivisions at any pace). Update when AssetId is chosen.
+	BaseBpm = 110,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
 	DeathPitchFloor = 0.6, -- pitch slides to this on death

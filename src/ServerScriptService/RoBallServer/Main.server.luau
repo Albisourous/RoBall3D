@@ -258,10 +258,18 @@ local function startRun(player: Player)
 end
 
 evRequestStart.OnServerEvent:Connect(function(player, seedText)
-	if runs[player] then
-		return -- already running; ignore double-clicks/key spam
-	end
 	seedPref[player] = typeof(seedText) == "string" and seedText or ""
+	local run = runs[player]
+	if run then
+		-- Fast restart (R mid-run): tear down without the death flow — no
+		-- RunEnded event and no score save, so rage-restarting to dodge a
+		-- crash can't bank the run.
+		if run.ball then
+			run.ball:Destroy()
+		end
+		run.streamer:destroy()
+		runs[player] = nil
+	end
 	startRun(player)
 end)
 

@@ -15,6 +15,7 @@ local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
+local Sfx = require(script.Parent.SfxController)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -104,9 +105,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
 	end
-	local wantsRetry = input.KeyCode == Enum.KeyCode.R and mode == "dead"
+	-- R restarts in ANY mode — mid-run it abandons the run and re-rolls
+	-- instantly (the Slope rage-restart); Enter starts from the menu.
+	local wantsRestart = input.KeyCode == Enum.KeyCode.R
 	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
-	if wantsRetry or wantsPlay then
+	if wantsRestart or wantsPlay then
 		requestStart()
 	end
 end)
@@ -181,6 +184,7 @@ end)
 
 Backdrop.init()
 Music.init()
+Sfx.init()
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 task.spawn(function()
 	local rows = fnGetLeaderboard:InvokeServer()

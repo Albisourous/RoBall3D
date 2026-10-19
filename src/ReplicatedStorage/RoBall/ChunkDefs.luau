@@ -20,6 +20,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 
 export type GenState = {
 	zEnd: number,
@@ -117,17 +118,21 @@ local function spec(
 end
 
 -- A short line of gems marching along t. xOff=0 tracks the deck centerline.
+-- `spacing` is studs between gems — pass the beat-grid value from
+-- gemRhythmLine so pickups land on the music's subdivisions.
 local function gemLine(
 	length: number,
 	t0: number,
 	xOff: number,
 	value: number,
 	count: number,
-	yOff: number?
+	yOff: number?,
+	spacing: number?
 ): { GemSpot }
 	local out = {}
+	local step = (spacing or 3) / length
 	for i = 1, count do
-		local t = t0 + (i - 1) * Config.Gems.Spacing / length
+		local t = t0 + (i - 1) * step
 		if t <= 0.95 then
 			table.insert(out, { t = t, xOff = xOff, value = value, yOff = yOff })
 		end
@@ -143,6 +148,79 @@ local function appendAll(dst: { GemSpot }, src: { GemSpot })
 	end
 end
 
+-- ===================== rhythmic gem clusters =====================
+-- Cluster sizes are note groupings: 8 = sixteenths, 4 = eighths,
+-- 2 = quarters, 1 = single accent. Spacing scales with ball speed so the
+-- pickup INTERVAL is a constant note value at any pace — the heard BPM is
+-- Music.BaseBpm * PlaybackSpeed, and PlaybackSpeed ramps with the same
+-- speed curve the ball uses.
+
+local GEM_BOUND = 0.92 -- keep lines off the last sliver of deck
+
+-- Studs between gems for a pickup interval of `subdiv` beats at `speed`.
+local function beatSpacing(speed: number, subdiv: number): number
+	local mn, mx = Config.Speed.Start, Config.Speed.Max
+	local norm = math.clamp((speed - mn) / (mx - mn), 0, 1)
+	local m = Config.Music
+	local ps = m.PlaybackSpeedMin + (m.PlaybackSpeedMax - m.PlaybackSpeedMin) * norm
+	local beat = 60 / (m.BaseBpm * ps)
+	return speed * beat / subdiv
+end
+
+-- Written subdivision per size: 8s read as 16ths, 4s as 8ths, 2s as
+-- quarters. If a line wouldn't fit, retry one step denser (32nd-note
+-- buzz rolls at high speed) before dropping the size.
+local function rollRhythm(rng: Random, speed: number, maxSpan: number): (number, number)
+	local sizes = Config.Gems.ClusterSizes
+	local weights = Config.Gems.ClusterWeights
+	local total = 0
+	local picks = {}
+	for i, sz in ipairs(sizes) do
+		for _, subdiv in ipairs({ math.max(1, sz / 2), math.max(1, sz) }) do
+			local sp = beatSpacing(speed, subdiv)
+			if (sz - 1) * sp <= maxSpan then
+				picks[sz] = sp
+				total += weights[i]
+				break
+			end
+		end
+	end
+	local roll = rng:NextNumber(0, total)
+	local acc = 0
+	for i, sz in ipairs(sizes) do
+		if picks[sz] then
+			acc += weights[i]
+			if roll <= acc then
+				return sz, picks[sz]
+			end
+		end
+	end
+	return 1, 0
+end
+
+-- A gem line whose pickups land on the heard beat. Rolls a cluster size
+-- that fits the chunk, places t0 inside [tLo, tHi] clipped so the line
+-- ends before GEM_BOUND.
+local function gemRhythmLine(
+	rng: Random,
+	speed: number,
+	length: number,
+	tLo: number,
+	tHi: number,
+	xOff: number,
+	value: number,
+	yOff: number?
+): { GemSpot }
+	local size, spacing = rollRhythm(rng, speed, (GEM_BOUND - tLo) * length)
+	local span = (size - 1) * spacing
+	local hi = math.min(tHi, GEM_BOUND - span / length)
+	local t0 = rng:NextNumber(tLo, math.max(tLo, hi))
+	return gemLine(length, t0, xOff, value, size, yOff, spacing)
+end
+
+ChunkDefs.gemRhythmLine = gemRhythmLine
+ChunkDefs.beatSpacing = beatSpacing
+
 -- Flat: plain ribbon; width may drift toward a random in-tier target.
 -- Gems: safe center lines or edge-rail lines (riskier, worth more).
 function ChunkDefs.Flat(rng: Random, st: GenState, tier): ChunkSpec
@@ -153,6 +231,7 @@ function ChunkDefs.Flat(rng: Random, st: GenState, tier): ChunkSpec
 		Config.Generation.BaseWidth
 	)
 	local gems = {}
+	local speed = Tiers.speedAt(st.dist)
 	local clusters = rng:NextInteger(Config.Gems.ClustersPerChunkMin, Config.Gems.ClustersPerChunkMax)
 	for _ = 1, clusters do
 		local edge = rng:NextNumber() < 0.5
@@ -160,13 +239,7 @@ function ChunkDefs.Flat(rng: Random, st: GenState, tier): ChunkSpec
 		local xOff = if edge then (rng:NextInteger(0, 1) * 2 - 1) * (halfW - 2) else 0
 		appendAll(
 			gems,
-			gemLine(
-				length,
-				rng:NextNumber(0.15, 0.7),
-				xOff,
-				edge and Config.Gems.ValueEdge or Config.Gems.ValueSafe,
-				Config.Gems.ClusterSize
-			)
+			gemRhythmLine(rng, speed, length, 0.15, 0.7, xOff, edge and Config.Gems.ValueEdge or Config.Gems.ValueSafe)
 		)
 	end
 	return spec("Flat", st, length, function(t)
@@ -184,7 +257,7 @@ function ChunkDefs.Slalom(rng: Random, st: GenState, tier): ChunkSpec
 		return st.centerX + amp * math.sin(phase + t * periods * math.pi * 2)
 	end
 	-- xOff=0 rides the swaying centerline — following gems teaches the curve.
-	local gems = gemLine(length, rng:NextNumber(0.2, 0.5), 0, Config.Gems.ValueSafe, Config.Gems.ClusterSize)
+	local gems = gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.2, 0.5, 0, Config.Gems.ValueSafe)
 	return spec("Slalom", st, length, function(t)
 		return { width = st.width, centerX = center(t), y = st.y, rollDeg = 0 }
 	end, { centerX = center(1), width = st.width, y = st.y }, nil, gems)
@@ -197,7 +270,7 @@ function ChunkDefs.Narrow(rng: Random, st: GenState, tier): ChunkSpec
 	local lower = math.max(tier.widthMin, Config.Generation.MinWidth)
 	local target = rng:NextNumber(lower, math.max(lower, upper))
 	-- Beam line down the narrowing middle — the risky but rewarding line.
-	local gems = gemLine(length, rng:NextNumber(0.3, 0.6), 0, Config.Gems.ValueBeam, Config.Gems.ClusterSize)
+	local gems = gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.6, 0, Config.Gems.ValueBeam)
 	return spec("Narrow", st, length, function(t)
 		return { width = lerp(st.width, target, t), centerX = st.centerX, y = st.y, rollDeg = 0 }
 	end, { centerX = st.centerX, width = target, y = st.y }, nil, gems)
@@ -217,13 +290,8 @@ function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
 		return roll
 	end
 	local side = roll >= 0 and -1 or 1 -- gems sit on the downhill edge line
-	local gems = gemLine(
-		length,
-		rng:NextNumber(0.3, 0.5),
-		side * (st.width / 2 - 2),
-		Config.Gems.ValueEdge,
-		Config.Gems.ClusterSize
-	)
+	local gems =
+		gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.5, side * (st.width / 2 - 2), Config.Gems.ValueEdge)
 	return spec("Tilt", st, length, function(t)
 		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = rollAt(t) }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
@@ -234,7 +302,7 @@ function ChunkDefs.Pinch(rng: Random, st: GenState, _tier): ChunkSpec
 	local length = rng:NextInteger(45, 70)
 	local pinchW = math.max(3, st.width * 0.22)
 	-- Thread the pinch for beam value.
-	local gems = gemLine(length, 0.4, 0, Config.Gems.ValueBeam, Config.Gems.ClusterSize)
+	local gems = gemRhythmLine(rng, Tiers.speedAt(st.dist), length, 0.3, 0.45, 0, Config.Gems.ValueBeam)
 	return spec("Pinch", st, length, function(t)
 		local bump = (1 - math.cos(t * math.pi * 2)) / 2 -- 0 -> 1 -> 0, peak at t=0.5
 		return {
@@ -257,10 +325,12 @@ function ChunkDefs.SplitGap(rng: Random, st: GenState, _tier): ChunkSpec
 		return cutout * e
 	end
 	-- Rail-center lines through the middle where the split is full.
+	-- Both rails share one roll so the pair reads as the same grouping.
 	local railOff = cutout / 2 + rail / 2
+	local size, spacing = rollRhythm(rng, Tiers.speedAt(st.dist), (GEM_BOUND - 0.35) * length)
 	local gems = {}
-	appendAll(gems, gemLine(length, 0.35, -railOff, Config.Gems.ValueBeam, 2))
-	appendAll(gems, gemLine(length, 0.35, railOff, Config.Gems.ValueBeam, 2))
+	appendAll(gems, gemLine(length, 0.35, -railOff, Config.Gems.ValueBeam, size, nil, spacing))
+	appendAll(gems, gemLine(length, 0.35, railOff, Config.Gems.ValueBeam, size, nil, spacing))
 	return spec("SplitGap", st, length, function(t)
 		return {
 			width = st.width,
@@ -281,9 +351,10 @@ function ChunkDefs.Bowl(rng: Random, st: GenState, _tier): ChunkSpec
 		return wallH * e
 	end
 	-- Dense safe canyon — the breather pays out.
+	local speed = Tiers.speedAt(st.dist)
 	local gems = {}
-	appendAll(gems, gemLine(length, 0.25, 0, Config.Gems.ValueSafe, Config.Gems.ClusterSize))
-	appendAll(gems, gemLine(length, 0.55, 0, Config.Gems.ValueSafe, Config.Gems.ClusterSize))
+	appendAll(gems, gemRhythmLine(rng, speed, length, 0.2, 0.35, 0, Config.Gems.ValueSafe))
+	appendAll(gems, gemRhythmLine(rng, speed, length, 0.55, 0.7, 0, Config.Gems.ValueSafe))
 	return spec("Bowl", st, length, function(t)
 		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, wallH = wallAt(t) }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
