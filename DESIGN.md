@@ -282,9 +282,11 @@ Tier table is in `Config.Tiers`. Crossing a tier threshold:
 **Endless mode** — there is no speed cap. Past the last listed tier
 (2000m), `Tiers.forDistance` extrapolates: speed rises by
 `Speed.EndlessRamp` per meter (+12 s/s per km — ~142 s/s at 5km, ~200 at
-10km) and the width window keeps shrinking toward `EndlessWidth*Floor`
-(6/14). The chunk pool stays tier-6's — difficulty comes from collapsing
-reaction time and narrowing ribbons, not new hazard types.
+10km) and the width window eases toward `EndlessWidth*Floor` (12/18) —
+floored where a gate row + rim margin still fits, since below ~12 studs
+lethal rows can't generate and the run would paradoxically get easier.
+The chunk pool stays tier-6's; **speed is the difficulty driver** —
+collapsing reaction time does the work, not new hazards or razor lanes.
 `Config.Speed.Max` only normalizes presentation (FOV, music ramp, gem
 beat spacing all saturate at it).
 

@@ -22,11 +22,13 @@ Config.Speed = {
 	-- last tier, Tiers.speedAt grows by EndlessRamp per meter forever.
 	Max = 110,
 	EndlessRamp = 0.012, -- studs/s gained per meter past the last tier (+12/km)
-	-- Track keeps narrowing forever too: widthMin/widthMax shrink by this
-	-- per meter past the last tier, floored at the values below.
-	EndlessWidthShrink = 0.004, -- studs per meter
-	EndlessWidthMinFloor = 6, -- just over CorridorMin — a corridor-wide ribbon
-	EndlessWidthMaxFloor = 14,
+	-- Track keeps narrowing gently: widthMin/widthMax shrink by this per
+	-- meter past the last tier, floored so lethal rows can always spawn —
+	-- below ~12 studs gateRow/BlockField have no room and the run would go
+	-- obstacle-free = EASIER. Speed is the difficulty driver, not width.
+	EndlessWidthShrink = 0.002, -- studs per meter
+	EndlessWidthMinFloor = 12, -- min gap (7) + rim margin (~5) fits a block row
+	EndlessWidthMaxFloor = 18,
 	-- Optional throttle: W speeds up slightly, S brakes. Gives players a
 	-- way to "play it safe" at a score cost. Toggleable.
 	ThrottleEnabled = true,
