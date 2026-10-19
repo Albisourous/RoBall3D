@@ -47,7 +47,7 @@ Config.Generation = {
 	AheadDistance = 400, -- keep this much track generated ahead of the ball
 	BehindDistance = 250, -- destroy chunks further than this behind the ball
 	IntroLength = 150, -- scripted safe intro before RNG chunks begin
-	BaseWidth = 24, -- widest ribbon
+	BaseWidth = 48, -- widest deck — Slope-style broad slope face (~16 ball widths)
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs
 	StartY = 50, -- deck height runs start at
@@ -55,39 +55,68 @@ Config.Generation = {
 	RowSpacing = 600, -- per-player run lanes are this far apart in X
 }
 
+-- Lethal geometry (DESIGN.md §2 REA): one reserved color, NEVER palette-shifted.
+Config.LethalColor = Color3.fromRGB(255, 32, 48)
+
+Config.Obstacles = {
+	CorridorMin = 7, -- every lethal row must leave a gap at least this wide
+	ReactionTime = 0.9, -- seconds between lethal rows at current tier speed
+	BlockHeight = 6,
+	BlockDepth = 4,
+	WallHeight = 9, -- WallSlot slab height
+	WallDepth = 2.5,
+}
+
 -- Difficulty tiers. Crossing `dist` (meters) activates the tier: speed
 -- target rises, new chunk types join the pool, width range tightens.
 -- `chunkPool` entries must exist in ChunkDefs.
 Config.Tiers = {
-	{ dist = 0, speed = 40, chunkPool = { "Flat", "Slalom" }, widthMin = 20, widthMax = 26 },
-	{ dist = 200, speed = 52, chunkPool = { "Flat", "Slalom", "Narrow" }, widthMin = 14, widthMax = 24 },
+	{ dist = 0, speed = 40, chunkPool = { "Flat", "Slalom" }, widthMin = 40, widthMax = 50 },
+	{
+		dist = 200,
+		speed = 52,
+		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate" },
+		widthMin = 34,
+		widthMax = 48,
+	},
 	{
 		dist = 500,
 		speed = 64,
-		chunkPool = { "Flat", "Slalom", "Narrow", "Tilt", "Pinch" },
-		widthMin = 10,
-		widthMax = 22,
+		chunkPool = { "Flat", "Slalom", "Narrow", "Tilt", "Pinch", "BlockGate", "BlockField" },
+		widthMin = 26,
+		widthMax = 44,
 	},
 	{
 		dist = 900,
 		speed = 78,
-		chunkPool = { "Flat", "Slalom", "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl" },
-		widthMin = 8,
-		widthMax = 20,
+		chunkPool = {
+			"Flat",
+			"Slalom",
+			"Narrow",
+			"Tilt",
+			"Pinch",
+			"SplitGap",
+			"Bowl",
+			"BlockGate",
+			"BlockField",
+			"WallSlot",
+		},
+		widthMin = 20,
+		widthMax = 38,
 	},
 	{
 		dist = 1400,
 		speed = 92,
-		chunkPool = { "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl", "RampGap" },
-		widthMin = 6,
-		widthMax = 16,
+		chunkPool = { "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl", "RampGap", "BlockField", "WallSlot" },
+		widthMin = 14,
+		widthMax = 32,
 	},
 	{
 		dist = 2000,
 		speed = 106,
-		chunkPool = { "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl", "RampGap" },
-		widthMin = 4,
-		widthMax = 12,
+		chunkPool = { "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl", "RampGap", "BlockField", "WallSlot" },
+		widthMin = 10,
+		widthMax = 26,
 	},
 }
 

@@ -42,6 +42,8 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.folder = Instance.new("Folder")
 	self.folder.Name = "Lane" .. laneIndex
 	self.folder.Parent = lanesRoot
+	-- Optional: set by Main. Fired when something touches lethal geometry.
+	self.onFatalTouch = nil :: ((hit: BasePart) -> ())?
 	return self
 end
 
@@ -109,6 +111,30 @@ local function makeWall(
 	w.Parent = parent
 end
 
+-- Lethal blocks ride the deck: position/orient from section(t) so graded,
+-- rolled and curved chunks all carry their hazards correctly.
+local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, ob: ChunkDefs.Obstacle)
+	local mid = spec.section(ob.t)
+	local dt = 0.02
+	local tA = math.max(ob.t - dt, 0)
+	local tB = math.min(ob.t + dt, 1)
+	local sA = spec.section(tA)
+	local sB = spec.section(tB)
+	local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * spec.length, 0.001))
+	local roll = math.rad(mid.rollDeg)
+	local b = Instance.new("Part")
+	b.Name = "LethalBlock"
+	b.Anchored = true
+	b.Size = Vector3.new(ob.w, ob.h, ob.d)
+	b.CFrame = CFrame.new(laneX + mid.centerX + ob.xOff, mid.y + ob.h / 2, spec.startZ - ob.t * spec.length)
+		* CFrame.Angles(pitch, 0, roll)
+	b.Color = Config.LethalColor
+	b.Material = Enum.Material.Neon
+	b:SetAttribute("ChunkType", spec.type)
+	b.Parent = parent
+	return b
+end
+
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	local holder = Instance.new("Folder")
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
@@ -150,6 +176,17 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, pitch, roll, spec.type)
 				makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, pitch, roll, spec.type)
 			end
+		end
+	end
+
+	if spec.obstacles then
+		for _, ob in ipairs(spec.obstacles) do
+			local block = makeBlock(holder, self.laneX, spec, ob)
+			block.Touched:Connect(function(hit)
+				if self.onFatalTouch then
+					self.onFatalTouch(hit)
+				end
+			end)
 		end
 	end
 

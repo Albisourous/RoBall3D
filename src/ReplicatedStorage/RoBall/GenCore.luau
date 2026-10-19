@@ -26,10 +26,10 @@ function GenCore.new(seed: number): Gen
 	}
 	self.introIndex = 0
 	self.intro = {
-		{ type = "Flat", length = 35, widthOut = 26 },
-		{ type = "Flat", length = 35, widthOut = 24 },
-		{ type = "Slalom", length = 45, amp = 6, periods = 0.6 },
-		{ type = "Narrow", length = 55, widthOut = 16 },
+		{ type = "Flat", length = 35, widthOut = 48 },
+		{ type = "Flat", length = 35, widthOut = 44 },
+		{ type = "Slalom", length = 45, amp = 8, periods = 0.6 },
+		{ type = "Narrow", length = 55, widthOut = 32 },
 	}
 	return self
 end

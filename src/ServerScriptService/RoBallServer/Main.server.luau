@@ -56,11 +56,35 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	return ball
 end
 
-local function startRun(player: Player, laneIndex: number)
+local startRun -- fwd: killRun restarts runs through this
+
+-- Death is instant (DESIGN.md §11): fall below the deck OR touch lethal
+-- geometry. Teardown, then a fresh seeded run after a short beat.
+local function killRun(player: Player, run: Run)
+	local laneIndex = run.laneIndex
+	if run.ball then
+		run.ball:Destroy()
+	end
+	run.streamer:destroy()
+	runs[player] = nil
+	task.delay(1.5, function()
+		if player.Parent == Players then
+			startRun(player, laneIndex)
+		end
+	end)
+end
+
+startRun = function(player: Player, laneIndex: number)
 	local seed = randomSeed()
 	local streamer = TrackStreamer.new(laneIndex, seed)
 	local run: Run = { laneIndex = laneIndex, streamer = streamer, ball = nil }
 	runs[player] = run
+
+	streamer.onFatalTouch = function(hit)
+		if run.ball and hit == run.ball then
+			killRun(player, run)
+		end
+	end
 
 	streamer:ensureAhead(0) -- build the full window before the ball drops
 	run.ball = spawnBall(player, laneIndex, streamer:yAt(2))
@@ -101,17 +125,7 @@ RunService.Heartbeat:Connect(function()
 			run.streamer:cleanup(z)
 
 			if ball.Position.Y < run.streamer:yAt(z) - KILL_DROP then
-				-- Fall = run over. Teardown and start a fresh seeded run.
-				ball:Destroy()
-				run.ball = nil
-				local laneIndex = run.laneIndex
-				run.streamer:destroy()
-				runs[player] = nil
-				task.delay(1.5, function()
-					if player.Parent == Players then
-						startRun(player, laneIndex)
-					end
-				end)
+				killRun(player, run)
 			end
 		end
 	end

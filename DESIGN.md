@@ -26,9 +26,38 @@ leaderboard is the replay hook; a seed system lets players run identical maps.
 
 | Game | Mechanic | What we take | What we don't |
 |---|---|---|---|
-| Ball Surfer 3D / Slope | Ball auto-rolls, speed ramps, steer-only, instant death, distance score, neon grid | Auto-forward + lateral steering, speed = difficulty, instant death, distance score | Yellow/black palette, deadly red blocks (post-MVP), power-ups |
-| Super Monkey Ball | Momentum/tilt physics, narrow beams, bananas on risky lines | Physics-driven steering feel, thin/tilted paths, gems on risky lines | Tilt-the-world control, lives, stage structure |
+| **Slope** (primary ref) | Wide downhill slope face; L/R momentum steering only; continuous speed ramp; **lethal red obstacles** as the mid-track threat; instant death + sub-2s restart; pure distance score | Downhill grade, wide deck, speed-as-difficulty ramp, one-color lethal language, edges + obstacles as dual hazards, instant restart | Green/yellow palette, cloned layouts, Unity build, F2P wrapper junk |
+| Ball Surfer 3D | Neon ball identity, steer-only, distance chase | Neon-first identity, momentum steering feel | Exact visual clones |
+| Super Monkey Ball | Momentum/tilt physics, narrow beams, bananas on risky lines | Physics-driven steering feel, tilted paths, gems on risky lines | Tilt-the-world control, lives, stage structure |
 | Geometry Dash | Music-synced intensity, milestone progression | Music tied to speed; tier-based progression feel | Jump/flight mechanics (post-MVP), fixed levels |
+
+### Slope REA findings (slope-unblock.github.io atlas + playstudy)
+
+- **The track is a wide slope face, not a ribbon.** Generous width is core to
+  the feel — most deaths come from obstacles, not edges. We widened
+  `BaseWidth` to match (~16 ball-diameters early, narrowing per tier).
+- **Red = lethal, always.** Slope's one-color hazard language means zero
+  ambiguity: players budget clearance the instant red is visible. We adopt it
+  exactly: `LethalColor` is reserved for kill geometry and is *never*
+  palette-shifted — edges, gems and scenery may hue-cycle, lethal red may not.
+- **Obstacles are the mid-track threat; edges are the ambient one.** Slope's
+  atlas: static blocks, walls with one opening, moving blocks, tunnels, gaps,
+  ramps, narrow lanes. MVP adds `BlockGate`/`BlockField`/`WallSlot`; moving
+  blocks and tunnels are post-MVP.
+- **Speed is continuous**, not stepped — pressure comes from reaction windows
+  shrinking. Our eased tier targets approximate the same curve; keep `Accel`
+  smooth so no "step" is felt.
+- **Exit-line fairness rule**: "a dodge that aims the ball at an edge is a
+  partial failure." Generator invariant: every obstacle cluster leaves ≥1
+  corridor ≥ `Obstacles.CorridorMin`, and lethal-feature spacing scales with
+  tier speed (`speed * Obstacles.ReactionTime`) so every sequence stays
+  solvable.
+- **Momentum steering + no brake** — lateral velocity persists after release;
+  skill = early small inputs, not late holds. Our damped-momentum model
+  already matches; our optional W/S throttle is a deliberate divergence for
+  skill expression at a score-rate cost.
+- **Restart must feel free.** Crash → new run in ~1.5s is the addiction loop.
+  The pre-menu auto-restart already implements this.
 
 **Design consequences**
 
@@ -36,6 +65,9 @@ leaderboard is the replay hook; a seed system lets players run identical maps.
   launches emerge from physics. This is what makes it feel like Monkey Ball.
 - Difficulty is a **distance function** (Slope-style), layered into **tiers**
   (GD-style progression beats) so runs feel like they have chapters.
+- **Two hazard classes**: falling off the edge, and touching `LethalColor`
+  geometry. Both are instant death; both must always read as the player's
+  fault (readable chaos pillar).
 - With no jump in MVP, gaps are handled two ways only: *route around* (partial
   gaps) or *ramp launch* (speed-gated ballistic arcs). Jump stays in the backlog.
 
@@ -112,10 +144,17 @@ table; that bug once made geometry shift per-chunk and `yAt` return the
 generation frontier, spawning the ball under the world.
 
 Track = ordered sequence of **chunks**, each
-30–90 studs long. The generator keeps `AheadDistance = 400` studs of track
+30–90 studs long, forming a **wide descending slope face** (Slope model —
+width is generous early and narrows with tiers; it is not a narrow ribbon).
+The generator keeps `AheadDistance = 400` studs of track
 alive ahead of the ball and destroys anything `BehindDistance = 250` studs
 behind it. Each player's run lives in a private lane offset `600` studs apart
 in `X` (invisible to others under fog).
+
+Two hazard classes live on the deck (REA §2): **edges** (ambient threat) and
+**lethal obstacles** (mid-track threat — parts colored `Config.LethalColor`,
+always reserved hot-red). Obstacle chunks emit block/wall specs alongside
+deck geometry; touching one is instant death, same as falling.
 
 Each chunk produces an **end state** `{ width, centerX, height, exitSpeedReq }`.
 The next chunk's entry must match it — the generator enforces constraints so
@@ -147,6 +186,20 @@ narrow. Then the seeded generator takes over.
 | `SplitGap` | Center channel removed → two side ribbons | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
 | `RampGap` | Launch ramp, full-width void, landing strip | Speed check / spectacle | 5+ |
+| `BlockGate` | Red blocks across the deck, one gap ≥ CorridorMin | Thread-the-gap | 2+ |
+| `BlockField` | Scattered red blocks, density scales with tier | Weaving pressure | 3+ |
+| `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
+
+**Obstacle rules (REA exit-line fairness)**
+- Every row of lethal geometry must leave ≥1 clear corridor ≥
+  `Obstacles.CorridorMin` studs wide relative to deck width.
+- Successive obstacle rows inside a chunk are spaced ≥
+  `tier.speed * Obstacles.ReactionTime` studs so the player always has time to
+  read the next row.
+- Obstacles ride the deck surface (`section(t).y` + half height) and roll with
+  `rollDeg` so Tilted obstacle chunks stay glued to the slope.
+- `LethalColor` parts are `CanCollide = true` (they read as solid) and carry a
+  server `Touched` kill — the ball never survives contact.
 
 `RampGap` rule: for gap length `L` and landing drop `d`, need entry speed
 `v >= L / sqrt(2d/g)` (g = 196.2 studs/s²). Generator picks `L ≈ v * 0.45`,
@@ -155,7 +208,9 @@ narrow. Then the seeded generator takes over.
 ### 8.4 Gem placement
 
 Gems cluster on **risky lines** (this was the explicit choice): edge rails,
-narrow beams, arcs over `RampGap` voids. Value scales with risk class:
+narrow beams, arcs over `RampGap` voids, and straight through the middle of
+obstacle gaps (the corridor you're meant to thread — highest risk/reward).
+Value scales with risk class:
 safe `10` / edge `15` / beam `25` / gap-arc `40`. 0–3 clusters per chunk,
 3 gems per cluster, 3 studs apart. Gems are `Part` + `TouchInterest`-style
 server touched handler → `Score += value`, pickup FX.
@@ -175,9 +230,10 @@ Tier table is in `Config.Tiers`. Crossing a tier threshold:
 - new chunk types join the RNG pool
 - allowed width range tightens (24 → 4 min)
 
-No deadly obstacles in MVP — **falling is the only killer**. The tier/chunk
-system is designed so hazard types (deadly blocks, sweepers, moving walls) can
-be added later as new chunk features without changing the generator contract.
+Hazards: **falling off the deck** and **touching `LethalColor` geometry** —
+both instant death, per the Slope model (§2 REA). Moving obstacles, tunnels
+and sweepers remain post-MVP; they slot in as new chunk types without
+changing the generator contract.
 
 ## 10. Scoring
 
@@ -187,8 +243,9 @@ be added later as new chunk features without changing the generator contract.
 ## 11. Death
 
 Ball leaves track → Y drops below kill plane (`trackY - 15`) → run over
-instantly. Effects: music pitch slides to 0.6, camera pulls back, death screen.
-No lives, no shields — they were explicitly deferred.
+instantly. Ball touches `LethalColor` geometry → same outcome server-side via
+`Touched`. Effects: music pitch slides to 0.6, camera pulls back, death
+screen. No lives, no shields — they were explicitly deferred.
 
 ## 12. Presentation
 

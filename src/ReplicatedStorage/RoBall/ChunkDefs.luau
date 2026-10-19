@@ -45,6 +45,18 @@ export type ChunkSpec = {
 	startZ: number,
 	section: (t: number) -> Section,
 	endState: { centerX: number, width: number, y: number },
+	obstacles: { Obstacle }?,
+}
+
+-- Lethal geometry placed on the deck (DESIGN.md §8.3 obstacle rules).
+-- xOff is relative to the deck centerX at t; the streamer positions each block
+-- at section(t) so it rides the graded/rolled surface.
+export type Obstacle = {
+	t: number, -- 0..1 along the chunk
+	xOff: number, -- lane-local X offset from deck center
+	w: number,
+	h: number,
+	d: number,
 }
 
 local function lerp(a: number, b: number, t: number): number
@@ -75,12 +87,20 @@ local function spec(
 	st: GenState,
 	length: number,
 	section: (t: number) -> Section,
-	endState: { centerX: number, width: number, y: number }
+	endState: { centerX: number, width: number, y: number },
+	obstacles: { Obstacle }?
 ): ChunkSpec
 	local graded = applyGrade(length, section)
 	local gradedEnd =
 		{ centerX = endState.centerX, width = endState.width, y = endState.y - Config.Generation.Grade * length }
-	return { type = name, length = length, startZ = st.zEnd, section = graded, endState = gradedEnd }
+	return {
+		type = name,
+		length = length,
+		startZ = st.zEnd,
+		section = graded,
+		endState = gradedEnd,
+		obstacles = obstacles,
+	}
 end
 
 -- Flat: plain ribbon; width may drift toward a random in-tier target.
@@ -219,6 +239,110 @@ function ChunkDefs.RampGap(_rng: Random, st: GenState, tier): ChunkSpec
 			rollDeg = 0,
 		}
 	end, { centerX = st.centerX, width = landW, y = yLand })
+end
+
+-- Obstacle chunks (DESIGN.md §8.3). All obey the exit-line rule: every lethal
+-- row leaves >= CorridorMin of clear deck, and rows are spaced so the player
+-- gets Obstacles.ReactionTime seconds at current tier speed between reads.
+
+-- Emit two blocks spanning the deck at t, leaving one gap >= CorridorMin.
+local function gateRow(rng: Random, halfW: number, t: number, height: number, depth: number): { Obstacle }
+	local gap = rng:NextNumber(Config.Obstacles.CorridorMin, Config.Obstacles.CorridorMin * 1.8)
+	local slack = halfW - gap / 2 - 2 -- keep blocks off the rim; rim death stays an edge death
+	if slack < 0.5 then
+		return {}
+	end
+	local gx = rng:NextNumber(-slack, slack)
+	local lw = gx - gap / 2 + halfW
+	local rw = halfW - (gx + gap / 2)
+	local out = {}
+	if lw >= 1.5 then
+		table.insert(out, { t = t, xOff = -halfW + lw / 2, w = lw, h = height, d = depth })
+	end
+	if rw >= 1.5 then
+		table.insert(out, { t = t, xOff = gx + gap / 2 + rw / 2, w = rw, h = height, d = depth })
+	end
+	return out
+end
+
+local function flatSection(st: GenState): (t: number) -> Section
+	return function(_t)
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0 }
+	end
+end
+
+local function rowBudget(rng: Random, tier, length: number, maxRows: number): number
+	local spacing = tier.speed * Config.Obstacles.ReactionTime
+	return math.clamp(rng:NextInteger(1, maxRows), 1, math.max(1, math.floor(0.6 * length / spacing)))
+end
+
+-- BlockGate: rows of red blocks with one gap each — thread it, then the next.
+function ChunkDefs.BlockGate(rng: Random, st: GenState, tier): ChunkSpec
+	local length = rng:NextInteger(50, 80)
+	local halfW = st.width / 2
+	local rows = rowBudget(rng, tier, length, 3)
+	local obstacles = {}
+	for i = 1, rows do
+		local t = 0.2 + (i - 0.5) / rows * 0.6
+		for _, ob in ipairs(gateRow(rng, halfW, t, Config.Obstacles.BlockHeight, Config.Obstacles.BlockDepth)) do
+			table.insert(obstacles, ob)
+		end
+	end
+	return spec(
+		"BlockGate",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles
+	)
+end
+
+-- BlockField: scattered single blocks — constant weave pressure, density rises
+-- with tier via the reaction-time row budget.
+function ChunkDefs.BlockField(rng: Random, st: GenState, tier): ChunkSpec
+	local length = rng:NextInteger(55, 85)
+	local halfW = st.width / 2
+	local rows = rowBudget(rng, tier, length, 4)
+	local obstacles = {}
+	for i = 1, rows do
+		local t = 0.2 + (i - 0.5) / rows * 0.6
+		local bw = rng:NextNumber(4, math.min(8, st.width * 0.3))
+		local xPad = bw / 2 + 1
+		if halfW - xPad < 0.5 then
+			continue
+		end
+		table.insert(obstacles, {
+			t = t,
+			xOff = rng:NextNumber(-(halfW - xPad), halfW - xPad),
+			w = bw,
+			h = Config.Obstacles.BlockHeight,
+			d = Config.Obstacles.BlockDepth,
+		})
+	end
+	return spec(
+		"BlockField",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles
+	)
+end
+
+-- WallSlot: one tall red slab wall with a single slot — commit to a lane early.
+function ChunkDefs.WallSlot(rng: Random, st: GenState, _tier): ChunkSpec
+	local length = rng:NextInteger(35, 55)
+	local halfW = st.width / 2
+	local obstacles = gateRow(rng, halfW, 0.5, Config.Obstacles.WallHeight, Config.Obstacles.WallDepth)
+	return spec(
+		"WallSlot",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles
+	)
 end
 
 return ChunkDefs
