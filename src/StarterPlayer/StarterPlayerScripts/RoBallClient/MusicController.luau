@@ -288,17 +288,24 @@ function Music.init()
 	end
 end
 
-function Music.onStart()
+function Music.onStart(seed: number?)
 	if not lead then
 		return
 	end
-	-- GD-style: every run re-hears the track from the top. Instant restart
-	-- is sacred — no fade-in tax, filter snaps open on the count-in.
+	-- GD-style: every run opens on the grid. Instant restart is sacred —
+	-- no fade-in tax, filter snaps open on the count-in. The start offset
+	-- rotates by seed across accent downbeats (AUDIO.md §6) so repeat runs
+	-- don't all open on bar 0; GenCore seeds its clock the same way.
+	local startBeat = 0
+	if seed and Config.MusicSync.SeededStartOffset then
+		startBeat = SongMap.startBeatFor(seed)
+	end
+	local startSec = startBeat * 60 / m.BaseBpm
 	applySpeed()
 	for _, p in ipairs(players) do
 		p.Volume = m.Volume
 		p.PlaybackSpeed = ps()
-		p.TimePosition = 0
+		p.TimePosition = startSec
 		if not p.IsPlaying then
 			p:Play()
 		end
@@ -339,11 +346,7 @@ function Music.onMenu()
 		p.Volume = m.MenuVolume * m.Volume
 	end
 	if shifter then
-		TweenService:Create(
-			shifter,
-			TweenInfo.new(m.FilterSweepTime),
-			{ Pitch = speed ^ -m.PitchCompensation }
-		):Play()
+		TweenService:Create(shifter, TweenInfo.new(m.FilterSweepTime), { Pitch = speed ^ -m.PitchCompensation }):Play()
 	end
 	setFilter(m.MenuCutoffHz, m.FilterSweepTime)
 end

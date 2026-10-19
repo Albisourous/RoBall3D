@@ -328,6 +328,10 @@ Config.MusicSync = {
 	-- (WallSlot wall, RampGap apex) shift their t so the feature lands on
 	-- the next accentBeat downbeat when it falls inside the chunk.
 	QuantizeSetPieces = true,
+	-- Seeded start (AUDIO.md §6): each run opens the track on a seed-picked
+	-- accentBeat instead of always bar 0; GenCore's beat clock starts there
+	-- so stamped sections match the heard audio.
+	SeededStartOffset = true,
 	-- Drop sections may roll one subdivision denser; breaks cap at
 	-- quarter-note clusters (ChunkDefs.rollRhythm).
 	DropDenseGems = true,

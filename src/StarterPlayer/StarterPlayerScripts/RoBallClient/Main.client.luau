@@ -104,7 +104,7 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	currentSeed = seed
 	controlAt = tick() + 0.8 -- DESIGN.md §6: "rolling…" settle before control
 	ui:showHud()
-	Music.onStart()
+	Music.onStart(seed)
 end)
 
 evRunEnded.OnClientEvent:Connect(function(score: number, dist: number, gems: number, best: number, seed: number)

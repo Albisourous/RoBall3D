@@ -58,4 +58,11 @@ function SongMap.nextAccentBeat(beatPos: number): number
 	return (lap + 1) * SongMap.loopBeats + SongMap.accentBeats[1]
 end
 
+-- Rotate the run's opening accent by seed (AUDIO.md §6): repeat plays
+-- don't all open on bar 0. GenCore seeds its beat clock to the same
+-- offset so stamped sections match the heard audio.
+function SongMap.startBeatFor(seed: number): number
+	return SongMap.accentBeats[(seed % #SongMap.accentBeats) + 1]
+end
+
 return SongMap

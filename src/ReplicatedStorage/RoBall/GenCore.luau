@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local MusicGrid = require(ReplicatedStorage.RoBall.MusicGrid)
+local SongMap = require(ReplicatedStorage.RoBall.SongMap)
 
 local GenCore = {}
 GenCore.__index = GenCore
@@ -27,8 +28,10 @@ function GenCore.new(seed: number): Gen
 	}
 	-- Musical clock (AUDIO.md §5.2): song-beats elapsed at st.dist on the
 	-- nominal speed schedule, accumulated incrementally per chunk so the
-	-- integral stays O(chunk) instead of re-summing from zero.
-	self.beatPos = 0
+	-- integral stays O(chunk) instead of re-summing from zero. The run
+	-- opens on a seed-rotated accent (AUDIO.md §6) — start the clock there
+	-- so stamped sections match what the player hears from beat one.
+	self.beatPos = Config.MusicSync.SeededStartOffset and SongMap.startBeatFor(seed) or 0
 	self.introIndex = 0
 	self.intro = {
 		{ type = "Flat", length = 35, widthOut = 48 },
