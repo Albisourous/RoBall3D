@@ -121,15 +121,17 @@ function SaveService.submitTop(userId: number, score: number, seed: number)
 end
 
 -- Top rows for the menu: { {name, score, seed}, ... }. Name lookup per entry.
-function SaveService.getTop(count: number): { { name: string, score: number, seed: number } }
+-- Returns nil when stores are unreachable — nil means OFFLINE (the client
+-- shows "leaderboard offline"), while {} means a real but empty board.
+function SaveService.getTop(count: number): { { name: string, score: number, seed: number } }?
 	if not ensureStores() or not topStore then
-		return {}
+		return nil
 	end
 	local ok, pages = pcall(function()
 		return (topStore :: OrderedDataStore):GetSortedAsync(false, math.clamp(count, 1, 100))
 	end)
 	if not ok or not pages then
-		return {}
+		return nil
 	end
 	-- Name + meta lookups yield; run all rows in parallel so a 20-entry
 	-- board doesn't serialize ~40 datastore/name calls.

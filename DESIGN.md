@@ -419,7 +419,9 @@ Full spec: `AUDIO.md`. Binding decisions:
 - Personal-best save happens on kill and on `BindToClose` flush — a
   `PlayerRemoving` task-spawned save alone can lose the race on server close.
 - Studio playtests need "Enable Studio API Access" ON for DataStore writes —
-  noted for setup.
+  noted for setup. When stores are unreachable the menu panel shows
+  `leaderboard offline` (nil rows) — an *empty* board says
+  `no saved runs yet`, a distinct state, not an error masquerade.
 
 ## 15. Architecture
 

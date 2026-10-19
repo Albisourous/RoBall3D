@@ -198,7 +198,7 @@ function Ui.new(): Ui
 		row.TextTruncate = Enum.TextTruncate.AtEnd
 		self.boardRows[i] = row
 	end
-	self:setLeaderboard(nil)
+	self.boardRows[1].Text = "  loading…" -- first refreshBoard() lands shortly after boot
 
 	--============================ GARAGE ============================--
 	-- Neon shop (DESIGN.md §18): left-panel mirror of the leaderboard.
@@ -593,12 +593,15 @@ function Ui:setBest(best: number)
 	self.bestLabel.Text = "BEST " .. tostring(best or 0)
 end
 
+-- nil rows = stores unreachable (offline), {} = real but empty board.
 function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)
 	for i, row in ipairs(self.boardRows) do
 		local r = rows and rows[i]
 		row.Text = r and string.format("%2d. %-14s %7d  #%d", i, r.name, r.score, r.seed) or ""
 	end
-	if not rows or #rows == 0 then
+	if rows == nil then
+		self.boardRows[1].Text = "  leaderboard offline"
+	elseif #rows == 0 then
 		self.boardRows[1].Text = "  no saved runs yet — set one."
 	end
 end
