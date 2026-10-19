@@ -215,22 +215,54 @@ player:GetAttributeChangedSignal("RoBallBest"):Connect(function()
 	end
 end)
 
+-- Gem combo pip: RoBallGems ticks up per pickup; a pickup inside
+-- ComboWindow of the last extends the streak — the same window
+-- SfxController's pitch ladder uses, so the "xN" matches the chime run.
+local combo = 0
+local lastPickupAt = 0
+local lastGemPts = 0
+player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
+	local n = player:GetAttribute("RoBallGems") or 0
+	if n > lastGemPts then
+		combo = if tick() - lastPickupAt <= Config.GemSfx.ComboWindow then combo + 1 else 1
+		lastPickupAt = tick()
+		ui:setCombo(combo)
+		local seen = combo
+		task.delay(Config.GemSfx.ComboWindow, function()
+			if combo == seen and tick() - lastPickupAt >= Config.GemSfx.ComboWindow - 1e-3 then
+				combo = 0
+				ui:setCombo(0)
+			end
+		end)
+	end
+	lastGemPts = n
+end)
+
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
+	combo = 0
+	lastGemPts = 0
+	ui:setCombo(0)
 	controlAt = tick() + 0.8 -- DESIGN.md §6: "rolling…" settle before control
 	CosmeticFx.onMode("running")
 	ui:showHud()
 	Music.onStart(seed)
 end)
 
-evRunEnded.OnClientEvent:Connect(function(score: number, dist: number, gems: number, best: number, seed: number)
-	mode = "dead"
-	CosmeticFx.onMode("dead")
-	DeathFx.burst(lastBallPos)
-	ui:showDeath(score, dist, gems, best, seed)
-	Music.onDeath()
-end)
+evRunEnded.OnClientEvent:Connect(
+	function(score: number, dist: number, gems: number, best: number, seed: number, newBest: boolean?)
+		mode = "dead"
+		combo = 0
+		ui:setCombo(0)
+		CosmeticFx.onMode("dead")
+		DeathFx.burst(lastBallPos)
+		-- newBest is computed server-side: attribute replication races make a
+		-- client-side "score > stored best" comparison unreliable.
+		ui:showDeath(score, dist, gems, best, seed, newBest)
+		Music.onDeath()
+	end
+)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then

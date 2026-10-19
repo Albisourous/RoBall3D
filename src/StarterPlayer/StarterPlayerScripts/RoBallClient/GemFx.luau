@@ -108,7 +108,43 @@ local function ring(pos: Vector3, color: Color3)
 	}):Play()
 end
 
-local function burst()
+-- "+N" score float: the pickup's point value rises and fades — the
+-- immediate "that gem was worth it" read (DESIGN.md §8.4).
+local function popup(pos: Vector3, pts: number, color: Color3)
+	local fx = Config.GemFx
+	local host = Instance.new("Part")
+	host.Name = "GemPopupFx"
+	host.Anchored = true
+	host.CanCollide = false
+	host.CastShadow = false
+	host.Transparency = 1
+	host.Size = Vector3.new(0.1, 0.1, 0.1)
+	host.CFrame = CFrame.new(pos + Vector3.new(0, 1.5, 0))
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromOffset(90, 30)
+	bb.AlwaysOnTop = true
+	bb.Parent = host
+	local tl = Instance.new("TextLabel")
+	tl.BackgroundTransparency = 1
+	tl.Size = UDim2.fromScale(1, 1)
+	tl.Font = Enum.Font.Code
+	tl.TextSize = fx.PopupSize
+	tl.TextColor3 = color
+	tl.TextStrokeTransparency = 0.4
+	tl.Text = "+" .. tostring(pts)
+	tl.Parent = bb
+	host.Parent = workspace
+	Debris:AddItem(host, fx.PopupTime + 0.1)
+	TweenService:Create(host, TweenInfo.new(fx.PopupTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = host.Position + Vector3.new(0, fx.PopupRise, 0),
+	}):Play()
+	TweenService:Create(tl, TweenInfo.new(fx.PopupTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+end
+
+local function burst(pts: number)
 	local pos = ballPos()
 	if not pos then
 		return
@@ -117,6 +153,9 @@ local function burst()
 	popGem(pos, color)
 	sparkle(pos, color)
 	ring(pos, color)
+	if pts > 0 then
+		popup(pos, pts, color)
+	end
 end
 
 function Fx.init()
@@ -124,7 +163,9 @@ function Fx.init()
 	player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 		local n = player:GetAttribute("RoBallGems") or 0
 		if n > lastGems then
-			burst()
+			-- RoBallGems is cumulative points — the delta IS this pickup's
+			-- value (10/15/25/40 by risk tier), so it lands on the popup.
+			burst(n - lastGems)
 		end
 		lastGems = n
 	end)

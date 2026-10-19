@@ -191,7 +191,8 @@ end
 local function killRun(player: Player, run: Run)
 	local score = math.floor(run.dist) + run.gemPts
 	local dist = math.floor(run.dist)
-	local best = math.max(player:GetAttribute("RoBallBest") or 0, score)
+	local oldBest = player:GetAttribute("RoBallBest") or 0
+	local best = math.max(oldBest, score)
 	if run.ball then
 		run.ball:Destroy()
 	end
@@ -199,10 +200,18 @@ local function killRun(player: Player, run: Run)
 	runs[player] = nil
 	player:SetAttribute("RoBallBest", best)
 	player:SetAttribute("RoBallLastScore", score)
-	evRunEnded:FireClient(player, score, dist, run.gemPts, best, run.seed)
+	-- newBest rides the event: attribute replication order vs the remote
+	-- isn't guaranteed, so the client can't derive this reliably.
+	evRunEnded:FireClient(player, score, dist, run.gemPts, best, run.seed, score > oldBest)
 
 	if plausible(run, score) then
-		bestOf[player] = { score = best, dist = dist, seed = run.seed }
+		-- Only overwrite the record when this run IS the record — storing
+		-- `dist`/`seed` from a later, worse run would misplace the PB
+		-- marker and tag the saved best with the wrong seed.
+		local prev = bestOf[player]
+		if not prev or score > (prev.score or 0) then
+			bestOf[player] = { score = score, dist = dist, seed = run.seed }
+		end
 		task.spawn(function()
 			SaveService.saveBest(player.UserId, bestOf[player])
 			SaveService.submitTop(player.UserId, score, run.seed)
@@ -244,6 +253,40 @@ local function startRun(player: Player)
 	end
 
 	streamer:ensureAhead(0) -- build the full window before the ball drops
+
+	-- PB ghost (DESIGN.md §11): a translucent "BEST n" gate floats at your
+	-- record's end distance — you race your own shadow. Parented to the
+	-- lane folder so it dies with the run.
+	local pb = bestOf[player]
+	if pb and pb.dist >= Config.Score.PbMarkerMinDist then
+		local z = -pb.dist
+		local gate = Instance.new("Part")
+		gate.Name = "PbMarker"
+		gate.Anchored = true
+		gate.CanCollide = false
+		gate.CanQuery = false
+		gate.CastShadow = false
+		gate.Transparency = 0.45
+		gate.Material = Enum.Material.Neon
+		gate.Color = Color3.fromRGB(255, 64, 190)
+		gate.Size = Vector3.new(math.max(4, Tiers.forDistance(pb.dist).widthMin), 0.4, 0.4)
+		gate.CFrame = CFrame.new(laneIndex * Config.Generation.RowSpacing, streamer:yAt(z) + 0.3, z)
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(160, 24)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
+		bb.AlwaysOnTop = true
+		bb.Parent = gate
+		local tl = Instance.new("TextLabel")
+		tl.BackgroundTransparency = 1
+		tl.Size = UDim2.fromScale(1, 1)
+		tl.Font = Enum.Font.Code
+		tl.TextSize = 14
+		tl.TextColor3 = Color3.fromRGB(255, 64, 190)
+		tl.Text = "BEST " .. tostring(math.floor(pb.score))
+		tl.Parent = bb
+		gate.Parent = streamer.folder
+	end
+
 	run.ball = spawnBall(player, laneIndex, streamer:yAt(2))
 	player:SetAttribute("RoBallSeed", seed)
 	player:SetAttribute("RoBallScore", 0)

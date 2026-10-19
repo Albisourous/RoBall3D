@@ -134,6 +134,13 @@ direction for momentum readability. No vertical bob (keeps precision readable).
 - **Death**: pitch drop on music, camera pulls back, death screen shows
   `SCORE / DISTANCE / BEST / SEED`, `[R]` or button = instant restart (new
   random seed unless one was entered — same seed if entered manually).
+  A gold `★ NEW BEST!` line appears under the title when the run beat the
+  stored record — the flag is computed server-side since attribute
+  replication races make a client-side compare unreliable.
+- **PB ghost**: on run start a translucent magenta `BEST n` gate floats on
+  the deck at your record's end distance (`Score.PbMarkerMinDist` = 150m) —
+  you race your own shadow. Record `dist`/`seed` only overwrite on a true
+  new record, so the gate always marks the real best, never a later run.
 
 ## 7. Seed system
 
@@ -357,8 +364,14 @@ deferred.
   the digits themselves are the meter: hue gradients cyan → violet →
   magenta across 0–100 and snaps hot red + pulsing past it. Bottom-left
   is a glanceable **boost bar**: cyan fill on a dark track, gold tick at
-  `RechargeGate`, pink flare while boosting, blink while latched out.
-  Dial pods were tried and rejected — minimal chrome keeps eyes on track.
+  `RechargeGate`, pink flare while boosting, blink while latched out —
+  and a gold ping the moment charge crosses the gate upward, so W coming
+  back is felt, not watched. Under the subline a small `xN` **combo pip**
+  tracks gem streaks (same `GemSfx.ComboWindow` the chime ladder uses, so
+  the count always matches the pitch climb). Gem pickups also float a
+  `+N` points popup with the ghost-diamond burst — the pickup's exact
+  value read off the cumulative `RoBallGems` delta. Dial pods were tried
+  and rejected — minimal chrome keeps eyes on track.
 - **Post FX**: restrained `BloomEffect` (Intensity 0.55, Size 16, Threshold
   1.3 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur), subtle `ColorCorrection`, `Atmosphere` density

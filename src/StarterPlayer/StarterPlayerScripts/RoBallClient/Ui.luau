@@ -364,6 +364,21 @@ function Ui.new(): Ui
 	subText.Parent = hud
 	self.subText = subText
 
+	-- Gem combo counter under the subline: "x3" while a pickup streak is
+	-- alive (client derives it from RoBallGems timing, ComboWindow).
+	local comboText = Instance.new("TextLabel")
+	comboText.BackgroundTransparency = 1
+	comboText.Font = F_DATA
+	comboText.TextSize = 16
+	comboText.TextColor3 = C_CYAN
+	comboText.TextStrokeTransparency = 0.5
+	comboText.Position = UDim2.fromOffset(0, 80)
+	comboText.Size = UDim2.new(1, 0, 0, 18)
+	comboText.Text = ""
+	comboText.Visible = false
+	comboText.Parent = hud
+	self.comboText = comboText
+
 	--=========== SPEED + BOOST (bottom corners) ===========--
 	-- Minimal vaporwave readout (DESIGN.md §12): the speed NUMBER is the
 	-- meter — it gradients cyan -> violet -> magenta as speed climbs and
@@ -484,20 +499,24 @@ function Ui.new(): Ui
 	vlist(dCol, 10)
 
 	label(dCol, "RUN OVER", 52, F_DISPLAY, C_PINK, 1)
-	self.dScore = label(dCol, "SCORE 0", 34, F_DATA, C_CYAN, 2)
-	self.dBreakdown = label(dCol, "0 m · 0 gems", 18, F_DATA, C_WHITE, 3)
-	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_GOLD, 4)
-	self.dSeed = label(dCol, "SEED 0", 14, F_DATA, C_DIM, 5)
-	local retry = outlineButton(dCol, "RETRY", 30, 6)
+	-- NEW BEST! only shows when the run beat the stored record — gold,
+	-- placed right under the title so it's the first thing read.
+	self.dNewBest = label(dCol, "★ NEW BEST!", 22, F_DATA, C_GOLD, 2)
+	self.dNewBest.Visible = false
+	self.dScore = label(dCol, "SCORE 0", 34, F_DATA, C_CYAN, 3)
+	self.dBreakdown = label(dCol, "0 m · 0 gems", 18, F_DATA, C_WHITE, 4)
+	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_GOLD, 5)
+	self.dSeed = label(dCol, "SEED 0", 14, F_DATA, C_DIM, 6)
+	local retry = outlineButton(dCol, "RETRY", 30, 7)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 7)
+	label(dCol, "or press R", 13, F_DATA, C_DIM, 8)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = outlineButton(dCol, "MENU", 16, 8)
+	local toMenu = outlineButton(dCol, "MENU", 16, 9)
 	toMenu.Size = UDim2.fromOffset(140, 34)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
@@ -555,11 +574,26 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 		self.boostGate.Position = UDim2.fromScale(self.gateFrac, 0)
 	end
 	self.boostFill.Size = UDim2.fromScale(math.clamp(boostFrac, 0, 1), 1)
+	-- Ready flash: when charge crosses the gate upward, the bar pings gold
+	-- for a moment — you feel W come back without watching it.
+	local gate = self.gateFrac or 1
+	local ready = boostFrac >= gate
+	if ready and self._boostReady == false then
+		self._readyFlash = tick()
+	end
+	self._boostReady = ready
 	local blink = boostSpent and math.sin(tick() * 10) > 0
-	self.boostFill.BackgroundColor3 = (boosting or blink) and C_PINK or C_CYAN
+	local flash = self._readyFlash ~= nil and tick() - self._readyFlash < 0.45
+	self.boostFill.BackgroundColor3 = flash and C_GOLD or ((boosting or blink) and C_PINK or C_CYAN)
 end
 
-function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number)
+-- Gem combo pip under the subline (n>=2 shows "xN").
+function Ui:setCombo(n: number)
+	self.comboText.Text = "x" .. tostring(n)
+	self.comboText.Visible = n >= 2
+end
+
+function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number, newBest: boolean?)
 	self.menu.Visible = false
 	self.hud.Visible = false
 	self.spdNum.Visible = false
@@ -571,6 +605,7 @@ function Ui:showDeath(score: number, dist: number, gems: number, best: number, s
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
 	self.dBest.Text = "BEST " .. tostring(best)
 	self.dSeed.Text = "SEED " .. tostring(seed)
+	self.dNewBest.Visible = newBest == true
 end
 
 -- Garage state push (§18): equipped item names per slot + per-pack button
