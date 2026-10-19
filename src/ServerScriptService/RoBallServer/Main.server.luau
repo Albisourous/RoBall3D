@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local TrackStreamer = require(script.Parent.TrackStreamer)
+local SaveService = require(script.Parent.SaveService)
 
 Players.CharacterAutoLoads = false
 
@@ -38,6 +39,9 @@ evRunStarted.Parent = remotes
 local evRunEnded = Instance.new("RemoteEvent")
 evRunEnded.Name = "RunEnded"
 evRunEnded.Parent = remotes
+local fnGetLeaderboard = Instance.new("RemoteFunction")
+fnGetLeaderboard.Name = "GetLeaderboard"
+fnGetLeaderboard.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 local KILL_DROP = 15 -- studs below deck = dead (DESIGN.md §11)
@@ -49,11 +53,13 @@ type Run = {
 	seed: number,
 	dist: number, -- studs traveled (-Z), drives score
 	gemPts: number, -- gem pickups this run
+	t0: number, -- os.clock() at start; feeds the plausibility cap
 }
 
 local runs: { [Player]: Run } = {}
 local laneOf: { [Player]: number } = {}
 local seedPref: { [Player]: string } = {}
+local bestOf: { [Player]: { score: number, dist: number, seed: number } } = {}
 local nextLane = 0
 
 local function randomSeed(): number
@@ -107,10 +113,23 @@ local function writeScore(player: Player, run: Run)
 	player:SetAttribute("RoBallGems", run.gemPts)
 end
 
+-- Lite plausibility check (DESIGN.md §14): dist can't exceed max achievable
+-- speed * elapsed * margin, and gems can't exceed ~cluster cap per chunk.
+local function plausible(run: Run, score: number): boolean
+	local elapsed = math.max(os.clock() - run.t0, 1)
+	local maxDist = Config.Speed.Max * Config.Speed.ThrottleUp * elapsed * 1.15
+	local gemCap = math.ceil(run.dist / 30)
+		* Config.Gems.ClustersPerChunkMax
+		* Config.Gems.ClusterSize
+		* Config.Gems.ValueGapArc
+	return score <= maxDist + math.max(gemCap, 100)
+end
+
 -- Death is instant (DESIGN.md §11): fall below the deck OR touch lethal
 -- geometry. Seal the score, report to the client, wait for the next request.
 local function killRun(player: Player, run: Run)
 	local score = math.floor(run.dist) + run.gemPts
+	local dist = math.floor(run.dist)
 	local best = math.max(player:GetAttribute("RoBallBest") or 0, score)
 	if run.ball then
 		run.ball:Destroy()
@@ -119,14 +138,25 @@ local function killRun(player: Player, run: Run)
 	runs[player] = nil
 	player:SetAttribute("RoBallBest", best)
 	player:SetAttribute("RoBallLastScore", score)
-	evRunEnded:FireClient(player, score, math.floor(run.dist), run.gemPts, best, run.seed)
+	evRunEnded:FireClient(player, score, dist, run.gemPts, best, run.seed)
+
+	if plausible(run, score) then
+		bestOf[player] = { score = best, dist = dist, seed = run.seed }
+		task.spawn(function()
+			SaveService.saveBest(player.UserId, bestOf[player])
+			SaveService.submitTop(player.UserId, score, run.seed)
+		end)
+	else
+		warn("[RoBall3D] implausible score rejected:", player.Name, score)
+	end
 end
 
 local function startRun(player: Player)
 	local laneIndex = laneOf[player] or 0
 	local seed = resolveSeed(player)
 	local streamer = TrackStreamer.new(laneIndex, seed)
-	local run: Run = { laneIndex = laneIndex, streamer = streamer, ball = nil, seed = seed, dist = 0, gemPts = 0 }
+	local run: Run =
+		{ laneIndex = laneIndex, streamer = streamer, ball = nil, seed = seed, dist = 0, gemPts = 0, t0 = os.clock() }
 	runs[player] = run
 
 	streamer.onFatalTouch = function(hit)
@@ -166,8 +196,21 @@ local function onPlayerAdded(player: Player)
 		laneOf[player] = nextLane
 		nextLane += 1
 	end
+	-- Load persisted best (async — the menu reads the attribute whenever it
+	-- lands; P5 store may be unreachable in Studio, which is fine).
+	task.spawn(function()
+		local saved = SaveService.loadBest(player.UserId)
+		if saved then
+			bestOf[player] = saved
+			player:SetAttribute("RoBallBest", math.max(saved.score, player:GetAttribute("RoBallBest") or 0))
+		end
+	end)
 	player:SetAttribute("RoBallBest", player:GetAttribute("RoBallBest") or 0)
 	print("[RoBall3D] joined", player.Name, "lane", laneOf[player])
+end
+
+fnGetLeaderboard.OnServerInvoke = function(_player)
+	return SaveService.getTop(Config.Leaderboard.TopCount)
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)
@@ -185,8 +228,15 @@ Players.PlayerRemoving:Connect(function(player)
 		run.streamer:destroy()
 		runs[player] = nil
 	end
+	local saved = bestOf[player]
+	if saved then
+		task.spawn(function()
+			SaveService.saveBest(player.UserId, saved)
+		end)
+	end
 	laneOf[player] = nil
 	seedPref[player] = nil
+	bestOf[player] = nil
 end)
 
 RunService.Heartbeat:Connect(function()

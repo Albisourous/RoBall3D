@@ -21,6 +21,7 @@ local remotes = ReplicatedStorage:WaitForChild("RoBallRemotes")
 local evStart = remotes:WaitForChild("RequestStart") :: RemoteEvent
 local evRunStarted = remotes:WaitForChild("RunStarted") :: RemoteEvent
 local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
+local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -165,4 +166,8 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
+task.spawn(function()
+	local rows = fnGetLeaderboard:InvokeServer()
+	ui:setLeaderboard(rows)
+end)
 print("[RoBall3D] P4 client online — menu/HUD/death + steering + chase cam")

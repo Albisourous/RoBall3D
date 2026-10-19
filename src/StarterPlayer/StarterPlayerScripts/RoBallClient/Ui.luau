@@ -157,6 +157,36 @@ function Ui.new(): Ui
 		end
 	end)
 
+	-- Leaderboard: right-side panel, filled via GetLeaderboard remote.
+	local board = Instance.new("Frame")
+	board.Name = "Leaderboard"
+	board.AnchorPoint = Vector2.new(1, 0.5)
+	board.Position = UDim2.fromScale(0.96, 0.5)
+	board.Size = UDim2.fromOffset(320, 420)
+	board.BackgroundColor3 = C_PANEL
+	board.BackgroundTransparency = 0.25
+	board.BorderSizePixel = 0
+	board.Parent = menu
+	local boardCorner = Instance.new("UICorner")
+	boardCorner.CornerRadius = UDim.new(0, 10)
+	boardCorner.Parent = board
+
+	label(board, "TOP RUNS", 22, F_DISPLAY, C_MAGENTA, 0)
+	local boardBody = Instance.new("Frame")
+	boardBody.BackgroundTransparency = 1
+	boardBody.Size = UDim2.new(1, -24, 1, -50)
+	boardBody.Position = UDim2.fromOffset(12, 42)
+	boardBody.Parent = board
+	vlist(boardBody, 4)
+	self.boardRows = {}
+	for i = 1, 10 do
+		local row = label(boardBody, "", 15, F_DATA, i % 2 == 0 and C_CYAN or C_WHITE, i)
+		row.TextXAlignment = Enum.TextXAlignment.Left
+		row.TextTruncate = Enum.TextTruncate.AtEnd
+		self.boardRows[i] = row
+	end
+	self:setLeaderboard(nil)
+
 	--============================= HUD ==============================--
 	local hud = Instance.new("Frame")
 	hud.Name = "Hud"
@@ -251,6 +281,16 @@ function Ui:showDeath(score: number, dist: number, gems: number, best: number, s
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
 	self.dBest.Text = "BEST " .. tostring(best)
 	self.dSeed.Text = "SEED " .. tostring(seed)
+end
+
+function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)
+	for i, row in ipairs(self.boardRows) do
+		local r = rows and rows[i]
+		row.Text = r and string.format("%2d. %-14s %7d  #%d", i, r.name, r.score, r.seed) or ""
+	end
+	if not rows or #rows == 0 then
+		self.boardRows[1].Text = "  no saved runs yet — set one."
+	end
 end
 
 function Ui:seedText(): string
