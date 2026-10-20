@@ -127,9 +127,14 @@ function Backdrop.init()
 	root.Name = "RoBallBackdrop"
 	root.Parent = workspace
 	sun = makeSun(root)
-	-- Mid-band bloom punch — reuse the place's BloomEffect if it has one,
-	-- keeping its tuned intensity as the pulse baseline.
-	bloom = game:GetService("Lighting"):FindFirstChildOfClass("BloomEffect")
+	-- Mid-band bloom punch — bind the server's named WorldBloom first (a stale
+	-- authored Bloom may sit earlier in child order with hot defaults), keeping
+	-- its tuned intensity as the pulse baseline.
+	local lighting = game:GetService("Lighting")
+	bloom = lighting:WaitForChild("WorldBloom", 10) :: BloomEffect?
+	if not bloom then
+		bloom = lighting:FindFirstChildOfClass("BloomEffect")
+	end
 	if bloom then
 		bloomBase = bloom.Intensity
 	else

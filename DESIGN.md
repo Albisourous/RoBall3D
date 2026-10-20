@@ -372,10 +372,15 @@ deferred.
   `+N` points popup with the ghost-diamond burst — the pickup's exact
   value read off the cumulative `RoBallGems` delta. Dial pods were tried
   and rejected — minimal chrome keeps eyes on track.
-- **Post FX**: restrained `BloomEffect` (Intensity 0.35, Size 10, Threshold
+- **Post FX**: `applyEnvironment` owns Lighting outright — it destroys every
+  pre-existing `BloomEffect`/`Atmosphere`/`SunRaysEffect`/`ColorCorrectionEffect`
+  (the place file carried a stale authored kit that double-stacked ours) and
+  creates exactly one set: a restrained `BloomEffect` named **`WorldBloom`**
+  (Intensity 0.35, Size 10, Threshold
   1.5 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur, and 0.55/16/1.3 still glowed too hot), subtle `ColorCorrection`, `Atmosphere` density
-  0.25 for depth haze. **Speed blur** is a meter, not a constant: a
+  0.25 for depth haze. Backdrop's audio pulse binds `WorldBloom` by name
+  (`WaitForChild`), never a stale authored bloom. **Speed blur** is a meter, not a constant: a
   `BlurEffect` + the `DepthOfField`'s far intensity ramp off `fwdSpeed` —
   a power curve (`MaxBlur * t^Exponent`, t normalized `StartSpeed`→`CurveTop`,
   StartSpeed 100) so sub-100 stays perfectly clear and the smear climbs

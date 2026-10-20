@@ -29,9 +29,21 @@ local function applyEnvironment()
 	Lighting.Ambient = Color3.fromRGB(30, 18, 42)
 	Lighting.OutdoorAmbient = Color3.fromRGB(20, 12, 32)
 
+	-- The place file carries a stale authored post-FX kit (extra Bloom,
+	-- Atmosphere, SunRays, ColorCorrection at defaults) that stacks on top of
+	-- ours and doubles the glow/haze. Own Lighting outright: destroy every
+	-- existing effect of the classes we manage, then create exactly ours.
+	for _, e in Lighting:GetChildren() do
+		if e:IsA("BloomEffect") or e:IsA("Atmosphere") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") then
+			e:Destroy()
+		end
+	end
+
 	-- Restrained bloom: Threshold above 1 means only emissive Neon pixels
-	-- bloom; low intensity/size keeps edges crisp instead of blurry.
+	-- bloom; low intensity/size keeps edges crisp instead of blurry. Named so
+	-- Backdrop can bind this exact effect instead of a stale authored one.
 	local bloom = Instance.new("BloomEffect")
+	bloom.Name = "WorldBloom"
 	bloom.Intensity = 0.35
 	bloom.Size = 10
 	bloom.Threshold = 1.5
