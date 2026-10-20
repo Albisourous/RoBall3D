@@ -1,17 +1,24 @@
 --!strict
--- Backdrop (DESIGN.md §12): vaporwave canyon — rows of dark towers
--- outlined in palette neon flanking the track, plus a giant striped
--- synthwave sun parked far down the slope. All parts are client-local:
--- zero replication cost, and they read as parallax scenery because they
--- sit in world space while the ball flies past.
+-- Backdrop (DESIGN.md §12): side-scenery + the striped synthwave sun parked
+-- far down the slope. The WORLD cosmetic slot (§18) swaps the flanks:
+--   "city"  — dark towers outlined in palette neon, recycled per row for
+--             parallax (the default canyon).
+--   "peaks" — NEON PEAKS: a seeded wireframe ridge field, neon edges over
+--             near-black facets rising straight out of the void.
+-- All parts are client-local: zero replication cost, and they read as
+-- parallax scenery because they sit in world space while the ball flies past.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local Art = Config.Art
+local Gen = Config.Generation
 local rng = Random.new()
+local player = Players.LocalPlayer
 
 local Backdrop = {}
 
@@ -24,7 +31,20 @@ local towers: { Tower } = {}
 -- Per (side,row) frontier: the z where the next recycled tower goes.
 local frontZ: { [string]: number } = {}
 
+type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
+local peakTiles: { PeakTile } = {}
+local peaksSeeded = false
+local theme: "city" | "peaks" = "city"
+
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
+-- Parked parts sit far below at +z, past the recycle gate: reactivating a
+-- theme re-seeds it and every dormant part earns a fresh lay in one pass.
+local PARK = CFrame.new(0, -10000, 5000)
+local BACK_MARGIN = 80 -- studs behind the ball kept covered before recycle
+
+local function parkPart(p: BasePart)
+	p.CFrame = PARK
+end
 
 local function makeSeg(parent: Instance): Seg
 	local p = Instance.new("Part")
@@ -75,9 +95,172 @@ local function layTower(tower: Tower, x: number, baseY: number, z: number, color
 			y += h
 		else
 			-- parked far below: invisible, no layout cost
-			seg.part.CFrame = CFrame.new(0, -10000, 0)
+			parkPart(seg.part)
 		end
 	end
+end
+
+--============================ NEON PEAKS ============================--
+-- A displaced grid mesh: neon edges over near-black tilted facets, plus a
+-- dark slab under each tile so the range occludes the void instead of
+-- reading as a translucent lattice. Ridge heights are a pure function of
+-- (side, column, world-lattice row) — tiles recycle independently yet meet
+-- in perfect seams, and the terrain keeps generating fresh forever.
+
+-- Ridge height 0..1: ridged noise (sharp crests) + a detail octave, ramped
+-- from ~0 at the road edge to full amplitude at the outermost column, and
+-- swelled by a slow along-z envelope so ranges arrive in passes instead of
+-- an unbroken wall.
+local function peakRidge(side: number, c: number, row: number): number
+	local n = math.noise(c * Art.PeaksFreqX + side * 61.7, row * Art.PeaksFreqZ, Art.PeaksSeed)
+	local d = math.noise(c * Art.PeaksFreqX * 2.7 + 31.4, row * Art.PeaksFreqZ * 2.7 - side * 17.9, Art.PeaksSeed + 101)
+	local crest = math.max(0, 0.5 - math.abs(n)) * 2
+	local h = crest * 0.82 + (d + 0.5) * 0.18
+	local ramp = ((c + 0.3) / Art.PeaksCols) ^ Art.PeaksRampPow
+	local env = math.clamp(0.62 + math.noise(row * Art.PeaksEnvF, side * 9.13, Art.PeaksSeed + 57) * 1.5, 0.05, 1)
+	return h * ramp * env
+end
+
+-- Deck-plane estimate at z: the linear grade is the upper bound (gap
+-- chunks only subtract), so min() with the ball-derived grade keeps the
+-- strip glued through RampGap drops without ballooning on jump arcs.
+local function deckEst(anchor: Vector3, z: number): number
+	return math.min(Gen.StartY + Gen.Grade * z, anchor.Y - Gen.Grade * (anchor.Z - z))
+end
+
+local function makePeakPart(parent: Instance, neon: boolean): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Material = neon and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	p.Color = FACE_COLOR
+	p.CFrame = PARK
+	p.Parent = parent
+	return p
+end
+
+-- Built lazily on first activation — non-owners never pay for the parts.
+local function ensurePeaks()
+	if #peakTiles > 0 then
+		return
+	end
+	local nLines = (Art.PeaksCols + 1) * Art.PeaksRows + Art.PeaksCols * (Art.PeaksRows + 1)
+	for side = -1, 1, 2 do
+		for slot = 1, Art.PeaksTiles do
+			local model = Instance.new("Model")
+			model.Name = "Peaks"
+			model.Parent = root
+			local lines: { Part } = {}
+			local plates: { Part } = {}
+			for _ = 1, nLines do
+				table.insert(lines, makePeakPart(model, true))
+			end
+			for _ = 1, Art.PeaksCols * Art.PeaksRows do
+				table.insert(plates, makePeakPart(model, false))
+			end
+			table.insert(peakTiles, {
+				slot = slot,
+				side = side,
+				z0 = 0,
+				lines = lines,
+				plates = plates,
+				slab = makePeakPart(model, false),
+			})
+		end
+	end
+end
+
+-- Re-lay a tile at its current z0: vertices lock to the world lattice in z
+-- and to the lane grid in x, so the strip is internally coherent forever
+-- while tiny inter-tile steps read as geological faulting, not cracks.
+local function layTile(tile: PeakTile, anchor: Vector3)
+	local cols, rows = Art.PeaksCols, Art.PeaksRows
+	local cellX, cellZ = Art.PeaksCellX, Art.PeaksCellZ
+	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+	local side = tile.side
+
+	local verts: { { Vector3 } } = table.create(cols + 1)
+	for c = 0, cols do
+		local col: { Vector3 } = table.create(rows + 1)
+		local x = laneX + side * (Art.PeaksInnerX + c * cellX)
+		for r = 0, rows do
+			local z = tile.z0 + r * cellZ
+			local row = math.round(z / cellZ)
+			local y = deckEst(anchor, z) - Art.PeaksSkirt + peakRidge(side, c, row) * Art.PeaksMaxH
+			col[r + 1] = Vector3.new(x, y, z)
+		end
+		verts[c + 1] = col
+	end
+
+	-- Edge tint: the distance wheel flows along z like the deck grid, and
+	-- outer columns dim a touch for a cheap depth cue.
+	local function edgeColor(xMid: number, zMid: number): Color3
+		local reach = math.clamp((math.abs(xMid - laneX) - Art.PeaksInnerX) / (cols * cellX), 0, 1)
+		return Palette.dimAt(-zMid, Art.PeaksValue * (1 - 0.4 * reach))
+	end
+
+	local li = 0
+	local function stroke(a: Vector3, b: Vector3)
+		li += 1
+		local p = tile.lines[li]
+		local mid = (a + b) / 2
+		p.Size = Vector3.new(Art.PeaksLine, Art.PeaksLine, (b - a).Magnitude)
+		p.CFrame = CFrame.lookAt(mid, b)
+		p.Color = edgeColor(mid.X, mid.Z)
+	end
+	for c = 0, cols do
+		for r = 0, rows - 1 do
+			stroke(verts[c + 1][r + 1], verts[c + 1][r + 2])
+		end
+	end
+	for r = 0, rows do
+		for c = 0, cols - 1 do
+			stroke(verts[c + 1][r + 1], verts[c + 2][r + 1])
+		end
+	end
+
+	-- Facets: one tilted plate per quad. Its top face sinks to just under
+	-- the lowest corner, so the neon edges always ride on top while the
+	-- dark facet still catches slight ambient differences — the shaded
+	-- ridge sides from the reference look.
+	local pi = 0
+	for c = 0, cols - 1 do
+		for r = 0, rows - 1 do
+			pi += 1
+			local a, b = verts[c + 1][r + 1], verts[c + 2][r + 1]
+			local c2, e = verts[c + 1][r + 2], verts[c + 2][r + 2]
+			local n = (c2 - b):Cross(e - a)
+			local up = if n.Y < 0 then -n.Unit else n.Unit
+			local right0 = (b - a) + (e - c2)
+			local right = (right0 - up * right0:Dot(up)).Unit
+			local cen = (a + b + c2 + e) / 4
+			local minK = math.huge
+			for _, v in ipairs({ a, b, c2, e }) do
+				minK = math.min(minK, (v - cen):Dot(up))
+			end
+			local plate = tile.plates[pi]
+			plate.Size = Vector3.new(cellX * 1.04, 4, cellZ * 1.04)
+			plate.CFrame = CFrame.fromMatrix(cen + up * (minK - 0.4 - 2), right, up, right:Cross(up))
+			plate.Color = FACE_COLOR:Lerp(Palette.neonAt(-cen.Z), Art.PeaksFaceTint)
+		end
+	end
+
+	-- Massif body: a grade-pitched dark slab below road level, so the range
+	-- silhouettes solid against the sun and the void never shows through.
+	local tileLen = rows * cellZ
+	local slabT = 24
+	local xIn = laneX + side * (Art.PeaksInnerX - 8)
+	local xOut = laneX + side * (Art.PeaksInnerX + cols * cellX + 40)
+	local cx = (xIn + xOut) / 2
+	local zF, zB = tile.z0 - 1, tile.z0 + tileLen + 1
+	local a = Vector3.new(cx, deckEst(anchor, zF) - Art.PeaksSkirt - slabT / 2, zF)
+	local b = Vector3.new(cx, deckEst(anchor, zB) - Art.PeaksSkirt - slabT / 2, zB)
+	local dist = (b - a).Magnitude
+	tile.slab.Size = Vector3.new(math.abs(xOut - xIn), slabT, dist)
+	tile.slab.CFrame = CFrame.lookAt(a, b) * CFrame.new(0, 0, -dist / 2)
+	tile.slab.Color = FACE_COLOR
 end
 
 -- The synthwave sun is built once as a stack of horizontal strips:
@@ -156,6 +339,16 @@ function Backdrop.init()
 			end
 		end
 	end
+
+	-- World theme (§18): the world cosmetic slot picks the side scenery.
+	-- The attribute lands async after join — the listener catches late
+	-- arrivals, the initial read covers ones already set.
+	local function themeFromAttr()
+		local item = Cosmetics.item(player:GetAttribute("RoBallEq_world") :: string?)
+		Backdrop.setTheme(if item and item.theme then item.theme else "city")
+	end
+	player:GetAttributeChangedSignal("RoBallEq_world"):Connect(themeFromAttr)
+	themeFromAttr()
 end
 
 local seeded = false
@@ -169,22 +362,41 @@ function Backdrop.setPulse(p: number)
 	end
 end
 
+-- Theme swap (§18 world slot): the outgoing system's parts park below the
+-- void (and past the recycle gate), the incoming one re-seeds so its whole
+-- window re-lays on the next update.
+function Backdrop.setTheme(t: string)
+	local nt: "city" | "peaks" = if t == "peaks" then "peaks" else "city"
+	if nt == theme then
+		return
+	end
+	theme = nt
+	if theme == "peaks" then
+		for _, tower in ipairs(towers) do
+			for _, seg in ipairs(tower.segs) do
+				parkPart(seg.part)
+			end
+		end
+		peaksSeeded = false
+	else
+		for _, tile in ipairs(peakTiles) do
+			for _, p in ipairs(tile.lines) do
+				parkPart(p)
+			end
+			for _, p in ipairs(tile.plates) do
+				parkPart(p)
+			end
+			parkPart(tile.slab)
+		end
+		seeded = false
+	end
+end
+
 function Backdrop.update(anchor: Vector3)
 	if not root then
 		return
 	end
 	local dist = math.max(0, -anchor.Z)
-
-	if not seeded then
-		seeded = true
-		-- Seed each row's frontier behind the anchor spread across the span,
-		-- so the first frame fills the whole window at once.
-		for side = -1, 1, 2 do
-			for row = 1, Art.CityRows do
-				frontZ[side .. ":" .. row] = anchor.Z + Art.CitySpacing
-			end
-		end
-	end
 
 	-- The sun rides a fixed distance ahead and a fixed lift above the ball,
 	-- so it always hangs in the upper frame like a sunset at the end of the
@@ -195,6 +407,40 @@ function Backdrop.update(anchor: Vector3)
 		local s = 1 + sunPulse * 0.10
 		for _, sp in ipairs(sunParts) do
 			sp.part.Size = Vector3.new(sp.base.X * s, sp.base.Y * s, sp.base.Z)
+		end
+	end
+
+	if theme == "peaks" then
+		ensurePeaks()
+		local tileLen = Art.PeaksRows * Art.PeaksCellZ
+		local span = tileLen * Art.PeaksTiles
+		if not peaksSeeded then
+			peaksSeeded = true
+			-- First lattice row past the keep margin: the nearest tile's
+			-- back edge lands just behind the ball, covering the window.
+			local back = math.ceil((anchor.Z + BACK_MARGIN) / Art.PeaksCellZ) * Art.PeaksCellZ
+			for _, tile in ipairs(peakTiles) do
+				tile.z0 = back - tile.slot * tileLen
+				layTile(tile, anchor)
+			end
+		end
+		for _, tile in ipairs(peakTiles) do
+			if tile.z0 > anchor.Z + BACK_MARGIN then
+				tile.z0 -= span
+				layTile(tile, anchor)
+			end
+		end
+		return
+	end
+
+	if not seeded then
+		seeded = true
+		-- Seed each row's frontier behind the anchor spread across the span,
+		-- so the first frame fills the whole window at once.
+		for side = -1, 1, 2 do
+			for row = 1, Art.CityRows do
+				frontZ[side .. ":" .. row] = anchor.Z + Art.CitySpacing
+			end
 		end
 	end
 

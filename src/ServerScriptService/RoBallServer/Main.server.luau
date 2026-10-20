@@ -96,6 +96,9 @@ fnGetLeaderboard.Parent = remotes
 local fnEquipItem = Instance.new("RemoteFunction")
 fnEquipItem.Name = "EquipItem"
 fnEquipItem.Parent = remotes
+local fnBuyItem = Instance.new("RemoteFunction")
+fnBuyItem.Name = "BuyItem"
+fnBuyItem.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 local KILL_DROP = 15 -- studs below deck = dead (DESIGN.md §11)
@@ -107,6 +110,7 @@ type Run = {
 	seed: number,
 	dist: number, -- studs traveled (-Z), drives score
 	gemPts: number, -- gem pickups this run
+	banked: number, -- gems credited to the bank this run (§18 P2 — never score)
 	t0: number, -- os.clock() at start; feeds the plausibility cap
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
 	stillT: number, -- seconds the ball has been frozen in place
@@ -116,6 +120,8 @@ local runs: { [Player]: Run } = {}
 local laneOf: { [Player]: number } = {}
 local seedPref: { [Player]: string } = {}
 local bestOf: { [Player]: { score: number, dist: number, seed: number } } = {}
+local lbCooldown: { [Player]: number } = {}
+local statsOf: { [Player]: { best: IntValue, score: IntValue } } = {}
 local nextLane = 0
 
 local function randomSeed(): number
@@ -172,6 +178,10 @@ local function writeScore(player: Player, run: Run)
 	player:SetAttribute("RoBallScore", score)
 	player:SetAttribute("RoBallDist", math.floor(run.dist))
 	player:SetAttribute("RoBallGems", run.gemPts)
+	local ls = statsOf[player]
+	if ls then
+		ls.score.Value = score
+	end
 end
 
 -- Lite plausibility check (DESIGN.md §14): dist can't exceed the distance
@@ -210,23 +220,34 @@ local function killRun(player: Player, run: Run)
 	end
 	run.streamer:destroy()
 	runs[player] = nil
+	ShopService.flush(player) -- bank checkpoint: persist the run's credits (§18)
 	player:SetAttribute("RoBallBest", best)
 	player:SetAttribute("RoBallLastScore", score)
+	local ls = statsOf[player]
+	if ls then
+		ls.best.Value = best
+		ls.score.Value = score
+	end
 	-- newBest rides the event: attribute replication order vs the remote
 	-- isn't guaranteed, so the client can't derive this reliably.
-	evRunEnded:FireClient(player, score, dist, run.gemPts, best, run.seed, score > oldBest)
+	evRunEnded:FireClient(player, score, dist, run.gemPts, best, run.seed, score > oldBest, run.banked)
 
 	if plausible(run, score) then
 		-- Only overwrite the record when this run IS the record — storing
 		-- `dist`/`seed` from a later, worse run would misplace the PB
 		-- marker and tag the saved best with the wrong seed.
 		local prev = bestOf[player]
-		if not prev or score > (prev.score or 0) then
+		local isRecord = not prev or score > (prev.score or 0)
+		if isRecord then
 			bestOf[player] = { score = score, dist = dist, seed = run.seed }
 		end
 		task.spawn(function()
 			SaveService.saveBest(player.UserId, bestOf[player])
-			SaveService.submitTop(player.UserId, score, run.seed)
+			-- The top board only moves on session records — skipping
+			-- non-record deaths halves write traffic for free.
+			if isRecord then
+				SaveService.submitTop(player.UserId, score, run.seed)
+			end
 		end)
 	else
 		warn("[RoBall3D] implausible score rejected:", player.Name, score)
@@ -244,6 +265,7 @@ local function startRun(player: Player)
 		seed = seed,
 		dist = 0,
 		gemPts = 0,
+		banked = 0,
 		t0 = os.clock(),
 		lastPos = nil,
 		stillT = 0,
@@ -259,6 +281,9 @@ local function startRun(player: Player)
 		if run.ball and hit == run.ball then
 			run.gemPts += value
 			writeScore(player, run)
+			-- Dual-purpose (§18 P2): the pickup is score AND banked currency —
+			-- credited live so a quit mid-run keeps what it earned.
+			run.banked += ShopService.awardGems(player, Config.Monetization.BankPerGem)
 			return true -- consumed: despawn the gem
 		end
 		return false
@@ -304,22 +329,28 @@ local function startRun(player: Player)
 	player:SetAttribute("RoBallScore", 0)
 	player:SetAttribute("RoBallDist", 0)
 	player:SetAttribute("RoBallGems", 0)
+	local ls = statsOf[player]
+	if ls then
+		ls.score.Value = 0
+	end
 	evRunStarted:FireClient(player, seed)
 	print("[RoBall3D] run started for", player.Name, "seed", seed)
 end
 
 evRequestStart.OnServerEvent:Connect(function(player, seedText)
-	seedPref[player] = typeof(seedText) == "string" and seedText or ""
+	seedPref[player] = typeof(seedText) == "string" and string.sub(seedText, 1, 64) or ""
 	local run = runs[player]
 	if run then
 		-- Fast restart (R mid-run): tear down without the death flow — no
 		-- RunEnded event and no score save, so rage-restarting to dodge a
-		-- crash can't bank the run.
+		-- crash can't bank the run. Banked gems still flush: they credited
+		-- live on pickup and are never score (§18).
 		if run.ball then
 			run.ball:Destroy()
 		end
 		run.streamer:destroy()
 		runs[player] = nil
+		ShopService.flush(player)
 	end
 	startRun(player)
 end)
@@ -360,7 +391,14 @@ local function onPlayerAdded(player: Player)
 	print("[RoBall3D] joined", player.Name, "lane", laneOf[player])
 end
 
-fnGetLeaderboard.OnServerInvoke = function(_player)
+fnGetLeaderboard.OnServerInvoke = function(player)
+	-- Per-player cooldown: repeat pulls inside the window serve the cached
+	-- board (staleOnly) instead of forcing a fresh DataStore fetch.
+	local now = os.clock()
+	if now - (lbCooldown[player] or 0) < Config.Leaderboard.FetchCooldown then
+		return SaveService.getTop(Config.Leaderboard.TopCount, true)
+	end
+	lbCooldown[player] = now
 	return SaveService.getTop(Config.Leaderboard.TopCount)
 end
 
@@ -369,6 +407,13 @@ fnEquipItem.OnServerInvoke = function(player, itemId)
 		return false
 	end
 	return ShopService.equip(player, itemId)
+end
+
+fnBuyItem.OnServerInvoke = function(player, itemId)
+	if typeof(itemId) ~= "string" then
+		return false, "bad arg"
+	end
+	return ShopService.buyItem(player, itemId)
 end
 
 ShopService.init()
@@ -401,10 +446,13 @@ end)
 
 -- Shutdown flush: PlayerRemoving's task.spawn'd saveBest can lose the race
 -- on server close — BindToClose yields are awaited (up to the ~30s grace),
--- so pending bests actually land.
+-- so pending bests actually land. Dirty banks flush on the same pass.
 game:BindToClose(function()
 	for player, saved in pairs(bestOf) do
 		SaveService.saveBest(player.UserId, saved)
+	end
+	for _, player in ipairs(Players:GetPlayers()) do
+		ShopService.flush(player)
 	end
 end)
 

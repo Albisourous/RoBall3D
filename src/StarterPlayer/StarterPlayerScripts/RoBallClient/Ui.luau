@@ -83,7 +83,9 @@ function Ui.new(): Ui
 	self.onRetry = nil :: (() -> ())?
 	self.onMenu = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
+	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
 	self.onBuy = nil :: ((bundleId: string) -> ())?
+	self.onGemPack = nil :: ((productKey: string) -> ())?
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "RoBallGui"
@@ -202,14 +204,16 @@ function Ui.new(): Ui
 
 	--============================ GARAGE ============================--
 	-- Neon shop (DESIGN.md §18): left-panel mirror of the leaderboard.
-	-- Equip arrows cycle OWNED items per slot; pack buttons prompt the
-	-- bundle gamepass. Pure presentation — Main feeds names/status via
-	-- setGarage and owns onEquipCycle / onBuy.
+	-- Equip arrows cycle the whole catalog per slot — owned items equip on
+	-- browse, unowned ones show their gem price and buy on name-click.
+	-- Pack buttons prompt bundle gamepasses, the BANK block sells gem-pack
+	-- dev products and the 2X BANK pass. Pure presentation — Main feeds
+	-- names/status via setGarage and owns the callbacks.
 	local garage = Instance.new("Frame")
 	garage.Name = "Garage"
 	garage.AnchorPoint = Vector2.new(0, 0.5)
 	garage.Position = UDim2.fromScale(0.04, 0.5)
-	garage.Size = UDim2.fromOffset(330, 434)
+	garage.Size = UDim2.fromOffset(330, 660)
 	garage.BackgroundColor3 = C_PANEL
 	garage.BackgroundTransparency = 0.25
 	garage.BorderSizePixel = 0
@@ -234,10 +238,11 @@ function Ui.new(): Ui
 		return b
 	end
 
-	-- Slot rows: "SKIN   < ITEM NAME >". Cycle wraps within owned ids.
+	-- Slot rows: "SKIN   < ITEM NAME >". Cycling browses the full catalog;
+	-- the name itself is the buy button for priced-but-unowned items.
 	self.slotItem = {}
 	for i, slot in ipairs(Cosmetics.Slots) do
-		local y = 42 + (i - 1) * 32
+		local y = 46 + (i - 1) * 30
 		local sl = Instance.new("TextLabel")
 		sl.BackgroundTransparency = 1
 		sl.Font = F_DATA
@@ -246,19 +251,25 @@ function Ui.new(): Ui
 		sl.TextXAlignment = Enum.TextXAlignment.Left
 		sl.Text = Cosmetics.SlotName[slot]
 		sl.Position = UDim2.fromOffset(14, y)
-		sl.Size = UDim2.fromOffset(56, 30)
+		sl.Size = UDim2.fromOffset(56, 28)
 		sl.Parent = garage
 
-		local nm = Instance.new("TextLabel")
+		local nm = Instance.new("TextButton")
 		nm.BackgroundTransparency = 1
+		nm.AutoButtonColor = false
 		nm.Font = F_DATA
 		nm.TextSize = 15
 		nm.TextColor3 = C_WHITE
 		nm.Text = "—"
 		nm.Position = UDim2.fromOffset(102, y)
-		nm.Size = UDim2.fromOffset(182, 30)
+		nm.Size = UDim2.fromOffset(182, 28)
 		nm.Parent = garage
 		self.slotItem[slot] = nm
+		nm.MouseButton1Click:Connect(function()
+			if self.onItemSlot then
+				self.onItemSlot(slot)
+			end
+		end)
 
 		local left = arrowButton(garage, "<", 72, y)
 		left.MouseButton1Click:Connect(function()
@@ -274,22 +285,25 @@ function Ui.new(): Ui
 		end)
 	end
 
-	label(garage, "PACKS", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 172)
+	local browseHint = label(garage, "cycle equips owned · click a ◊ price to buy", 10, F_DATA, C_DIM, 0)
+	browseHint.Position = UDim2.fromOffset(0, 218)
+	browseHint.TextTransparency = 0.35
+
+	label(garage, "PACKS", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 238)
 
 	-- Pack rows: name + contents left, price button right. Button state
 	-- comes from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
 	self.packBtn = {}
 	self.packStroke = {}
 	self.packEnabled = {}
-	for i, b in ipairs(Cosmetics.Bundles) do
-		local y = 196 + (i - 1) * 54
+	local function packRow(id: string, name: string, desc: string, y: number)
 		local nl = Instance.new("TextLabel")
 		nl.BackgroundTransparency = 1
 		nl.Font = F_DATA
 		nl.TextSize = 14
 		nl.TextColor3 = C_WHITE
 		nl.TextXAlignment = Enum.TextXAlignment.Left
-		nl.Text = b.name
+		nl.Text = name
 		nl.Position = UDim2.fromOffset(14, y)
 		nl.Size = UDim2.fromOffset(210, 18)
 		nl.Parent = garage
@@ -300,7 +314,7 @@ function Ui.new(): Ui
 		dl.TextSize = 10
 		dl.TextColor3 = C_DIM
 		dl.TextXAlignment = Enum.TextXAlignment.Left
-		dl.Text = b.desc
+		dl.Text = desc
 		dl.Position = UDim2.fromOffset(14, y + 17)
 		dl.Size = UDim2.fromOffset(210, 14)
 		dl.Parent = garage
@@ -312,24 +326,77 @@ function Ui.new(): Ui
 		btn.TextSize = 14
 		btn.TextColor3 = C_PINK
 		btn.Text = "R$?"
-		btn.Position = UDim2.fromOffset(232, y + 4)
+		btn.Position = UDim2.fromOffset(232, y + 2)
 		btn.Size = UDim2.fromOffset(84, 32)
 		btn.Parent = garage
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = C_PINK
 		stroke.Thickness = 1.5
 		stroke.Parent = btn
-		self.packBtn[b.id] = btn
-		self.packStroke[b.id] = stroke
+		self.packBtn[id] = btn
+		self.packStroke[id] = stroke
 		btn.MouseButton1Click:Connect(function()
-			if self.packEnabled[b.id] and self.onBuy then
-				self.onBuy(b.id)
+			if self.packEnabled[id] and self.onBuy then
+				self.onBuy(id)
+			end
+		end)
+	end
+	for i, b in ipairs(Cosmetics.Bundles) do
+		packRow(b.id, b.name, b.desc, 258 + (i - 1) * 48)
+	end
+
+	--=========== BANK (§18 P2) ===========--
+	-- Gem economy surface: balance line, three gem-pack dev products, and
+	-- the 2X BANK pass row. Everything degrades to SOON until the ids are
+	-- created on the dashboard — the buttons only arm via setGarage.
+	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 498)
+	local bal = Instance.new("TextLabel")
+	bal.BackgroundTransparency = 1
+	bal.Font = F_DATA
+	bal.TextSize = 16
+	bal.TextColor3 = C_GOLD
+	bal.TextXAlignment = Enum.TextXAlignment.Right
+	bal.Text = "◊ 0"
+	bal.Position = UDim2.fromOffset(150, 496)
+	bal.Size = UDim2.fromOffset(166, 20)
+	bal.Parent = garage
+	self.bankLabel = bal
+
+	-- Gem packs: three equal buttons "◊300\nR$49". Enabled state arrives via
+	-- setGarage's gemPacks list (SOON until product ids exist).
+	self.gemPackBtn = {}
+	self.gemPackStroke = {}
+	self.gemPackEnabled = {}
+	for i, key in ipairs(Config.Monetization.ProductOrder) do
+		local b = Instance.new("TextButton")
+		b.BackgroundTransparency = 1
+		b.AutoButtonColor = false
+		b.Font = F_DATA
+		b.TextSize = 13
+		b.TextColor3 = C_GOLD
+		b.Text = "◊?\nSOON"
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 524)
+		b.Size = UDim2.fromOffset(96, 44)
+		b.Parent = garage
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = C_GOLD
+		stroke.Thickness = 1.5
+		stroke.Parent = b
+		self.gemPackBtn[key] = b
+		self.gemPackStroke[key] = stroke
+		b.MouseButton1Click:Connect(function()
+			if self.gemPackEnabled[key] and self.onGemPack then
+				self.onGemPack(key)
 			end
 		end)
 	end
 
-	local hint = label(garage, "buy once · keep forever", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 406)
+	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
+	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
+	packRow("bank2x", "2X BANK", "every gem banks double", 580)
+
+	local hint = label(garage, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
+	hint.Position = UDim2.fromOffset(0, 632)
 	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
@@ -505,18 +572,21 @@ function Ui.new(): Ui
 	self.dNewBest.Visible = false
 	self.dScore = label(dCol, "SCORE 0", 34, F_DATA, C_CYAN, 3)
 	self.dBreakdown = label(dCol, "0 m · 0 gems", 18, F_DATA, C_WHITE, 4)
-	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_GOLD, 5)
-	self.dSeed = label(dCol, "SEED 0", 14, F_DATA, C_DIM, 6)
-	local retry = outlineButton(dCol, "RETRY", 30, 7)
+	-- Banked gems this run (§18 P2): gold, under the breakdown — the
+	-- payout read that makes the economy visible every death.
+	self.dBanked = label(dCol, "◊ +0 BANKED", 16, F_DATA, C_GOLD, 5)
+	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_GOLD, 6)
+	self.dSeed = label(dCol, "SEED 0", 14, F_DATA, C_DIM, 7)
+	local retry = outlineButton(dCol, "RETRY", 30, 8)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 8)
+	label(dCol, "or press R", 13, F_DATA, C_DIM, 9)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = outlineButton(dCol, "MENU", 16, 9)
+	local toMenu = outlineButton(dCol, "MENU", 16, 10)
 	toMenu.Size = UDim2.fromOffset(140, 34)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
@@ -593,7 +663,15 @@ function Ui:setCombo(n: number)
 	self.comboText.Visible = n >= 2
 end
 
-function Ui:showDeath(score: number, dist: number, gems: number, best: number, seed: number, newBest: boolean?)
+function Ui:showDeath(
+	score: number,
+	dist: number,
+	gems: number,
+	best: number,
+	seed: number,
+	newBest: boolean?,
+	banked: number?
+)
 	self.menu.Visible = false
 	self.hud.Visible = false
 	self.spdNum.Visible = false
@@ -603,25 +681,45 @@ function Ui:showDeath(score: number, dist: number, gems: number, best: number, s
 	self.death.Visible = true
 	self.dScore.Text = "SCORE " .. tostring(score)
 	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
+	self.dBanked.Text = string.format("◊ +%d BANKED", banked or 0)
 	self.dBest.Text = "BEST " .. tostring(best)
 	self.dSeed.Text = "SEED " .. tostring(seed)
 	self.dNewBest.Visible = newBest == true
 end
 
--- Garage state push (§18): equipped item names per slot + per-pack button
--- state {label, enabled}. Main computes both from attributes + catalog.
-function Ui:setGarage(slotNames: { [string]: string }, packStates: { [string]: { label: string, enabled: boolean } })
-	for slot, l in pairs(self.slotItem) do
-		l.Text = slotNames[slot] or "—"
+-- Garage state push (§18): one table per refresh — slot row text/afford,
+-- pack button states (bundles + the bank2x perk), gem-pack buttons, bank
+-- balance. Main computes all of it from attributes + catalog.
+export type GarageState = {
+	slots: { [string]: { text: string, afford: boolean } }, -- afford = clickable price
+	packs: { [string]: { label: string, enabled: boolean } },
+	gemPacks: { [string]: { label: string, enabled: boolean } },
+	bank: number,
+}
+
+function Ui:setGarage(state: GarageState)
+	for slot, btn in pairs(self.slotItem) do
+		local row = state.slots[slot]
+		btn.Text = if row then row.text else "—"
+		btn.TextColor3 = if row and row.afford then C_GOLD else C_WHITE
 	end
 	for id, btn in pairs(self.packBtn) do
-		local st = packStates[id]
+		local st = state.packs[id]
 		local enabled = st ~= nil and st.enabled == true
 		btn.Text = if st then st.label else "SOON"
 		btn.TextColor3 = enabled and C_PINK or C_DIM
 		self.packStroke[id].Color = enabled and C_PINK or C_DIM
 		self.packEnabled[id] = enabled
 	end
+	for key, btn in pairs(self.gemPackBtn) do
+		local st = state.gemPacks[key]
+		local enabled = st ~= nil and st.enabled == true
+		btn.Text = if st then st.label else "SOON"
+		btn.TextColor3 = enabled and C_GOLD or C_DIM
+		self.gemPackStroke[key].Color = enabled and C_GOLD or C_DIM
+		self.gemPackEnabled[key] = enabled
+	end
+	self.bankLabel.Text = "◊ " .. tostring(state.bank)
 end
 
 function Ui:setBest(best: number)
