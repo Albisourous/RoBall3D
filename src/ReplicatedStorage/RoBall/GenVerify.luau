@@ -148,7 +148,9 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 				else
 					vy0 = speed * voidLipSlope / math.sqrt(1 + voidLipSlope * voidLipSlope)
 				end
-				if not ballisticsClear(gapLen, speed, vy0, voidLipY - s.y) then
+				-- OrbHop's void is intentionally NOT pad-clearable — the orb
+				-- is mandatory. The dedicated orb check below owns it.
+				if not (spec.orbs and #spec.orbs > 0) and not ballisticsClear(gapLen, speed, vy0, voidLipY - s.y) then
 					bad(
 						string.format("void %.1f studs may be unclearable at %.0f s/s (vy0 %.1f)", gapLen, speed, vy0),
 						spec,
@@ -222,6 +224,79 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 					end
 				end
 				prevT = t
+			end
+		end
+
+		-- OrbHop (§8.6 stretch): two-arc audit.
+		--   1. The pad arc must pass within orb.radius of the orb — the tap
+		--      target is actually reachable.
+		--   2. The orb's re-kick must cover the remaining gap to the landing.
+		--   3. The pad arc ALONE must fall short — orb-or-die, not
+		--      orb-or-also-fine.
+		if spec.orbs and #spec.orbs > 0 and spec.pads and #spec.pads > 0 then
+			local pad = spec.pads[1]
+			local orb = spec.orbs[1]
+			local speed = Tiers.speedAt(dist + pad.t * spec.length)
+			local orbD = (orb.t - pad.t) * spec.length
+			local grade = Config.Generation.Grade
+			-- orb.yOff is measured from the graded void plane at orb.t;
+			-- height above the pad deck is yOff - grade*orbD.
+			local orbAbovePad = orb.yOff - grade * orbD
+			local tOrb = orbD / speed
+			local hAtOrb = pad.kickY * tOrb - GRAV * tOrb * tOrb / 2
+			if math.abs(hAtOrb - orbAbovePad) > orb.radius then
+				bad(
+					string.format("orb unreachable: arc h %.1f vs orb %.1f at %.0f studs", hAtOrb, orbAbovePad, orbD),
+					spec,
+					i
+				)
+			end
+			-- Remaining gap orb -> landing lip: scan the section for the
+			-- void's end past the orb.
+			local landD: number? = nil
+			for k = 0, 48 do
+				local t = pad.t + (k / 48) * (1 - pad.t)
+				if t > orb.t and spec.section(t).width > 0.5 then
+					landD = (t - pad.t) * spec.length
+					break
+				end
+			end
+			if not landD then
+				bad("no landing after orb", spec, i)
+			else
+				local sLand = spec.section(pad.t + landD / spec.length)
+				local sPad = spec.section(pad.t)
+				local drop = orbAbovePad + (sPad.y - sLand.y)
+				if not ballisticsClear(landD - orbD, speed, orb.kickY, drop) then
+					bad(
+						string.format("orb kick %.1f cannot reach landing %.0f studs out", orb.kickY, landD - orbD),
+						spec,
+						i
+					)
+				end
+				-- The pad arc alone must NOT clear the whole gap.
+				if ballisticsClear(landD, speed, pad.kickY, sPad.y - sLand.y) then
+					bad("pad arc clears gap alone — orb not mandatory", spec, i)
+				end
+			end
+		end
+
+		-- FlipRide (§8.6 stretch): zone geometry sanity — react runway
+		-- before entry, a real ride span, and enough clearance for the ball.
+		if spec.flip then
+			local f = spec.flip
+			if f.t0 < 0.12 then
+				bad(string.format("flip zone starts too soon (t0 %.2f)", f.t0), spec, i)
+			end
+			if (f.t1 - f.t0) * spec.length < 20 then
+				bad(string.format("flip ride %.0f studs < 20", (f.t1 - f.t0) * spec.length), spec, i)
+			end
+			if f.clearH < 4 then
+				bad(string.format("flip clearance %.1f < ball + margin", f.clearH), spec, i)
+			end
+			local sMid = spec.section((f.t0 + f.t1) / 2)
+			if sMid.width < Config.Obstacles.CorridorMin then
+				bad(string.format("flip corridor width %.1f too narrow", sMid.width), spec, i)
 			end
 		end
 

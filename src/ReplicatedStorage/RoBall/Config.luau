@@ -141,6 +141,8 @@ Config.Features = {
 		DropGate = 1600,
 		Pacer = 2000,
 		Rotor = 2100,
+		OrbHop = 2400, -- flag: Features.JumpOrbs
+		FlipRide = 2600, -- flag: Features.GravityFlip
 	},
 	-- Explicit order — deterministic generation can't iterate a dict.
 	DebutOrder = {
@@ -155,6 +157,8 @@ Config.Features = {
 		"DropGate",
 		"Pacer",
 		"Rotor",
+		"OrbHop",
+		"FlipRide",
 	},
 	-- Stretch pillars (DESIGN.md §8.6): GD gravity flips and tap-jump orbs
 	-- are designed but flag-off — they change core physics/controls.
@@ -201,6 +205,23 @@ Config.Blackout = {
 	-- Break-section darkness: grid/center neon dims to this fraction while
 	-- edge rails and gems stay lit — the track goes lights-out, not blind.
 	GridScale = 0.12,
+}
+
+Config.Orbs = {
+	-- JumpOrbs stretch (DESIGN.md §8.6, flag-off): lime rings floating over
+	-- voids. A jump input while inside Radius re-kicks vY — the tap extends
+	-- the pad arc across gaps the pad alone can't clear (orb-or-die).
+	Radius = 6, -- tap window (studs)
+	Color = Color3.fromRGB(80, 255, 120),
+	KickH = 5, -- studs of apex the orb re-kick buys back
+}
+
+Config.Flip = {
+	-- GravityFlip stretch (DESIGN.md §8.6, flag-off): portal-framed zones
+	-- where the client holds vY=+Lift, pressing the ball to a ceiling
+	-- ribbon; steering mirrors, gravity resumes at the zone's end.
+	ClearH = 11, -- ceiling ride height above the deck
+	Lift = 55, -- held vY while flipped (studs/s up)
 }
 
 -- Difficulty tiers. Crossing `dist` (meters) activates the tier: speed
@@ -305,6 +326,10 @@ Config.Tiers = {
 			"DropGate",
 			"Pacer",
 			"Rotor",
+			-- Flag-off stretches (§8.6): canRun drops them unless the
+			-- Features flags are on, so they sit inert in the pool.
+			"OrbHop",
+			"FlipRide",
 		},
 		widthMin = 10,
 		widthMax = 26,

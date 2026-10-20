@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local CollectionService = game:GetService("CollectionService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
@@ -22,6 +23,7 @@ local GemFx = require(script.Parent.GemFx)
 local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
 local PadController = require(script.Parent.PadController)
+local OrbController = require(script.Parent.OrbController)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -274,8 +276,12 @@ end
 -- rejoin. RemoteFunction yields, so it runs off the render thread.
 local function refreshBoard()
 	task.spawn(function()
-		local rows = fnGetLeaderboard:InvokeServer()
-		ui:setLeaderboard(rows)
+		-- Unprotected InvokeServer can throw (server error/shutdown) — an
+		-- error reads as offline rather than leaving the board on "loading…".
+		local ok, rows = pcall(function()
+			return fnGetLeaderboard:InvokeServer()
+		end)
+		ui:setLeaderboard(if ok then rows else nil)
 	end)
 end
 
@@ -370,8 +376,27 @@ RunService.Heartbeat:Connect(function(dt)
 		return
 	end
 
+	-- FlipRide (§8.6 stretch, flag-off): inside a RoBallFlipZone box the
+	-- ball rides the ceiling ribbon — vY holds +Lift, steering mirrors.
+	-- Zones only exist when Features.GravityFlip is on, so the tagged
+	-- sweep is a no-op in the default game.
+	local inFlip = false
+	if Config.Features.GravityFlip then
+		local bp = b.Position
+		for _, zone in ipairs(CollectionService:GetTagged("RoBallFlipZone")) do
+			if zone:IsA("BasePart") then
+				local lp = zone.CFrame:PointToObjectSpace(bp)
+				local hs = zone.Size / 2
+				if math.abs(lp.X) <= hs.X and math.abs(lp.Y) <= hs.Y and math.abs(lp.Z) <= hs.Z then
+					inFlip = true
+					break
+				end
+			end
+		end
+	end
+
 	local steer = Config.Steering
-	local intent = if tick() >= controlAt then steerIntent() else 0
+	local intent = if tick() >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
 	local targetLat = intent * steer.MaxLateralSpeed
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
@@ -403,7 +428,10 @@ RunService.Heartbeat:Connect(function(dt)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity
-	b.AssemblyLinearVelocity = Vector3.new(lateralVel, v.Y, -fwdSpeed)
+	-- Inside a flip zone vY is pinned to +Lift so gravity can't pull the
+	-- ball off the ceiling; at the zone edge the pin drops and gravity
+	-- takes over — the ball falls ClearH back to the deck.
+	b.AssemblyLinearVelocity = Vector3.new(lateralVel, if inFlip then Config.Flip.Lift else v.Y, -fwdSpeed)
 	lastBallPos = b.Position
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 
@@ -478,6 +506,9 @@ CosmeticFx.init()
 PadController.init(function()
 	return ball
 end)
+OrbController.init(function()
+	return ball
+end, Config.Features.JumpOrbs == true)
 CosmeticFx.onMode("menu")
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 refreshGarage()

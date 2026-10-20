@@ -322,7 +322,8 @@ seed, same ramp.
 
 Ramp (aligned to tier milestones): Terrace 300m · SnakeField 600m ·
 Blackout 650m · Chicane 1000m · Fork 1100m · PadHop 1200m · PadVoid 1500m
-· TunnelSlot 1550m · DropGate 1600m · Pacer 2000m · Rotor 2100m. Early
+· TunnelSlot 1550m · DropGate 1600m · Pacer 2000m · Rotor 2100m · OrbHop
+2400m\* · FlipRide 2600m\* (\*flag-off stretches). Early
 game (0–500m) is core verbs only: steer, narrow, dodge, gems.
 
 **Fairness invariants** — every feature must satisfy:
@@ -351,10 +352,26 @@ a pure-Luau sweep walking GenCore for N seeds asserting all of the above
 plus entry continuity and debut ordering. Studio-only
 (`Config.Debug.VerifySeeds`), run by `GenVerifyRunner.server.luau`.
 
-**Stretch pillars (flag-off)**: `Config.Features.GravityFlip` /
-`JumpOrbs` cover GD's gravity portals and tap-orbs. Both change core
-physics/controls (ceiling riding inverts the heartbeat's downhill model;
-orbs need a jump input) — spec'd here, intentionally unbuilt.
+**Stretch pillars (flag-off, built)**: `Config.Features.JumpOrbs` /
+`GravityFlip` gate GD's tap-orbs and gravity portals. Both are fully
+implemented but ship disabled — they change core controls (jump input) and
+physics (ceiling riding inverts the heartbeat's downhill model). Debuts:
+OrbHop 2400m · FlipRide 2600m.
+
+- **OrbHop** — pad → void with a lime `RoBallOrb` sphere mid-flight →
+  landing. The pad kick places the arc apex on the orb; the void is sized
+  so arc-1 lands INSIDE the gap (orb-or-die). `OrbController` (client):
+  Space/touch-tap while within `Orbs.Radius` re-kicks `vY` to `KickY`
+  once per orb. Fairness: the builder solves a quadratic for the
+  grade-aware arc-1 landing point and sets the lip 6 studs past it; the
+  audit asserts orb reachability, arc-2 reach, and arc-1 insufficiency.
+- **FlipRide** — portal-framed zone (`FlipPost`/`FlipBar` neon arches)
+  bracketing a collide ceiling ribbon `Flip.ClearH` above the deck. Inside
+  the tagged `RoBallFlipZone` box the client pins `vY = +Flip.Lift`
+  (ball presses the ceiling underside) and mirrors steering; at the zone
+  edge the pin drops, gravity resumes, and the ball falls ClearH back.
+  No obstacles inside — the ride itself is the read. Gems line the
+  ceiling run.
 
 ## 9. Difficulty & speed
 
@@ -519,6 +536,15 @@ Full spec: `AUDIO.md`. Binding decisions:
   death → menu) so a just-saved score is immediately visible.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.1` + gem cap sanity.
+- Production guards: top-board submission is a single atomic `UpdateAsync`
+  max (no cross-server Get/Set race) and only fires on session records;
+  all writes retry `SaveRetryCount` times with backoff. Menu fetches share
+  a `CacheSeconds` server-side cache — invalidated the moment a new record
+  lands, so a just-saved record is still immediately visible — behind a
+  per-player `FetchCooldown` that serves stale rows to repeat pulls. A
+  `leaderstats` folder mirrors live Score/Best onto the native playerlist,
+  and a failed DataStore probe re-tries lazily rather than latching the
+  server offline.
 - Personal-best save happens on kill and on `BindToClose` flush — a
   `PlayerRemoving` task-spawned save alone can lose the race on server close.
 - Studio playtests need "Enable Studio API Access" ON for DataStore writes —
@@ -567,6 +593,8 @@ src/
                                    --   (rainbow/pulse), all client-local
     PadController.luau             -- LaunchPad kicks: applies KickY to the
                                    --   client-owned ball on pad touch (§8.6)
+    OrbController.luau             -- JumpOrb taps: Space/touch within Radius
+                                   --   re-kicks vY (§8.6, flag-off)
 ```
 
 Generation runs **server-side** (authoritative + leaderboard integrity);
@@ -587,10 +615,10 @@ Generation runs **server-side** (authoritative + leaderboard integrity);
 
 ## 17. Explicitly out of scope (backlog)
 
-Jump/dash inputs and tap-orbs (`Config.Features.JumpOrbs`), gravity-flip
-ceiling rides (`Config.Features.GravityFlip`), power-ups
-(shield/magnet/slow-mo — if sold, runs must submit to the assisted board,
-§18), mobile/touch controls, alternate biomes, music packs, parties/social.
+Power-ups (shield/magnet/slow-mo — if sold, runs must submit to the
+assisted board, §18), mobile/touch controls, alternate biomes, music packs,
+parties/social. (Tap-orbs and gravity-flip rides are now implemented behind
+`Config.Features.JumpOrbs`/`GravityFlip`, default-off — §8.6.)
 All have designed-for extension points (chunk features, `datamodel` hooks)
 — nothing blocks them.
 

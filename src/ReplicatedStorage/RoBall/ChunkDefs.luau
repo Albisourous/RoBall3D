@@ -61,6 +61,8 @@ export type ChunkSpec = {
 	obstacles: { Obstacle }?,
 	gems: { GemSpot }?,
 	pads: { Pad }?,
+	orbs: { Orb }?, -- OrbHop (flag: Features.JumpOrbs)
+	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
 	tierGate: { dist: number, t: number }?, -- arch marker where dist crosses a tier boundary
 }
@@ -94,6 +96,26 @@ export type Pad = {
 	w: number,
 	d: number,
 	kickY: number,
+}
+
+-- JumpOrb (stretch, flag-off): a tap target floating over a void. The
+-- client re-kicks vY to kickY when the player jumps while inside radius —
+-- the second arc extends where the pad arc alone can't reach.
+export type Orb = {
+	t: number,
+	xOff: number,
+	yOff: number, -- height above deck at t
+	kickY: number,
+	radius: number,
+}
+
+-- FlipRide zone (stretch, flag-off): t0..t1 the client holds vY=+Lift so
+-- the ball rides a ceiling ribbon `clearH` above the deck; steering
+-- mirrors inside. Zone ends -> gravity resumes, ball drops back.
+export type FlipZone = {
+	t0: number,
+	t1: number,
+	clearH: number,
 }
 
 -- Gem pickup spot. xOff is relative to deck centerX at t, so a gem on a
@@ -728,6 +750,10 @@ function ChunkDefs.canRun(name: string, st: GenState, _tier): boolean
 		return st.width >= 24
 	elseif name == "TunnelSlot" then
 		return st.width >= 18
+	elseif name == "OrbHop" then
+		return Config.Features.JumpOrbs == true
+	elseif name == "FlipRide" then
+		return Config.Features.GravityFlip == true
 	end
 	return true
 end
@@ -1178,6 +1204,148 @@ function ChunkDefs.Blackout(rng: Random, st: GenState, tier, _debut): ChunkSpec
 		return { width = lerp(st.width, target, t), centerX = st.centerX, y = st.y, rollDeg = 0 }
 	end, { centerX = st.centerX, width = target, y = st.y }, nil, gems)
 	s.dim = true
+	return s
+end
+
+-- ===================== stretch features (§8.6, flag-off) =====================
+
+-- OrbHop (Features.JumpOrbs): a pad lobs the ball over a void sized so the
+-- pad arc alone lands INSIDE the gap — the lime orb mid-flight is the only
+-- way across (GD's orb-or-die). kick1 puts the arc apex on the orb; kick2
+-- (the tap) carries the remaining distance to the landing. The audit
+-- simulates both arcs — see GenVerify.
+function ChunkDefs.OrbHop(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local speed = Tiers.speedAt(st.dist + 140) -- exit speed: conservative
+	local grade = Config.Generation.Grade
+	local padZ = 18
+	local lipZ = padZ + 10
+	local orbD = lipZ + 18 - padZ -- orb floats 18 studs into the gap
+	-- kick1 places the arc apex exactly on the orb: apex at d means
+	-- tApex = d/speed = kick1/G -> kick1 = G*d/speed.
+	local kick1 = G * orbD / speed
+	local apexH = kick1 * kick1 / (2 * G)
+	local drop = if debut then 3 else rng:NextNumber(4, 6)
+	-- Grade-aware arc-1 landing: applyGrade drops the deck grade*z more,
+	-- so the true fall pad->landing lip is drop + grade*u where u is the
+	-- pad->lip distance. Solve u = speed*(k1+sqrt(k1^2+2G(drop+grade·u)))/G
+	-- as a quadratic in u.
+	local A = G / (speed * speed)
+	local B = -(2 * kick1 / speed + 2 * grade)
+	local C = -2 * drop
+	local u = (-B + math.sqrt(B * B - 4 * A * C)) / (2 * A)
+	-- The landing lip sits 6 studs PAST where the pad arc reaches deck
+	-- level: orb-or-die by construction (the audit asserts arc-1 cannot
+	-- clear the gap alone).
+	local gapLen = math.max(u + padZ - lipZ + 6, 30)
+	-- kick2 (the orb tap) must cover orb -> landing lip + margin. If the
+	-- fixed KickH kick can't reach, push the orb deeper into the gap so
+	-- the remaining distance shrinks (mandatory margin is preserved).
+	local kick2 = math.sqrt(2 * G * Config.Orbs.KickH)
+	-- remaining = u + 6 - orbD (lip is padZ+u+6; orb is padZ+orbD), and u
+	-- grows ~2*orbD — so a short reach is fixed by pulling the orb CLOSER
+	-- to the lip. Iterate: each step shrinks remaining ~the deficit.
+	for _ = 1, 4 do
+		local remaining = u + 6 - orbD
+		local orbDropH = apexH + drop + grade * remaining -- conservative
+		local t2 = (kick2 + math.sqrt(kick2 * kick2 + 2 * G * orbDropH)) / G
+		if speed * t2 >= remaining * 1.08 or orbD <= lipZ + 10 - padZ then
+			break
+		end
+		orbD = math.max(orbD - (remaining * 1.08 - speed * t2) / 1.08, lipZ + 10 - padZ)
+		kick1 = G * orbD / speed
+		apexH = kick1 * kick1 / (2 * G)
+		B = -(2 * kick1 / speed + 2 * grade)
+		u = (-B + math.sqrt(B * B - 4 * A * C)) / (2 * A)
+		gapLen = math.max(u + padZ - lipZ + 6, 30)
+	end
+	local landLen = 45
+	local length = lipZ + gapLen + landLen
+	local padT = padZ / length
+	local gems = {}
+	for i = 0, 3 do
+		local f = (i + 0.5) / 4
+		table.insert(gems, {
+			t = (lipZ + f * gapLen) / length,
+			xOff = 0,
+			value = Config.Gems.ValueGapArc,
+			yOff = 2 + apexH * math.sin(f * math.pi),
+		})
+	end
+	local s = spec("OrbHop", st, length, function(t)
+		local z = t * length
+		if z < lipZ then
+			return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0 }
+		elseif z < lipZ + gapLen then
+			return { width = 0, centerX = st.centerX, y = st.y, rollDeg = 0 }
+		end
+		return {
+			width = math.min(st.width * 1.3, Config.Generation.BaseWidth),
+			centerX = st.centerX,
+			y = st.y - drop,
+			rollDeg = 0,
+		}
+	end, {
+		centerX = st.centerX,
+		width = math.min(st.width * 1.3, Config.Generation.BaseWidth),
+		y = st.y - drop,
+	}, nil, gems)
+	s.pads = {
+		{
+			t = padT,
+			xOff = 0,
+			w = if debut then Config.Pads.DebutWidth else Config.Pads.Width,
+			d = Config.Pads.Length,
+			kickY = kick1,
+		},
+	}
+	-- orb.yOff is relative to the graded void plane at orb.t, which sits
+	-- grade*orbD below the pad deck — add it back so the orb physically
+	-- rests ON the arc apex (tap window centered on the flight path).
+	s.orbs = {
+		{
+			t = (padZ + orbD) / length,
+			xOff = 0,
+			yOff = apexH + grade * orbD,
+			kickY = kick2,
+			radius = Config.Orbs.Radius,
+		},
+	}
+	return s
+end
+
+-- FlipRide (Features.GravityFlip): portal-framed zone where the client
+-- holds vY=+Flip.Lift — the ball rises to a collide ceiling ribbon and
+-- rides its underside, controls mirrored. Zone end -> gravity resumes and
+-- the ball drops Flip.ClearH back to the deck. No obstacles inside: the
+-- ride itself is the read.
+function ChunkDefs.FlipRide(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local length = if debut then 90 else rng:NextInteger(70, 100)
+	local t0, t1 = 0.3, 0.78
+	local clearH = Config.Flip.ClearH
+	local speed = Tiers.speedAt(st.dist + length)
+	local gems = {}
+	-- Gems ride the ceiling line — the payout is the flip itself.
+	appendAll(
+		gems,
+		gemRhythmLine(
+			rng,
+			speed,
+			length,
+			t0 + 0.08,
+			t1 - 0.08,
+			0,
+			Config.Gems.ValueBeam,
+			clearH - 1.5,
+			energyOf(st),
+			bpmOf(st)
+		)
+	)
+	local s = spec("FlipRide", st, length, flatSection(st), {
+		centerX = st.centerX,
+		width = st.width,
+		y = st.y,
+	}, nil, gems)
+	s.flip = { t0 = t0, t1 = t1, clearH = clearH }
 	return s
 end
 

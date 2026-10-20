@@ -329,6 +329,103 @@ local function makeTierGate(
 	tl.Parent = bb
 end
 
+-- JumpOrb (§8.6 stretch): a lime ring floating over the void. Non-collide —
+-- the tap is proximity-based client-side (OrbController), never a wall.
+local function makeOrb(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, orb: ChunkDefs.Orb)
+	local mid = spec.section(orb.t)
+	local o = Instance.new("Part")
+	o.Name = "JumpOrb"
+	o.Shape = Enum.PartType.Ball
+	o.Anchored = true
+	o.CanCollide = false
+	o.CanQuery = false
+	o.CastShadow = false
+	o.Size = Vector3.new(2.4, 2.4, 2.4)
+	o.CFrame = CFrame.new(laneX + mid.centerX + orb.xOff, mid.y + orb.yOff, spec.startZ - orb.t * spec.length)
+	o.Color = Config.Orbs.Color
+	o.Material = Enum.Material.Neon
+	o:SetAttribute("KickY", orb.kickY)
+	o:SetAttribute("Radius", orb.radius)
+	o:SetAttribute("ChunkType", spec.type)
+	CollectionService:AddTag(o, "RoBallOrb")
+	o.Parent = parent
+end
+
+-- FlipRide (§8.6 stretch): a collide ceiling ribbon over the zone plus a
+-- tagged invisible zone box the client's drive loop tests against.
+local function emitFlipZone(
+	holder: Instance,
+	laneX: number,
+	spec: ChunkDefs.ChunkSpec,
+	flip: ChunkDefs.FlipZone,
+	deckColorAt: (number) -> Color3
+)
+	local len = spec.length
+	local t0, t1 = flip.t0, flip.t1
+	local s0 = spec.section(t0)
+	local s1 = spec.section(t1)
+	local mid = spec.section((t0 + t1) / 2)
+	local span = (t1 - t0) * len
+	local zMid = spec.startZ - (t0 + t1) / 2 * len
+	local topY = (s0.y + s1.y) / 2 + flip.clearH
+	local pitch = math.atan((s1.y - s0.y) / span)
+	local roll = math.rad(mid.rollDeg)
+	local width = mid.width
+	local centerX = laneX + mid.centerX
+
+	-- The ceiling ribbon the ball rides. Real deck part — collide on.
+	makeSlicePart(holder, centerX, topY, zMid, width, span, pitch, roll, spec.type, deckColorAt(zMid))
+	local c = Palette.neonAt(-zMid)
+	makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, c)
+	makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, topY, zMid, span, pitch, roll, spec.type, c)
+
+	-- Portal frames at both ends: tall neon arches marking the flip.
+	for _, t in ipairs({ t0, t1 }) do
+		local s = spec.section(t)
+		local z = spec.startZ - t * len
+		local cX = laneX + s.centerX
+		local postH = flip.clearH + 3
+		for _, sx in ipairs({ -1, 1 }) do
+			local post = Instance.new("Part")
+			post.Name = "FlipPost"
+			post.Anchored = true
+			post.CanCollide = false
+			post.CanQuery = false
+			post.Size = Vector3.new(0.9, postH, 0.9)
+			post.CFrame = CFrame.new(cX + sx * (s.width / 2 - 0.6), s.y + postH / 2, z)
+			post.Color = c
+			post.Material = Enum.Material.Neon
+			post.Parent = holder
+		end
+		local bar = Instance.new("Part")
+		bar.Name = "FlipBar"
+		bar.Anchored = true
+		bar.CanCollide = false
+		bar.CanQuery = false
+		bar.Size = Vector3.new(s.width - 0.4, 0.9, 0.9)
+		bar.CFrame = CFrame.new(cX, s.y + postH + 0.45, z)
+		bar.Color = c
+		bar.Material = Enum.Material.Neon
+		bar.Parent = holder
+	end
+
+	-- The zone box: axis-aligned, invisible, tagged — the client checks
+	-- containment each frame instead of trusting Touched on a volume.
+	local zone = Instance.new("Part")
+	zone.Name = "FlipZone"
+	zone.Anchored = true
+	zone.CanCollide = false
+	zone.CanQuery = false
+	zone.CanTouch = false
+	zone.CastShadow = false
+	zone.Transparency = 1
+	zone.Size = Vector3.new(width + 6, flip.clearH + 8, span + 4)
+	zone.CFrame = CFrame.new(centerX, topY - flip.clearH / 2, zMid)
+	zone:SetAttribute("ChunkType", spec.type)
+	CollectionService:AddTag(zone, "RoBallFlipZone")
+	zone.Parent = holder
+end
+
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	local holder = Instance.new("Folder")
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
@@ -583,6 +680,16 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		for _, pad in ipairs(spec.pads) do
 			makePad(holder, self.laneX, spec, pad)
 		end
+	end
+
+	if spec.orbs then
+		for _, orb in ipairs(spec.orbs) do
+			makeOrb(holder, self.laneX, spec, orb)
+		end
+	end
+
+	if spec.flip then
+		emitFlipZone(holder, self.laneX, spec, spec.flip, deckColorAt)
 	end
 
 	if spec.tierGate then
