@@ -66,6 +66,28 @@ local function outlineButton(parent, text, size, order)
 	return b
 end
 
+-- Quiet text-only button for secondary actions — no box, mono font. The
+-- stroked SciFi outline treatment reads as a blur at small sizes.
+local function ghostButton(parent, text, size, order)
+	local b = Instance.new("TextButton")
+	b.BackgroundTransparency = 1
+	b.AutoButtonColor = false
+	b.Font = F_DATA
+	b.TextSize = size
+	b.TextColor3 = C_DIM
+	b.Text = text
+	b.Size = UDim2.fromOffset(size * 8, size * 1.6)
+	b.LayoutOrder = order or 0
+	b.MouseEnter:Connect(function()
+		b.TextColor3 = C_WHITE
+	end)
+	b.MouseLeave:Connect(function()
+		b.TextColor3 = C_DIM
+	end)
+	b.Parent = parent
+	return b
+end
+
 local function vlist(parent, padding)
 	local l = Instance.new("UIListLayout")
 	l.FillDirection = Enum.FillDirection.Vertical
@@ -559,35 +581,34 @@ function Ui.new(): Ui
 
 	local dCol = Instance.new("Frame")
 	dCol.BackgroundTransparency = 1
-	dCol.Size = UDim2.fromOffset(460, 360)
+	dCol.Size = UDim2.fromOffset(460, 340)
 	dCol.Position = UDim2.fromScale(0.5, 0.42)
 	dCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	dCol.Parent = death
-	vlist(dCol, 10)
+	vlist(dCol, 12)
 
-	label(dCol, "RUN OVER", 52, F_DISPLAY, C_PINK, 1)
+	label(dCol, "RUN OVER", 48, F_DISPLAY, C_PINK, 1)
 	-- NEW BEST! only shows when the run beat the stored record — gold,
 	-- placed right under the title so it's the first thing read.
-	self.dNewBest = label(dCol, "★ NEW BEST!", 22, F_DATA, C_GOLD, 2)
+	self.dNewBest = label(dCol, "★ NEW BEST!", 20, F_DATA, C_GOLD, 2)
 	self.dNewBest.Visible = false
-	self.dScore = label(dCol, "SCORE 0", 34, F_DATA, C_CYAN, 3)
-	self.dBreakdown = label(dCol, "0 m · 0 gems", 18, F_DATA, C_WHITE, 4)
-	-- Banked gems this run (§18 P2): gold, under the breakdown — the
-	-- payout read that makes the economy visible every death.
-	self.dBanked = label(dCol, "◊ +0 BANKED", 16, F_DATA, C_GOLD, 5)
-	self.dBest = label(dCol, "BEST 0", 18, F_DATA, C_GOLD, 6)
-	self.dSeed = label(dCol, "SEED 0", 14, F_DATA, C_DIM, 7)
-	local retry = outlineButton(dCol, "RETRY", 30, 8)
+	-- The bare number is the hero — no "SCORE" prefix needed.
+	self.dScore = label(dCol, "0", 40, F_DATA, C_CYAN, 3)
+	-- One quiet stats line: distance + gem pts + the ◊+N banked payout
+	-- (§18 P2) folded in via RichText so the screen stays minimal.
+	self.dBreakdown = label(dCol, "", 16, F_DATA, C_DIM, 4)
+	self.dBreakdown.RichText = true
+	self.dBest = label(dCol, "", 14, F_DATA, C_DIM, 5)
+	local retry = outlineButton(dCol, "RETRY", 30, 7)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 9)
+	label(dCol, "or press R", 13, F_DATA, C_DIM, 8).TextTransparency = 0.25
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = outlineButton(dCol, "MENU", 16, 10)
-	toMenu.Size = UDim2.fromOffset(140, 34)
+	local toMenu = ghostButton(dCol, "menu", 15, 9)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
@@ -682,11 +703,10 @@ function Ui:showDeath(
 	self.boostBar.Visible = false
 	self.seedTag.Visible = false
 	self.death.Visible = true
-	self.dScore.Text = "SCORE " .. tostring(score)
-	self.dBreakdown.Text = string.format("%d m  ·  +%d gem pts", dist, gems)
-	self.dBanked.Text = string.format("◊ +%d BANKED", banked or 0)
-	self.dBest.Text = "BEST " .. tostring(best)
-	self.dSeed.Text = "SEED " .. tostring(seed)
+	self.dScore.Text = tostring(score)
+	self.dBreakdown.Text =
+		string.format('%d m  ·  +%d gem pts    <font color="#FFD440">◊ +%d BANKED</font>', dist, gems, banked or 0)
+	self.dBest.Text = string.format("BEST %d   ·   seed %d", best, seed)
 	self.dNewBest.Visible = newBest == true
 end
 
