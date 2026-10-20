@@ -275,9 +275,9 @@ local function makePad(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpe
 	return p
 end
 
--- TierGate arch (§8.6): non-collide neon posts + header + a distance
--- BillboardGui where the run crosses a tier boundary — GD progress-marker
--- feel and a readable "you leveled up" beat, zero gameplay effect.
+-- TierGate arch (§8.6): non-collide neon portal frames marking each tier
+-- boundary — two frames joined by top rails so the arch reads as a bridge
+-- with real depth, not a flat hoop. Zero gameplay effect.
 local function makeTierGate(
 	parent: Instance,
 	laneX: number,
@@ -290,43 +290,51 @@ local function makeTierGate(
 	local w = math.max(mid.width, 8)
 	local neon = Palette.neonAt(-zMid)
 	local postH = 9
-	for _, s in ipairs({ -1, 1 }) do
-		local post = Instance.new("Part")
-		post.Name = "GatePost"
-		post.Anchored = true
-		post.CanCollide = false
-		post.CanQuery = false
-		post.CastShadow = false
-		post.Size = Vector3.new(0.8, postH, 0.8)
-		post.CFrame = CFrame.new(cX + s * (w / 2 - 0.6), mid.y + postH / 2, zMid)
-		post.Color = neon
-		post.Material = Enum.Material.Neon
-		post.Parent = parent
+	local depth = 6
+	local grade = Config.Generation.Grade
+	for i = 0, 1 do
+		local z = zMid - i * depth
+		local y = mid.y - grade * i * depth -- frames follow the deck's drop
+		for _, s in ipairs({ -1, 1 }) do
+			local post = Instance.new("Part")
+			post.Name = "GatePost"
+			post.Anchored = true
+			post.CanCollide = false
+			post.CanQuery = false
+			post.CastShadow = false
+			post.Size = Vector3.new(0.8, postH, 0.8)
+			post.CFrame = CFrame.new(cX + s * (w / 2 - 0.6), y + postH / 2, z)
+			post.Color = neon
+			post.Material = Enum.Material.Neon
+			post.Parent = parent
+		end
+		local bar = Instance.new("Part")
+		bar.Name = "GateBar"
+		bar.Anchored = true
+		bar.CanCollide = false
+		bar.CanQuery = false
+		bar.CastShadow = false
+		bar.Size = Vector3.new(w - 0.4, 0.8, 0.8)
+		bar.CFrame = CFrame.new(cX, y + postH + 0.4, z)
+		bar.Color = neon
+		bar.Material = Enum.Material.Neon
+		bar.Parent = parent
 	end
-	local bar = Instance.new("Part")
-	bar.Name = "GateBar"
-	bar.Anchored = true
-	bar.CanCollide = false
-	bar.CanQuery = false
-	bar.CastShadow = false
-	bar.Size = Vector3.new(w - 0.4, 0.8, 0.8)
-	bar.CFrame = CFrame.new(cX, mid.y + postH + 0.4, zMid)
-	bar.Color = neon
-	bar.Material = Enum.Material.Neon
-	bar.Parent = parent
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromOffset(160, 28)
-	bb.StudsOffsetWorldSpace = Vector3.new(0, 1.5, 0)
-	bb.AlwaysOnTop = false
-	bb.Parent = bar
-	local tl = Instance.new("TextLabel")
-	tl.BackgroundTransparency = 1
-	tl.Size = UDim2.fromScale(1, 1)
-	tl.Font = Enum.Font.Code
-	tl.TextSize = 20
-	tl.TextColor3 = neon
-	tl.Text = tostring(gate.dist) .. "m"
-	tl.Parent = bb
+	-- Top rails join the frames into a bridge the ball passes under.
+	for _, s in ipairs({ -1, 1 }) do
+		local rail = Instance.new("Part")
+		rail.Name = "GateRail"
+		rail.Anchored = true
+		rail.CanCollide = false
+		rail.CanQuery = false
+		rail.CastShadow = false
+		rail.Size = Vector3.new(0.8, 0.8, depth + 0.8)
+		rail.CFrame = CFrame.new(cX + s * (w / 2 - 0.6), mid.y + postH + 0.4 - grade * depth / 2, zMid - depth / 2)
+			* CFrame.Angles(-math.atan(grade), 0, 0)
+		rail.Color = neon
+		rail.Material = Enum.Material.Neon
+		rail.Parent = parent
+	end
 end
 
 -- JumpOrb (§8.6 stretch): a lime ring floating over the void. Non-collide —

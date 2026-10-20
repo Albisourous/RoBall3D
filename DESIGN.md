@@ -96,12 +96,13 @@ explainable.
 
 - **Steering**: `A`/`D` or `Left`/`Right` apply lateral acceleration
   (momentum — the ball keeps drifting when released, damped slightly when idle).
-- **Boost** (`Config.Boost`): hold `W`/`↑` = ×`Mult` (1.5) speed while a
-  ~1.2s meter drains; release to recharge (~6.7s to full), emptying
-  latches until ~35% refilled. Boosting also eases at 4× the normal
-  accel so the HUD s/s visibly jumps. Charge lives on the bottom-left
-  boost dial (§12). No brake — the old S-throttle was removed: braking
-  fights the momentum fantasy.
+- **Boost & brake** (`Config.Boost`): hold `W`/`↑` = ×`Mult` (1.5) speed;
+  hold `S`/`↓` = ÷`Mult` — the **same meter**, same drain/latch rules,
+  mirrored effect. The ~1.2s charge drains while either is held, refills
+  on release (~6.7s to full), emptying latches until ~35% refilled.
+  Boosting and braking both ease at 4× normal accel so the HUD s/s
+  visibly jumps; the bar flares pink on boost, orange on brake.
+  Charge lives on the bottom-left boost dial (§12).
 - **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
   down server-side without firing `RunEnded` and without saving the score —
   restarting to dodge a death never banks it. Blank seed → fresh random.
@@ -261,7 +262,8 @@ narrow. Then the seeded generator takes over.
 - `ChunkSpec.dim` (Blackout) dims grid/center neon to `Blackout.GridScale`
   — edges + gems stay lit.
 - `ChunkSpec.tierGate` — a chunk straddling a tier boundary carries a
-  non-collide neon arch + distance label.
+  non-collide neon portal bridge: two frames joined by top rails (no
+  distance label — the HUD already owns numbers).
 
 ### 8.4 Gem placement
 
@@ -320,11 +322,11 @@ until its debut has run (`GenCore.debuted`), so players always meet the
 easy form first. Debuts are deterministic like everything else — same
 seed, same ramp.
 
-Ramp (aligned to tier milestones): Terrace 300m · SnakeField 600m ·
-Blackout 650m · Chicane 1000m · Fork 1100m · PadHop 1200m · PadVoid 1500m
-· TunnelSlot 1550m · DropGate 1600m · Pacer 2000m · Rotor 2100m · OrbHop
-2400m\* · FlipRide 2600m\* (\*flag-off stretches). Early
-game (0–500m) is core verbs only: steer, narrow, dodge, gems.
+Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
+Blackout 900m · Chicane 1300m · Fork 1500m · PadHop 1700m · PadVoid 2100m
+· TunnelSlot 2200m · DropGate 2300m · Pacer 2700m · Rotor 2900m · OrbHop
+3300m\* · FlipRide 3500m\* (\*flag-off stretches). Early
+game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
 
 **Fairness invariants** — every feature must satisfy:
 
@@ -356,7 +358,7 @@ plus entry continuity and debut ordering. Studio-only
 `GravityFlip` gate GD's tap-orbs and gravity portals. Both are fully
 implemented but ship disabled — they change core controls (jump input) and
 physics (ceiling riding inverts the heartbeat's downhill model). Debuts:
-OrbHop 2400m · FlipRide 2600m.
+OrbHop 3300m · FlipRide 3500m.
 
 - **OrbHop** — pad → void with a lime `RoBallOrb` sphere mid-flight →
   landing. The pad kick places the arc apex on the orb; the void is sized
@@ -465,7 +467,8 @@ deferred.
   the digits themselves are the meter: hue gradients cyan → violet →
   magenta across 0–100 and snaps hot red + pulsing past it. Bottom-left
   is a glanceable **boost bar**: cyan fill on a dark track, gold tick at
-  `RechargeGate`, pink flare while boosting, blink while latched out —
+  `RechargeGate`, pink flare while boosting, hot orange while braking
+  (same meter), blink while latched out —
   and a gold ping the moment charge crosses the gate upward, so W coming
   back is felt, not watched. Under the subline a small `xN` **combo pip**
   tracks gem streaks (same `GemSfx.ComboWindow` the chime ladder uses, so

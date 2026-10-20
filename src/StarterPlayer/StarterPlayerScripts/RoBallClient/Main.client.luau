@@ -401,30 +401,33 @@ RunService.Heartbeat:Connect(function(dt)
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
 
-	-- Tier-paced forward speed, eased (DESIGN.md §9). Hold W to boost while
-	-- the meter drains; it only refills once released, and an emptied meter
-	-- latches out until it recharges past RechargeGate.
+	-- Tier-paced forward speed, eased (DESIGN.md §9). Hold W to boost, S to
+	-- brake — same meter, same Mult, opposite direction; it only refills
+	-- once released, and an emptied meter latches out past RechargeGate.
 	local dist = math.max(0, -b.Position.Z)
 	local wantBoost = UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up)
+	local wantBrake = UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down)
 	local boosting = wantBoost and not boostSpent
-	if boosting then
+	local braking = wantBrake and not boosting and not boostSpent
+	if boosting or braking then
 		boostCharge = math.max(0, boostCharge - dt / Config.Boost.Capacity)
 		if boostCharge == 0 then
 			boostSpent = true
 			boosting = false
+			braking = false
 		end
-	elseif not wantBoost then
+	elseif not wantBoost and not wantBrake then
 		boostCharge = math.min(1, boostCharge + Config.Boost.RegenPerSec * dt)
 		if boostSpent and boostCharge >= Config.Boost.RechargeGate then
 			boostSpent = false
 		end
 	end
-	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1)
-	-- Boosting eases faster so the HUD s/s readout visibly jumps — the
-	-- boost has to FEEL like a kick, not a suggestion.
-	local fwdAccel = Config.Speed.Accel * (boosting and Config.Boost.AccelMult or 1)
+	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1) / (braking and Config.Boost.Mult or 1)
+	-- Both directions ease faster so the HUD s/s visibly jumps — the
+	-- boost/brake has to FEEL like a kick, not a suggestion.
+	local fwdAccel = Config.Speed.Accel * ((boosting or braking) and Config.Boost.AccelMult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
-	ui:setSpeedo(fwdSpeed, boostCharge, boosting, boostSpent)
+	ui:setSpeedo(fwdSpeed, boostCharge, boosting, boostSpent, braking)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity

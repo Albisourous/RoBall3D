@@ -629,7 +629,7 @@ end
 -- The digit's hue IS the speed read: cyan 0 -> magenta 100 -> hot red
 -- pegged past it. The boost bar pulses pink while W is held and blinks
 -- while the meter is latched out below RechargeGate.
-function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boostSpent: boolean)
+function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boostSpent: boolean, braking: boolean?)
 	self.spdNum.Text = tostring(math.floor(speed + 0.5))
 	if speed >= 100 then
 		-- Over the line: flat hot red, pulsing so it reads as "pegged".
@@ -654,7 +654,10 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 	self._boostReady = ready
 	local blink = boostSpent and math.sin(tick() * 10) > 0
 	local flash = self._readyFlash ~= nil and tick() - self._readyFlash < 0.45
-	self.boostFill.BackgroundColor3 = flash and C_GOLD or ((boosting or blink) and C_PINK or C_CYAN)
+	-- Braking (S) spends the same meter — bar burns hot orange to tell it
+	-- apart from the pink boost flare.
+	self.boostFill.BackgroundColor3 = flash and C_GOLD
+		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or C_CYAN))
 end
 
 -- Gem combo pip under the subline (n>=2 shows "xN").

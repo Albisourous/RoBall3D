@@ -130,19 +130,19 @@ Config.Obstacles = {
 -- A type only debuts inside a tier that lists it in chunkPool.
 Config.Features = {
 	Debut = {
-		Terrace = 300,
-		SnakeField = 600,
-		Blackout = 650,
-		Chicane = 1000,
-		Fork = 1100,
-		PadHop = 1200,
-		PadVoid = 1500,
-		TunnelSlot = 1550,
-		DropGate = 1600,
-		Pacer = 2000,
-		Rotor = 2100,
-		OrbHop = 2400, -- flag: Features.JumpOrbs
-		FlipRide = 2600, -- flag: Features.GravityFlip
+		Terrace = 400,
+		SnakeField = 800,
+		Blackout = 900,
+		Chicane = 1300,
+		Fork = 1500,
+		PadHop = 1700,
+		PadVoid = 2100,
+		TunnelSlot = 2200,
+		DropGate = 2300,
+		Pacer = 2700,
+		Rotor = 2900,
+		OrbHop = 3300, -- flag: Features.JumpOrbs
+		FlipRide = 3500, -- flag: Features.GravityFlip
 	},
 	-- Explicit order — deterministic generation can't iterate a dict.
 	DebutOrder = {
