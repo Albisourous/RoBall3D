@@ -215,7 +215,9 @@ Config.GemSfx = {
 	-- Gem pickup chime (SfxController): rapid pickups climb a pentatonic
 	-- ladder so cluster lines play little runs. rbxasset:// fallback is a
 	-- built-in Roblox ping — always resolvable if the asset fails to load.
-	AssetId = 125591495745947, -- gem_pickup (roball3d-audio, newest import)
+	-- Numeric id for production OR an rbxasset:// ContentId URI resolving
+	-- Studio's bundled content dir for local dev (the vaporwave-bell render).
+	AssetId = "rbxasset://roball3d/gem_pickup.ogg", -- was rbxassetid 125591495745947
 	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
 	Volume = 0.25, -- half of the original — the chime was drowning the mix
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
@@ -238,6 +240,15 @@ Config.GemSfx = {
 	-- feel like it's BUILDING, capped so it never overpowers the mix.
 	ComboVolGain = 0.04,
 	ComboVolCap = 1.35,
+	-- Grid-snap + sidechain (AUDIO.md §6): chimes nudge onto the next
+	-- QuantizeSubdiv-of-a-beat (8 = 32nd note) so pickup phrases land dead
+	-- on the tempo, never more than QuantizeCap seconds late. DuckDepth
+	-- knocks the whole bus down and it blooms back over DuckRelease —
+	-- the chime punches the track instead of stacking on it.
+	QuantizeSubdiv = 8,
+	QuantizeCap = 0.09,
+	DuckDepth = 0.16,
+	DuckRelease = 0.24,
 }
 
 Config.GemFx = {
@@ -297,12 +308,12 @@ Config.Music = {
 		retro_wave = {
 			AssetId = "rbxasset://roball3d/retro_wave/retro_wave.ogg",
 			Stems = {
-				pad = "rbxasset://roball3d/retro_wave/stem_pad.ogg",
-				bass = "rbxasset://roball3d/retro_wave/stem_bass.ogg",
-				drums = "rbxasset://roball3d/retro_wave/stem_drums.ogg",
-				lead = "rbxasset://roball3d/retro_wave/stem_lead.ogg",
-				arp = "rbxasset://roball3d/retro_wave/stem_arp.ogg",
-				air = "rbxasset://roball3d/retro_wave/stem_air.ogg",
+				pad = "rbxasset://roball3d/retro_wave/stems/stem_pad.ogg",
+				bass = "rbxasset://roball3d/retro_wave/stems/stem_bass.ogg",
+				drums = "rbxasset://roball3d/retro_wave/stems/stem_drums.ogg",
+				lead = "rbxasset://roball3d/retro_wave/stems/stem_lead.ogg",
+				arp = "rbxasset://roball3d/retro_wave/stems/stem_arp.ogg",
+				air = "rbxasset://roball3d/retro_wave/stems/stem_air.ogg",
 			},
 		},
 	},

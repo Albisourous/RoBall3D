@@ -24,10 +24,14 @@ local combo = 0
 local function spawnChime(cfg, semi: number, volume: number, jitter: number)
 	local s = Instance.new("Sound")
 	s.Name = "GemPickup"
-	if cfg.AssetId ~= 0 then
-		s.SoundId = "rbxassetid://" .. tostring(cfg.AssetId)
-	else
+	-- AssetId may be numeric (rbxassetid) or a full ContentId URI —
+	-- rbxasset:// entries resolve Studio's bundled content dir for dev.
+	if cfg.AssetId == 0 then
 		s.SoundId = cfg.FallbackId
+	elseif type(cfg.AssetId) == "string" then
+		s.SoundId = cfg.AssetId
+	else
+		s.SoundId = "rbxassetid://" .. tostring(cfg.AssetId)
 	end
 	s.PlaybackSpeed = 2 ^ (semi / 12) * jitter
 	s.Volume = volume
@@ -67,12 +71,22 @@ local function chime()
 	end
 	local vol = cfg.Volume * math.min(cfg.ComboVolCap, 1 + combo * cfg.ComboVolGain)
 	local jitter = 1 + (math.random() * 2 - 1) * cfg.PitchJitter
-	spawnChime(cfg, semi, vol, jitter)
-	-- Harmony gloss from the second pickup on: a quiet perfect fifth under
-	-- the melody — consonant against any chord tone, reads as a shimmer.
-	if combo >= 1 then
-		spawnChime(cfg, semi + cfg.HarmonySemi, cfg.Volume * cfg.HarmonyVolume, jitter)
-	end
+	-- Grid-snap (AUDIO.md §6): gems are already placed on beat subdivisions,
+	-- so the touch lands near-grid — nudge the chime onto the next 32nd so
+	-- the pickup phrase sits dead ON the heard tempo. Capped so it never
+	-- adds audible latency; 0 when the music clock isn't running.
+	local delay = Music.nextGridDelay(cfg.QuantizeSubdiv, cfg.QuantizeCap)
+	task.delay(delay, function()
+		spawnChime(cfg, semi, vol, jitter)
+		-- Harmony gloss from the second pickup on: a quiet perfect fifth
+		-- under the melody — consonant, reads as a shimmer.
+		if combo >= 1 then
+			spawnChime(cfg, semi + cfg.HarmonySemi, cfg.Volume * cfg.HarmonyVolume, jitter)
+		end
+	end)
+	-- Sidechain punch: the pickup knocks the whole mix down and it blooms
+	-- back — the chime reads as hitting the track, not stacking on it.
+	Music.duck(cfg.DuckDepth, cfg.DuckRelease)
 end
 
 function Sfx.init()

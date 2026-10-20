@@ -42,6 +42,7 @@ local stemMode = false
 local lead: any = nil -- beat-clock + watchdog reference player
 local lowpass: any = nil
 local shifter: any = nil
+local duckFader: any = nil
 local analyzer: any = nil
 local windPlayer: any = nil
 local windFilter: any = nil
@@ -300,12 +301,20 @@ function Music.init()
 		shifter.Parent = folder
 	end
 
+	-- Bus fader for the pickup sidechain duck (AUDIO.md §6): gem chimes
+	-- knock the whole mix down a touch and let it bloom back — the pickup
+	-- "punches" the track like a producer's sidechain.
+	duckFader = Instance.new("AudioFader")
+	duckFader.Volume = 1
+	duckFader.Parent = folder
+
 	local output = Instance.new("AudioDeviceOutput")
 	output.Parent = folder
-	wire(lowpass, shifter or output)
+	wire(lowpass, shifter or duckFader)
 	if shifter then
-		wire(shifter, output)
+		wire(shifter, duckFader)
 	end
+	wire(duckFader, output)
 
 	analyzer = Instance.new("AudioAnalyzer")
 	analyzer.SpectrumEnabled = true
@@ -440,6 +449,36 @@ end
 
 function Music.section(): SongMap.Section
 	return curMap.sectionAtBeat(Music.beatPos())
+end
+
+-- Sidechain-style duck (AUDIO.md §6): knock the bus down `depth` and let
+-- it bloom back over `release` seconds. Gem pickups call this so a chime
+-- punches through the track instead of stacking on it.
+function Music.duck(depth: number, release: number?)
+	if not duckFader then
+		return
+	end
+	duckFader.Volume = 1 - depth
+	TweenService
+		:Create(
+			duckFader,
+			TweenInfo.new(release or 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Volume = 1 }
+		)
+		:Play()
+end
+
+-- Seconds until the next `subdiv`-of-a-beat boundary on the HEARD grid —
+-- lets pickup chimes land on a subdivision even if the touch was early.
+-- Returns 0 when the wait would exceed `cap` (don't add audible latency).
+function Music.nextGridDelay(subdiv: number, cap: number): number
+	if not lead or not lead.IsPlaying then
+		return 0
+	end
+	local beatsNow = Music.beatPos()
+	local nextB = math.ceil(beatsNow * subdiv - 1e-4) / subdiv
+	local delay = (nextB - beatsNow) * 60 / (curMap.bpm * ps())
+	return delay <= cap and delay or 0
 end
 
 -- Beat-quantized one-shots (AUDIO.md §6): the sting waits for the next
