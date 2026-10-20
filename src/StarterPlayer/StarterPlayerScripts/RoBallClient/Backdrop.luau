@@ -414,6 +414,17 @@ function Backdrop.update(anchor: Vector3)
 		ensurePeaks()
 		local tileLen = Art.PeaksRows * Art.PeaksCellZ
 		local span = tileLen * Art.PeaksTiles
+		if peaksSeeded then
+			-- Anchor teleported behind the strip (run restart after a theme
+			-- swap deep into a run): any tile wholly past the window's leading
+			-- edge means the whole strip is stranded — re-seed below.
+			for _, tile in ipairs(peakTiles) do
+				if tile.z0 + tileLen < anchor.Z - span + BACK_MARGIN then
+					peaksSeeded = false
+					break
+				end
+			end
+		end
 		if not peaksSeeded then
 			peaksSeeded = true
 			-- First lattice row past the keep margin: the nearest tile's
@@ -423,6 +434,7 @@ function Backdrop.update(anchor: Vector3)
 				tile.z0 = back - tile.slot * tileLen
 				layTile(tile, anchor)
 			end
+			return
 		end
 		for _, tile in ipairs(peakTiles) do
 			if tile.z0 > anchor.Z + BACK_MARGIN then

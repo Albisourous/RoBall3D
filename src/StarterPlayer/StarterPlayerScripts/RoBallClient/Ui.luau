@@ -195,7 +195,7 @@ function Ui.new(): Ui
 	vlist(boardBody, 4)
 	self.boardRows = {}
 	for i = 1, TOP_N do
-		local row = label(boardBody, "", 15, F_DATA, i % 2 == 0 and C_CYAN or C_WHITE, i)
+		local row = label(boardBody, "", 14, F_DATA, i % 2 == 0 and C_CYAN or C_WHITE, i)
 		row.TextXAlignment = Enum.TextXAlignment.Left
 		row.TextTruncate = Enum.TextTruncate.AtEnd
 		self.boardRows[i] = row
@@ -730,7 +730,7 @@ end
 function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)
 	for i, row in ipairs(self.boardRows) do
 		local r = rows and rows[i]
-		row.Text = r and string.format("%2d. %-14s %7d  #%d", i, r.name, r.score, r.seed) or ""
+		row.Text = r and string.format("%2d. %-12s %7d  #%d", i, r.name, r.score, r.seed) or ""
 	end
 	if rows == nil then
 		self.boardRows[1].Text = "  leaderboard offline"

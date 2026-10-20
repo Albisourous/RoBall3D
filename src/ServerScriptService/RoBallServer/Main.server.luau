@@ -378,13 +378,32 @@ local function onPlayerAdded(player: Player)
 		retintEquipped(player)
 	end)
 	ShopService.onPlayerAdded(player)
+	-- Native playerlist stats: Roblox's built-in leaderboard only reads a
+	-- `leaderstats` folder. Attributes stay the source of truth — these two
+	-- IntValues just mirror them so the playerlist shows live Score + Best.
+	local ls = Instance.new("Folder")
+	ls.Name = "leaderstats"
+	local lsBest = Instance.new("IntValue")
+	lsBest.Name = "Best"
+	lsBest.Parent = ls
+	local lsScore = Instance.new("IntValue")
+	lsScore.Name = "Score"
+	lsScore.Parent = ls
+	ls.Parent = player
+	statsOf[player] = { best = lsBest, score = lsScore }
 	-- Load persisted best (async — the menu reads the attribute whenever it
-	-- lands; P5 store may be unreachable in Studio, which is fine).
+	-- lands; P5 store may be unreachable in Studio, which is fine). Merge,
+	-- don't replace: a record set before the load lands must survive it.
 	task.spawn(function()
 		local saved = SaveService.loadBest(player.UserId)
 		if saved then
-			bestOf[player] = saved
-			player:SetAttribute("RoBallBest", math.max(saved.score, player:GetAttribute("RoBallBest") or 0))
+			local cur = bestOf[player]
+			if not cur or saved.score > cur.score then
+				bestOf[player] = saved
+			end
+			local best = math.max(saved.score, player:GetAttribute("RoBallBest") or 0)
+			player:SetAttribute("RoBallBest", best)
+			lsBest.Value = best
 		end
 	end)
 	player:SetAttribute("RoBallBest", player:GetAttribute("RoBallBest") or 0)
@@ -395,7 +414,7 @@ fnGetLeaderboard.OnServerInvoke = function(player)
 	-- Per-player cooldown: repeat pulls inside the window serve the cached
 	-- board (staleOnly) instead of forcing a fresh DataStore fetch.
 	local now = os.clock()
-	if now - (lbCooldown[player] or 0) < Config.Leaderboard.FetchCooldown then
+	if now - (lbCooldown[player] or -math.huge) < Config.Leaderboard.FetchCooldown then
 		return SaveService.getTop(Config.Leaderboard.TopCount, true)
 	end
 	lbCooldown[player] = now
@@ -442,6 +461,8 @@ Players.PlayerRemoving:Connect(function(player)
 	laneOf[player] = nil
 	seedPref[player] = nil
 	bestOf[player] = nil
+	lbCooldown[player] = nil
+	statsOf[player] = nil
 end)
 
 -- Shutdown flush: PlayerRemoving's task.spawn'd saveBest can lose the race
