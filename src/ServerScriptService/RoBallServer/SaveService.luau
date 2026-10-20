@@ -28,12 +28,24 @@ local profileStore: DataStore? = nil
 local probed = false
 local enabled = false
 local nextProbeAt = 0
+local probeInFlight = false
 local REPROBE_SECONDS = 60
 
 local function ensureStores(): boolean
 	if probed and (enabled or os.clock() < nextProbeAt) then
 		return enabled
 	end
+	if probeInFlight then
+		-- A probe yields on GetAsync; callers arriving mid-flight would stack
+		-- parallel probes and all wedge on a hung backend. Wait briefly, then
+		-- treat the shared result as authoritative either way.
+		local deadline = os.clock() + 10
+		while probeInFlight and os.clock() < deadline do
+			task.wait(0.1)
+		end
+		return enabled
+	end
+	probeInFlight = true
 	probed = true
 	local ok, err = pcall(function()
 		bestStore = DataStoreService:GetDataStore(Config.Leaderboard.BestStore)
@@ -46,6 +58,7 @@ local function ensureStores(): boolean
 		end
 	end)
 	enabled = ok
+	probeInFlight = false
 	if not ok then
 		nextProbeAt = os.clock() + REPROBE_SECONDS
 		warn("[RoBall3D] DataStores unavailable (enable Studio API access for saves):", err)
