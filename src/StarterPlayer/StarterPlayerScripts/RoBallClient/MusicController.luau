@@ -227,6 +227,9 @@ local function watchStems()
 				return
 			end
 		end
+		-- All decoded: snap once — startup decode stagger leaves tens of ms
+		-- of skew the per-loop Looped watchdog won't reach until first wrap.
+		syncStems()
 	end)
 end
 
