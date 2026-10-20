@@ -101,8 +101,6 @@ fnBuyItem.Name = "BuyItem"
 fnBuyItem.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
-local KILL_DROP = 15 -- studs below deck = dead (DESIGN.md §11)
-
 type Run = {
 	laneIndex: number,
 	streamer: TrackStreamer.Streamer,
@@ -514,7 +512,7 @@ RunService.Heartbeat:Connect(function(dt)
 			end
 			run.lastPos = pos
 
-			if ball.Position.Y < run.streamer:yAt(z) - KILL_DROP then
+			if ball.Position.Y < run.streamer:yAt(z) - Config.Death.KillDrop then
 				killRun(player, run)
 			end
 		end

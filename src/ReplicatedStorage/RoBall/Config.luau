@@ -48,6 +48,7 @@ Config.Steering = {
 	MaxLateralSpeed = 26, -- studs/s
 	LateralAccel = 90, -- studs/s^2
 	IdleLateralDamping = 6, -- extra damping when no steer key held (kills drift)
+	SettleSeconds = 0.8, -- "rolling…" settle: steering locked this long after RunStarted (§6)
 }
 
 Config.Camera = {
@@ -79,6 +80,9 @@ Config.Blur = {
 }
 
 Config.Death = {
+	-- Kill plane (DESIGN.md §11): falling this far below the local deck
+	-- height (yAt) is death — the plane descends with the track.
+	KillDrop = 15, -- studs below deck = dead
 	-- Stall watchdog (DESIGN.md §11): ball velocity is client-driven every
 	-- frame, so a ball whose position stops changing is wedged in geometry —
 	-- a dead run, not a live one. Killing it turns a silent freeze into a
@@ -93,7 +97,6 @@ Config.Generation = {
 	ChunkMaxLength = 90,
 	AheadDistance = 400, -- keep this much track generated ahead of the ball
 	BehindDistance = 250, -- destroy chunks further than this behind the ball
-	IntroLength = 150, -- scripted safe intro before RNG chunks begin
 	BaseWidth = 48, -- widest deck — Slope-style broad slope face (~16 ball widths)
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs

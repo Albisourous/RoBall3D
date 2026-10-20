@@ -116,7 +116,7 @@ Y velocity is untouched — gravity handles falls, slopes, ramp arcs.
 
 ## 5. Camera
 
-Chase cam: offset `(0, 12, 12)` studs behind/above the ball. The aim point is
+Chase cam: offset `(0, 13, 12)` studs behind/above the ball. The aim point is
 not flat-ahead — it drops to the deck plane `LookAhead = 16` studs out
 (`target.y -= Grade*16 + LookDrop`), so the camera pitches into the slope
 (~28°) the way Slope does: ball low in frame, long readable runway ahead.
@@ -131,7 +131,8 @@ direction for momentum readability. No vertical bob (keeps precision readable).
   - Seed `TextBox` — paste/type a seed for an identical map (for challenges)
   - Leaderboard panel — global top 20 (`name / score / seed`)
   - Personal best label
-- **Run start**: 0.8s "rolling…" settle, then control handed over.
+- **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
+  then control handed over.
 - **Death**: pitch drop on music, camera pulls back, death screen shows
   `SCORE / DISTANCE / BEST / SEED`, `[R]` or button = instant restart (new
   random seed unless one was entered — same seed if entered manually).
@@ -200,9 +201,9 @@ every sequence is *completable*:
 
 ### 8.2 Scripted intro
 
-The first `IntroLength = 150` studs are hand-authored, not RNG:
+The first 170 studs are hand-authored, not RNG (`GenCore.intro`):
 
-`Flat(30, wide) -> Flat(30, gems center) -> Slalom(40, gentle) -> Narrow(50, 24->16)`
+`Flat(35, 48) -> Flat(35, 48->44, gems) -> Slalom(45, amp 8, 0.6 periods) -> Narrow(55, ->32)`
 
 Players learn: it rolls on its own, steering drifts, gems exist, track can
 narrow. Then the seeded generator takes over.
@@ -404,7 +405,8 @@ tunnels landed via `Obstacle.motion` and `Section.roofH` (§8.6).
 
 ## 11. Death
 
-Ball leaves track → Y drops below kill plane (`trackY - 15`) → run over
+Ball leaves track → Y drops below kill plane (`trackY - Config.Death.KillDrop`,
+15 studs) → run over
 instantly. Ball touches `LethalColor` geometry → same outcome server-side via
 `Touched`. **Stall watchdog**: ball velocity is client-forced every frame, so
 a live ball can never sit still — a ball whose position is frozen for
@@ -538,7 +540,7 @@ Full spec: `AUDIO.md`. Binding decisions:
   `Config.Leaderboard.TopCount` and refetches on every menu entry (boot +
   death → menu) so a just-saved score is immediately visible.
 - Server-side validation lite: reject submitted scores above
-  `maxSpeed * elapsed * 1.1` + gem cap sanity.
+  `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`
   max (no cross-server Get/Set race) and only fires on session records;
   all writes retry `SaveRetryCount` times with backoff. Menu fetches share
@@ -562,7 +564,6 @@ src/
   ReplicatedStorage/RoBall/        -- shared, pure modules
     Config.luau                    -- all tunables (exists)
     Palette.luau                   -- distance -> vaporwave gradient
-    Seeds.luau                     -- seed parse/hash
     ChunkDefs.luau                 -- chunk type table: weights, width rules,
                                    --   entry/exit constraints, builders
     GenCore.luau                   -- pure generator: (rng, state) -> chunk spec
@@ -575,7 +576,8 @@ src/
                                    --   server spawn and the client menu preview
   ServerScriptService/RoBallServer/
     Main.server.luau               -- boot/wiring (exists): run lifecycle folded
-                                   --   in (remotes, spawn, kill, heartbeat)
+                                   --   in (remotes, spawn, kill, heartbeat,
+                                   --   seed parse/hash)
     TrackStreamer.luau             -- spec -> Instances, cleanup behind ball,
                                    --   mover heartbeat (§8.6)
     GenVerifyRunner.server.luau    -- Studio-only audit sweep runner (§8.6)

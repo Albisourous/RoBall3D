@@ -333,7 +333,7 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	combo = 0
 	lastGemPts = 0
 	ui:setCombo(0)
-	controlAt = tick() + 0.8 -- DESIGN.md §6: "rolling…" settle before control
+	controlAt = tick() + Config.Steering.SettleSeconds -- DESIGN.md §6: "rolling…" settle before control
 	CosmeticFx.onMode("running")
 	ui:showHud()
 	Music.onStart(seed)
