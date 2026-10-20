@@ -1,0 +1,265 @@
+--!strict
+-- GenVerify (DESIGN.md §8.6): solvability audit. Walks GenCore across
+-- seeds and asserts the fairness invariants every builder promises:
+--   * chunk-to-chunk entry continuity (the closure contract)
+--   * every lethal row leaves a corridor >= Obstacles.CorridorMin
+--   * lethal rows spaced >= the 0.45x reaction-time floor
+--   * void spans are ballistically clearable at the entry speed
+--   * LaunchPad kicks satisfy the strip-clearance closed form
+--   * mover sweeps (Rotor) keep a permanent far-side corridor
+--   * debut-gated types never appear before their milestone
+-- Pure: no Instances, no math.random — same determinism as GenCore.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.RoBall.Config)
+local Tiers = require(ReplicatedStorage.RoBall.Tiers)
+local GenCore = require(ReplicatedStorage.RoBall.GenCore)
+local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
+
+local GRAV = 196.2
+local ROW_T_EPS = 0.03 -- obstacles within this t share one lethal row
+local SPACING_FLOOR = 0.45 -- fraction of speed*ReactionTime rows may use (weave rule)
+
+export type Report = {
+	seed: number,
+	chunks: number,
+	violations: { string },
+	counts: { [string]: number },
+	firstSeen: { [string]: number },
+}
+
+local GenVerify = {}
+
+local function ballisticsClear(gapLen: number, entrySpeed: number, vy0: number, dropH: number): boolean
+	-- Time to fall `dropH` below the lip with launch vy0 (constant forward
+	-- speed — the drive loop writes -fwd every frame even airborne).
+	local tAir = (vy0 + math.sqrt(vy0 * vy0 + 2 * GRAV * math.max(dropH, 0))) / GRAV
+	return gapLen <= entrySpeed * tAir + 3 -- 3 studs slack for arc flare
+end
+
+-- Largest clear lateral gap in the deck at a lethal row. SlideX movers
+-- shift both blocks together so their fixed gap is preserved — static
+-- coverage at rest is the right check. Spin arms (Rotor) are timed, not
+-- corridor geometry — they get a dedicated disc-bound check instead.
+local function rowCorridor(row: { ChunkDefs.Obstacle }, halfW: number): number
+	local spans = {}
+	for _, ob in ipairs(row) do
+		local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
+		local isArm = ob.motion ~= nil and ob.motion.kind == "spin"
+		if not isTooth and not isArm then
+			table.insert(spans, { lo = ob.xOff - ob.w / 2, hi = ob.xOff + ob.w / 2 })
+		end
+	end
+	table.sort(spans, function(a, b)
+		return a.lo < b.lo
+	end)
+	local best = 0
+	local edge = -halfW
+	for _, s in ipairs(spans) do
+		best = math.max(best, math.min(s.lo, halfW) - edge)
+		edge = math.max(edge, s.hi)
+	end
+	best = math.max(best, halfW - edge)
+	return best
+end
+
+function GenVerify.sweep(seed: number, nChunks: number): Report
+	local gen = GenCore.new(seed)
+	local violations = {}
+	local counts: { [string]: number } = {}
+	local firstSeen: { [string]: number } = {}
+	local prevEnd: { width: number, centerX: number, y: number }? = nil
+	local dist = 0
+
+	local function bad(msg: string, spec: ChunkDefs.ChunkSpec, i: number)
+		table.insert(violations, string.format("[s%d c%d %s] %s", seed, i, spec.type, msg))
+	end
+
+	for i = 1, nChunks do
+		local spec = gen:nextChunk()
+		counts[spec.type] = (counts[spec.type] or 0) + 1
+		local baseType = spec.type:gsub("^Intro_", "")
+		if not firstSeen[baseType] then
+			firstSeen[baseType] = dist
+		end
+
+		-- Entry continuity: section(0) must equal the previous endState.
+		local s0 = spec.section(0)
+		if
+			prevEnd
+			and (
+				math.abs(s0.width - prevEnd.width) > 0.6
+				or math.abs(s0.centerX - prevEnd.centerX) > 0.6
+				or math.abs(s0.y - prevEnd.y) > 0.6
+			)
+		then
+			bad(
+				string.format(
+					"entry mismatch w %.1f->%.1f x %.1f->%.1f y %.1f->%.1f",
+					prevEnd.width,
+					s0.width,
+					prevEnd.centerX,
+					s0.centerX,
+					prevEnd.y,
+					s0.y
+				),
+				spec,
+				i
+			)
+		end
+		prevEnd = spec.endState
+
+		-- Section sweep: sanity + void spans + ballistic clearance.
+		local N = 24
+		local voidT0: number? = nil
+		local voidLipY = 0
+		local voidLipSlope = 0
+		for k = 0, N do
+			local t = k / N
+			local s = spec.section(t)
+			if s.width ~= s.width or s.y ~= s.y then
+				bad("NaN section", spec, i)
+				break
+			end
+			if s.width < -0.01 then
+				bad(string.format("negative width %.2f at t=%.2f", s.width, t), spec, i)
+			end
+			if s.width > 0.5 and s.width < 2.5 then
+				bad(string.format("razor width %.2f at t=%.2f", s.width, t), spec, i)
+			end
+			if s.width <= 0.5 then
+				if not voidT0 then
+					voidT0 = t
+					local sPrev = spec.section(math.max(t - 1 / N, 0))
+					local sPrev2 = spec.section(math.max(t - 2 / N, 0))
+					voidLipY = sPrev.y
+					-- Rise-per-stud at the lip — a launch ramp's positive
+					-- slope becomes the ballistic vy0 (v stays constant;
+					-- only Y is ballistic in this model).
+					voidLipSlope = math.max((sPrev.y - sPrev2.y) * N / spec.length, 0)
+				end
+			elseif voidT0 then
+				local gapLen = (t - voidT0) * spec.length
+				local speed = Tiers.speedAt(dist + voidT0 * spec.length)
+				local vy0: number
+				if spec.pads and #spec.pads > 0 then
+					vy0 = spec.pads[1].kickY
+				else
+					vy0 = speed * voidLipSlope / math.sqrt(1 + voidLipSlope * voidLipSlope)
+				end
+				if not ballisticsClear(gapLen, speed, vy0, voidLipY - s.y) then
+					bad(
+						string.format("void %.1f studs may be unclearable at %.0f s/s (vy0 %.1f)", gapLen, speed, vy0),
+						spec,
+						i
+					)
+				end
+				voidT0 = nil
+			end
+		end
+
+		-- Lethal rows: corridor + spacing between consecutive rows.
+		if spec.obstacles and #spec.obstacles > 0 then
+			local sorted = table.clone(spec.obstacles)
+			table.sort(sorted, function(a, b)
+				return a.t < b.t
+			end)
+			local rows: { { ChunkDefs.Obstacle } } = {}
+			for _, ob in ipairs(sorted) do
+				local row = rows[#rows]
+				if row and math.abs(row[1].t - ob.t) <= ROW_T_EPS then
+					table.insert(row, ob)
+				else
+					table.insert(rows, { ob })
+				end
+			end
+			local prevT: number? = nil
+			for _, row in ipairs(rows) do
+				-- Rows that are ALL decorative tunnel teeth are overhead
+				-- dressing (bottom edge hangs above the ball's reach) —
+				-- not a navigational read, so they exempt corridor+spacing.
+				local allTeeth = true
+				local stripRow = true
+				for _, ob in ipairs(row) do
+					local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
+					if not isTooth then
+						allTeeth = false
+					end
+					if ob.h > Config.Pads.StripH + 0.01 then
+						stripRow = false
+					end
+				end
+				if allTeeth then
+					continue
+				end
+				local t = row[1].t
+				local s = spec.section(math.clamp(t, 0, 1))
+				local halfW = s.width / 2
+				-- PadHop's lethal strip is a vertical corridor (the kick
+				-- check below covers it) — no lateral gap required.
+				if halfW > 1 and not (spec.pads and stripRow) then
+					local corr = rowCorridor(row, halfW)
+					if corr < Config.Obstacles.CorridorMin - 0.05 then
+						bad(string.format("corridor %.2f < min at t=%.2f", corr, t), spec, i)
+					end
+				end
+				-- Rotor disc bound: far-side corridor must survive the sweep.
+				for _, ob in ipairs(row) do
+					if ob.motion and ob.motion.kind == "spin" then
+						local r = ob.w / 2
+						local far = if ob.xOff < 0 then halfW - (ob.xOff + r) else (ob.xOff - r) + halfW
+						if far < Config.Obstacles.CorridorMin - 0.05 then
+							bad(string.format("rotor disc swallows corridor (%.2f)", far), spec, i)
+						end
+					end
+				end
+				if prevT then
+					local gapZ = (t - prevT) * spec.length
+					local speed = Tiers.speedAt(dist + t * spec.length)
+					if gapZ < speed * Config.Obstacles.ReactionTime * SPACING_FLOOR then
+						bad(string.format("rows %.1f studs apart at %.0f s/s", gapZ, speed), spec, i)
+					end
+				end
+				prevT = t
+			end
+		end
+
+		-- LaunchPad kick satisfies the clearance closed form.
+		if spec.pads and spec.type == "PadHop" then
+			local speed = Tiers.speedAt(dist + spec.pads[1].t * spec.length)
+			local strip = spec.obstacles and spec.obstacles[1]
+			if strip then
+				local wSec = (strip.d + Config.Pads.Length + 2) / speed
+				local h = strip.h + Config.Pads.ArcMargin
+				local need = math.sqrt(2 * GRAV * (h + GRAV * wSec * wSec / 8))
+				if spec.pads[1].kickY < need * 0.95 then
+					bad(string.format("kickY %.1f < needed %.1f", spec.pads[1].kickY, need), spec, i)
+				end
+			end
+		end
+
+		dist += spec.length
+	end
+
+	-- Debut gate: a gated type's first appearance must be at/after its
+	-- milestone (the debut distance is checked against chunk START dist).
+	for name, debutDist in pairs(Config.Features.Debut) do
+		local seen = firstSeen[name]
+		if seen and seen < debutDist - 1 then
+			table.insert(violations, string.format("%s appeared at %.0fm before debut %dm", name, seen, debutDist))
+		end
+	end
+
+	return { seed = seed, chunks = nChunks, violations = violations, counts = counts, firstSeen = firstSeen }
+end
+
+function GenVerify.sweepRange(seed0: number, seedCount: number, nChunks: number): { Report }
+	local out = {}
+	for s = seed0, seed0 + seedCount - 1 do
+		table.insert(out, GenVerify.sweep(s, nChunks))
+	end
+	return out
+end
+
+return GenVerify

@@ -123,6 +123,86 @@ Config.Obstacles = {
 	OutlineThickness = 0.09,
 }
 
+-- Feature ramp (DESIGN.md §8.6): new map mechanics debut one at a time.
+-- The FIRST spawn of each type at/after its distance is a scripted gentle
+-- variant (wide corridor, slow cycle, breadcrumb gems) that teaches the
+-- read; afterwards the type joins the seeded pool at full difficulty.
+-- A type only debuts inside a tier that lists it in chunkPool.
+Config.Features = {
+	Debut = {
+		Terrace = 300,
+		SnakeField = 600,
+		Blackout = 650,
+		Chicane = 1000,
+		Fork = 1100,
+		PadHop = 1200,
+		PadVoid = 1500,
+		TunnelSlot = 1550,
+		DropGate = 1600,
+		Pacer = 2000,
+		Rotor = 2100,
+	},
+	-- Explicit order — deterministic generation can't iterate a dict.
+	DebutOrder = {
+		"Terrace",
+		"SnakeField",
+		"Blackout",
+		"Chicane",
+		"Fork",
+		"PadHop",
+		"PadVoid",
+		"TunnelSlot",
+		"DropGate",
+		"Pacer",
+		"Rotor",
+	},
+	-- Stretch pillars (DESIGN.md §8.6): GD gravity flips and tap-jump orbs
+	-- are designed but flag-off — they change core physics/controls.
+	GravityFlip = false,
+	JumpOrbs = false,
+}
+
+Config.Pads = {
+	-- LaunchPad (DESIGN.md §8.3): cyan neon strip on the deck; touching it
+	-- applies a one-shot vertical kick client-side — GD pads as terrain,
+	-- not a jump button. The generator computes kickY so the arc always
+	-- clears the hazard at the current tier speed.
+	Width = 6, -- studs across
+	DebutWidth = 11, -- debut pad is nearly unmissable
+	Length = 4, -- studs along travel
+	StripH = 2.5, -- lethal strip height the PadHop arc must clear
+	StripMin = 5,
+	StripMax = 10,
+	ArcMargin = 1.6, -- studs of clearance above the strip the arc must keep
+	VoidAirFrac = 0.72, -- PadVoid gap = this fraction of pad airtime * speed
+	Color = Color3.fromRGB(0, 230, 255),
+}
+
+Config.Movers = {
+	-- Beat-locked hazards (DESIGN.md §8.3): periods are whole-note values
+	-- of the heard tempo, so the movement cycle IS the music — GD's
+	-- "the level dances", deterministic under the seed's beat clock.
+	PacerBeats = 8, -- slide cycle length in beats (debut runs it double)
+	PacerRimMargin = 2, -- sliding gap never closes nearer than this to a rim
+	RotorBeats = 6, -- full sweep period in beats (debut runs it 1.5x)
+	RotorArmFrac = 1.15, -- arm half-length vs half deck width (pre-clamp)
+	RotorPostFrac = 0.4, -- post sits this fraction of halfW toward one edge
+	RotorArmH = 1.4, -- arm bar height — sweeps the ball's lower half
+	RotorPostH = 5,
+}
+
+Config.Tunnel = {
+	RoofH = 8, -- studs of headroom inside TunnelSlot
+	ToothMin = 2, -- decorative ceiling teeth…
+	ToothMax = 3.5, -- …bottom stays >4.5 above deck: lethal, unreachable
+}
+
+Config.Blackout = {
+	-- Break-section darkness: grid/center neon dims to this fraction while
+	-- edge rails and gems stay lit — the track goes lights-out, not blind.
+	GridScale = 0.12,
+}
+
 -- Difficulty tiers. Crossing `dist` (meters) activates the tier: speed
 -- target rises, new chunk types join the pool, width range tightens.
 -- `chunkPool` entries must exist in ChunkDefs.
@@ -131,14 +211,25 @@ Config.Tiers = {
 	{
 		dist = 200,
 		speed = 52,
-		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate" },
+		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate", "Terrace" },
 		widthMin = 34,
 		widthMax = 48,
 	},
 	{
 		dist = 500,
 		speed = 64,
-		chunkPool = { "Flat", "Slalom", "Narrow", "Tilt", "Pinch", "BlockGate", "BlockField" },
+		chunkPool = {
+			"Flat",
+			"Slalom",
+			"Narrow",
+			"Tilt",
+			"Pinch",
+			"BlockGate",
+			"BlockField",
+			"Terrace",
+			"SnakeField",
+			"Blackout",
+		},
 		widthMin = 26,
 		widthMax = 44,
 	},
@@ -156,6 +247,12 @@ Config.Tiers = {
 			"BlockGate",
 			"BlockField",
 			"WallSlot",
+			"Terrace",
+			"SnakeField",
+			"Blackout",
+			"Chicane",
+			"Fork",
+			"PadHop",
 		},
 		widthMin = 20,
 		widthMax = 38,
@@ -163,14 +260,52 @@ Config.Tiers = {
 	{
 		dist = 1400,
 		speed = 92,
-		chunkPool = { "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl", "RampGap", "BlockField", "WallSlot" },
+		chunkPool = {
+			"Narrow",
+			"Tilt",
+			"Pinch",
+			"SplitGap",
+			"Bowl",
+			"RampGap",
+			"BlockField",
+			"WallSlot",
+			"Terrace",
+			"SnakeField",
+			"Blackout",
+			"Chicane",
+			"Fork",
+			"PadHop",
+			"PadVoid",
+			"TunnelSlot",
+			"DropGate",
+		},
 		widthMin = 14,
 		widthMax = 32,
 	},
 	{
 		dist = 2000,
 		speed = 106,
-		chunkPool = { "Narrow", "Tilt", "Pinch", "SplitGap", "Bowl", "RampGap", "BlockField", "WallSlot" },
+		chunkPool = {
+			"Narrow",
+			"Tilt",
+			"Pinch",
+			"SplitGap",
+			"Bowl",
+			"RampGap",
+			"BlockField",
+			"WallSlot",
+			"Terrace",
+			"SnakeField",
+			"Blackout",
+			"Chicane",
+			"Fork",
+			"PadHop",
+			"PadVoid",
+			"TunnelSlot",
+			"DropGate",
+			"Pacer",
+			"Rotor",
+		},
 		widthMin = 10,
 		widthMax = 26,
 	},
@@ -392,15 +527,26 @@ Config.MusicSync = {
 	ChunkFamily = {
 		Flat = "breather",
 		Bowl = "breather",
+		Blackout = "breather",
+		Terrace = "technical",
 		Slalom = "technical",
 		Narrow = "technical",
 		Tilt = "technical",
 		Pinch = "technical",
 		SplitGap = "technical",
+		Fork = "technical",
 		BlockGate = "lethal",
 		BlockField = "lethal",
 		WallSlot = "lethal",
+		SnakeField = "lethal",
+		Chicane = "lethal",
+		TunnelSlot = "lethal",
+		DropGate = "lethal",
+		Pacer = "lethal",
 		RampGap = "spectacle",
+		PadHop = "spectacle",
+		PadVoid = "spectacle",
+		Rotor = "spectacle",
 	},
 	-- Phrase quantization (AUDIO.md §5.2): single-feature set pieces
 	-- (WallSlot wall, RampGap apex) shift their t so the feature lands on
@@ -445,6 +591,28 @@ Config.Art = {
 	CityValue = 0.7, -- palette value scale for tower outlines
 	CityFaceValue = 0.10, -- near-black face fill
 	LineThickness = 0.12, -- SelectionBox edge thickness
+	-- NEON PEAKS world theme (§18): seeded wireframe ridge field replacing
+	-- the towers — a displaced grid mesh, neon edges over near-black
+	-- facets, rising straight out of the void beside the deck. Heights are
+	-- a pure function of (world-z lattice row, column) so recycled tiles
+	-- meet in perfect seams; the strip hugs the deck's downhill grade.
+	PeaksInnerX = 55, -- lateral offset of the ridge's inner skirt (deck
+	-- edge max ~39 = half-width 25 + slalom 14 — always clear)
+	PeaksCols = 7, -- grid quads across the strip per side
+	PeaksCellX = 26, -- studs per column
+	PeaksRows = 10, -- grid quads along z per tile
+	PeaksCellZ = 70, -- studs per row
+	PeaksTiles = 2, -- tiles per side covering the visible window
+	PeaksMaxH = 170, -- ridge amplitude at the outermost column
+	PeaksRampPow = 0.85, -- lateral ramp exponent (0 at road edge = valley)
+	PeaksFreqX = 0.16, -- ridged-noise frequency per column step
+	PeaksFreqZ = 0.055, -- ridged-noise frequency per lattice row
+	PeaksEnvF = 0.012, -- range-swell frequency per lattice row (passes)
+	PeaksSeed = 71, -- math.noise seed — terrain identity is world-fixed
+	PeaksSkirt = 9, -- ridge base sinks this far below the deck plane
+	PeaksLine = 0.45, -- wireframe edge thickness (Neon parts)
+	PeaksValue = 0.85, -- palette value scale for edges
+	PeaksFaceTint = 0.09, -- facet drift toward palette (DeckTint cousin)
 	-- Synthwave sun: a striped neon disk parked far down the slope, riding
 	-- the descent so it always hangs on the horizon. Built from horizontal
 	-- strips (orange -> magenta) with gaps that widen toward the bottom.
@@ -488,22 +656,51 @@ Config.Leaderboard = {
 	ProfileStore = "RoBall3D_Profile_v1", -- DataStore: equipped cosmetic ids (§18)
 	TopCount = 20,
 	SaveRetryCount = 3,
+	CacheSeconds = 45, -- server-side top-board cache: menu fetches share it
+	FetchCooldown = 8, -- per-player GetLeaderboard throttle -> cached rows
 }
 
--- Monetization (DESIGN.md §18). Phase 1 = cosmetics only: bundle gamepasses
--- grant themed item sets from Cosmetics.luau. Pass ids are created on the
--- Creator Dashboard (Monetization -> Passes) — 0 = not created yet; the
--- garage shows SOON and everything else still works (same stub pattern as
--- Music.Stems). Price is the display fallback; the shop prefers the live
--- GetProductInfo PriceInRobux when the pass exists.
+-- Monetization (DESIGN.md §18). Bundle gamepasses grant themed item sets
+-- from Cosmetics.luau; the gem bank is the grind path — pickups credit
+-- BankPerGem each (2x pass doubles it) and spend on per-item gemPrice
+-- records in the catalog. Banked currency is NEVER score: the leaderboard
+-- stays clean, the shop stays funded. Pass/product ids are created on the
+-- Creator Dashboard — 0 = not created yet; the garage shows SOON and
+-- everything else still works (same stub pattern as Music.Stems). Price
+-- fields are display fallbacks; the shop prefers live GetProductInfo
+-- PriceInRobux when the pass/product exists.
 Config.Monetization = {
 	Passes = {
 		starter = 0, -- STARTER NEON — solar skin + sunset trail + sunset pop (~49)
 		synthwave = 0, -- SYNTHWAVE — full prism set, rainbow fx (~149)
 		midas = 0, -- MIDAS — full gold set (~149)
 		vip = 0, -- VOID VIP — violet set + pulse skin (~199)
+		bank2x = 0, -- 2X BANK — every pickup banks double, forever (~99)
+		peaks = 0, -- NEON PEAKS — wireframe ridge world theme (~149)
 	},
-	Price = { starter = 49, synthwave = 149, midas = 149, vip = 199 },
+	Price = { starter = 49, synthwave = 149, midas = 149, vip = 199, bank2x = 99, peaks = 149 },
+	-- Gem bank (§18 P2): each pickup banks this many gems, credited live.
+	BankPerGem = 1,
+	BankDoubleMult = 2, -- bank2x pass multiplier
+	-- Gem pack dev products: id 0 = not created yet -> SOON. ProductGems is
+	-- the grant the server applies in ProcessReceipt; ProductPrice is only
+	-- the fallback label until GetProductInfo answers.
+	Products = {
+		pouch = 0, -- ◊300 top-up (~49)
+		cache = 0, -- ◊800 mid pack (~99)
+		vault = 0, -- ◊2000 whale pack (~199)
+	},
+	ProductGems = { pouch = 300, cache = 800, vault = 2000 },
+	ProductPrice = { pouch = 49, cache = 99, vault = 199 },
+	ProductOrder = { "pouch", "cache", "vault" }, -- garage button order
+}
+
+Config.Debug = {
+	-- GenVerify solvability sweep (DESIGN.md §8.6): Studio-only audit that
+	-- walks seeds asserting corridor/reaction/ballistic invariants on every
+	-- generated chunk. 0 seeds = off (production playtests stay clean).
+	VerifySeeds = 0,
+	VerifyChunks = 600,
 }
 
 return Config

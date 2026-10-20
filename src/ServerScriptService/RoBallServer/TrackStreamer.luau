@@ -6,6 +6,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local GenCore = require(ReplicatedStorage.RoBall.GenCore)
@@ -49,6 +50,12 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.onFatalTouch = nil :: ((hit: BasePart) -> ())?
 	-- Optional: set by Main. Fired when the ball touches a gem: (hit, value).
 	self.onGem = nil :: ((hit: BasePart, value: number) -> ())?
+	-- Beat-locked movers (§8.6): obstacle parts animated on Heartbeat.
+	-- Entries die with their chunk's folder; cleanup() prunes dead rows.
+	self.movers =
+		{} :: { { part: BasePart, base: Vector3, kind: string, amp: number, periodSec: number, phase: number } }
+	self.moverConn = nil :: RBXScriptConnection?
+	self.moverT0 = 0
 	return self
 end
 
@@ -185,11 +192,17 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	local sB = spec.section(tB)
 	local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * spec.length, 0.001))
 	local roll = math.rad(mid.rollDeg)
+	-- Hanging slabs (TunnelSlot) anchor their top to the roof height
+	-- instead of standing on the deck.
+	local yBase = mid.y
+	if ob.hang then
+		yBase = mid.y + (mid.roofH or Config.Tunnel.RoofH) - ob.h
+	end
 	local b = Instance.new("Part")
 	b.Name = "LethalBlock"
 	b.Anchored = true
 	b.Size = Vector3.new(ob.w, ob.h, ob.d)
-	b.CFrame = CFrame.new(laneX + mid.centerX + ob.xOff, mid.y + ob.h / 2, spec.startZ - ob.t * spec.length)
+	b.CFrame = CFrame.new(laneX + mid.centerX + ob.xOff, yBase + ob.h / 2, spec.startZ - ob.t * spec.length)
 		* CFrame.Angles(pitch, 0, roll)
 	-- Slope look: black body, red edge outline — the same one-color lethal
 	-- language, but wireframe instead of solid fill.
@@ -232,6 +245,88 @@ local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpe
 	CollectionService:AddTag(p, "RoBallGem") -- client BeatPulse subscribes
 	p.Parent = parent
 	return p
+end
+
+-- LaunchPad (§8.6): cyan neon strip lying on the deck; non-collide —
+-- contact is the trigger, never a wall. The client's PadController reads
+-- KickY off the attribute and applies it as the ball's vertical velocity
+-- (the ball's network owner is the client, so the kick lands lag-free).
+local function makePad(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, pad: ChunkDefs.Pad)
+	local mid = spec.section(pad.t)
+	local dt = 0.02
+	local sA = spec.section(math.max(pad.t - dt, 0))
+	local sB = spec.section(math.min(pad.t + dt, 1))
+	local pitch = math.atan((sB.y - sA.y) / math.max((pad.t + dt - math.max(pad.t - dt, 0)) * spec.length, 0.001))
+	local p = Instance.new("Part")
+	p.Name = "LaunchPad"
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Size = Vector3.new(pad.w, 0.35, pad.d)
+	p.CFrame = CFrame.new(laneX + mid.centerX + pad.xOff, mid.y + 0.18, spec.startZ - pad.t * spec.length)
+		* CFrame.Angles(pitch, 0, math.rad(mid.rollDeg))
+	p.Color = Config.Pads.Color
+	p.Material = Enum.Material.Neon
+	p:SetAttribute("KickY", pad.kickY)
+	p:SetAttribute("ChunkType", spec.type)
+	CollectionService:AddTag(p, "RoBallPad")
+	p.Parent = parent
+	return p
+end
+
+-- TierGate arch (§8.6): non-collide neon posts + header + a distance
+-- BillboardGui where the run crosses a tier boundary — GD progress-marker
+-- feel and a readable "you leveled up" beat, zero gameplay effect.
+local function makeTierGate(
+	parent: Instance,
+	laneX: number,
+	spec: ChunkDefs.ChunkSpec,
+	gate: { dist: number, t: number }
+)
+	local mid = spec.section(gate.t)
+	local zMid = spec.startZ - gate.t * spec.length
+	local cX = laneX + mid.centerX
+	local w = math.max(mid.width, 8)
+	local neon = Palette.neonAt(-zMid)
+	local postH = 9
+	for _, s in ipairs({ -1, 1 }) do
+		local post = Instance.new("Part")
+		post.Name = "GatePost"
+		post.Anchored = true
+		post.CanCollide = false
+		post.CanQuery = false
+		post.CastShadow = false
+		post.Size = Vector3.new(0.8, postH, 0.8)
+		post.CFrame = CFrame.new(cX + s * (w / 2 - 0.6), mid.y + postH / 2, zMid)
+		post.Color = neon
+		post.Material = Enum.Material.Neon
+		post.Parent = parent
+	end
+	local bar = Instance.new("Part")
+	bar.Name = "GateBar"
+	bar.Anchored = true
+	bar.CanCollide = false
+	bar.CanQuery = false
+	bar.CastShadow = false
+	bar.Size = Vector3.new(w - 0.4, 0.8, 0.8)
+	bar.CFrame = CFrame.new(cX, mid.y + postH + 0.4, zMid)
+	bar.Color = neon
+	bar.Material = Enum.Material.Neon
+	bar.Parent = parent
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromOffset(160, 28)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 1.5, 0)
+	bb.AlwaysOnTop = false
+	bb.Parent = bar
+	local tl = Instance.new("TextLabel")
+	tl.BackgroundTransparency = 1
+	tl.Size = UDim2.fromScale(1, 1)
+	tl.Font = Enum.Font.Code
+	tl.TextSize = 20
+	tl.TextColor3 = neon
+	tl.Text = tostring(gate.dist) .. "m"
+	tl.Parent = bb
 end
 
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
@@ -283,12 +378,18 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		samples[i + 1] = spec.section(i / n)
 	end
 
+	-- Blackout (§8.6): the chunk's transverse + center neon dims to a
+	-- fraction of normal — edge rails and gems stay lit (they're the read).
+	local gridScale = if spec.dim then Config.Blackout.GridScale else 1
+
 	local function sameShape(a: ChunkDefs.Section, b: ChunkDefs.Section): boolean
 		return math.abs(a.width - b.width) <= 0.06
 			and math.abs(a.centerX - b.centerX) <= 0.06
 			and math.abs(a.rollDeg - b.rollDeg) <= 0.06
 			and math.abs((a.cutout or 0) - (b.cutout or 0)) <= 0.06
+			and math.abs((a.cutoutOff or 0) - (b.cutoutOff or 0)) <= 0.06
 			and math.abs((a.wallH or 0) - (b.wallH or 0)) <= 0.06
+			and math.abs((a.roofH or 0) - (b.roofH or 0)) <= 0.06
 	end
 
 	-- One straight deck box (or twin rails for a cutout) spanning tA..tB.
@@ -310,17 +411,32 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		local deckColor = deckColorAt(zMid)
 
 		if mid.cutout and mid.cutout > 1 then
-			local rail = (width - mid.cutout) / 2
-			local leftC = centerX - mid.cutout / 2 - rail / 2
-			local rightC = centerX + mid.cutout / 2 + rail / 2
-			makeSlicePart(holder, leftC, topY, zMid, rail, span, pitch, roll, spec.type, deckColor)
-			makeSlicePart(holder, rightC, topY, zMid, rail, span, pitch, roll, spec.type, deckColor)
+			-- Split/fork rails: the void spans [off - cut/2, off + cut/2]
+			-- around the deck center — cutoutOff shifts it for asymmetric
+			-- risk/safe rails (Fork).
+			local off = mid.cutoutOff or 0
+			local cutL = centerX + off - mid.cutout / 2
+			local cutR = centerX + off + mid.cutout / 2
+			local lEdge = centerX - width / 2
+			local rEdge = centerX + width / 2
+			local railLW = cutL - lEdge
+			local railRW = rEdge - cutR
+			if railLW > 0.5 then
+				makeSlicePart(holder, lEdge + railLW / 2, topY, zMid, railLW, span, pitch, roll, spec.type, deckColor)
+			end
+			if railRW > 0.5 then
+				makeSlicePart(holder, cutR + railRW / 2, topY, zMid, railRW, span, pitch, roll, spec.type, deckColor)
+			end
 			eachStripSeg(span, zMid, topY, pitch, function(z0, y0, sub)
 				local c = Palette.neonAt(-z0)
-				makeEdgeStrip(holder, leftC - rail / 2 + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
-				makeEdgeStrip(holder, leftC + rail / 2 - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
-				makeEdgeStrip(holder, rightC - rail / 2 + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
-				makeEdgeStrip(holder, rightC + rail / 2 - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				if railLW > 0.5 then
+					makeEdgeStrip(holder, lEdge + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+					makeEdgeStrip(holder, cutL - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				end
+				if railRW > 0.5 then
+					makeEdgeStrip(holder, cutR + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+					makeEdgeStrip(holder, rEdge - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+				end
 			end)
 		else
 			makeSlicePart(holder, centerX, topY, zMid, width, span, pitch, roll, spec.type, deckColor)
@@ -337,7 +453,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 					pitch,
 					roll,
 					spec.type,
-					Palette.dimAt(-z0, Config.Art.GridValue)
+					Palette.dimAt(-z0, Config.Art.GridValue * gridScale)
 				)
 			end)
 		end
@@ -345,6 +461,16 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		if mid.wallH and mid.wallH > 0.1 then
 			makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
 			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
+		end
+
+		-- TunnelSlot roof (§8.6): a dark ceiling ribbon with neon edge
+		-- lines enclosing the deck. Non-collide — nothing can reach it.
+		if mid.roofH and mid.roofH > 0.1 then
+			local roofY = topY + mid.roofH
+			makeSlicePart(holder, centerX, roofY, zMid, width, span, pitch, roll, spec.type, deckColor)
+			local c = Palette.dimAt(-zMid, Config.Art.GridValue * gridScale)
+			makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, roofY, zMid, span, pitch, roll, spec.type, c)
+			makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, roofY, zMid, span, pitch, roll, spec.type, c)
 		end
 	end
 
@@ -378,33 +504,55 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			local roll = math.rad(mid.rollDeg)
 			local centerX = self.laneX + mid.centerX
 			local zMid = spec.startZ - off
-			local stripColor = Palette.dimAt(-zMid, Config.Art.GridValue)
+			local stripColor = Palette.dimAt(-zMid, Config.Art.GridValue * gridScale)
 			if mid.cutout and mid.cutout > 1 then
-				local rail = (mid.width - mid.cutout) / 2
-				makeGridStrip(
-					holder,
-					centerX - mid.cutout / 2 - rail / 2,
-					mid.y,
-					zMid,
-					rail,
-					pitch,
-					roll,
-					spec.type,
-					stripColor
-				)
-				makeGridStrip(
-					holder,
-					centerX + mid.cutout / 2 + rail / 2,
-					mid.y,
-					zMid,
-					rail,
-					pitch,
-					roll,
-					spec.type,
-					stripColor
-				)
+				local cutMid = mid.cutoutOff or 0
+				local cutL = cutMid - mid.cutout / 2
+				local cutR = cutMid + mid.cutout / 2
+				local railLW = cutL + mid.width / 2 -- rail width = inner edge - (-w/2)
+				local railRW = mid.width / 2 - cutR
+				if railLW > 0.5 then
+					makeGridStrip(
+						holder,
+						centerX - mid.width / 2 + railLW / 2,
+						mid.y,
+						zMid,
+						railLW,
+						pitch,
+						roll,
+						spec.type,
+						stripColor
+					)
+				end
+				if railRW > 0.5 then
+					makeGridStrip(
+						holder,
+						centerX + cutR + railRW / 2,
+						mid.y,
+						zMid,
+						railRW,
+						pitch,
+						roll,
+						spec.type,
+						stripColor
+					)
+				end
 			else
 				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, stripColor)
+			end
+			-- TunnelSlot rib: a neon line across the ceiling sells the tube.
+			if mid.roofH and mid.roofH > 1 then
+				makeGridStrip(
+					holder,
+					centerX,
+					mid.y + mid.roofH - 0.05,
+					zMid,
+					mid.width,
+					pitch,
+					roll,
+					spec.type,
+					stripColor
+				)
 			end
 		end
 	end
@@ -417,7 +565,28 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 					self.onFatalTouch(hit)
 				end
 			end)
+			if ob.motion then
+				table.insert(self.movers, {
+					part = block,
+					base = block.Position,
+					kind = ob.motion.kind,
+					amp = ob.motion.amp or 0,
+					periodSec = ob.motion.periodSec,
+					phase = ob.motion.phase,
+				})
+			end
 		end
+		self:startMovers()
+	end
+
+	if spec.pads then
+		for _, pad in ipairs(spec.pads) do
+			makePad(holder, self.laneX, spec, pad)
+		end
+	end
+
+	if spec.tierGate then
+		makeTierGate(holder, self.laneX, spec, spec.tierGate)
 	end
 
 	if spec.gems then
@@ -458,15 +627,53 @@ end
 function TrackStreamer:cleanup(ballZ: number)
 	local cutoff = ballZ + Config.Generation.BehindDistance
 	local i = 1
+	local culled = false
 	while i <= #self.chunks do
 		local c = self.chunks[i]
 		if c.endZ > cutoff then
 			c.holder:Destroy()
 			table.remove(self.chunks, i)
+			culled = true
 		else
 			i += 1
 		end
 	end
+	if culled then
+		-- Mover parts died with their chunk folders — drop the dead rows so
+		-- the list stays bounded.
+		local j = 1
+		while j <= #self.movers do
+			if self.movers[j].part.Parent == nil then
+				table.remove(self.movers, j)
+			else
+				j += 1
+			end
+		end
+	end
+end
+
+-- Beat-locked movers (DESIGN.md §8.6): Pacer slabs slide laterally, Rotor
+-- arms spin around their post. Periods are whole-note multiples of the
+-- heard tempo — the hazard cycle IS the music. Server-side CFrame
+-- animation on anchored parts replicates fine; Touched still kills.
+function TrackStreamer:startMovers()
+	if self.moverConn or #self.movers == 0 then
+		return
+	end
+	self.moverT0 = os.clock()
+	self.moverConn = RunService.Heartbeat:Connect(function()
+		local t = os.clock() - self.moverT0
+		for _, m in ipairs(self.movers) do
+			if m.part.Parent then
+				local ang = t / m.periodSec * math.pi * 2 + m.phase
+				if m.kind == "slideX" then
+					m.part.Position = m.base + Vector3.new(m.amp * math.sin(ang), 0, 0)
+				else -- spin
+					m.part.CFrame = CFrame.new(m.base) * CFrame.Angles(0, ang, 0)
+				end
+			end
+		end
+	end)
 end
 
 -- Deck-top height at world z (for the kill plane). Exact via section fns.
@@ -485,6 +692,10 @@ function TrackStreamer:yAt(z: number): number
 end
 
 function TrackStreamer:destroy()
+	if self.moverConn then
+		self.moverConn:Disconnect()
+		self.moverConn = nil
+	end
 	self.folder:Destroy()
 end
 

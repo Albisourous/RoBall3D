@@ -47,7 +47,9 @@ export type Section = {
 	y: number,
 	rollDeg: number,
 	cutout: number?,
+	cutoutOff: number?, -- lane-local center of the cutout (Fork); 0 = centered
 	wallH: number?,
+	roofH: number?, -- TunnelSlot: dark ceiling ribbon this high above deck
 }
 
 export type ChunkSpec = {
@@ -58,6 +60,9 @@ export type ChunkSpec = {
 	endState: { centerX: number, width: number, y: number },
 	obstacles: { Obstacle }?,
 	gems: { GemSpot }?,
+	pads: { Pad }?,
+	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
+	tierGate: { dist: number, t: number }?, -- arch marker where dist crosses a tier boundary
 }
 
 -- Lethal geometry placed on the deck (DESIGN.md §8.3 obstacle rules).
@@ -69,6 +74,26 @@ export type Obstacle = {
 	w: number,
 	h: number,
 	d: number,
+	hang: boolean?, -- top anchors to section's roofH (tunnel slabs)
+	motion: Motion?, -- beat-locked movement (Pacer/Rotor)
+}
+
+export type Motion = {
+	kind: string, -- "slideX" | "spin"
+	amp: number?, -- slideX: studs of lateral travel
+	periodSec: number,
+	phase: number,
+}
+
+-- LaunchPad (DESIGN.md §8.3): a cyan strip the ball rolls over; the client
+-- applies kickY as a one-shot vertical velocity — ballistic flight, no jump
+-- input. The builder computes kickY so the arc clears the hazard at tier speed.
+export type Pad = {
+	t: number,
+	xOff: number,
+	w: number,
+	d: number,
+	kickY: number,
 }
 
 -- Gem pickup spot. xOff is relative to deck centerX at t, so a gem on a
@@ -308,8 +333,9 @@ function ChunkDefs.Slalom(rng: Random, st: GenState, tier): ChunkSpec
 	local amp = rng:NextNumber(6, math.min(14, tier.widthMax / 2))
 	local periods = rng:NextNumber(0.7, 1.4)
 	local phase = rng:NextNumber(0, math.pi * 2)
+	local s0 = math.sin(phase) -- anchor the seam: center(0) must equal st.centerX
 	local center = function(t: number)
-		return st.centerX + amp * math.sin(phase + t * periods * math.pi * 2)
+		return st.centerX + amp * (math.sin(phase + t * periods * math.pi * 2) - s0)
 	end
 	-- xOff=0 rides the swaying centerline — following gems teaches the curve.
 	local gems = gemRhythmLine(
@@ -591,12 +617,16 @@ function ChunkDefs.BlockField(rng: Random, st: GenState, tier): ChunkSpec
 	local gems = {}
 	for i = 1, rows do
 		local t = 0.2 + (i - 0.5) / rows * 0.6
-		local bw = rng:NextNumber(4, math.min(8, st.width * 0.3))
+		-- The wide flank must stay >= CorridorMin: bw <= width - CorridorMin
+		-- - 1 keeps a feasible |gx| band, then gx is drawn inside it.
+		local bw = rng:NextNumber(4, math.min(8, st.width * 0.3, st.width - Config.Obstacles.CorridorMin - 1))
 		local xPad = bw / 2 + 1
-		if halfW - xPad < 0.5 then
+		local gxLo = Config.Obstacles.CorridorMin + bw / 2 - halfW
+		if bw < 3 or gxLo >= halfW - xPad then
 			continue
 		end
-		local gx = rng:NextNumber(-(halfW - xPad), halfW - xPad)
+		local side = rng:NextInteger(0, 1) * 2 - 1
+		local gx = side * rng:NextNumber(math.max(gxLo, 0), halfW - xPad)
 		table.insert(obstacles, {
 			t = t,
 			xOff = gx,
@@ -606,8 +636,8 @@ function ChunkDefs.BlockField(rng: Random, st: GenState, tier): ChunkSpec
 		})
 		-- Near-miss gem hugging the block's flank half the time.
 		if rng:NextNumber() < 0.5 then
-			local side = rng:NextInteger(0, 1) * 2 - 1
-			table.insert(gems, { t = t, xOff = gx + side * (bw / 2 + 1.6), value = Config.Gems.ValueEdge })
+			local gemSide = rng:NextInteger(0, 1) * 2 - 1
+			table.insert(gems, { t = t, xOff = gx + gemSide * (bw / 2 + 1.6), value = Config.Gems.ValueEdge })
 		end
 	end
 	return spec(
@@ -647,6 +677,508 @@ function ChunkDefs.WallSlot(rng: Random, st: GenState, _tier): ChunkSpec
 		obstacles,
 		gems
 	)
+end
+
+-- ===================== feature-ramp chunks (DESIGN.md §8.6) =====================
+-- Every feature builder takes an optional `debut` flag: the first spawn past
+-- its milestone distance is a gentle showcase (wide corridors, slow cycles,
+-- breadcrumb gems) that teaches the read; pool spawns after that run full
+-- difficulty.
+
+local G = 196.2 -- workspace gravity, studs/s^2
+
+-- Wall row with the gap pinned to gx — Chicane/DropGate force alternating
+-- or accent-marked corridors instead of gateRow's random placement.
+local function pinnedRow(
+	halfW: number,
+	t: number,
+	gx: number,
+	gapW: number,
+	height: number,
+	depth: number
+): { Obstacle }
+	local out = {}
+	local lw = gx - gapW / 2 + halfW
+	local rw = halfW - (gx + gapW / 2)
+	if lw >= 1.5 then
+		table.insert(out, { t = t, xOff = -halfW + lw / 2, w = lw, h = height, d = depth })
+	end
+	if rw >= 1.5 then
+		table.insert(out, { t = t, xOff = gx + gapW / 2 + rw / 2, w = rw, h = height, d = depth })
+	end
+	return out
+end
+
+-- Eligibility gate for pool + debut picks (§8.6): features that need a
+-- songform context or a minimum deck width decline here instead of
+-- emitting a degenerate chunk.
+function ChunkDefs.canRun(name: string, st: GenState, _tier): boolean
+	if name == "DropGate" then
+		-- needs an accent downbeat inside the chunk, at drop energy
+		local zAcc = studsToAccent(st)
+		return zAcc ~= nil and zAcc >= 15 and zAcc <= 45 and energyOf(st) >= 0.8
+	elseif name == "Blackout" then
+		-- darkness only during break sections — lights out, not lights off-beat
+		return st.section ~= nil and st.section.kind == "break"
+	elseif name == "Pacer" then
+		return st.width >= 26
+	elseif name == "Rotor" then
+		return st.width >= 14
+	elseif name == "Fork" then
+		return st.width >= 24
+	elseif name == "TunnelSlot" then
+		return st.width >= 18
+	end
+	return true
+end
+
+-- Terrace: the deck descends in lips instead of a smooth grade — gravity
+-- pops the ball off each edge for free ballistic hops. Pure spectacle:
+-- every landing is deck, never void.
+function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(50, 70)
+	local steps = if debut then 2 else rng:NextInteger(3, 5)
+	local stepH = if debut then 1 else rng:NextNumber(1.1, 1.8)
+	local gems = {}
+	-- A small arc floats just past each lip — the hop line pays out.
+	for i = 1, steps - 1 do
+		local t = i / steps
+		if t < GEM_BOUND then
+			table.insert(gems, { t = t + 0.03, xOff = 0, value = Config.Gems.ValueEdge, yOff = 2.6 })
+		end
+	end
+	return spec("Terrace", st, length, function(t)
+		return {
+			width = st.width,
+			centerX = st.centerX,
+			y = st.y - stepH * math.floor(t * steps),
+			rollDeg = 0,
+		}
+	end, { centerX = st.centerX, width = st.width, y = st.y - stepH * steps }, nil, gems)
+end
+
+-- Chained-row chunks (SnakeField/Chicane) size their length around the
+-- row spacing instead of cramming rows into a standard chunk: at speed,
+-- ReactionTime between lethal reads needs more studs than 90 of deck.
+-- Chained rows of ONE repeated pattern get a 0.75x reaction window — the
+-- read is already learned from the first row (DESIGN.md §8.6).
+local function chainLength(wantRows: number, spacingZ: number, lo: number, hi: number): number
+	return math.clamp(60 + spacingZ * (wantRows - 1), lo, hi)
+end
+
+local function chainRows(len: number, spacingZ: number, wantRows: number): number
+	return math.clamp(wantRows, 1, 1 + math.floor((len * 0.7) / math.max(spacingZ, 1)))
+end
+
+-- SnakeField: single blocks flush to alternating rails — the winning line
+-- is a literal zig-zag, and the breadcrumb gems draw it. Weave rows use a
+-- tighter 0.5x reaction window: each block is a small one-side dodge, not
+-- a full-width commit (§8.6).
+function ChunkDefs.SnakeField(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	-- Size rows off the chunk-EXIT speed: speed ramps inside the chunk, so
+	-- spacing built for the entry tier is already too tight at the last row.
+	local spacingZ = Tiers.speedAt(st.dist + 150) * Config.Obstacles.ReactionTime * (if debut then 0.7 else 0.5)
+	local length = chainLength(if debut then 3 else rng:NextInteger(4, 6), spacingZ, 80, 150)
+	local rows = chainRows(length, spacingZ, 6)
+	local halfW = st.width / 2
+	local side = rng:NextInteger(0, 1) * 2 - 1
+	local obstacles = {}
+	local gems = {}
+	for i = 1, rows do
+		local t = 0.5 + (i - (rows + 1) / 2) * (spacingZ / length)
+		-- Block hugs one edge; the far side stays a full corridor.
+		local bw = math.min(rng:NextNumber(halfW * 0.45, halfW * 0.7), 2 * halfW - Config.Obstacles.CorridorMin - 0.5)
+		if bw < 3 then
+			break -- deck too thin to host the weave honestly
+		end
+		table.insert(obstacles, {
+			t = t,
+			xOff = side * (halfW - bw / 2),
+			w = bw,
+			h = Config.Obstacles.BlockHeight,
+			d = Config.Obstacles.BlockDepth,
+		})
+		-- Corridor center is -side * bw/2: the gems literally mark the dodge.
+		table.insert(gems, { t = t, xOff = -side * bw / 2, value = Config.Gems.ValueEdge, yOff = 2 })
+		side = -side
+	end
+	return spec(
+		"SnakeField",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+end
+
+-- Chicane: tall wall rows with gaps pinned to alternating rails — an
+-- S-steer under speed, the same read as WallSlot but chained.
+function ChunkDefs.Chicane(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local spacingZ = Tiers.speedAt(st.dist + 170) * Config.Obstacles.ReactionTime * (if debut then 1 else 0.75)
+	local length = chainLength(if debut then 2 else 3, spacingZ, 70, 170)
+	local rows = chainRows(length, spacingZ, 3)
+	local halfW = st.width / 2
+	local side = rng:NextInteger(0, 1) * 2 - 1
+	local gapW = Config.Obstacles.CorridorMin * (if debut then 1.7 else rng:NextNumber(1.1, 1.4))
+	local obstacles = {}
+	local gems = {}
+	for i = 1, rows do
+		local t = 0.5 + (i - (rows + 1) / 2) * (spacingZ / length)
+		local gx = side * math.max(0, halfW - gapW / 2 - 3)
+		for _, ob in ipairs(pinnedRow(halfW, t, gx, gapW, Config.Obstacles.WallHeight, Config.Obstacles.WallDepth)) do
+			table.insert(obstacles, ob)
+		end
+		table.insert(gems, { t = t, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
+		side = -side
+	end
+	return spec(
+		"Chicane",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+end
+
+-- Fork: asymmetric SplitGap — one thin rail loaded with beam-value gems,
+-- one wide bare rail that's always safe. A real route decision every time.
+-- Uses the cutoutOff section field to push the void off-center.
+function ChunkDefs.Fork(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(55, 80)
+	local halfW = st.width / 2
+	local riskSide = rng:NextInteger(0, 1) * 2 - 1 -- +1 = risk rail on the right
+	local riskW = if debut then 9 else rng:NextNumber(5.5, 8)
+	local cut = rng:NextNumber(st.width * 0.35, st.width * 0.5)
+	local safeW = st.width - cut - riskW
+	if safeW < Config.Obstacles.CorridorMin + 1 then
+		safeW = Config.Obstacles.CorridorMin + 1
+		cut = st.width - riskW - safeW
+	end
+	-- cutoutOff that leaves exactly riskW of rail on the risk side:
+	-- cutout spans [off - cut/2, off + cut/2]; the risk rail is the outer
+	-- slice between it and the rim.
+	local off = riskSide * (halfW - riskW - cut / 2)
+	local cutAt = function(t: number)
+		local e = math.min(t / 0.15, (1 - t) / 0.15, 1)
+		return cut * e, off * e -- fade cutout AND asymmetry at the seams
+	end
+	local riskX = riskSide * (halfW - riskW / 2)
+	local safeX = -riskSide * (halfW - safeW / 2)
+	local speed = Tiers.speedAt(st.dist)
+	local gems = {}
+	appendAll(
+		gems,
+		gemRhythmLine(rng, speed, length, 0.3, 0.7, riskX, Config.Gems.ValueBeam, nil, energyOf(st), bpmOf(st))
+	)
+	appendAll(
+		gems,
+		gemRhythmLine(rng, speed, length, 0.4, 0.6, safeX, Config.Gems.ValueSafe, nil, energyOf(st), bpmOf(st))
+	)
+	return spec("Fork", st, length, function(t)
+		local c, o = cutAt(t)
+		return {
+			width = st.width,
+			centerX = st.centerX,
+			y = st.y,
+			rollDeg = 0,
+			cutout = c,
+			cutoutOff = o,
+		}
+	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+end
+
+-- PadHop (LaunchPad): a cyan pad kicks the ball ballistic over a lethal
+-- strip spanning the deck. The kick is COMPUTED — apex holds the strip's
+-- height for the whole crossing window (needs y >= H for W seconds
+-- centered at apex: kickY >= sqrt(2g(H + gW^2/8))). Miss the pad, eat the
+-- strip — the pad line is the solve.
+function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(45, 65)
+	-- Kick math uses the EXIT speed: the ball only gets faster mid-chunk,
+	-- and a faster ball crosses the strip earlier in the arc — lower.
+	local speed = Tiers.speedAt(st.dist + length)
+	local stripD = if debut then 5 else rng:NextNumber(Config.Pads.StripMin, Config.Pads.StripMax)
+	local stripH = Config.Pads.StripH
+	local padW = if debut then Config.Pads.DebutWidth else Config.Pads.Width
+	local padX = if debut then 0 else rng:NextNumber(-st.width / 5, st.width / 5)
+	local wSec = (stripD + Config.Pads.Length + 2) / speed
+	local h = stripH + Config.Pads.ArcMargin
+	local kick = math.sqrt(2 * G * (h + G * wSec * wSec / 8))
+	local padT = 0.3
+	-- The kick is inviolable (closed-form clearance). If the apex or the
+	-- landing wouldn't fit inside the chunk, the CHUNK grows — never the
+	-- kick shrinking below what the strip demands.
+	local apexZ = speed * (kick / G) -- studs of travel to apex
+	local landZ = 2 * apexZ -- symmetric: lands back on deck level
+	length = math.max(length, math.ceil(apexZ / (0.78 - padT)), math.ceil(landZ / (0.95 - padT)))
+	local stripT = padT + apexZ / length -- strip center under the apex
+	local obstacles = { { t = stripT, xOff = 0, w = st.width - 2, h = stripH, d = stripD } }
+	local gems = {}
+	for i = 0, 3 do
+		local f = (i + 0.5) / 4
+		local t = padT + (stripT - padT) * 2 * f
+		if t < GEM_BOUND then
+			table.insert(
+				gems,
+				{ t = t, xOff = padX, value = Config.Gems.ValueGapArc, yOff = 1.2 + h * math.sin(f * math.pi) }
+			)
+		end
+	end
+	local s = spec(
+		"PadHop",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+	s.pads = { { t = padT, xOff = padX, w = padW, d = Config.Pads.Length, kickY = kick } }
+	return s
+end
+
+-- PadVoid: pad-assisted void crossing — the kick supplies the airtime the
+-- RampGap ramp needs speed for, so gap-jump spectacle works a tier earlier.
+function ChunkDefs.PadVoid(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local speed = Tiers.speedAt(st.dist)
+	local apexH = if debut then 4 else 5.5
+	local kick = math.sqrt(2 * G * apexH)
+	local gapLen = math.clamp(speed * (2 * kick / G) * Config.Pads.VoidAirFrac, 14, 34)
+	local runupLen = if debut then 24 else rng:NextInteger(14, 20)
+	local landLen = 42
+	local length = runupLen + gapLen + landLen
+	local padW = if debut then Config.Pads.DebutWidth else Config.Pads.Width
+	local padT = (runupLen - Config.Pads.Length) / length -- pad ends at the lip
+	local drop = if debut then 3 else 5
+	local landW = math.min(st.width * 1.25, Config.Generation.BaseWidth)
+	local yLand = st.y - drop
+	local gems = {}
+	for i = 0, 3 do
+		local f = (i + 0.5) / 4
+		table.insert(gems, {
+			t = (runupLen + f * gapLen) / length,
+			xOff = 0,
+			value = Config.Gems.ValueGapArc,
+			yOff = 1 + math.sin(f * math.pi) * apexH,
+		})
+	end
+	local s = spec("PadVoid", st, length, function(t)
+		local z = t * length
+		if z < runupLen then
+			return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0 }
+		elseif z < runupLen + gapLen then
+			return { width = 0, centerX = st.centerX, y = st.y, rollDeg = 0 }
+		end
+		return { width = landW, centerX = st.centerX, y = yLand, rollDeg = 0 }
+	end, { centerX = st.centerX, width = landW, y = yLand }, nil, gems)
+	s.pads = { { t = padT, xOff = 0, w = padW, d = Config.Pads.Length, kickY = kick } }
+	return s
+end
+
+-- TunnelSlot: a dark roof ribbon + neon ribs enclose the deck; hanging
+-- slabs drop from the ceiling leaving one lateral corridor (the same
+-- exit-line rule, read upside-down). Short decorative teeth stay well
+-- above the ball — lethal to touch, unreachable by physics.
+function ChunkDefs.TunnelSlot(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(55, 75)
+	local roofH = Config.Tunnel.RoofH
+	local halfW = st.width / 2
+	local obstacles = {}
+	local gems = {}
+	if not debut then -- debut tube is empty: the enclosure alone is the read
+		local tWall = rng:NextNumber(0.45, 0.6)
+		local row, gx = gateRow(rng, halfW, tWall, roofH - 0.5, Config.Obstacles.WallDepth)
+		for _, ob in ipairs(row) do
+			ob.hang = true
+			table.insert(obstacles, ob)
+		end
+		if gx then
+			table.insert(gems, { t = tWall, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
+		end
+		for _ = 1, rng:NextInteger(2, 4) do
+			table.insert(obstacles, {
+				t = rng:NextNumber(0.2, 0.85),
+				xOff = rng:NextNumber(-halfW + 3, halfW - 3),
+				w = rng:NextNumber(2, 4),
+				h = rng:NextNumber(Config.Tunnel.ToothMin, Config.Tunnel.ToothMax),
+				d = 2,
+				hang = true,
+			})
+		end
+	end
+	appendAll(
+		gems,
+		gemRhythmLine(
+			rng,
+			Tiers.speedAt(st.dist),
+			length,
+			0.25,
+			0.4,
+			0,
+			Config.Gems.ValueSafe,
+			nil,
+			energyOf(st),
+			bpmOf(st)
+		)
+	)
+	return spec("TunnelSlot", st, length, function(t)
+		local e = math.min(t / 0.18, (1 - t) / 0.18, 1)
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH * e }
+	end, { centerX = st.centerX, width = st.width, y = st.y }, obstacles, gems)
+end
+
+-- DropGate: a full-width wall whose gap threads ON a drop downbeat —
+-- canRun gates it to accent hits at high energy, so the geometry slams
+-- exactly when the music does. Breadcrumb gems lead into the gap early.
+function ChunkDefs.DropGate(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(40, 60)
+	local halfW = st.width / 2
+	local zAcc = studsToAccent(st) or length * 0.5 -- canRun guarantees real value
+	local tWall = math.clamp(zAcc / length, 0.3, 0.7)
+	local gapW = Config.Obstacles.CorridorMin * (if debut then 1.6 else 1.15)
+	local slack = math.max(halfW - gapW / 2 - 2, 0)
+	local gx = rng:NextNumber(-slack, slack)
+	local obstacles = pinnedRow(halfW, tWall, gx, gapW, Config.Obstacles.WallHeight + 3, Config.Obstacles.WallDepth + 1)
+	local gems = {}
+	for i = 0, 4 do
+		table.insert(gems, { t = tWall * (0.3 + 0.16 * i), xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.2 })
+	end
+	return spec(
+		"DropGate",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+end
+
+-- Pacer: a wall PAIR whose fixed-width gap slides side-to-side on a
+-- beat-quantized sine — the corridor never closes, it just moves, so the
+-- dodge is "cross on the right count". Slabs overhang the rim so the gap
+-- keeps its width at any offset.
+function ChunkDefs.Pacer(rng: Random, st: GenState, tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(50, 75)
+	local halfW = st.width / 2
+	local gapW = Config.Obstacles.CorridorMin + (if debut then 3 else 1)
+	local rows = rowBudget(rng, tier, length, if debut then 1 else 2)
+	local map = st.map or SongMap
+	local beatSec = 60 / (map.bpm * MusicGrid.playbackSpeedAt(tier.speed))
+	local period = beatSec * Config.Movers.PacerBeats * (if debut then 2 else 1)
+	-- Rest offset c stays under 40% of max amp so the sliding gap never
+	-- reaches a rim: |c| + amp + gapW/2 <= halfW - rimMargin.
+	local maxAmp = math.max((halfW - gapW / 2 - Config.Movers.PacerRimMargin) / 1.4, 1)
+	local span = st.width + 8
+	local obstacles = {}
+	local gems = {}
+	for i = 1, rows do
+		local t = 0.25 + (i - 0.5) / rows * 0.5
+		local c = rng:NextNumber(-0.4 * maxAmp, 0.4 * maxAmp)
+		local phase = rng:NextNumber(0, math.pi * 2)
+		local motion =
+			{ kind = "slideX", amp = maxAmp * (if debut then 0.55 else 1), periodSec = period, phase = phase }
+		for _, s in ipairs({ -1, 1 }) do
+			table.insert(obstacles, {
+				t = t,
+				xOff = c + s * (gapW / 2 + span / 2),
+				w = span,
+				h = Config.Obstacles.WallHeight - 1,
+				d = Config.Obstacles.WallDepth,
+				motion = motion,
+			})
+		end
+		table.insert(gems, { t = t, xOff = c, value = Config.Gems.ValueBeam, yOff = 2.5 })
+	end
+	return spec(
+		"Pacer",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+end
+
+-- Rotor: a lethal post off one rail with a spinning bar — the swept disc
+-- never covers the far corridor, so there's always an open lane; gems
+-- inside the sweep zone dare you to time it anyway.
+function ChunkDefs.Rotor(rng: Random, st: GenState, tier, debut: boolean?): ChunkSpec
+	local length = rng:NextInteger(45, 65)
+	local halfW = st.width / 2
+	local map = st.map or SongMap
+	local beatSec = 60 / (map.bpm * MusicGrid.playbackSpeedAt(tier.speed))
+	local period = beatSec * Config.Movers.RotorBeats * (if debut then 1.5 else 1)
+	local side = rng:NextInteger(0, 1) * 2 - 1 -- open corridor is on this side
+	local postX = -side * halfW * Config.Movers.RotorPostFrac
+	-- Disc edge must stop CorridorMin short of the far rim.
+	local armHalf = math.min(halfW * Config.Movers.RotorArmFrac, halfW - Config.Obstacles.CorridorMin - postX * side)
+	local tRot = rng:NextNumber(0.45, 0.6)
+	local obstacles = {
+		{ t = tRot, xOff = postX, w = 1.8, h = Config.Movers.RotorPostH, d = 1.8 },
+		{
+			t = tRot,
+			xOff = postX,
+			w = armHalf * 2,
+			h = Config.Movers.RotorArmH,
+			d = 1.1,
+			motion = { kind = "spin", periodSec = period, phase = rng:NextNumber(0, math.pi * 2) },
+		},
+	}
+	-- Bait: gems inside the swept radius — worth beam value for a reason.
+	local gems = {}
+	for _ = 0, 2 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = armHalf * rng:NextNumber(0.4, 0.8)
+		table.insert(gems, {
+			t = math.clamp(tRot + rng:NextNumber(-0.06, 0.06), 0.15, 0.85),
+			xOff = postX + math.cos(a) * r,
+			value = Config.Gems.ValueBeam,
+			yOff = 2.2,
+		})
+	end
+	return spec(
+		"Rotor",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+end
+
+-- Blackout: break-section darkness — same Flat geometry, but grid/center
+-- neon dims to near-black (spec.dim) while edge rails and gems stay lit.
+function ChunkDefs.Blackout(rng: Random, st: GenState, tier, _debut): ChunkSpec
+	local length = rng:NextInteger(55, 85)
+	local target = math.clamp(
+		rng:NextNumber(tier.widthMin, tier.widthMax),
+		Config.Generation.MinWidth,
+		Config.Generation.BaseWidth
+	)
+	local gems = gemRhythmLine(
+		rng,
+		Tiers.speedAt(st.dist),
+		length,
+		0.2,
+		0.7,
+		0,
+		Config.Gems.ValueSafe,
+		nil,
+		energyOf(st),
+		bpmOf(st)
+	)
+	local s = spec("Blackout", st, length, function(t)
+		return { width = lerp(st.width, target, t), centerX = st.centerX, y = st.y, rollDeg = 0 }
+	end, { centerX = st.centerX, width = target, y = st.y }, nil, gems)
+	s.dim = true
+	return s
 end
 
 return ChunkDefs

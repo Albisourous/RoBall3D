@@ -21,6 +21,7 @@ local Sfx = require(script.Parent.SfxController)
 local GemFx = require(script.Parent.GemFx)
 local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
+local PadController = require(script.Parent.PadController)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -50,6 +51,7 @@ local evRunStarted = remotes:WaitForChild("RunStarted") :: RemoteEvent
 local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
+local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -66,16 +68,17 @@ local boostCharge = 1 -- 0..1 boost meter (DESIGN.md §6)
 local boostSpent = false -- emptied latch until RechargeGate refills
 
 --============================ garage ==============================--
--- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids
--- and the RoBallOwned CSV of owned bundles. The panel re-renders on every
--- attribute change, so server-side auto-equip lands visibly.
+-- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids,
+-- the RoBallOwned CSV (bundle keys + gem-purchased item ids), and the
+-- RoBallBank balance. The panel re-renders on every attribute change, so
+-- server-side auto-equip and purchases land visibly.
 
 local function equippedId(slot: string): string?
 	local id = player:GetAttribute("RoBallEq_" .. slot)
 	return if typeof(id) == "string" then id else nil
 end
 
-local function ownedPasses(): { [string]: boolean }
+local function ownedSet(): { [string]: boolean }
 	local set = {}
 	local csv = player:GetAttribute("RoBallOwned")
 	if typeof(csv) == "string" then
@@ -86,29 +89,68 @@ local function ownedPasses(): { [string]: boolean }
 	return set
 end
 
-local priceCache: { [string]: number } = {}
+local priceCache: { [string]: number } = {} -- pass prices by pass key
+local productPrice: { [string]: number } = {} -- dev product prices by product key
 
-local function slotNames(): { [string]: string }
-	local names = {}
+-- Browse state (§18 P2): arrows scroll the WHOLE catalog per slot, not
+-- just owned items — the garage is the shop shelf. Owned items equip as
+-- you pass them; unowned ones park showing their ◊price, which the name
+-- button buys on click.
+local browseIdx: { [string]: number } = {}
+
+local function syncBrowse(slot: string)
+	local idx = table.find(Cosmetics.Order[slot], equippedId(slot))
+	browseIdx[slot] = idx or 1
+end
+
+local function browseId(slot: string): string?
+	local order = Cosmetics.Order[slot]
+	return order[math.clamp(browseIdx[slot] or 1, 1, #order)]
+end
+
+for _, slot in ipairs(Cosmetics.Slots) do
+	syncBrowse(slot)
+end
+
+local function slotRows(): { [string]: { text: string, afford: boolean } }
+	local owned = ownedSet()
+	local rows = {}
 	for _, slot in ipairs(Cosmetics.Slots) do
-		local item = Cosmetics.item(equippedId(slot))
-		names[slot] = if item then item.name else "—"
+		local id = browseId(slot)
+		local item = Cosmetics.item(id)
+		local text, afford = "—", false
+		if item then
+			-- Unowned + priced shows the ◊price (clickable); owned and
+			-- pack-only records show a plain name.
+			if not Cosmetics.owns(owned, id :: string) and item.gemPrice then
+				text = item.name .. "  ◊" .. tostring(item.gemPrice)
+				afford = true
+			else
+				text = item.name
+			end
+		end
+		rows[slot] = { text = text, afford = afford }
 	end
-	return names
+	return rows
 end
 
 local function packStates(): { [string]: { label: string, enabled: boolean } }
-	local owned = ownedPasses()
+	local owned = ownedSet()
 	local states = {}
+	-- Bundle passes + the bank2x perk pass — same lifecycle, one table.
+	local keys = { "bank2x" }
 	for _, b in ipairs(Cosmetics.Bundles) do
-		local passId = Config.Monetization.Passes[b.id] or 0
+		table.insert(keys, b.id)
+	end
+	for _, key in ipairs(keys) do
+		local passId = Config.Monetization.Passes[key] or 0
 		if passId == 0 then
-			states[b.id] = { label = "SOON", enabled = false } -- pass not created yet
-		elseif owned[b.id] then
-			states[b.id] = { label = "OWNED", enabled = false }
+			states[key] = { label = "SOON", enabled = false } -- pass not created yet
+		elseif owned[key] then
+			states[key] = { label = "OWNED", enabled = false }
 		else
-			states[b.id] = {
-				label = "R$" .. tostring(priceCache[b.id] or Config.Monetization.Price[b.id] or "?"),
+			states[key] = {
+				label = "R$" .. tostring(priceCache[key] or Config.Monetization.Price[key] or "?"),
 				enabled = true,
 			}
 		end
@@ -116,8 +158,28 @@ local function packStates(): { [string]: { label: string, enabled: boolean } }
 	return states
 end
 
+local function gemPackStates(): { [string]: { label: string, enabled: boolean } }
+	local states = {}
+	for _, key in ipairs(Config.Monetization.ProductOrder) do
+		local productId = Config.Monetization.Products[key] or 0
+		local gems = Config.Monetization.ProductGems[key] or 0
+		if productId == 0 then
+			states[key] = { label = string.format("◊%d\nSOON", gems), enabled = false }
+		else
+			local price = productPrice[key] or Config.Monetization.ProductPrice[key] or "?"
+			states[key] = { label = string.format("◊%d\nR$%s", gems, tostring(price)), enabled = true }
+		end
+	end
+	return states
+end
+
 local function refreshGarage()
-	ui:setGarage(slotNames(), packStates())
+	ui:setGarage({
+		slots = slotRows(),
+		packs = packStates(),
+		gemPacks = gemPackStates(),
+		bank = player:GetAttribute("RoBallBank") or 0,
+	})
 end
 
 local function bindBall(b: Instance)
@@ -159,23 +221,35 @@ end
 ui.onPlay = requestStart
 ui.onRetry = requestStart
 
--- Equip arrows: cycle within the OWNED ids for that slot, wrap around.
--- The server re-validates ownership — this is only a suggestion.
+-- Equip arrows: browse the WHOLE slot order, wrap around. Owned items
+-- equip as they come into view (server re-validates — this is only a
+-- suggestion); unowned ones just display their price until clicked.
 ui.onEquipCycle = function(slot, dir)
-	local owned = ownedPasses()
-	local ids = {}
-	for _, id in ipairs(Cosmetics.Order[slot]) do
-		if Cosmetics.owns(owned, id) then
-			table.insert(ids, id)
-		end
+	local order = Cosmetics.Order[slot]
+	local i = browseIdx[slot] or 1
+	browseIdx[slot] = ((i - 1 + dir) % #order) + 1
+	local id = order[browseIdx[slot]]
+	if Cosmetics.owns(ownedSet(), id) and equippedId(slot) ~= id then
+		pcall(function()
+			fnEquipItem:InvokeServer(id)
+		end)
 	end
-	if #ids == 0 then
+	refreshGarage()
+end
+
+-- Click a priced item name: buy it with banked gems (§18 P2). The server
+-- owns the answer — success auto-equips and lands via attribute refresh.
+ui.onItemSlot = function(slot)
+	local id = browseId(slot)
+	local item = Cosmetics.item(id)
+	if not id or not item or item.gemPrice == nil then
 		return
 	end
-	local idx = table.find(ids, equippedId(slot)) or 1
-	local nxt = ids[((idx - 1 + dir) % #ids) + 1]
+	if Cosmetics.owns(ownedSet(), id) then
+		return
+	end
 	pcall(function()
-		fnEquipItem:InvokeServer(nxt)
+		fnBuyItem:InvokeServer(id)
 	end)
 end
 
@@ -183,6 +257,15 @@ ui.onBuy = function(bundleId)
 	local passId = Config.Monetization.Passes[bundleId] or 0
 	if passId > 0 then
 		MarketplaceService:PromptGamePassPurchase(player, passId)
+	end
+end
+
+-- Gem packs are dev products (§18 P2): prompt, and the server's
+-- ProcessReceipt grants the gems.
+ui.onGemPack = function(key)
+	local productId = Config.Monetization.Products[key] or 0
+	if productId > 0 then
+		MarketplaceService:PromptProductPurchase(player, productId)
 	end
 end
 
@@ -251,7 +334,7 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 end)
 
 evRunEnded.OnClientEvent:Connect(
-	function(score: number, dist: number, gems: number, best: number, seed: number, newBest: boolean?)
+	function(score: number, dist: number, gems: number, best: number, seed: number, newBest: boolean?, banked: number?)
 		mode = "dead"
 		combo = 0
 		ui:setCombo(0)
@@ -259,7 +342,7 @@ evRunEnded.OnClientEvent:Connect(
 		DeathFx.burst(lastBallPos)
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
-		ui:showDeath(score, dist, gems, best, seed, newBest)
+		ui:showDeath(score, dist, gems, best, seed, newBest, banked)
 		Music.onDeath()
 	end
 )
@@ -375,11 +458,13 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- Garage refresh on state changes: equipped ids re-render names + preview;
--- ownership changes re-render pack buttons.
+-- Garage refresh on state changes: equipped ids resync browsing + preview;
+-- ownership and bank changes re-render prices and buttons.
 player:GetAttributeChangedSignal("RoBallOwned"):Connect(refreshGarage)
+player:GetAttributeChangedSignal("RoBallBank"):Connect(refreshGarage)
 for _, slot in ipairs(Cosmetics.Slots) do
 	player:GetAttributeChangedSignal("RoBallEq_" .. slot):Connect(function()
+		syncBrowse(slot)
 		refreshGarage()
 		CosmeticFx.refresh()
 	end)
@@ -390,13 +475,16 @@ Music.init()
 Sfx.init()
 GemFx.init()
 CosmeticFx.init()
+PadController.init(function()
+	return ball
+end)
 CosmeticFx.onMode("menu")
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 refreshGarage()
 refreshBoard()
 task.spawn(function()
 	-- Real prices beat the Config fallback display (§18): GetProductInfo
-	-- returns what the dashboard pass actually costs.
+	-- returns what the dashboard pass/product actually costs.
 	for _, b in ipairs(Cosmetics.Bundles) do
 		local passId = Config.Monetization.Passes[b.id] or 0
 		if passId > 0 then
@@ -405,6 +493,26 @@ task.spawn(function()
 			end)
 			if ok and info and info.PriceInRobux then
 				priceCache[b.id] = info.PriceInRobux
+			end
+		end
+	end
+	local perkId = Config.Monetization.Passes.bank2x or 0
+	if perkId > 0 then
+		local ok, info = pcall(function()
+			return MarketplaceService:GetProductInfo(perkId, Enum.InfoType.GamePass)
+		end)
+		if ok and info and info.PriceInRobux then
+			priceCache.bank2x = info.PriceInRobux
+		end
+	end
+	for _, key in ipairs(Config.Monetization.ProductOrder) do
+		local productId = Config.Monetization.Products[key] or 0
+		if productId > 0 then
+			local ok, info = pcall(function()
+				return MarketplaceService:GetProductInfo(productId, Enum.InfoType.Product)
+			end)
+			if ok and info and info.PriceInRobux then
+				productPrice[key] = info.PriceInRobux
 			end
 		end
 	end

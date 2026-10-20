@@ -35,6 +35,9 @@ function GenCore.new(seed: number): Gen
 	self.map = SongMap.forTrack(SongMap.trackIdFor(seed, Config.Music.Tracklist))
 	self.beatPos = Config.MusicSync.SeededStartOffset and self.map.startBeatFor(seed) or 0
 	self.introIndex = 0
+	-- Feature ramp (DESIGN.md §8.6): name -> true once its gentle debut
+	-- showcase has spawned. Debuted types hold out of the pool until then.
+	self.debuted = {}
 	self.intro = {
 		{ type = "Flat", length = 35, widthOut = 48 },
 		{ type = "Flat", length = 35, widthOut = 44, gems = true }, -- teaches: gems exist
@@ -119,33 +122,76 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 		local tier = Tiers.forDistance(st.dist)
 		local pool = tier.chunkPool
 		local name
-		if Config.MusicSync.Enabled then
-			-- Songform weighting (AUDIO.md §5.2): chunk families reweight by
-			-- the section energy under the ball — drops roll lethal, breaks
-			-- roll breathers. Legality rules untouched; this biases the pick.
-			local e = songSection.energy
-			local weights = {}
-			local total = 0
-			for _, cname in ipairs(pool) do
-				local fam = Config.MusicSync.ChunkFamily[cname] or "technical"
-				local fw = Config.MusicSync.Families[fam]
-				local w = fw.lo + (fw.hi - fw.lo) * e
-				weights[cname] = w
-				total += w
+		-- Feature debut (DESIGN.md §8.6): the first eligible spawn of each
+		-- feature type past its milestone distance is the gentle showcase.
+		-- A type holds out of the random pool until its debut has run.
+		for _, fname in ipairs(Config.Features.DebutOrder) do
+			if
+				not self.debuted[fname]
+				and st.dist >= (Config.Features.Debut[fname] or math.huge)
+				and table.find(pool, fname) ~= nil
+				and ChunkDefs.canRun(fname, snap, tier)
+			then
+				self.debuted[fname] = true
+				name = fname
+				spec = ChunkDefs[name](self.rng, snap, tier, true)
+				break
 			end
-			local roll = self.rng:NextNumber(0, total)
+		end
+		if not name then
+			-- Pool candidates: debut-gated types stay out until their
+			-- showcase ran; canRun drops context-gated types that don't fit
+			-- (DropGate needs an accent, Blackout a break section, movers a
+			-- minimum deck width).
+			local cand = {}
 			for _, cname in ipairs(pool) do
-				roll -= weights[cname]
-				if roll <= 0 then
-					name = cname
-					break
+				if
+					(not Config.Features.Debut[cname] or self.debuted[cname])
+					and ChunkDefs.canRun(cname, snap, tier)
+				then
+					table.insert(cand, cname)
 				end
 			end
-			name = name or pool[#pool]
-		else
-			name = pool[self.rng:NextInteger(1, #pool)]
+			if #cand == 0 then
+				cand = { "Flat" }
+			end
+			if Config.MusicSync.Enabled then
+				-- Songform weighting (AUDIO.md §5.2): chunk families reweight
+				-- by the section energy under the ball — drops roll lethal,
+				-- breaks roll breathers. Legality rules untouched.
+				local e = songSection.energy
+				local weights = {}
+				local total = 0
+				for _, cname in ipairs(cand) do
+					local fam = Config.MusicSync.ChunkFamily[cname] or "technical"
+					local fw = Config.MusicSync.Families[fam]
+					local w = fw.lo + (fw.hi - fw.lo) * e
+					weights[cname] = w
+					total += w
+				end
+				local roll = self.rng:NextNumber(0, total)
+				for _, cname in ipairs(cand) do
+					roll -= weights[cname]
+					if roll <= 0 then
+						name = cname
+						break
+					end
+				end
+				name = name or cand[#cand]
+			else
+				name = cand[self.rng:NextInteger(1, #cand)]
+			end
+			spec = ChunkDefs[name](self.rng, snap, tier)
 		end
-		spec = ChunkDefs[name](self.rng, snap, tier)
+
+		-- TierGate (§8.6): a chunk straddling a tier boundary carries the
+		-- distance arch — the marker lands where the tier actually flips.
+		local nextTier = Tiers.forDistance(st.dist + spec.length)
+		local curTier = Tiers.forDistance(st.dist)
+		if nextTier.index > curTier.index then
+			local boundary = Config.Tiers[nextTier.index].dist
+			spec.tierGate = { dist = boundary, t = (boundary - st.dist) / spec.length }
+		end
 	end
 
 	-- Advance the musical clock by the beats this chunk spans, then the
