@@ -90,6 +90,14 @@ Per track, alongside `track.ogg` (the full mix, for menu/fallback):
 | `SongMap_<id>.luau` | Generated module per track: `{ id, bpm, beatsPerBar, loopBeats, sections, accentBeats, scale ladders }` | The generator's chart. Checked into `src/` — pure data, no audio parse at runtime. |
 | `stings/{tier_up,death_fall,menu_start}.ogg` | One-shots rendered in-key | Beat-quantized stingers (§6). |
 
+`generate_audio.py` emits **WAV masters only** — encoding is a separate,
+deliberate step because Vorbis decode overshoots source peaks on sharp
+transients (a 0.90-peak WAV decoded back to **1.145** on `gem_pickup` —
+a hard clip on every pickup). Canonical encode: `encode_ogg.py --all`
+(q7 Vorbis, iterates encode gain until the *decoded* peak ≤ 0.92). Never
+ship an ogg that hasn't been through it; `qa_audio.py` audits the rendered
+set (durations vs BPM, seams, RMS, band balance, decode peaks).
+
 `SongMap.luau` is a hand-written registry: it re-exports the default
 track's map (so `SongMap.sectionAtBeat(...)` keeps working) and adds
 `forTrack(id)` / `trackIdFor(seed, Tracklist)` — the seeded pick GenCore
