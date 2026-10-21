@@ -476,9 +476,11 @@ function Ui.new(): Ui
 	self.comboText = comboText
 
 	--=========== SPEED + BOOST (bottom corners) ===========--
-	-- Minimal vaporwave readout (DESIGN.md §12): the speed NUMBER is the
-	-- meter — it gradients cyan -> violet -> magenta as speed climbs and
-	-- snaps hot red past 100. No dial chrome; the digit does the work.
+	-- Minimal vaporwave readout (DESIGN.md §12): the digit is the heard
+	-- BPM — track tempo x snapped playback speed, so it steps in
+	-- semitones with the music. Its hue gradients cyan -> violet ->
+	-- magenta as ball speed climbs and snaps hot red past 100 s/s.
+	-- No dial chrome; the digit does the work.
 	local spdNum = Instance.new("TextLabel")
 	spdNum.Name = "SpeedNum"
 	spdNum.AnchorPoint = Vector2.new(1, 1)
@@ -508,7 +510,7 @@ function Ui.new(): Ui
 	spdUnit.TextSize = 12
 	spdUnit.TextColor3 = C_DIM
 	spdUnit.TextXAlignment = Enum.TextXAlignment.Right
-	spdUnit.Text = "S/S"
+	spdUnit.Text = "BPM"
 	spdUnit.Visible = false
 	spdUnit.Parent = gui
 	self.spdUnit = spdUnit
@@ -697,12 +699,20 @@ function Ui:setHud(score: number, dist: number, gems: number, _speed: number, se
 	self.seedTag.Text = string.format("seed %d", seed)
 end
 
--- Speed number + boost bar, called every heartbeat during a run.
--- The digit's hue IS the speed read: cyan 0 -> magenta 100 -> hot red
--- pegged past it. The boost bar pulses pink while W is held and blinks
--- while the meter is latched out below RechargeGate.
-function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boostSpent: boolean, braking: boolean?)
-	self.spdNum.Text = tostring(math.floor(speed + 0.5))
+-- BPM number + boost bar, called every heartbeat during a run. `bpm` is
+-- the heard tempo (Music.bpm()); the digit's hue still keys off s/s:
+-- cyan 0 -> magenta 100 -> hot red pegged past it. The boost bar pulses
+-- pink while W is held and blinks while the meter is latched out below
+-- RechargeGate.
+function Ui:setSpeedo(
+	speed: number,
+	bpm: number,
+	boostFrac: number,
+	boosting: boolean,
+	boostSpent: boolean,
+	braking: boolean?
+)
+	self.spdNum.Text = tostring(math.floor(bpm + 0.5))
 	if speed >= 100 then
 		-- Over the line: flat hot red, pulsing so it reads as "pegged".
 		local v = 0.85 + 0.15 * math.sin(tick() * 9)

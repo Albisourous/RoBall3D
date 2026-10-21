@@ -457,6 +457,13 @@ function Music.setSpeedNorm(n: number)
 	applySpeed()
 end
 
+-- Heard tempo right now (AUDIO.md §4): the track's bpm x the snapped
+-- playback speed applied to the players — the HUD's BPM digit, so the
+-- number steps in semitones exactly when the music does.
+function Music.bpm(): number
+	return curMap.bpm * ps()
+end
+
 -- Tier index from the client drive loop: layer mix + beat-quantized sting.
 function Music.setTier(t: number)
 	if t == tier then

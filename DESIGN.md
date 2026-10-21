@@ -100,7 +100,7 @@ explainable.
   hold `S`/`↓` = ÷`Mult` — the **same meter**, same drain/latch rules,
   mirrored effect. The ~1.2s charge drains while either is held, refills
   on release (~6.7s to full), emptying latches until ~35% refilled.
-  Boosting and braking both ease at 4× normal accel so the HUD s/s
+  Boosting and braking both ease at 4× normal accel so the HUD tempo
   visibly jumps; the bar flares pink on boost, orange on brake.
   Charge lives on the bottom-left boost dial (§12).
 - **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
@@ -465,9 +465,12 @@ deferred.
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
 - **HUD**: one big pink score centered at the top; distance/gems/seed on a
-  dim lavender subline. Bottom-right is a single big **speed number** —
-  the digits themselves are the meter: hue gradients cyan → violet →
-  magenta across 0–100 and snaps hot red + pulsing past it. Bottom-left
+  dim lavender subline. Bottom-right is a single big **BPM number** — the
+  heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
+  semitones), so the digit steps in real intervals exactly when the music
+  does. The digit's hue is still the speed meter: gradients cyan →
+  violet → magenta across 0–100 s/s and snaps hot red + pulsing past it.
+  Bottom-left
   is a glanceable **boost bar**: a tilted capsule of LED segments ramping
   cyan→magenta like a VU meter, diamond bead riding the lit edge,
   `RechargeGate` shown as a gold notch between cells with the lock zone

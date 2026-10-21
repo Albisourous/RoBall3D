@@ -443,11 +443,14 @@ RunService.Heartbeat:Connect(function(dt)
 		end
 	end
 	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1) / (braking and Config.Boost.Mult or 1)
-	-- Both directions ease faster so the HUD s/s visibly jumps — the
+	-- Both directions ease faster so the HUD tempo visibly jumps — the
 	-- boost/brake has to FEEL like a kick, not a suggestion.
 	local fwdAccel = Config.Speed.Accel * ((boosting or braking) and Config.Boost.AccelMult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
-	ui:setSpeedo(fwdSpeed, boostCharge, boosting, boostSpent, braking)
+	-- norm lands before the speedo so Music.bpm() reads this frame's
+	-- tempo, not last frame's.
+	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
+	ui:setSpeedo(fwdSpeed, Music.bpm(), boostCharge, boosting, boostSpent, braking)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity
@@ -456,7 +459,6 @@ RunService.Heartbeat:Connect(function(dt)
 	-- takes over — the ball falls ClearH back to the deck.
 	b.AssemblyLinearVelocity = Vector3.new(lateralVel, if inFlip then Config.Flip.Lift else v.Y, -fwdSpeed)
 	lastBallPos = b.Position
-	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 
 	-- HUD: attributes arrive from the server; only rebuild on visible change
 	local score = player:GetAttribute("RoBallScore") or 0
