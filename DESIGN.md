@@ -427,12 +427,9 @@ until its debut has run (`GenCore.debuted`), so players always meet the
 easy form first. Debuts are deterministic like everything else — same
 seed, same ramp.
 
-The showcase is also *named*: `GenCore` stamps the debut spec, the
-streamer queues `{startZ, type}`, and the server fires `Debut` as the
-ball crosses into it — the HUD flashes gold `NEW ▸ LABEL`
-(`Config.Features.Label`/`BannerSeconds`) once per type per run, so the
-mechanic's name lands at the moment it's introduced. Presentation only;
-no score or generation semantics ride on it.
+Debuts are generation-side only — `GenCore` stamps the spec so the
+ramp can gate a type's hard variants on the showcase having run. No HUD
+banner: the `NEW ▸ LABEL` flash was cut as screen clutter.
 
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
 Blackout 900m · Chicane 1300m · Fork 1500m · PadHop 1700m · PadVoid 2100m
@@ -543,9 +540,7 @@ technical ×1.5: jump-free deck runs), ROTOR FIELD / PRESS GANG /
 SNAKE PIT (one mover ×3.5 — soft bias: debut-gated movers only show
 once the ramp lets them in). The
 label rides the HUD seed tag, the daily status line, and the death
-card's seed line — a seed's flavor is part of its name. A non-standard
-flavor also announces itself at run start over the debut-banner channel
-(`FLAVOR ▸ PRESS GANG`, same seconds, same slot).
+card's seed line — a seed's flavor is part of its name.
 
 ## 9. Difficulty & speed
 
@@ -734,8 +729,10 @@ leaves the line off.
 - **Obstacles**: near-black bodies with red `SelectionBox` edge outlines —
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
-- **HUD**: one big pink score top-right (top-left sits under Roblox's
-  native menu; the center cone stays clear for the track read at
+- **HUD**: four zones, nothing else — score cluster top-right, minimap +
+  quest tracker right side under it, power meter bottom-left, BPM/speed
+  digit bottom-right. One big pink score top-right (top-left sits under
+  Roblox's native menu; the center cone stays clear for the track read at
   speed); distance/gems on a dim lavender subline, the combo pip under
   that, then the gold pass-moment flash and the `±N vs PB` pace line
   when a PB echo replays. Below the stack a narrow **look-ahead radar**
@@ -890,13 +887,12 @@ Full spec: `AUDIO.md`. Binding decisions:
   The client reads the `RoBallQuests` CSV attribute
   (`done flags + bankedToday`) to draw the menu lines and the death
   screen's `N quests done · ◊ +N banked` line. During a run a dim
-  three-line **mission tracker** under the HUD's left column shows the
-  same quests live — `reach`/`score` read the run's own counters and
-  `bank` adds the run's banked delta (snapshotted `RoBallBank` at run
-  start) to the stored today-tally; a line goes `✓` gold once its
-  number is in the bag (the flag itself still lands at run end), a
-  mid-run completion also pulses `QUEST ✓ <name>` over the debut
-  channel, and the block hides entirely once nothing is left to chase.
+  three-line **mission tracker** stacks under the minimap's threat name
+  (right edge) showing the same quests live — `reach`/`score` read the
+  run's own counters and `bank` adds the run's banked delta (snapshotted
+  `RoBallBank` at run start) to the stored today-tally; a line goes `✓`
+  gold once its number is in the bag (the flag itself still lands at
+  run end), and the block hides entirely once nothing is left to chase.
 - **Achievements**: `Config.Monetization.Achievements` — milestone badges
   evaluated server-side at every clean run end (`ShopService.onRunEnd`,
   after streak + quest eval so those counts are fresh). Kinds:
@@ -959,14 +955,11 @@ Full spec: `AUDIO.md`. Binding decisions:
   server fires `Crown` and the client toasts `♛ CROWN TAKEN from <name>`
   — or `♛ SEED CROWN CLAIMED` on an unclaimed seed. Improving your own
   crown doesn't re-announce.
-- **Split-time sectors**: every `Config.Sectors.Length` studs the HUD
-  flashes `SEC n · T.Ts` plus a `±S.Ss` delta per live replay — the
-  replay's interpolated crossing time minus yours, positive = ahead.
-  Each boundary also paints a `SectorMark` ribbon across the deck
+- **Split-time sectors**: every `Config.Sectors.Length` studs a
+  `SectorMark` ribbon paints across the deck
   (`Sectors.MarkW`/`MarkTrans`, per-rail on cutouts) — the pace pulse
-  the HUD counts is visible on the track itself.
-  Each segment takes its entity color when you're ahead of it, pink
-  when behind; a replay that never reached the depth omits its segment.
+  lives on the track itself; the HUD `SEC n · T.Ts` flash was cut as
+  clutter.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`

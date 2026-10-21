@@ -149,12 +149,11 @@ Config.Danger = {
 	PingVol = 0.3,
 }
 
--- Split-time sectors (§14): every Length studs down-track the HUD
--- flashes the sector index, run-elapsed time, and a delta vs each live
--- replay (PB and champion) — long runs get a heartbeat of micro-goals.
+-- Split-time sectors (§14): every Length studs down-track a SectorMark
+-- ribbon paints across the deck — the pace pulse is on the track
+-- itself, no HUD line.
 Config.Sectors = {
 	Length = 250, -- studs per boundary
-	FlashSeconds = 2.2, -- on-screen time of the sector line
 	MarkW = 1.4, -- deck ribbon z-thickness at each boundary
 	MarkTrans = 0.25, -- brighter than grid lines, under the edge neon
 }
@@ -302,7 +301,6 @@ Config.Features = {
 		OrbHop = "ORB HOP",
 		FlipRide = "FLIP RIDE",
 	},
-	BannerSeconds = 2.5,
 }
 
 Config.Pads = {
@@ -395,6 +393,19 @@ Config.Blackout = {
 	-- Break-section darkness: grid/center neon dims to this fraction while
 	-- edge rails and gems stay lit — the track goes lights-out, not blind.
 	GridScale = 0.12,
+}
+
+Config.Swell = {
+	-- Deck-shape rest chunk (DESIGN.md §8.3): full-width ribbon undulating
+	-- in y — a pump line of gentle crests. Integer periods land the exit
+	-- back on the entry height so the seam stays clean.
+	LenMin = 140,
+	LenMax = 220,
+	PeriodsMin = 2,
+	PeriodsMax = 3,
+	AmpMin = 1.2,
+	AmpMax = 3.5,
+	SlopeMax = 0.22, -- peak added slope; past this a crest launches, not pops
 }
 
 Config.Orbs = {

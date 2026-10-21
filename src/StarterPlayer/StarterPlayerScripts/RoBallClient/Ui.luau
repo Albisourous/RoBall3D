@@ -1338,49 +1338,12 @@ function Ui.new(): Ui
 	rivalText.Parent = hud
 	self.rivalText = rivalText
 
-	-- Sector splits (§14): on each Config.Sectors.Length boundary a
-	-- left-aligned line flashes "SEC n · t" plus a colored delta per
-	-- live replay — positive reads ahead of that ghost.
-	local sectorFlash = Instance.new("TextLabel")
-	sectorFlash.Name = "SectorFlash"
-	sectorFlash.BackgroundTransparency = 1
-	sectorFlash.Font = F_DATA
-	sectorFlash.TextSize = 14
-	sectorFlash.TextColor3 = C_CYAN
-	sectorFlash.TextStrokeTransparency = 0.5
-	sectorFlash.TextXAlignment = Enum.TextXAlignment.Left
-	sectorFlash.RichText = true
-	sectorFlash.Position = UDim2.fromOffset(0, 170)
-	sectorFlash.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 16)
-	sectorFlash.Text = ""
-	sectorFlash.Visible = false
-	sectorFlash.Parent = hud
-	self.sectorFlash = sectorFlash
-
-	-- Debut banner (§8.6): the first spawn of each feature type is the
-	-- scripted gentle showcase — crossing into it flashes "NEW ▸ NAME"
-	-- in gold so the mechanic is named at the moment it's introduced.
-	local debutFlash = Instance.new("TextLabel")
-	debutFlash.Name = "DebutFlash"
-	debutFlash.BackgroundTransparency = 1
-	debutFlash.Font = F_DATA
-	debutFlash.TextSize = 14
-	debutFlash.TextColor3 = C_GOLD
-	debutFlash.TextStrokeTransparency = 0.5
-	debutFlash.TextXAlignment = Enum.TextXAlignment.Left
-	debutFlash.Position = UDim2.fromOffset(0, 190)
-	debutFlash.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 16)
-	debutFlash.Text = ""
-	debutFlash.Visible = false
-	debutFlash.Parent = hud
-	self.debutFlash = debutFlash
-
 	-- Live mission tracker (§14): the day's three seeded quests with
 	-- in-run progress — reach/score read the live run counters, bank adds
 	-- the run's banked delta to the stored today-tally. Dim open, gold
 	-- in-the-bag; the whole block hides once nothing is left to chase.
-	-- Right-aligned against the radar strip so it parks with the HUD
-	-- cluster and leaves the track read clear.
+	-- Stacks under the threat name, flush with the radar's right edge —
+	-- minimap + quests read as one column.
 	self.missionCsv = ""
 	self.missionBank0 = 0
 	self.missionLines = {}
@@ -1393,8 +1356,9 @@ function Ui.new(): Ui
 		ml.TextColor3 = C_DIM
 		ml.TextStrokeTransparency = 0.5
 		ml.TextXAlignment = Enum.TextXAlignment.Right
-		ml.Position = UDim2.fromOffset(0, 208 + (i - 1) * 15)
-		ml.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 14)
+		ml.AnchorPoint = Vector2.new(1, 0)
+		ml.Position = UDim2.new(1, 0, 0, 350 + (i - 1) * 15)
+		ml.Size = UDim2.new(1, 0, 0, 14)
 		ml.Text = ""
 		ml.Visible = false
 		ml.Parent = hud
@@ -2048,13 +2012,9 @@ end
 
 -- Live mission tracker (§14): snapshot the bank balance at run start so
 -- the bank quest can add this run's pickups to the stored today-tally.
--- missionMet resets so a mid-run quest flip gets its flash edge.
 function Ui:missionArm(bankNow: number)
 	self.missionBank0 = bankNow
-	self.missionMet = nil
 end
-
-local pulse: (TextLabel, string) -> ()
 
 local QUEST_LABEL = { reach = "reach %dm", score = "score %d", bank = "bank %d ◊" }
 
@@ -2062,19 +2022,11 @@ function Ui:setMissionTrack(score: number, dist: number, bankNow: number)
 	local parts = string.split(self.missionCsv, ",")
 	local banked = (tonumber(parts[#parts]) or 0) + math.max(bankNow - self.missionBank0, 0)
 	local allMet = true
-	local metPrev = self.missionMet or {}
 	for i, q in ipairs(Daily.quests()) do
 		local prog = if q.kind == "reach" then dist elseif q.kind == "score" then score else banked
 		local met = parts[i] == "1" or prog >= q.target
 		allMet = allMet and met
 		local short = string.format(QUEST_LABEL[q.kind] or "%s", q.target)
-		-- Completion edge (§14): a quest finished mid-run announces over
-		-- the debut channel — the payout lands on the card, the flash
-		-- marks the moment it was earned.
-		if met and metPrev[i] == false then
-			pulse(self.debutFlash, "QUEST ✓ " .. short)
-		end
-		metPrev[i] = met
 		local text = string.format(
 			"%s %s",
 			met and "✓" or "◇",
@@ -2086,7 +2038,6 @@ function Ui:setMissionTrack(score: number, dist: number, bankNow: number)
 		end
 		line.TextColor3 = met and C_GOLD or C_DIM
 	end
-	self.missionMet = metPrev
 	for _, line in ipairs(self.missionLines) do
 		line.Visible = not allMet
 	end
@@ -2399,55 +2350,6 @@ function Ui:setRivalPace(delta: number?, name: string?)
 	self.rivalText.Text = string.format("%+d vs %s%s", delta, name, duel)
 	self.rivalText.TextColor3 = if delta >= 0 then Config.Ghost.RivalColor else C_PINK
 	self.rivalText.Visible = true
-end
-
--- Sector split (§14): "SEC n · 8.2s   PB +0.4s   champion42 -1.1s" —
--- positive delta = ahead of that replay's clock at the same depth.
-function Ui:flashSector(idx: number, elapsed: number, pbDelta: number?, rvDelta: number?, rvName: string?)
-	local seg = function(name: string, delta: number?, aheadColor: Color3): string?
-		if not delta then
-			return nil
-		end
-		local col = if delta >= 0 then aheadColor else C_PINK
-		return string.format('<font color="#%s">%s %+.1fs</font>', col:ToHex(), name, delta)
-	end
-	local text = string.format("SEC %d · %.1fs", idx, elapsed)
-	local pb = seg("PB", pbDelta, C_CYAN)
-	local rv = seg(rvName or "CHAMP", rvDelta, Config.Ghost.RivalColor)
-	if pb then
-		text ..= "   " .. pb
-	end
-	if rv then
-		text ..= "   " .. rv
-	end
-	self.sectorFlash.Text = text
-	self.sectorFlash.Visible = true
-	local flash = self.sectorFlash
-	task.delay(Config.Sectors.FlashSeconds, function()
-		flash.Visible = false
-	end)
-end
-
--- Shared banner pulse (§8.6/§8.7/§14): one slot, BannerSeconds on screen.
-function pulse(flash: TextLabel, text: string)
-	flash.Text = text
-	flash.Visible = true
-	task.delay(Config.Features.BannerSeconds, function()
-		flash.Visible = false
-	end)
-end
-
--- Debut banner (§8.6): "NEW ▸ PRESS ROW" — names a mechanic at its
--- scripted gentle showcase. Fires once per type per run.
-function Ui:flashDebut(typeName: string)
-	local name = Config.Features.Label[typeName] or string.upper(typeName)
-	pulse(self.debutFlash, "NEW ▸ " .. name)
-end
-
--- Seed flavor banner (§8.7): "FLAVOR ▸ PRESS GANG" — announces a
--- non-standard mutator at run start over the same channel.
-function Ui:flashFlavor(flavorName: string)
-	pulse(self.debutFlash, "FLAVOR ▸ " .. flavorName)
 end
 
 -- Deck-edge warning (§12): one chevron per unsupported side. Called from

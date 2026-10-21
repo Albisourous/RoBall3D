@@ -78,9 +78,6 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 			amp: number,
 		}
 	}
-	-- Debut banners (§8.6): {z, name} per showcase chunk — chunks build in
-	-- order so the list stays z-descending for the run loop's bare cursor.
-	self.debuts = {} :: { { z: number, name: string } }
 	-- RampGap hoops (§10): {z, cx, cy, r} per hoop — same cursor shape
 	-- as hazards; a crossing inside the ring opening pays the hoop bonus.
 	self.gates = {} :: { { z: number, cx: number, cy: number, r: number } }
@@ -812,10 +809,6 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			table.insert(self.hazards, h)
 		end
 		self:startMovers()
-	end
-
-	if spec.debut then
-		table.insert(self.debuts, { z = spec.startZ, name = spec.type })
 	end
 
 	if spec.pads then

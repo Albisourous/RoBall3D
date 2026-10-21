@@ -125,9 +125,6 @@ fnGetGhost.Parent = remotes
 local evCrown = Instance.new("RemoteEvent")
 evCrown.Name = "Crown"
 evCrown.Parent = remotes
-local evDebut = Instance.new("RemoteEvent")
-evDebut.Name = "Debut"
-evDebut.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 type Run = {
@@ -141,7 +138,6 @@ type Run = {
 	nmCursor: number, -- scan cursor into streamer.hazards
 	gateCursor: number, -- scan cursor into streamer.gates (§10 hoop bonus)
 	hoopThreads: number, -- clean ring threads this run — drives the whoosh attribute
-	dbCursor: number, -- scan cursor into streamer.debuts (§8.6 banners)
 	hzPassed: number, -- lethal planes crossed alive (death-screen stat)
 	closest: number, -- tightest crossing gap seen, studs (inf = never close)
 	banked: number, -- gems credited to the bank this run (§18 P2 — never score)
@@ -383,7 +379,6 @@ local function startRun(player: Player)
 		nmCursor = 1,
 		gateCursor = 1,
 		hoopThreads = 0,
-		dbCursor = 1,
 		hzPassed = 0,
 		closest = math.huge,
 		banked = 0,
@@ -953,14 +948,6 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 			end
 
-			-- Debut banners (§8.6): crossing a showcase chunk's start names
-			-- the mechanic once per type per run — presentation only.
-			local db = run.streamer.debuts[run.dbCursor]
-			while db and pos.Z < db.z do
-				evDebut:FireClient(player, db.name)
-				run.dbCursor += 1
-				db = run.streamer.debuts[run.dbCursor]
-			end
 			run.lastPos = pos
 
 			if ball.Position.Y < run.streamer:yAt(z) - Config.Death.KillDrop then

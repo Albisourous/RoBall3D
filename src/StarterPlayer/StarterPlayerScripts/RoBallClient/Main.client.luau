@@ -16,7 +16,6 @@ local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
-local Mutator = require(ReplicatedStorage.RoBall.Mutator)
 local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
@@ -61,7 +60,6 @@ local evReportFatal = remotes:WaitForChild("ReportFatal") :: RemoteEvent
 local evSaveGhost = remotes:WaitForChild("SaveGhost") :: RemoteEvent
 local fnGetGhost = remotes:WaitForChild("GetGhost") :: RemoteFunction
 local evCrown = remotes:WaitForChild("Crown") :: RemoteEvent
-local evDebut = remotes:WaitForChild("Debut") :: RemoteEvent
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
@@ -576,9 +574,6 @@ local rivalPaceCache: number? = nil
 local overtakePb: boolean? = nil -- armed after trailing the PB echo (§14)
 local overtakeRival: boolean? = nil -- same vs the champion echo
 local rivalName: string? = nil
--- Sector splits (§14): run clock + deepest boundary already flashed.
-local runT0 = 0
-local sectorCursor = 0
 -- Hazard radar (§12): scan clock for the look-ahead strip. `radarScan`
 -- is the bar list handed to Ui and `radarPool` recycles its row tables —
 -- both persist so the ~16 Hz scan allocates nothing (PERFORMANCE.md §1).
@@ -632,17 +627,9 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	overtakeRival = nil :: boolean?
 	rivalName = nil :: string?
 	ui:setRivalPace(nil, nil)
-	runT0 = os.clock()
-	sectorCursor = 0
 	-- Live mission tracker (§14): snapshot the bank so the bank quest can
 	-- add this run's pickups to the stored today-tally.
 	ui:missionArm(player:GetAttribute("RoBallBank") or 0)
-	-- Seed flavor banner (§8.7): a non-standard mutator announces itself
-	-- over the debut channel at run start.
-	local flavorLabel = Mutator.forSeed(seed).label
-	if flavorLabel then
-		ui:flashFlavor(flavorLabel)
-	end
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0
@@ -753,14 +740,6 @@ evCrown.OnClientEvent:Connect(function(name: string)
 		ui:toast(string.format("♛ CROWN TAKEN from %s", name))
 	else
 		ui:toast("♛ SEED CROWN CLAIMED")
-	end
-end)
-
--- Debut banner (§8.6): the server fires this as the ball crosses into a
--- feature's showcase chunk — the mechanic is named at its introduction.
-evDebut.OnClientEvent:Connect(function(typeName: string)
-	if mode == "running" then
-		ui:flashDebut(typeName)
 	end
 end)
 
@@ -954,17 +933,6 @@ RunService.Heartbeat:Connect(function(dt)
 			overtakeRival = false
 			ui:toast("▸ PASSED " .. (rivalName or "CHAMP"))
 		end
-	end
-	-- Sector splits (§14): a flash per Config.Sectors.Length crossed —
-	-- elapsed time plus the split vs each replay that reached this depth.
-	local sec = math.floor(-b.Position.Z / Config.Sectors.Length)
-	if sec > sectorCursor then
-		sectorCursor = sec
-		local el = os.clock() - runT0
-		local z = -sec * Config.Sectors.Length
-		local pbT = Ghost.sectorSplit("pb", z)
-		local rvT = Ghost.sectorSplit("rival", z)
-		ui:flashSector(sec, el, pbT and (pbT - el), rvT and (rvT - el), rivalName)
 	end
 	-- Hazard radar (§12): re-read the tagged lethal set at ScanSeconds —
 	-- movers/spinners track for free. Ball-relative: dz ahead, dx off

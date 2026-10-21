@@ -179,7 +179,8 @@ runs the loop below and does not stop until you say **stop**.
     every 250m fires `SEC n · T.Ts` plus a `±S.Ss` RichText segment per
     live replay; `Ghost.sectorSplit` interpolates the replay's crossing
     time, positive = ahead, segment omitted past replay end. Verified
-    live via stubbed ghosts: SEC1 PB/champ -0.2s mid-run)*
+    live via stubbed ghosts: SEC1 PB/champ -0.2s mid-run. **HUD line
+    removed** — clutter cut; SectorMark deck ribbons still paint)*
 27. **Hazard variety: low ceiling** — a `HeadBlock` spec that sweeps the
     lane at ball-height+; crossing under it demands a hop *not* taken.
     *(superseded by PressRow — the slam plate IS the ceiling hazard)*
@@ -247,7 +248,8 @@ runs the loop below and does not stop until you say **stop**.
     names each mechanic once per type per run. Presentation only.
     Verified live: 10 records milestone-correct in z-desc order, cursor
     fired Terrace at -426 and Chicane at -1294 — `NEW ▸ CHICANE`
-    screenshotted mid-run beside `SEC 5`)*
+    screenshotted mid-run beside `SEC 5`. **HUD banner removed** —
+    clutter cut; debut gating still runs generation-side)*
 37. **Death cause on the card** *(done — d7c6850: `FatalController`
     reports the lethal part it simulated (touch or spherecast), the
     server validates the `RoBallLethal` tag and reads its `ChunkType`
@@ -422,7 +424,9 @@ runs the loop below and does not stop until you say **stop**.
 59. **Quest-complete flash** *(done — a quest crossed mid-run pulses
     `QUEST ✓ <name>` over the debut channel, driven by a per-quest met
     edge armed at run start; banner pulses refactored onto one shared
-    helper)*
+    helper. **removed** — the whole banner channel (debut/flavor/quest/
+    sector flashes) was cut as clutter; the tracker's ✓ gold line still
+    marks completion)*
 
 60. **Two new seed flavors** *(done — GROUNDED (anti-airshow: spectacle
     ×0.35, technical ×1.5 — jump-free deck runs) and SNAKE PIT
