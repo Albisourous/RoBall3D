@@ -186,7 +186,7 @@ function Ui.new(): Ui
 
 	local menuCol = Instance.new("Frame")
 	menuCol.BackgroundTransparency = 1
-	menuCol.Size = UDim2.fromOffset(520, 680) -- taller: missions + the mixer rows
+	menuCol.Size = UDim2.fromOffset(520, 700) -- hero column: title, PLAY, run setup, missions
 	menuCol.Position = UDim2.fromScale(0.5, 0.5)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
@@ -199,50 +199,203 @@ function Ui.new(): Ui
 	tgrad.Parent = title
 
 	label(menuCol, "roll forever · don't fall", 18, F_DATA, C_DIM, 2)
-	label(menuCol, "", 8, F_DATA, C_DIM, 3)
+	label(menuCol, "", 6, F_DATA, C_DIM, 3)
 
-	local play = outlineButton(menuCol, "PLAY", 40, 4)
-	play.Size = UDim2.fromOffset(260, 68)
+	-- PLAY is the single solid element on the menu — a filled neon slab,
+	-- not another ghosted outline, so the one action that matters reads
+	-- first. ENTER and R both start.
+	local play = Instance.new("TextButton")
+	play.BackgroundColor3 = C_PINK
+	play.AutoButtonColor = false
+	play.Font = F_DISPLAY
+	play.TextSize = 34
+	play.TextColor3 = Color3.fromRGB(16, 6, 24)
+	play.Text = "PLAY"
+	play.Size = UDim2.fromOffset(300, 74)
+	play.LayoutOrder = 4
+	play.Parent = menuCol
+	local playCorner = Instance.new("UICorner")
+	playCorner.CornerRadius = UDim.new(0, 12)
+	playCorner.Parent = play
+	local playGrad = Instance.new("UIGradient")
+	playGrad.Rotation = 90
+	playGrad.Color = ColorSequence.new(C_PINK:Lerp(C_WHITE, 0.18), C_PINK:Lerp(Color3.fromRGB(90, 0, 60), 0.25))
+	playGrad.Parent = play
+	local playStroke = Instance.new("UIStroke")
+	playStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	playStroke.Color = C_CYAN
+	playStroke.Thickness = 1.5
+	playStroke.Transparency = 0.55
+	playStroke.Parent = play
+	play.MouseEnter:Connect(function()
+		play.TextColor3 = C_WHITE
+		playStroke.Transparency = 0.05
+	end)
+	play.MouseLeave:Connect(function()
+		play.TextColor3 = Color3.fromRGB(16, 6, 24)
+		playStroke.Transparency = 0.55
+	end)
 
-	label(menuCol, "or press R", 13, F_DATA, C_DIM, 5).TextTransparency = 0.25
+	label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 5).TextTransparency = 0.25
 
-	local seedLabel =
-		label(menuCol, "seed — blank = random · 'daily' = today · 'weekly' = the cup", 14, F_DATA, C_DIM, 6)
-	seedLabel.TextTransparency = 0.2
+	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 6)
+
+	-- RUN SETUP (§6): everything that shapes THIS run lives next to PLAY —
+	-- one-tap RANDOM/DAILY/WEEKLY chips write the seed box, or type a
+	-- custom seed, and the TRACK cycler picks the song. The old cryptic
+	-- "blank = random · 'daily' = today" explainer is gone: the chips are
+	-- self-describing.
+	local setup = Instance.new("Frame")
+	setup.Name = "RunSetup"
+	setup.BackgroundColor3 = C_PANEL
+	setup.BackgroundTransparency = 0.45
+	setup.BorderSizePixel = 0
+	setup.Size = UDim2.fromOffset(392, 122)
+	setup.LayoutOrder = 7
+	setup.Parent = menuCol
+	local setupCorner = Instance.new("UICorner")
+	setupCorner.CornerRadius = UDim.new(0, 10)
+	setupCorner.Parent = setup
+	local setupStroke = Instance.new("UIStroke")
+	setupStroke.Color = C_DIM
+	setupStroke.Thickness = 1
+	setupStroke.Transparency = 0.55
+	setupStroke.Parent = setup
 
 	local seedBox = Instance.new("TextBox")
-	seedBox.BackgroundColor3 = C_PANEL
-	seedBox.BackgroundTransparency = 0.35
+	seedBox.BackgroundColor3 = C_BG
+	seedBox.BackgroundTransparency = 0.3
+	seedBox.BorderSizePixel = 0
 	seedBox.Font = F_DATA
-	seedBox.TextSize = 18
+	seedBox.TextSize = 17
 	seedBox.TextColor3 = C_PINK
-	seedBox.PlaceholderText = "random"
+	seedBox.PlaceholderText = "or type a seed"
 	seedBox.PlaceholderColor3 = C_DIM
 	seedBox.Text = ""
-	seedBox.Size = UDim2.fromOffset(260, 34)
+	seedBox.Position = UDim2.fromOffset(18, 46)
+	seedBox.Size = UDim2.fromOffset(356, 30)
 	seedBox.ClearTextOnFocus = false
-	seedBox.LayoutOrder = 7
 	local seedStroke = Instance.new("UIStroke")
 	seedStroke.Color = C_DIM
-	seedStroke.Transparency = 0.4
+	seedStroke.Transparency = 0.5
 	seedStroke.Parent = seedBox
-	seedBox.Parent = menuCol
+	seedBox.Parent = setup
 	self.seedBox = seedBox
 
-	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 8)
-	label(menuCol, "", 8, F_DATA, C_DIM, 9)
+	-- Seed chips: segmented quick-pick for the three run variants. Lit chip
+	-- = what PLAY will run; a typed seed unlatches them all (custom read).
+	local chipBtns: { [string]: TextButton } = {}
+	local function paintChips()
+		local t = string.lower(seedBox.Text)
+		local lit = if t == ""
+			then "random"
+			elseif Daily.isKeyword(t) then "daily"
+			elseif Daily.isWeekKeyword(t) then "weekly"
+			else ""
+		for key, b in pairs(chipBtns) do
+			local on = key == lit
+			b.TextColor3 = on and C_PINK or C_DIM
+			local st = b:FindFirstChildOfClass("UIStroke")
+			if st then
+				st.Color = b.TextColor3
+			end
+		end
+	end
+	for i, key in ipairs({ "random", "daily", "weekly" }) do
+		local b = Instance.new("TextButton")
+		b.Name = "Chip" .. key
+		b.BackgroundColor3 = C_BG
+		b.BackgroundTransparency = 0.3
+		b.AutoButtonColor = false
+		b.Font = F_DATA
+		b.TextSize = 13
+		b.TextColor3 = C_DIM
+		b.Text = string.upper(key)
+		b.Position = UDim2.fromOffset(18 + (i - 1) * 121, 12)
+		b.Size = UDim2.fromOffset(114, 26)
+		b.Parent = setup
+		local bc = Instance.new("UICorner")
+		bc.CornerRadius = UDim.new(0, 6)
+		bc.Parent = b
+		local bs = Instance.new("UIStroke")
+		bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		bs.Color = C_DIM
+		bs.Thickness = 1
+		bs.Parent = b
+		chipBtns[key] = b
+		b.MouseButton1Click:Connect(function()
+			seedBox.Text = if key == "random" then "" else key
+		end)
+	end
+	seedBox:GetPropertyChangedSignal("Text"):Connect(paintChips)
+	paintChips()
+
+	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip —
+	-- run-scoped, so it lives in the setup cluster, not the garage.
+	local trkLabel = Instance.new("TextLabel")
+	trkLabel.BackgroundTransparency = 1
+	trkLabel.Font = F_DATA
+	trkLabel.TextSize = 12
+	trkLabel.TextColor3 = C_DIM
+	trkLabel.TextXAlignment = Enum.TextXAlignment.Left
+	trkLabel.Text = "TRACK"
+	trkLabel.Position = UDim2.fromOffset(18, 84)
+	trkLabel.Size = UDim2.fromOffset(56, 26)
+	trkLabel.Parent = setup
+
+	local trkName = Instance.new("TextButton")
+	trkName.BackgroundTransparency = 1
+	trkName.AutoButtonColor = false
+	trkName.Font = F_DATA
+	trkName.TextSize = 15
+	trkName.TextColor3 = C_WHITE
+	trkName.Text = "SEEDED"
+	trkName.Position = UDim2.fromOffset(102, 84)
+	trkName.Size = UDim2.fromOffset(190, 26)
+	trkName.TextXAlignment = Enum.TextXAlignment.Center
+	trkName.Parent = setup
+	self.trackName = trkName
+
+	local function arrowButton(parent, text, x, y)
+		local b = Instance.new("TextButton")
+		b.BackgroundTransparency = 1
+		b.AutoButtonColor = false
+		b.Font = F_DATA
+		b.TextSize = 20
+		b.TextColor3 = C_CYAN
+		b.Text = text
+		b.Position = UDim2.fromOffset(x, y - 2)
+		b.Size = UDim2.fromOffset(26, 30)
+		b.Parent = parent
+		return b
+	end
+
+	local trkLeft = arrowButton(setup, "<", 74, 84)
+	trkLeft.MouseButton1Click:Connect(function()
+		if self.onTrackCycle then
+			self.onTrackCycle(-1)
+		end
+	end)
+	local trkRight = arrowButton(setup, ">", 296, 84)
+	trkRight.MouseButton1Click:Connect(function()
+		if self.onTrackCycle then
+			self.onTrackCycle(1)
+		end
+	end)
+
+	label(menuCol, "", 4, F_DATA, C_DIM, 8)
 	-- Daily quests (§14): today's three seeded missions — ✓ gold when done,
 	-- ◇ dim while open; the bank quest shows today's running total.
-	label(menuCol, "today's missions", 12, F_DATA, C_DIM, 10)
+	label(menuCol, "today's missions", 12, F_DATA, C_DIM, 9)
 	self.questLines = {}
 	for i = 1, 3 do
-		self.questLines[i] = label(menuCol, "", 14, F_DATA, C_DIM, 10 + i)
+		self.questLines[i] = label(menuCol, "", 14, F_DATA, C_DIM, 9 + i)
 	end
 	-- Achievements (§14): running unlock count — the celebration itself is
 	-- the toast; the menu keeps only the tally.
-	self.achLine = label(menuCol, "", 12, F_DATA, C_GOLD, 14)
-	label(menuCol, "", 6, F_DATA, C_DIM, 15)
-	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 16)
+	self.achLine = label(menuCol, "", 12, F_DATA, C_GOLD, 13)
+	label(menuCol, "", 4, F_DATA, C_DIM, 14)
+	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 15)
 
 	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): a mini console hidden
 	-- behind an "audio" toggle — click to unfold the channel rows. Drag
@@ -250,7 +403,7 @@ function Ui.new(): Ui
 	-- profile.audio.
 	local mixerRows: { Frame } = {}
 	local mixerOpen = false
-	local audioToggle = ghostButton(menuCol, "audio ▸", 11, 17)
+	local audioToggle = ghostButton(menuCol, "audio ▸", 11, 16)
 	audioToggle.MouseButton1Click:Connect(function()
 		mixerOpen = not mixerOpen
 		audioToggle.Text = if mixerOpen then "audio ▾" else "audio ▸"
@@ -518,17 +671,15 @@ function Ui.new(): Ui
 	self.recent = recent
 
 	--============================ GARAGE ============================--
-	-- Neon shop (DESIGN.md §18): left-panel mirror of the leaderboard.
-	-- Equip arrows cycle the whole catalog per slot — owned items equip on
-	-- browse, unowned ones show their gem price and buy on name-click.
-	-- Pack buttons prompt bundle gamepasses, the BANK block sells gem-pack
-	-- dev products and the 2X BANK pass. Pure presentation — Main feeds
-	-- names/status via setGarage and owns the callbacks.
+	-- Neon shop (DESIGN.md §18): left rail, tabbed — STYLE (equip cyclers),
+	-- PACKS (bundle gamepasses), BANK (gem packs + 2X pass). One page is
+	-- visible at a time: the full shop is 30+ controls, and showing them
+	-- all at once drowned PLAY (progressive disclosure).
 	local garage = Instance.new("Frame")
 	garage.Name = "Garage"
 	garage.AnchorPoint = Vector2.new(0, 0.5)
 	garage.Position = UDim2.fromScale(0.04, 0.5)
-	garage.Size = UDim2.fromOffset(330, 710)
+	garage.Size = UDim2.fromOffset(330, 430)
 	garage.BackgroundColor3 = C_PANEL
 	garage.BackgroundTransparency = 0.25
 	garage.BorderSizePixel = 0
@@ -537,27 +688,52 @@ function Ui.new(): Ui
 	gcorner.CornerRadius = UDim.new(0, 10)
 	gcorner.Parent = garage
 
-	label(garage, "GARAGE", 22, F_DISPLAY, C_PINK, 0).Position = UDim2.fromOffset(0, 8)
+	label(garage, "GARAGE", 20, F_DISPLAY, C_PINK, 0).Position = UDim2.fromOffset(0, 8)
 
-	local function arrowButton(parent, text, x, y)
+	local gTabs: { [string]: TextButton } = {}
+	local gPages: { [string]: Frame } = {}
+	for i, name in ipairs({ "STYLE", "PACKS", "BANK" }) do
 		local b = Instance.new("TextButton")
+		b.Name = "Tab" .. name
 		b.BackgroundTransparency = 1
 		b.AutoButtonColor = false
-		b.Font = F_DATA
-		b.TextSize = 20
-		b.TextColor3 = C_CYAN
-		b.Text = text
-		b.Position = UDim2.fromOffset(x, y)
-		b.Size = UDim2.fromOffset(26, 30)
-		b.Parent = parent
-		return b
+		b.Font = F_DISPLAY
+		b.TextSize = 13
+		b.Text = name
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 104, 40)
+		b.Size = UDim2.fromOffset(96, 24)
+		b.Parent = garage
+		gTabs[name] = b
+
+		local pg = Instance.new("Frame")
+		pg.BackgroundTransparency = 1
+		pg.Position = UDim2.fromOffset(0, 72)
+		pg.Size = UDim2.new(1, 0, 1, -72)
+		pg.Visible = i == 1
+		pg.Parent = garage
+		gPages[name] = pg
 	end
+	local function setGarageTab(name: string)
+		for n, b in pairs(gTabs) do
+			b.TextColor3 = if n == name then C_PINK else C_DIM
+		end
+		for n, pg in pairs(gPages) do
+			pg.Visible = n == name
+		end
+	end
+	for name, b in pairs(gTabs) do
+		b.MouseButton1Click:Connect(function()
+			setGarageTab(name)
+		end)
+	end
+	setGarageTab("STYLE")
 
 	-- Slot rows: "SKIN   < ITEM NAME >". Cycling browses the full catalog;
 	-- the name itself is the buy button for priced-but-unowned items.
 	self.slotItem = {}
+	local pageStyle = gPages.STYLE
 	for i, slot in ipairs(Cosmetics.Slots) do
-		local y = 46 + (i - 1) * 30
+		local y = 6 + (i - 1) * 30
 		local sl = Instance.new("TextLabel")
 		sl.BackgroundTransparency = 1
 		sl.Font = F_DATA
@@ -567,7 +743,7 @@ function Ui.new(): Ui
 		sl.Text = Cosmetics.SlotName[slot]
 		sl.Position = UDim2.fromOffset(14, y)
 		sl.Size = UDim2.fromOffset(56, 28)
-		sl.Parent = garage
+		sl.Parent = pageStyle
 
 		local nm = Instance.new("TextButton")
 		nm.BackgroundTransparency = 1
@@ -578,7 +754,7 @@ function Ui.new(): Ui
 		nm.Text = "—"
 		nm.Position = UDim2.fromOffset(102, y)
 		nm.Size = UDim2.fromOffset(182, 28)
-		nm.Parent = garage
+		nm.Parent = pageStyle
 		self.slotItem[slot] = nm
 		nm.MouseButton1Click:Connect(function()
 			if self.onItemSlot then
@@ -586,13 +762,13 @@ function Ui.new(): Ui
 			end
 		end)
 
-		local left = arrowButton(garage, "<", 72, y)
+		local left = arrowButton(pageStyle, "<", 72, y)
 		left.MouseButton1Click:Connect(function()
 			if self.onEquipCycle then
 				self.onEquipCycle(slot, -1)
 			end
 		end)
-		local right = arrowButton(garage, ">", 288, y)
+		local right = arrowButton(pageStyle, ">", 288, y)
 		right.MouseButton1Click:Connect(function()
 			if self.onEquipCycle then
 				self.onEquipCycle(slot, 1)
@@ -600,59 +776,16 @@ function Ui.new(): Ui
 		end)
 	end
 
-	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip.
-	-- SEEDED lets the run seed choose; a named track makes Main send a
-	-- seed in that track's residue class so the gen charts the song the
-	-- player actually hears (seed box text still wins over the pick).
-	local trkLabel = Instance.new("TextLabel")
-	trkLabel.BackgroundTransparency = 1
-	trkLabel.Font = F_DATA
-	trkLabel.TextSize = 12
-	trkLabel.TextColor3 = C_DIM
-	trkLabel.TextXAlignment = Enum.TextXAlignment.Left
-	trkLabel.Text = "TRACK"
-	trkLabel.Position = UDim2.fromOffset(14, 196)
-	trkLabel.Size = UDim2.fromOffset(56, 28)
-	trkLabel.Parent = garage
-
-	local trkName = Instance.new("TextButton")
-	trkName.BackgroundTransparency = 1
-	trkName.AutoButtonColor = false
-	trkName.Font = F_DATA
-	trkName.TextSize = 15
-	trkName.TextColor3 = C_WHITE
-	trkName.Text = "SEEDED"
-	trkName.Position = UDim2.fromOffset(102, 196)
-	trkName.Size = UDim2.fromOffset(182, 28)
-	trkName.TextXAlignment = Enum.TextXAlignment.Center
-	trkName.Parent = garage
-	self.trackName = trkName
-
-	local trkLeft = arrowButton(garage, "<", 72, 196)
-	trkLeft.MouseButton1Click:Connect(function()
-		if self.onTrackCycle then
-			self.onTrackCycle(-1)
-		end
-	end)
-	local trkRight = arrowButton(garage, ">", 288, 196)
-	trkRight.MouseButton1Click:Connect(function()
-		if self.onTrackCycle then
-			self.onTrackCycle(1)
-		end
-	end)
-
-	local browseHint = label(garage, "cycle equips owned · click a ◊ price to buy", 10, F_DATA, C_DIM, 0)
-	browseHint.Position = UDim2.fromOffset(0, 230)
+	local browseHint = label(pageStyle, "cycle equips owned · click a ◊ price to buy", 10, F_DATA, C_DIM, 0)
+	browseHint.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 6)
 	browseHint.TextTransparency = 0.35
-
-	label(garage, "PACKS", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 248)
 
 	-- Pack rows: name + contents left, price button right. Button state
 	-- comes from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
 	self.packBtn = {}
 	self.packStroke = {}
 	self.packEnabled = {}
-	local function packRow(id: string, name: string, desc: string, y: number)
+	local function packRow(parent: Frame, id: string, name: string, desc: string, y: number)
 		local nl = Instance.new("TextLabel")
 		nl.BackgroundTransparency = 1
 		nl.Font = F_DATA
@@ -662,7 +795,7 @@ function Ui.new(): Ui
 		nl.Text = name
 		nl.Position = UDim2.fromOffset(14, y)
 		nl.Size = UDim2.fromOffset(210, 18)
-		nl.Parent = garage
+		nl.Parent = parent
 
 		local dl = Instance.new("TextLabel")
 		dl.BackgroundTransparency = 1
@@ -674,7 +807,7 @@ function Ui.new(): Ui
 		dl.Text = desc
 		dl.Position = UDim2.fromOffset(14, y + 17)
 		dl.Size = UDim2.fromOffset(210, 14)
-		dl.Parent = garage
+		dl.Parent = parent
 
 		local btn = Instance.new("TextButton")
 		btn.BackgroundColor3 = C_BG
@@ -686,7 +819,7 @@ function Ui.new(): Ui
 		btn.Text = "R$?"
 		btn.Position = UDim2.fromOffset(232, y + 2)
 		btn.Size = UDim2.fromOffset(84, 32)
-		btn.Parent = garage
+		btn.Parent = parent
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
 		corner.Parent = btn
@@ -727,14 +860,15 @@ function Ui.new(): Ui
 	end
 	for i, b in ipairs(Cosmetics.Bundles) do
 		local desc = if b.id == Config.Monetization.Seasonal.Bundle then seasonalDesc(b.desc) else b.desc
-		packRow(b.id, b.name, desc, 264 + (i - 1) * 34)
+		packRow(gPages.PACKS, b.id, b.name, desc, 6 + (i - 1) * 34)
 	end
 
 	--=========== BANK (§18 P2) ===========--
-	-- Gem economy surface: balance line, three gem-pack dev products, and
-	-- the 2X BANK pass row. Everything degrades to SOON until the ids are
+	-- Gem economy page: balance line, three gem-pack dev products, and the
+	-- 2X BANK pass row. Everything degrades to SOON until the ids are
 	-- created on the dashboard — the buttons only arm via setGarage.
-	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 576)
+	local pageBank = gPages.BANK
+	label(pageBank, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 6)
 	local bal = Instance.new("TextLabel")
 	bal.BackgroundTransparency = 1
 	bal.Font = F_DATA
@@ -742,9 +876,9 @@ function Ui.new(): Ui
 	bal.TextColor3 = C_GOLD
 	bal.TextXAlignment = Enum.TextXAlignment.Right
 	bal.Text = "◊ 0"
-	bal.Position = UDim2.fromOffset(150, 574)
+	bal.Position = UDim2.fromOffset(150, 4)
 	bal.Size = UDim2.fromOffset(166, 20)
-	bal.Parent = garage
+	bal.Parent = pageBank
 	self.bankLabel = bal
 
 	-- Gem packs: three equal buttons "◊300\nR$49". Enabled state arrives via
@@ -761,9 +895,9 @@ function Ui.new(): Ui
 		b.TextSize = 13
 		b.TextColor3 = C_GOLD
 		b.Text = "◊?\nSOON"
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 600)
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 32)
 		b.Size = UDim2.fromOffset(96, 44)
-		b.Parent = garage
+		b.Parent = pageBank
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
 		corner.Parent = b
@@ -793,10 +927,10 @@ function Ui.new(): Ui
 
 	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
 	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow("bank2x", "2X BANK", "every gem banks double", 654)
+	packRow(pageBank, "bank2x", "2X BANK", "every gem banks double", 90)
 
-	local hint = label(garage, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 698)
+	local hint = label(pageBank, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
+	hint.Position = UDim2.fromOffset(0, 136)
 	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
@@ -807,7 +941,7 @@ function Ui.new(): Ui
 	hud.Name = "Hud"
 	hud.AnchorPoint = Vector2.new(1, 0)
 	hud.Position = UDim2.new(1, -18, 0, 12)
-	hud.Size = UDim2.fromOffset(360, 118)
+	hud.Size = UDim2.fromOffset(360, 152)
 	hud.BackgroundTransparency = 1
 	hud.Visible = false
 	hud.Parent = gui

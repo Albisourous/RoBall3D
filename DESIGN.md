@@ -157,10 +157,17 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 ## 6. Run structure & menu
 
 - **Menu** (built in code, `StarterGui` from Luau — everything stays in git):
-  - Title `ROBALL3D`, vaporwave-styled
-  - **PLAY** button — starts a run on a random seed
-  - Seed `TextBox` — paste/type a seed for an identical map, `daily` for
-    today's shared UTC seed, `weekly` for the cup (§14)
+  one dominant CTA + grouped rails. Title `ROBALL3D`, vaporwave-styled.
+  - **PLAY** — the only filled element on the screen (solid pink slab,
+    cyan rim on hover); `ENTER`/`R` also start. Everything else is chrome.
+  - **RUN SETUP** panel — a bordered cluster under PLAY holding whatever
+    shapes the run: `RANDOM | DAILY | WEEKLY` seed chips (one tap writes
+    the seed box; the lit chip is what PLAY runs; typing a custom seed
+    unlatches them all), the seed `TextBox` (`daily`/`weekly` keywords
+    still work — §14), and the `TRACK` cycler (AUDIO.md §3).
+  - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK`: equip cyclers,
+    bundle passes, and the gem bank each get their own page so the shop
+    can't flood the menu (§18). The preview ball still dresses live.
   - Leaderboard panel — TOP / DAILY / WEEKLY tabs (`name / score / seed`);
     daily shows the shared seed + time to reset, weekly shows the cup
     seed + days to reset. A `◈ friends` toggle filters whichever board is
