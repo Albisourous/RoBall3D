@@ -659,14 +659,9 @@ spot — yaw sweeps `DeathOrbitArc` (~31°) while the radius pulls back
 toward `DeathOrbitPull`× and FOV settles to FovMin — *then* the death
 card lands. R mid-orbit skips straight to restart; a stale delayed card
 is dropped by the death-sequence guard. No lives, no shields — they were
-explicitly deferred. When the seed has a
-champion (a rival ghost replayed this run), the card offers
-**`watch <name>`** — `Ghost.replayCsv` plays the record holder's stored
-frames down the still-standing track as a labeled gold echo, the chase
-cam following with the live run's framing, so the fatal comparison is
-the line that holds the board. Playback's end returns to the
-same card (re-shown from the stored arg tuple); R skips straight to a
-retry, and any new run's `Ghost.stop()` clears the echo. The
+explicitly deferred; no replay playback either — watch-replay/rerun/
+watch-champion were cut as death-card clutter (any new run's
+`Ghost.stop()` still clears live echoes). The
 card also **names the killer**: `FatalController` reports the lethal
 part it simulated, the server reads the part's `ChunkType` stamp (set
 at build from the spec) and carries the type on `RunEnded` — the stats

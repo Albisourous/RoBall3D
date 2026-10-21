@@ -158,7 +158,6 @@ function Ui.new(): Ui
 	self.onPlay = nil :: ((seedText: string) -> ())?
 	self.onRetry = nil :: (() -> ())?
 	self.onMenu = nil :: (() -> ())?
-	self.onChampion = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
 	self.onBuy = nil :: ((bundleId: string) -> ())?
@@ -1729,31 +1728,13 @@ function Ui.new(): Ui
 		end
 	end)
 	label(dCol, "R retry", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
-	-- Watch champion (§11): the seed's record replay, labeled with the
-	-- holder — only offered when a champion ghost exists for the seed.
-	self.dChamp = ghostButton(dCol, "watch champion", 15, 12)
-	self.dChamp.Visible = false
-	self.dChamp.MouseButton1Click:Connect(function()
-		if self.onChampion then
-			self.onChampion()
-		end
-	end)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 13)
+	local toMenu = ghostButton(dCol, "menu", 15, 12)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
 		end
 	end)
-
-	-- Replay hint (§11): bottom-center while a champion recording plays
-	-- back — R skips straight into a retry, playback's end re-shows the card.
-	local rh = label(gui, "R retry", 13, F_DATA, C_DIM, 0)
-	rh.AnchorPoint = Vector2.new(0.5, 1)
-	rh.Position = UDim2.new(0.5, 0, 1, -14)
-	rh.Size = UDim2.fromOffset(300, 20)
-	rh.Visible = false
-	self.replayHint = rh
 
 	return self
 end
@@ -2085,12 +2066,6 @@ function Ui:showDeath(
 	self.dQuest.Visible = hits > 0
 	self.dRank.Visible = false -- daily rank fills in late via setDailyRank
 	self.tRank.Visible = false -- all-time rank fills in late via setTopRank
-	-- WATCH CHAMPION needs a champ on this seed — rivalName is set only
-	-- when one replayed during the run.
-	self.dChamp.Visible = stats ~= nil and stats.rivalName ~= nil
-	if stats and stats.rivalName then
-		self.dChamp.Text = "watch " .. stats.rivalName
-	end
 	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
 	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
 	if stats then
@@ -2138,13 +2113,6 @@ function Ui:showDeath(
 	else
 		self.dStats.Visible = false
 	end
-end
-
--- Replay mode (§11): the card steps aside while the run's recording
--- plays back down the live track; the hint carries the exits.
-function Ui:showReplay(on: boolean)
-	self.death.Visible = not on
-	self.replayHint.Visible = on
 end
 
 -- Daily rank (§14): "daily #3" on the death card — the server publishes

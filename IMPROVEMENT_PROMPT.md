@@ -412,10 +412,10 @@ runs the loop below and does not stop until you say **stop**.
     personality legible, not just a corner label)*
 
 58. **Watch champion** *(done — when the seed's champion replayed as the
-    run's rival ghost, the death card offers `watch <name>`:
-    `Ghost.replayCsv` plays the record holder's stored frames through
-    the replay path as a labeled gold echo. Learn the line you're
-    chasing)*
+    run's rival ghost, the death card offers `watch <name>`.
+    **removed** — the whole replay mode went with watch-replay:
+    `Ghost.replayCsv`/`replayPos`, the replay camera branch, and the
+    card's replay verbs all cut as clutter)*
 
 59. **Quest-complete flash** *(done — a quest crossed mid-run pulses
     `QUEST ✓ <name>` over the debut channel, driven by a per-quest met

@@ -73,15 +73,13 @@ local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
 ui.gateFrac = Config.Power.RechargeGate
 
-local mode: "menu" | "running" | "dead" | "replay" = "menu"
+local mode: "menu" | "running" | "dead" = "menu"
 local ball: BasePart? = nil
 local lateralVel = 0
 local fwdSpeed = Config.Speed.Start
 local currentSeed: number? = nil
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
-local replayEndAt = 0 -- replay mode (§11): wall-clock the playback ends
-local cardArgs: { any }? = nil -- last showDeath arg tuple — replay end returns here
 local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
 local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
@@ -326,38 +324,6 @@ local function requestStart()
 end
 ui.onPlay = requestStart
 ui.onRetry = requestStart
--- Replay exit (§11): the playback reaching its end drops back to the
--- death card — it re-shows from the stored arg tuple.
-local function endReplay()
-	if mode ~= "replay" then
-		return
-	end
-	mode = "dead"
-	ui:showReplay(false)
-	if cardArgs then
-		ui:showDeath(table.unpack(cardArgs))
-	end
-end
--- WATCH CHAMPION (§11): the seed's record replay — fetched fresh (the
--- run-start fetch already proved one exists; this gets the frames back
--- after stop() cleared the echo) and played down the live track.
-ui.onChampion = function()
-	if not currentSeed then
-		return
-	end
-	local g = fnGetGhost:InvokeServer(currentSeed)
-	local champ = g and g.c
-	if not (champ and champ.f) then
-		return
-	end
-	local dur = Ghost.replayCsv(champ.f, champ.n)
-	if not dur then
-		return
-	end
-	mode = "replay"
-	replayEndAt = os.clock() + dur + 0.5 -- hold a beat on the final frame
-	ui:showReplay(true)
-end
 
 -- Equip arrows: browse the WHOLE slot order, wrap around. Owned items
 -- equip as they come into view (server re-validates — this is only a
@@ -643,8 +609,6 @@ end)
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
-	cardArgs = nil -- a fresh run can't fall back to a stale card
-	ui:showReplay(false) -- R mid-replay lands here with the card hidden
 	-- Mirror a rolled seed into the box: a blank box ("random" chip or a
 	-- cleared field) launched this run, so write the resolved number back
 	-- and every later start — R included — reloads the same map. A held
@@ -760,21 +724,11 @@ evRunEnded.OnClientEvent:Connect(
 		-- The card waits out the death-cam orbit (§11); R mid-orbit skips it
 		-- via requestStart — the seq guard drops the stale delayed show.
 		local seq = deathSeq
-		-- Stored for the replay exit: a champion playback's end re-shows this
-		-- exact card — ranks still fill in late via their attr listeners.
-		cardArgs = {
-			score,
-			dist,
-			gems,
-			best,
-			seed,
-			newBest,
-			banked,
-			streak,
-			streakBonus,
-			questBonus,
-			questHits,
-			{
+		task.delay(Config.Camera.DeathOrbitSec, function()
+			if mode ~= "dead" or deathSeq ~= seq then
+				return
+			end
+			ui:showDeath(score, dist, gems, best, seed, newBest, banked, streak, streakBonus, questBonus, questHits, {
 				top = statMaxFwd,
 				boost = statBoostDist,
 				dashes = statDashes,
@@ -785,12 +739,7 @@ evRunEnded.OnClientEvent:Connect(
 				pbDelta = paceCache,
 				rivalDelta = rivalPaceCache,
 				rivalName = rivalName,
-			},
-		}
-		task.delay(Config.Camera.DeathOrbitSec, function()
-			if mode == "dead" and deathSeq == seq and cardArgs then
-				ui:showDeath(table.unpack(cardArgs))
-			end
+			})
 		end)
 		Music.onDeath()
 	end
@@ -846,11 +795,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	-- R restarts in ANY mode — mid-run it abandons the run and re-rolls
-	-- instantly (the Slope rage-restart), mid-replay it exits to a fresh
-	-- run. It starts on the seed box's pick — "daily" by default, a typed
-	-- seed, or a rolled random that's been mirrored back into the box —
-	-- so a reload keeps the same map unless the menu says otherwise.
-	-- Enter starts from the menu.
+	-- instantly (the Slope rage-restart). It starts on the seed box's
+	-- pick — "daily" by default, a typed seed, or a rolled random that's
+	-- been mirrored back into the box — so a reload keeps the same map
+	-- unless the menu says otherwise. Enter starts from the menu.
 	if input.KeyCode == Enum.KeyCode.R or (input.KeyCode == Enum.KeyCode.Return and mode == "menu") then
 		requestStart()
 		return
@@ -1188,7 +1136,6 @@ RunService.RenderStepped:Connect(function(dt)
 		-- FOV settles back to FovMin so the card lands on a calm frame.
 		local k = math.clamp((os.clock() - deathT0) / cam.DeathOrbitSec, 0, 1)
 		local ease = 1 - (1 - k) ^ 2
-		Ghost.tick(dt, lastBallPos) -- advance the death-replay echo on the orbit clock
 		local yaw = ease * cam.DeathOrbitArc
 		local off = cam.Offset * (1 + (cam.DeathOrbitPull - 1) * ease)
 		local rx = off.Z * math.sin(yaw)
@@ -1196,22 +1143,6 @@ RunService.RenderStepped:Connect(function(dt)
 		camera.FieldOfView = cam.FovMin + (camera.FieldOfView - cam.FovMin) * (1 - ease)
 		camera.CFrame = CFrame.lookAt(lastBallPos + Vector3.new(rx, off.Y, rz), lastBallPos)
 		Backdrop.update(lastBallPos)
-	elseif mode == "replay" then
-		-- Watch replay (§11): the run's recording plays back down the
-		-- still-standing track — the chase cam follows the echo with the
-		-- live run's framing so the fatal line re-reads at speed.
-		Ghost.tick(dt, lastBallPos)
-		local rp = Ghost.replayPos() or lastBallPos
-		local desired = rp + cam.Offset
-		camPos = if camPos then camPos + (desired - camPos) * (1 - math.exp(-dt / cam.SmoothTime)) else desired
-		local target = rp + Config.Generation.TravelAxis * cam.LookAhead
-		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
-		camera.FieldOfView = cam.FovMin
-		camera.CFrame = CFrame.lookAt(camPos :: Vector3, target)
-		Backdrop.update(rp)
-		if os.clock() >= replayEndAt then
-			endReplay()
-		end
 	else
 		-- Menu vista: slow orbit toward the track start
 		local t = tick() * 0.12
