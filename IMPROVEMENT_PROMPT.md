@@ -349,6 +349,13 @@ runs the loop below and does not stop until you say **stop**.
     t=2.38; the mistimed first stub dove before the catch and correctly
     fired neither)*
 
+50. **Air share on the death card** *(done — 147e13e: the stats line
+    gains `air A%` — share of run time the lane probe found no contact
+    (`Landing.ContactPad` under the ball's underside). Reuses the
+    landing-shadow raycast; display-only like the rest of the line.
+    Verified live: pinned +30 for 4s of a 4.5s run → `air 95% · felled
+    by the VOID`; natural grounded runs → `air 0%`)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
