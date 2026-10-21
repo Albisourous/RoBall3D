@@ -39,16 +39,16 @@ Budgets (targets, not laws):
 - [x] **`FilterDescendantsInstances` allocates a table per frame.** (fixed: persistent `edgeFilter`, re-seated in bindBall)
   `Main.client.luau:1128` builds `{ edgeLane }` every heartbeat. Assign
   only when `edgeLane` actually changes (bindBall / run start).
-- [ ] **HUD cache allocates a string per frame.**
+- [x] **HUD cache allocates a string per frame.**
   `Main.client.luau:1210` `string.format("%d|%d|%d|%d", ...)` — compare
-  the four numeric fields against cached numbers instead.
+  the four numeric fields against cached numbers instead. (done)
 - [x] **`Ui:setSpeedo` writes ~10 UI properties every heartbeat.** (fixed: write-gating + whole-pixel/quantized steps)
   `Ui.luau:1828-1903`: 3× `.Text`, 3× `.TextSize` (pulse-driven, forces
   text relayout every frame), 2× `.Position`, 2× `.TextTransparency`,
   `.TextColor3`, stroke `.Color`. Gate writes on changed values;
   quantize `TextSize`/`spread` to whole pixels so sub-pixel pulse jitter
   stops dirtying layout.
-- [ ] **Trivial per-frame writes:** `camera.CameraType = Scriptable`
+- [x] **Trivial per-frame writes:** `camera.CameraType = Scriptable`
   every RenderStepped (`Main.client.luau:1218`) — set once.
   `Ui:setEdgeWarn`/`setDanger` run every frame — early-out when the
   visibility state is unchanged.
@@ -107,10 +107,11 @@ Budgets (targets, not laws):
   chime/dash/ping** and connects `Ended` per instance. Acceptable at
   current rates; if pooling chime voices, route the dash/ping voices
   through the same pool.
-- [ ] **`GhostController.framesCsv` allocates a temp 4-element table per
+- [x] **`GhostController.framesCsv` allocates a temp 4-element table per
   row** (`GhostController.luau:99`) — build each row with
-  `string.format` into the output table directly.
-- [ ] **`spec.section(t)` allocates a fresh Section table per call.**
+  `string.format` into the output table directly. (done: `..` concat,
+  no temp arrays)
+- [x] **`spec.section(t)` allocates a fresh Section table per call.**
   `TrackStreamer.buildChunk` already caches the `samples` array for
   slicing but re-calls `section()` ~3× per emitDeck, ~3× per grid strip,
   ~3× per sector mark (~50–100 allocs per chunk). Index the sampled

@@ -273,7 +273,8 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 		) * CFrame.Angles(pitch, 0, roll) * CFrame.Angles(0, 0, math.rad(90))
 		disc.Parent = parent
 	end
-	return b
+	-- `mid` rides along so the hazard record doesn't re-pay a section call.
+	return b, mid
 end
 
 -- Gems hover above the deck (or along the ramp arc). Shape: a cube balanced
@@ -540,6 +541,23 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		samples[i + 1] = spec.section(i / n)
 	end
 
+	-- spec.section(t) allocates a fresh Section per call (PERFORMANCE.md
+	-- §3): emitDeck and the transverse marks re-queried ~3x per feature.
+	-- Aligned t hits `samples` directly; anything else memoizes per build.
+	local secCache: { [number]: ChunkDefs.Section } = {}
+	local function secAt(t: number): ChunkDefs.Section
+		local i = math.round(t * n)
+		if i >= 0 and i <= n and math.abs(t - i / n) < 1e-6 then
+			return samples[i + 1]
+		end
+		local s = secCache[t]
+		if not s then
+			s = spec.section(t)
+			secCache[t] = s
+		end
+		return s
+	end
+
 	-- Blackout (§8.6): the chunk's transverse + center neon dims to a
 	-- fraction of normal — edge rails and gems stay lit (they're the read).
 	local gridScale = if spec.dim then Config.Blackout.GridScale else 1
@@ -557,9 +575,9 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	-- One straight deck box (or twin rails for a cutout) spanning tA..tB.
 	local function emitDeck(tA: number, tB: number)
 		local tM = (tA + tB) / 2
-		local sA = spec.section(tA)
-		local sB = spec.section(tB)
-		local mid = spec.section(tM)
+		local sA = secAt(tA)
+		local sB = secAt(tB)
+		local mid = secAt(tM)
 		if mid.width <= 0.5 then
 			return
 		end
@@ -660,12 +678,12 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	-- the deck was sliced above.
 	for off = Config.Art.GridEvery, len - 0.01, Config.Art.GridEvery do
 		local t = off / len
-		local mid = spec.section(t)
+		local mid = secAt(t)
 		if mid.width > 0.5 then
 			local tA = math.max(t - 0.02, 0)
 			local tB = math.min(t + 0.02, 1)
-			local sA = spec.section(tA)
-			local sB = spec.section(tB)
+			local sA = secAt(tA)
+			local sB = secAt(tB)
 			local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
 			local roll = math.rad(mid.rollDeg)
 			local centerX = self.laneX + mid.centerX
@@ -732,12 +750,12 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	for sec = math.max(1, math.ceil(-spec.startZ / secL)), math.ceil(-endZ / secL) - 1 do
 		local z = -sec * secL
 		local t = (spec.startZ - z) / spec.length
-		local mid = spec.section(t)
+		local mid = secAt(t)
 		if mid.width > 0.5 then
 			local tA = math.max(t - 0.02, 0)
 			local tB = math.min(t + 0.02, 1)
-			local sA = spec.section(tA)
-			local sB = spec.section(tB)
+			local sA = secAt(tA)
+			local sB = secAt(tB)
 			local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
 			local roll = math.rad(mid.rollDeg)
 			local cX = self.laneX + mid.centerX
@@ -783,10 +801,9 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		-- thread (§10).
 		local hzSeg = {}
 		for _, ob in ipairs(spec.obstacles) do
-			local block = makeBlock(holder, self.laneX, spec, ob)
+			local block, mid = makeBlock(holder, self.laneX, spec, ob)
 			local isPress = ob.hang and ob.motion ~= nil and ob.motion.kind == "dropY"
 			if not ob.hang or isPress then
-				local mid = spec.section(ob.t)
 				table.insert(hzSeg, {
 					z = spec.startZ - ob.t * spec.length,
 					cx = self.laneX + mid.centerX + ob.xOff,

@@ -86,17 +86,16 @@ function GhostController.framesCsv(): string?
 	if n < Config.Ghost.MinFrames then
 		return nil
 	end
-	local out = table.create(#rec)
-	for i = 1, #rec, 4 do
-		out[i] = math.floor(rec[i] * 100 + 0.5)
-		out[i + 1] = math.floor(rec[i + 1] * 10 + 0.5) / 10
-		out[i + 2] = math.floor(rec[i + 2] * 10 + 0.5) / 10
-		out[i + 3] = math.floor(rec[i + 3] * 10 + 0.5) / 10
-	end
-	-- Rows join on ";" — "t,x,y,z;t,x,y,z;..."
+	-- Rows join on ";" — "t,x,y,z;t,x,y,z;...". Built straight into the
+	-- row list (PERFORMANCE.md §3): no temp numbers array, no per-row
+	-- {a,b,c,d} for concat — string concat tostrings like concat did.
 	local rows = table.create(n)
-	for i = 0, n - 1 do
-		rows[i + 1] = table.concat({ out[i * 4 + 1], out[i * 4 + 2], out[i * 4 + 3], out[i * 4 + 4] }, ",")
+	for i = 1, #rec, 4 do
+		local t = math.floor(rec[i] * 100 + 0.5)
+		local x = math.floor(rec[i + 1] * 10 + 0.5) / 10
+		local y = math.floor(rec[i + 2] * 10 + 0.5) / 10
+		local z = math.floor(rec[i + 3] * 10 + 0.5) / 10
+		rows[(i + 3) / 4] = t .. "," .. x .. "," .. y .. "," .. z
 	end
 	return table.concat(rows, ";")
 end

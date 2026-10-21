@@ -31,6 +31,7 @@ local Ghost = require(script.Parent.GhostController)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+camera.CameraType = Enum.CameraType.Scriptable -- set once (PERFORMANCE.md §1), not re-asserted per frame
 local Lighting = game:GetService("Lighting")
 
 -- Speed-blur meter (DESIGN.md §12): BlurEffect for the screen smear +
@@ -928,7 +929,9 @@ end)
 
 --============================== drive ===============================--
 
-local hudCache = ""
+-- HUD fields compared numerically (PERFORMANCE.md §1): the change key
+-- was a string.format every heartbeat — four cached numbers instead.
+local hudS, hudD, hudG, hudV = -1, -1, -1, -1
 
 RunService.Heartbeat:Connect(function(dt)
 	local b = ball
@@ -1227,15 +1230,14 @@ RunService.Heartbeat:Connect(function(dt)
 	local score = player:GetAttribute("RoBallScore") or 0
 	local d = player:GetAttribute("RoBallDist") or 0
 	local gems = player:GetAttribute("RoBallGems") or 0
-	local key = string.format("%d|%d|%d|%d", score, d, gems, fwdSpeed)
-	if key ~= hudCache then
-		hudCache = key
-		ui:setHud(score, d, gems, math.floor(fwdSpeed + 0.5), currentSeed or 0)
+	local shown = math.floor(fwdSpeed + 0.5)
+	if score ~= hudS or d ~= hudD or gems ~= hudG or shown ~= hudV then
+		hudS, hudD, hudG, hudV = score, d, gems, shown
+		ui:setHud(score, d, gems, shown, currentSeed or 0)
 	end
 end)
 
 RunService.RenderStepped:Connect(function(dt)
-	camera.CameraType = Enum.CameraType.Scriptable
 	local cam = Config.Camera
 	local pulse = Music.sample()
 	Backdrop.setPulse(pulse) -- analyzer energy -> sun breathing (AUDIO.md §8)

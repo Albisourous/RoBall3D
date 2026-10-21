@@ -2418,8 +2418,15 @@ end
 -- Deck-edge warning (§12): one chevron per unsupported side. Called from
 -- the heartbeat probe; both args are "side has ground under it" negated.
 function Ui:setEdgeWarn(left: boolean, right: boolean)
-	self.edgeL.Visible = left
-	self.edgeR.Visible = right
+	-- Early-out (PERFORMANCE.md §1): called every heartbeat; only write on change.
+	if left ~= self._edgeL then
+		self._edgeL = left
+		self.edgeL.Visible = left
+	end
+	if right ~= self._edgeR then
+		self._edgeR = right
+		self.edgeR.Visible = right
+	end
 end
 
 -- Threat name (§12): the nearest radar bar's chunk label, "" hides.
@@ -2431,13 +2438,20 @@ end
 -- Danger vignette (§12): intensity 0..1 of nearest corridor threat —
 -- 0 hides, 1 is contact distance at full Config.Danger.MaxAlpha.
 function Ui:setDanger(intensity: number)
-	if intensity <= 0 then
+	-- Early-out (PERFORMANCE.md §1): per-frame caller; intensity quantized
+	-- to 1/64 steps so sub-step jitter doesn't dirty the stroke every frame.
+	local q = math.floor(math.min(intensity, 1) * 64 + 0.5) / 64
+	if q == self._dangerQ then
+		return
+	end
+	self._dangerQ = q
+	if q <= 0 then
 		self.dangerFrame.Visible = false
 		self.dangerStroke.Transparency = 1
 		return
 	end
 	self.dangerFrame.Visible = true
-	self.dangerStroke.Transparency = 1 - math.min(intensity, 1) * Config.Danger.MaxAlpha
+	self.dangerStroke.Transparency = 1 - q * Config.Danger.MaxAlpha
 end
 
 function Ui:setSeedText(text: string)
