@@ -24,6 +24,7 @@ local topStore: OrderedDataStore? = nil
 local metaStore: DataStore? = nil
 local profileStore: DataStore? = nil
 local ghostStore: DataStore? = nil -- PB-run replay frames, per userId (§14)
+local champStore: DataStore? = nil -- seed record holder's replay, per seed (§14)
 
 -- Per-day daily-board handles, memoized — a new day tag just means a new
 -- OrderedDataStore name; yesterday's store is simply never read again.
@@ -61,6 +62,7 @@ local function ensureStores(): boolean
 		metaStore = DataStoreService:GetDataStore(Config.Leaderboard.TopRunsStore .. "_Meta")
 		profileStore = DataStoreService:GetDataStore(Config.Leaderboard.ProfileStore)
 		ghostStore = DataStoreService:GetDataStore(Config.Ghost.Store)
+		champStore = DataStoreService:GetDataStore(Config.Ghost.ChampStore)
 		-- A real read, not just handle creation — proves API access works.
 		if bestStore then
 			bestStore:GetAsync("__probe__")
@@ -202,6 +204,38 @@ function SaveService.saveGhost(userId: number, seed: number, csv: string)
 	end
 	retry("saveGhost", function()
 		(ghostStore :: DataStore):SetAsync("u" .. userId, { s = seed, f = csv })
+	end)
+end
+
+-- Champion ghost (§14): the single best run on a seed, keyed "s<seed>" —
+-- any player who starts that seed gets the record holder's replay as a
+-- rival echo. crownChampion compares inside UpdateAsync so two near-
+-- simultaneous records can't tear; a tie keeps the earlier champion
+-- (first to the score holds the crown).
+export type Champ = { n: string, s: number, u: number, f: string }
+
+function SaveService.loadChampion(seed: number): Champ?
+	if not ensureStores() or not champStore then
+		return nil
+	end
+	local value: Champ? = nil
+	retry("loadChampion", function()
+		value = (champStore :: DataStore):GetAsync("s" .. seed)
+	end)
+	return value
+end
+
+function SaveService.crownChampion(seed: number, userId: number, name: string, score: number, csv: string)
+	if not ensureStores() or not champStore then
+		return
+	end
+	retry("crownChampion", function()
+		(champStore :: DataStore):UpdateAsync("s" .. seed, function(old: Champ?)
+			if old and old.s >= score then
+				return nil -- keep the crown; UpdateAsync treats nil as "no write"
+			end
+			return { n = name, s = score, u = userId, f = csv }
+		end)
 	end)
 end
 

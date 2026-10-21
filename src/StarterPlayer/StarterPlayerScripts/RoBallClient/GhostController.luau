@@ -23,10 +23,11 @@ local recNext = 0 -- next sample time
 local rec: Frames = {}
 local recording = false
 
-local part: BasePart? = nil
-local frames: Frames = {}
-local ghostT = 0 -- replay clock
-local idx = 1 -- next frame index to pass (1-based into quads)
+type Echo = { part: BasePart, frames: Frames, idx: number }
+
+local echoes: { Echo } = {}
+local pbEcho: Echo? = nil -- the echo pace() reads; nil without a PB replay
+local ghostT = 0 -- replay clock, shared by every echo on the run
 local playing = false
 
 function GhostController.beginRecord()
@@ -48,27 +49,32 @@ function GhostController.tick(dt: number, ballPos: Vector3)
 			table.insert(rec, ballPos.Z)
 		end
 	end
-	if playing and part then
+	if playing then
 		ghostT += dt
-		-- Frames are time-ordered; walk the cursor to the current t.
-		while idx <= #frames and frames[idx] < ghostT do
-			idx += 4
-		end
-		if idx >= #frames then
-			-- Past the record's end: the echo holds its last point (the
-			-- run it died on) until the player passes it.
-			local n = #frames
-			part.Position = Vector3.new(frames[n - 2], frames[n - 1], frames[n])
-			return
-		end
-		local t2, x2, y2, z2 = frames[idx], frames[idx + 1], frames[idx + 2], frames[idx + 3]
-		if idx > 1 then
-			local t1, x1, y1, z1 = frames[idx - 4], frames[idx - 3], frames[idx - 2], frames[idx - 1]
-			local span = math.max(t2 - t1, 1e-3)
-			local a = math.clamp((ghostT - t1) / span, 0, 1)
-			part.Position = Vector3.new(x1 + (x2 - x1) * a, y1 + (y2 - y1) * a, z1 + (z2 - z1) * a)
-		else
-			part.Position = Vector3.new(x2, y2, z2)
+		for _, echo in ipairs(echoes) do
+			local frames = echo.frames
+			-- Frames are time-ordered; walk the cursor to the current t.
+			while echo.idx <= #frames and frames[echo.idx] < ghostT do
+				echo.idx += 4
+			end
+			if echo.idx >= #frames then
+				-- Past the record's end: the echo holds its last point (the
+				-- run it died on) until the player passes it.
+				local n = #frames
+				echo.part.Position = Vector3.new(frames[n - 2], frames[n - 1], frames[n])
+			else
+				local t2, x2, y2, z2 =
+					frames[echo.idx], frames[echo.idx + 1], frames[echo.idx + 2], frames[echo.idx + 3]
+				if echo.idx > 1 then
+					local t1, x1, y1, z1 =
+						frames[echo.idx - 4], frames[echo.idx - 3], frames[echo.idx - 2], frames[echo.idx - 1]
+					local span = math.max(t2 - t1, 1e-3)
+					local a = math.clamp((ghostT - t1) / span, 0, 1)
+					echo.part.Position = Vector3.new(x1 + (x2 - x1) * a, y1 + (y2 - y1) * a, z1 + (z2 - z1) * a)
+				else
+					echo.part.Position = Vector3.new(x2, y2, z2)
+				end
+			end
 		end
 	end
 end
@@ -94,42 +100,83 @@ function GhostController.framesCsv(): string?
 	return table.concat(rows, ";")
 end
 
--- Attach the stored ghost: parse frames, spawn the echo. Returns false
--- on a malformed csv so the caller can just not replay.
-function GhostController.attach(csv: string): boolean
+local function parseFrames(csv: string): Frames?
 	local f: Frames = {}
 	local n = 0
 	for frame in string.gmatch(csv, "[^;]+") do
 		for v in string.gmatch(frame, "[^,]+") do
 			local num = tonumber(v)
 			if not num then
-				return false
+				return nil
 			end
 			table.insert(f, num / (if #f % 4 == 0 then 100 else 1)) -- t back to seconds
 		end
 		n += 1
 	end
 	if n < Config.Ghost.MinFrames or #f % 4 ~= 0 then
-		return false
+		return nil
 	end
-	frames = f
+	return f
+end
+
+local function spawnEcho(f: Frames, name: string, color: Color3, transparency: number, label: string?): Echo
 	local ball = Instance.new("Part")
 	ball.Shape = Enum.PartType.Ball
 	ball.Size = Vector3.new(3, 3, 3)
 	ball.Material = Enum.Material.Neon
-	ball.Color = Color3.fromRGB(0, 230, 255)
-	ball.Transparency = Config.Ghost.Transparency
+	ball.Color = color
+	ball.Transparency = transparency
 	ball.Anchored = true
 	ball.CanCollide = false
 	ball.CanQuery = false
 	ball.CanTouch = false
 	ball.CastShadow = false
-	ball.Name = "PbGhost"
-	ball.Position = Vector3.new(frames[2], frames[3], frames[4])
+	ball.Name = name
+	ball.Position = Vector3.new(f[2], f[3], f[4])
+	if label then
+		-- Diegetic announce: the champion's name rides its echo, no HUD space.
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(90, 14)
+		bb.StudsOffset = Vector3.new(0, 3, 0)
+		bb.AlwaysOnTop = false
+		bb.MaxDistance = 300
+		local tl = Instance.new("TextLabel")
+		tl.BackgroundTransparency = 1
+		tl.Size = UDim2.fromScale(1, 1)
+		tl.Font = Enum.Font.Code
+		tl.TextSize = 11
+		tl.TextColor3 = color
+		tl.TextStrokeTransparency = 0.4
+		tl.Text = label
+		tl.Parent = bb
+		bb.Parent = ball
+	end
 	ball.Parent = workspace
-	part = ball
-	ghostT = 0
-	idx = 1
+	return { part = ball, frames = f, idx = 1 }
+end
+
+-- Attach the stored PB ghost: parse frames, spawn the echo. Returns false
+-- on a malformed csv so the caller can just not replay.
+function GhostController.attach(csv: string): boolean
+	local f = parseFrames(csv)
+	if not f then
+		return false
+	end
+	pbEcho = spawnEcho(f, "PbGhost", Color3.fromRGB(0, 230, 255), Config.Ghost.Transparency)
+	table.insert(echoes, pbEcho :: Echo)
+	playing = true
+	return true
+end
+
+-- Attach the seed champion's replay (§14): the rival line — gold echo
+-- carrying the record holder's name. Shares the run clock with the PB
+-- echo; pace() ignores it (that line is yours-vs-you).
+function GhostController.attachRival(csv: string, name: string): boolean
+	local f = parseFrames(csv)
+	if not f then
+		return false
+	end
+	table.insert(echoes, spawnEcho(f, "RivalGhost", Config.Ghost.RivalColor, Config.Ghost.RivalTransparency, name))
 	playing = true
 	return true
 end
@@ -137,10 +184,12 @@ end
 function GhostController.stop()
 	recording = false
 	playing = false
-	if part then
-		part:Destroy()
-		part = nil
+	ghostT = 0
+	for _, echo in ipairs(echoes) do
+		echo.part:Destroy()
 	end
+	table.clear(echoes)
+	pbEcho = nil
 end
 
 -- Pace delta (§12): meters ahead of the PB echo at this instant —
@@ -148,8 +197,8 @@ end
 -- (both roll -Z, so the lead is ghostZ - ballZ). nil when no echo is
 -- replaying; the HUD hides the line then.
 function GhostController.pace(ballPos: Vector3): number?
-	if playing and part then
-		return part.Position.Z - ballPos.Z
+	if playing and pbEcho then
+		return pbEcho.part.Position.Z - ballPos.Z
 	end
 	return nil
 end

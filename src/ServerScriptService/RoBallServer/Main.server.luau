@@ -631,13 +631,31 @@ evSaveGhost.OnServerEvent:Connect(function(player, seed, csv, score)
 	end
 	task.spawn(function()
 		SaveService.saveGhost(player.UserId, seed, csv)
+		-- Champion shot (§14): the run already earned the PB credential, so
+		-- if it also tops this seed's stored record its frames become the
+		-- rival echo everyone on the seed races.
+		SaveService.crownChampion(seed, player.UserId, player.Name, score, csv)
 	end)
 end)
 
--- The echo for the run about to start: the stored ghost's seed decides —
--- replaying it on a different seed would trace a lane that doesn't exist.
-fnGetGhost.OnServerInvoke = function(player)
-	return SaveService.loadGhost(player.UserId)
+-- The echoes for the run about to start: own stored ghost (only when its
+-- seed matches) plus the seed champion's replay — the rival line. The
+-- champion is omitted when it's the requester's own record so nobody
+-- races a second copy of their best.
+fnGetGhost.OnServerInvoke = function(player, seed)
+	local own = SaveService.loadGhost(player.UserId)
+	local out: { s: number?, f: string?, c: SaveService.Champ? } = {}
+	if own then
+		out.s = own.s
+		out.f = own.f
+	end
+	if typeof(seed) == "number" then
+		local champ = SaveService.loadChampion(seed)
+		if champ and champ.u ~= player.UserId then
+			out.c = champ
+		end
+	end
+	return out
 end
 
 ShopService.init()

@@ -450,10 +450,13 @@ Config.Score = {
 -- scoring, or generation.
 Config.Ghost = {
 	Store = "RoBall3D_Ghost_v1", -- datastore key, per-userId
+	ChampStore = "RoBall3D_GhostChamp_v1", -- per-seed record holder replay
 	SampleSeconds = 0.2, -- client records one frame per N seconds of run
 	MaxSamples = 600, -- 2 minutes of run — hard payload cap, server-enforced
 	MinFrames = 25, -- runs under ~5s aren't worth a ghost
 	Transparency = 0.55, -- the echo ball's translucency
+	RivalColor = Color3.fromRGB(255, 196, 56), -- champion echo: gold vs own cyan
+	RivalTransparency = 0.35, -- reads "ahead of you" vs the airier PB echo
 }
 
 Config.GemSfx = {

@@ -807,6 +807,14 @@ Full spec: `AUDIO.md`. Binding decisions:
   Playback is a translucent neon ball lerping between time-stamped
   frames; it's cosmetic — CanCollide/Query/Touch all off, no physics,
   no scoring effect, dies with the run.
+- **Champion ghost**: the same credentialed upload also offers the run to
+  `RoBall3D_GhostChamp_v1`, keyed `s<seed>` → `{n, s, u, f}` — the
+  seed's record holder and their replay. `crownChampion` compares inside
+  `UpdateAsync` so simultaneous records can't tear (a tie keeps the
+  earlier champion). `GetGhost(seed)` returns `{s, f, c}` — your ghost
+  plus the champion's, omitted when the champion IS you — and the client
+  replays it as a gold echo carrying the record holder's name on a
+  billboard. Same cosmetic-only contract; `pace()` stays yours-vs-you.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`

@@ -586,9 +586,18 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	Ghost.stop()
 	Ghost.beginRecord()
 	task.spawn(function()
-		local g = fnGetGhost:InvokeServer()
-		if mode == "running" and g and g.s == seed then
+		local g = fnGetGhost:InvokeServer(seed)
+		if mode ~= "running" or not g then
+			return
+		end
+		if g.s == seed then
 			Ghost.attach(g.f)
+		end
+		-- Champion ghost (§14): the seed's record holder replays as a
+		-- labeled gold echo — racing the top line, not just your own.
+		local champ = g.c
+		if champ and champ.f then
+			Ghost.attachRival(champ.f, champ.n)
 		end
 	end)
 end)
