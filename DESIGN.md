@@ -219,7 +219,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   probe counts contact when the ball's underside is within
   `Landing.ContactPad` of lane ground), and the tightest near-miss
   margin of the run (`in-disc` when the closest call was inside a
-  rotor's sweep).
+  rotor's sweep). A second dim trailer, `at the fall: PB +38 ·
+  champion42 -142`, closes the card when echoes replayed — the last
+  pace delta vs each ghost, signed by your lead, so the race result
+  survives the run that ended it.
 - **PB ghost**: on run start a translucent magenta `BEST n` gate floats on
   the deck at your record's end distance (`Score.PbMarkerMinDist` = 150m) —
   you race your own shadow. The label stays near-field only

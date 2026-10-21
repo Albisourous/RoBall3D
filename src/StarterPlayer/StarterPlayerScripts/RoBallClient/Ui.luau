@@ -1988,6 +1988,9 @@ function Ui:showDeath(
 		closest: number?,
 		cause: string?,
 		air: number?,
+		pbDelta: number?,
+		rivalDelta: number?,
+		rivalName: string?,
 	}?
 )
 	self.menu.Visible = false
@@ -2040,6 +2043,24 @@ function Ui:showDeath(
 				elseif c == "STALL" then "wedged geometry"
 				else Config.Features.Label[c] or string.upper(c)
 			self.dStats.Text ..= string.format('\n<font color="#FF40BE">felled by %s</font>', name)
+		end
+		-- Ghost margins (§14): where each echo stood at the fall — the
+		-- last pace deltas, signed by your lead. Dim like the stats line.
+		local margins = {}
+		if stats.pbDelta then
+			table.insert(margins, string.format("PB %+d", math.floor(stats.pbDelta + 0.5)))
+		end
+		if stats.rivalDelta then
+			table.insert(
+				margins,
+				string.format("%s %+d", stats.rivalName or "CHAMP", math.floor(stats.rivalDelta + 0.5))
+			)
+		end
+		if #margins > 0 then
+			self.dStats.Text ..= string.format(
+				'\n<font color="#9678B9">at the fall: %s</font>',
+				table.concat(margins, " · ")
+			)
 		end
 		self.dStats.Visible = true
 	else

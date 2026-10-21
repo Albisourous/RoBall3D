@@ -791,6 +791,9 @@ evRunEnded.OnClientEvent:Connect(
 						closest = closestCall,
 						cause = cause,
 						air = statAirT / math.max(statAirT + statGroundT, 0.01),
+						pbDelta = paceCache,
+						rivalDelta = rivalPaceCache,
+						rivalName = rivalName,
 					}
 				)
 			end
