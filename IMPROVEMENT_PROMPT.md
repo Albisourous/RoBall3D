@@ -276,6 +276,15 @@ runs the loop below and does not stop until you say **stop**.
     never counts as a pass. Verified live: stub ghost parked at -40
     armed at pace −8 and toasted on the catch; `PASSED champion42`
     screenshotted beside `+160 vs champion42`)*
+41. **Danger vignette** *(done — 16d30f9: the radar scan's nearest
+    `RoBallLethal` overlapping the ball's line (`Danger.Lane`) inside
+    `Danger.Near` studs drives a full-screen `UIStroke` frame —
+    intensity `1 − dz/Near` up to `MaxAlpha`, cleared on run end. The
+    forward brace warning the lateral chevrons can't give. Verified
+    live: natural approach ramped stroke 0.96→0.53 before the fatal
+    gate; parked 30 studs out held `vis=true T=0.76` = 0.4·MaxAlpha
+    exactly; card clears it. Live screenshot not captured — runs kept
+    dying inside the warning window)*
 
 ## Standing rules for new work
 
