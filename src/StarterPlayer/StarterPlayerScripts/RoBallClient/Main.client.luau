@@ -649,6 +649,9 @@ evRunEnded.OnClientEvent:Connect(
 		if newBest and ghostCsv then
 			evSaveGhost:FireServer(seed, ghostCsv, score)
 		end
+		-- Death replay (§11): the run's own tail replays as a dim echo
+		-- through the orbit — the misread is visible before the card.
+		Ghost.replayTail(Config.Camera.DeathOrbitSec)
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
 		-- The card waits out the death-cam orbit (§11); R mid-orbit skips it
@@ -958,6 +961,7 @@ RunService.RenderStepped:Connect(function(dt)
 		-- FOV settles back to FovMin so the card lands on a calm frame.
 		local k = math.clamp((os.clock() - deathT0) / cam.DeathOrbitSec, 0, 1)
 		local ease = 1 - (1 - k) ^ 2
+		Ghost.tick(dt, lastBallPos) -- advance the death-replay echo on the orbit clock
 		local yaw = ease * cam.DeathOrbitArc
 		local off = cam.Offset * (1 + (cam.DeathOrbitPull - 1) * ease)
 		local rx = off.Z * math.sin(yaw)

@@ -601,7 +601,10 @@ spot — yaw sweeps `DeathOrbitArc` (~31°) while the radius pulls back
 toward `DeathOrbitPull`× and FOV settles to FovMin — *then* the death
 card lands. R mid-orbit skips straight to restart; a stale delayed card
 is dropped by the death-sequence guard. No lives, no shields — they were
-explicitly deferred.
+explicitly deferred. During the orbit the run's own recording replays
+its last `DeathOrbitSec` as a dim cyan echo (`Ghost.replayTail`) — the
+fatal approach is visible on-screen, ending at the kill spot as the card
+lands. Cosmetic only; it dies with the next run's `Ghost.stop()`.
 
 ## 12. Presentation
 
