@@ -43,7 +43,7 @@ Config.Boost = {
 	Mult = 1.5, -- forward speed multiplier while boosting — a real kick
 	AccelMult = 4, -- ease rate x Accel while boosting: the BPM HUD visibly JUMPS
 	Capacity = 1.2, -- seconds of boost on a full meter — spend it deliberately
-	RegenPerSec = 0.15, -- meter fraction refilled per second off (~6.7s to full)
+	RegenPerSec = 0.225, -- meter fraction refilled per second off (~4.4s to full)
 	RechargeGate = 0.35, -- emptied meter must refill this far to boost again
 }
 

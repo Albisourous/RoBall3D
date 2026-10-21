@@ -99,7 +99,7 @@ explainable.
 - **Boost & brake** (`Config.Boost`): hold `W`/`↑` = ×`Mult` (1.5) speed;
   hold `S`/`↓` = ÷`Mult` — the **same meter**, same drain/latch rules,
   mirrored effect. The ~1.2s charge drains while either is held, refills
-  on release (~6.7s to full), emptying latches until ~35% refilled.
+  on release (~4.4s to full), emptying latches until ~35% refilled.
   Boosting and braking both ease at 4× normal accel so the HUD tempo
   visibly jumps; the bar flares pink on boost, orange on brake.
   Charge lives on the bottom-left boost dial (§12).
