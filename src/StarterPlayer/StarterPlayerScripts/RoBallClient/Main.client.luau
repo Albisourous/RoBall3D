@@ -984,17 +984,26 @@ RunService.Heartbeat:Connect(function(dt)
 	-- by OvertakeArm studs, so leading wire-to-wire stays quiet.
 	if pace then
 		if pace <= -Config.Ghost.OvertakeArm then
+			if overtakePb == false then
+				-- Mirror (§14): the ghost re-passes you — earned only
+				-- after a PASSED toast, so leading wire-to-wire stays
+				-- quiet the same way.
+				ui:toast("▸ LOST TO PB")
+			end
 			overtakePb = true
 		elseif overtakePb and pace >= 0 then
-			overtakePb = nil
+			overtakePb = false -- consumed; LOST TO is now possible
 			ui:toast("▸ PASSED PB")
 		end
 	end
 	if rpace then
 		if rpace <= -Config.Ghost.OvertakeArm then
+			if overtakeRival == false then
+				ui:toast("▸ LOST TO " .. (rivalName or "CHAMP"))
+			end
 			overtakeRival = true
 		elseif overtakeRival and rpace >= 0 then
-			overtakeRival = nil
+			overtakeRival = false
 			ui:toast("▸ PASSED " .. (rivalName or "CHAMP"))
 		end
 	end

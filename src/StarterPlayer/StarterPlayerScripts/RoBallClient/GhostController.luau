@@ -185,7 +185,7 @@ function GhostController.attach(csv: string): boolean
 	if not f then
 		return false
 	end
-	pbEcho = spawnEcho(f, "PbGhost", Color3.fromRGB(0, 230, 255), Config.Ghost.Transparency)
+	pbEcho = spawnEcho(f, "PbGhost", Color3.fromRGB(0, 230, 255), Config.Ghost.Transparency, "PB")
 	table.insert(echoes, pbEcho :: Echo)
 	playing = true
 	return true

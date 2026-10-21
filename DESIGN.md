@@ -905,7 +905,12 @@ Full spec: `AUDIO.md`. Binding decisions:
   Catching a replay's interpolated position after trailing it by at
   least `Ghost.OvertakeArm` studs toasts `▸ PASSED PB` / `▸ PASSED
   <name>` once per ghost per run — a wire-to-wire lead never counts
-  as a pass.
+  as a pass. The mirror fires `▸ LOST TO PB` / `▸ LOST TO <name>` when
+  a replay you already passed pulls `OvertakeArm` studs back ahead —
+  each direction change narrates, earned only after a PASSED, so a
+  wire-to-wire trail stays quiet the same way. Every echo is named:
+  the PB ball carries a `PB` billboard like the podium echoes carry
+  their holders' names.
 - **Crowd ghost**: on the daily seed (`seed == Daily.seed()`) the silver
   seat's replay also attaches as a labeled silver echo
   (`Ghost.CrowdColor`/`CrowdTransparency`) — airier than the rival, no
