@@ -439,6 +439,11 @@ runs the loop below and does not stop until you say **stop**.
     Breather family, pools ≥200m, no canRun gate — the reach band
     stays full)*
 
+62. **Width-axis mutators** *(done — a second flavor axis: `width`
+    scales the tier width window targets roll from (drift/clamps/
+    canRun all honest on the scaled window). SQUEEZE ×0.82 and
+    EXPANSE ×1.18 — a seed's whole map runs tighter or roomier)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

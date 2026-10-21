@@ -14,6 +14,7 @@ export type Flavor = {
 	label: string?,
 	fams: { [string]: number },
 	types: { [string]: number },
+	width: number, -- tier width-window multiplier (1 = no shape bias)
 }
 
 local Mutator = {}
@@ -28,6 +29,7 @@ function Mutator.forSeed(seed: number): Flavor
 		label = m.label,
 		fams = m.fams or {},
 		types = m.types or {},
+		width = m.width or 1,
 	}
 end
 

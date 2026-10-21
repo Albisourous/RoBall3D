@@ -945,6 +945,8 @@ Config.Mutators = {
 		"pressgang",
 		"grounded",
 		"snakepit",
+		"squeeze",
+		"expanse",
 	},
 	List = {
 		standard = {},
@@ -956,6 +958,8 @@ Config.Mutators = {
 		pressgang = { label = "PRESS GANG", types = { PressRow = 3.5 } },
 		grounded = { label = "GROUNDED", fams = { spectacle = 0.35, technical = 1.5 } },
 		snakepit = { label = "SNAKE PIT", types = { SnakeField = 3.5 } },
+		squeeze = { label = "SQUEEZE", width = 0.82 },
+		expanse = { label = "EXPANSE", width = 1.18 },
 	},
 }
 

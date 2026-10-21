@@ -124,6 +124,16 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 		}
 	else
 		local tier = Tiers.forDistance(st.dist)
+		-- Seed flavor width axis (§8.7): SQUEEZE/EXPANSE scale the width
+		-- window every chunk target rolls from — the drift math and the
+		-- canRun/clamp contracts stay honest on the scaled window.
+		local widthMul = self.mutator.width
+		if widthMul ~= 1 then
+			local scaled = table.clone(tier)
+			scaled.widthMin = tier.widthMin * widthMul
+			scaled.widthMax = tier.widthMax * widthMul
+			tier = scaled
+		end
 		local pool = tier.chunkPool
 		local name
 		-- Feature debut (DESIGN.md §8.6): the first eligible spawn of each
