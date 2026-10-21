@@ -906,11 +906,23 @@ end
 
 -- Terrace: the deck descends in lips instead of a smooth grade — gravity
 -- pops the ball off each edge for free ballistic hops. Pure spectacle:
--- every landing is deck, never void.
+-- every landing is deck, never void. Each drop rides over the back half
+-- of its tread as a real ramp instead of collapsing inside one slice —
+-- a hard lip edge could snag a slow or mid-hop ball; a ~10° slope keeps
+-- the hop line free (same total descent, same end state).
 function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
 	local length = rng:NextInteger(50, 70)
 	local steps = if debut then 2 else rng:NextInteger(3, 5)
 	local stepH = if debut then 1 else rng:NextNumber(1.1, 1.8)
+	-- Fraction of each tread that stays flat before its ramp — the lip
+	-- read survives, the edge does not.
+	local tread = 0.5
+	local function stepDrop(t: number): number
+		local u = t * steps
+		local i = math.floor(u)
+		local f = u - i
+		return i + math.clamp((f - tread) / (1 - tread), 0, 1)
+	end
 	local gems = {}
 	-- A small arc floats just past each lip — the hop line pays out.
 	for i = 1, steps - 1 do
@@ -923,7 +935,7 @@ function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): C
 		return {
 			width = st.width,
 			centerX = st.centerX,
-			y = st.y - stepH * math.floor(t * steps),
+			y = st.y - stepH * stepDrop(t),
 			rollDeg = 0,
 		}
 	end, { centerX = st.centerX, width = st.width, y = st.y - stepH * steps }, nil, gems)
