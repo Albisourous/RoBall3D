@@ -506,20 +506,25 @@ function Ui.new(): Ui
 	spdUnit.Parent = gui
 	self.spdUnit = spdUnit
 
-	-- Boost bar: a glanceable horizontal nitro bar. Cyan fill over a dark
-	-- track, gold gate tick at RechargeGate, flares pink while boosting,
-	-- blinks while latched out.
+	-- Boost bar: a nitro capsule — tilted -4° so it reads as motion, pill
+	-- ends, a diamond bead riding the fill's leading edge, gold slash tick
+	-- at RechargeGate. Cyan fill, pink flare while boosting, orange burn
+	-- while braking, blink while latched out.
 	local bWrap = Instance.new("Frame")
 	bWrap.Name = "BoostBar"
-	bWrap.AnchorPoint = Vector2.new(0, 1)
-	bWrap.Position = UDim2.new(0.18, 0, 1, -22)
+	bWrap.AnchorPoint = Vector2.new(0.5, 0.5)
+	bWrap.Position = UDim2.new(0.18, 110, 1, -38)
 	bWrap.Size = UDim2.fromOffset(220, 16)
+	bWrap.Rotation = -4
 	bWrap.BackgroundColor3 = C_BG
 	bWrap.BackgroundTransparency = 0.25
 	bWrap.BorderSizePixel = 0
 	bWrap.Visible = false
 	bWrap.Parent = gui
 	self.boostBar = bWrap
+	local bCorner = Instance.new("UICorner")
+	bCorner.CornerRadius = UDim.new(1, 0)
+	bCorner.Parent = bWrap
 	local bStroke = Instance.new("UIStroke")
 	bStroke.Color = C_CYAN
 	bStroke.Thickness = 1.5
@@ -531,10 +536,34 @@ function Ui.new(): Ui
 	bFill.Size = UDim2.fromScale(1, 1)
 	bFill.Parent = bWrap
 	self.boostFill = bFill
-	local bGate = Instance.new("Frame") -- gate tick; positioned by gateFrac
-	bGate.AnchorPoint = Vector2.new(0.5, 0)
-	bGate.Position = UDim2.fromScale(0.35, 0)
-	bGate.Size = UDim2.fromOffset(2, 16)
+	local fCorner = Instance.new("UICorner")
+	fCorner.CornerRadius = UDim.new(1, 0)
+	fCorner.Parent = bFill
+	-- Mid-band gloss: transparency-only gradient, so the state colors
+	-- (cyan/pink/orange/gold) still drive BackgroundColor3 underneath.
+	local bGloss = Instance.new("UIGradient")
+	bGloss.Rotation = 90
+	bGloss.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(0.45, 0),
+		NumberSequenceKeypoint.new(1, 0.3),
+	})
+	bGloss.Parent = bFill
+	-- Diamond bead at the fill's leading edge — the bar's "hot tip".
+	local bTip = Instance.new("Frame")
+	bTip.AnchorPoint = Vector2.new(0.5, 0.5)
+	bTip.Position = UDim2.fromScale(1, 0.5)
+	bTip.Size = UDim2.fromOffset(11, 11)
+	bTip.Rotation = 45
+	bTip.BackgroundColor3 = C_CYAN
+	bTip.BorderSizePixel = 0
+	bTip.Parent = bFill
+	self.boostTip = bTip
+	local bGate = Instance.new("Frame") -- gate slash; positioned by gateFrac
+	bGate.AnchorPoint = Vector2.new(0.5, 0.5)
+	bGate.Position = UDim2.fromScale(0.35, 0.5)
+	bGate.Rotation = 22
+	bGate.Size = UDim2.fromOffset(2, 18)
 	bGate.BackgroundColor3 = C_GOLD
 	bGate.BorderSizePixel = 0
 	bGate.Parent = bWrap
@@ -548,7 +577,7 @@ function Ui.new(): Ui
 	bLab.TextSize = 11
 	bLab.TextColor3 = C_DIM
 	bLab.TextXAlignment = Enum.TextXAlignment.Left
-	bLab.Text = "BOOST  ·  W"
+	bLab.Text = "BOOST"
 	bLab.Parent = bWrap
 
 	-- Seed tag pinned to the true bottom-right corner — replantable info,
@@ -679,6 +708,10 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 	-- apart from the pink boost flare.
 	self.boostFill.BackgroundColor3 = flash and C_GOLD
 		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or C_CYAN))
+	-- The bead tip wears the same state color; hidden when the meter is
+	-- empty so it doesn't dangle off the capsule's left end.
+	self.boostTip.BackgroundColor3 = self.boostFill.BackgroundColor3
+	self.boostTip.Visible = boostFrac > 0.04
 end
 
 -- Gem combo pip under the subline (n>=2 shows "xN").
