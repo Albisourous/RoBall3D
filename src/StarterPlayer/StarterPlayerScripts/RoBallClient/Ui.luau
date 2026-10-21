@@ -189,7 +189,7 @@ function Ui.new(): Ui
 	menuCol.Position = UDim2.fromScale(0.5, 0.5)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
-	vlist(menuCol, 14)
+	vlist(menuCol, 10)
 
 	local title = label(menuCol, spaced("ROBALL3D"), 72, F_HERO, C_WHITE, 1)
 	local tgrad = Instance.new("UIGradient")
@@ -243,28 +243,23 @@ function Ui.new(): Ui
 	label(menuCol, "", 6, F_DATA, C_DIM, 15)
 	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 16)
 
-	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): five live sliders riding
-	-- the mixer's channel taps. Drag applies instantly; release persists
-	-- through RoBallVol_<ch> -> profile.audio.
+	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): a mini console — channels
+	-- pair two-per-row so five sliders fit three lines. Drag applies
+	-- instantly; release persists through RoBallVol_<ch> -> profile.audio.
 	label(menuCol, "audio", 11, F_DATA, C_DIM, 17)
-	for i, ch in ipairs(Config.Audio.Channels) do
-		local row = Instance.new("Frame")
-		row.BackgroundTransparency = 1
-		row.Size = UDim2.new(1, 0, 0, 19)
-		row.LayoutOrder = 17 + i
-		row.Parent = menuCol
-
-		local name = label(row, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
+	local function sliderUnit(parent: Frame, ch: string, x: number)
+		local name = label(parent, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
 		name.TextXAlignment = Enum.TextXAlignment.Left
-		name.Size = UDim2.fromOffset(90, 19)
+		name.Size = UDim2.fromOffset(64, 19)
+		name.Position = UDim2.fromOffset(x, 0)
 
 		local track = Instance.new("Frame")
 		track.BackgroundColor3 = C_BG
 		track.BorderSizePixel = 0
 		track.AnchorPoint = Vector2.new(0, 0.5)
-		track.Position = UDim2.new(0, 104, 0.5, 0)
-		track.Size = UDim2.fromOffset(320, 7)
-		track.Parent = row
+		track.Position = UDim2.new(0, x + 68, 0.5, 0)
+		track.Size = UDim2.fromOffset(120, 7)
+		track.Parent = parent
 		local trackCorner = Instance.new("UICorner")
 		trackCorner.CornerRadius = UDim.new(0, 4)
 		trackCorner.Parent = track
@@ -278,9 +273,9 @@ function Ui.new(): Ui
 		fillCorner.CornerRadius = UDim.new(0, 4)
 		fillCorner.Parent = fill
 
-		local pct = label(row, "", 10, F_DATA, C_WHITE)
-		pct.Position = UDim2.fromOffset(436, 0)
-		pct.Size = UDim2.fromOffset(60, 19)
+		local pct = label(parent, "", 10, F_DATA, C_WHITE)
+		pct.Position = UDim2.fromOffset(x + 194, 0)
+		pct.Size = UDim2.fromOffset(42, 19)
 		pct.TextXAlignment = Enum.TextXAlignment.Left
 
 		local function applyRow(v: number)
@@ -290,19 +285,17 @@ function Ui.new(): Ui
 		applyRow(AudioMix.gain(ch))
 		AudioMix.onChange(ch, applyRow)
 
-		-- Drag: click-to-set + hold-drag; release saves once via the
-		-- SetAudio remote (the attribute echo repaints through onChange).
 		local hit = Instance.new("TextButton")
 		hit.BackgroundTransparency = 1
 		hit.AutoButtonColor = false
 		hit.Text = ""
-		hit.Position = UDim2.fromOffset(96, 0)
-		hit.Size = UDim2.new(0, 340, 1, 0)
-		hit.Parent = row
+		hit.Position = UDim2.fromOffset(x + 62, 0)
+		hit.Size = UDim2.new(0, 132, 1, 0)
+		hit.Parent = parent
 
 		local dragging = false
-		local function write(x: number)
-			AudioMix.set(ch, math.clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1))
+		local function write(mx: number)
+			AudioMix.set(ch, math.clamp((mx - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1))
 		end
 		hit.InputBegan:Connect(function(input)
 			if
@@ -336,6 +329,17 @@ function Ui.new(): Ui
 				AudioMix.save(ch)
 			end
 		end)
+	end
+	for i = 1, 3 do
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, 19)
+		row.LayoutOrder = 17 + i
+		row.Parent = menuCol
+		sliderUnit(row, Config.Audio.Channels[i * 2 - 1], 20)
+		if Config.Audio.Channels[i * 2] then
+			sliderUnit(row, Config.Audio.Channels[i * 2], 270)
+		end
 	end
 
 	play.MouseButton1Click:Connect(function()
