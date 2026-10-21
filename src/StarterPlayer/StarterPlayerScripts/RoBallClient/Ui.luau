@@ -1434,6 +1434,24 @@ function Ui.new(): Ui
 		bar.Parent = radar
 		self.radarBars[i] = bar
 	end
+	-- Ghost ticks (§14): the PB/rival echoes pinned on the strip edges —
+	-- the replay you're racing reads on the same ruler the threats use.
+	-- Behind-you clamps to the bottom edge like a minimap indicator;
+	-- out-of-range pins the top. PB left/cyan, rival right/gold.
+	local function ghostTick(x: UDim, color: Color3): Frame
+		local t = Instance.new("Frame")
+		t.BorderSizePixel = 0
+		t.BackgroundColor3 = color
+		t.BackgroundTransparency = 0.15
+		t.AnchorPoint = Vector2.new(0, 0.5)
+		t.Size = UDim2.fromOffset(5, R.BarH)
+		t.Position = UDim2.new(x, UDim.new(0.5, 0))
+		t.Visible = false
+		t.Parent = radar
+		return t
+	end
+	self.pbTick = ghostTick(UDim.new(0, 1), C_CYAN)
+	self.rivalTick = ghostTick(UDim.new(1, -6), Config.Ghost.RivalColor)
 	self.radar = radar
 
 	-- Threat name (§12): the nearest lethal bar's chunk label under the
@@ -2262,6 +2280,22 @@ function Ui:setRadar(bars: { { dx: number, dz: number, w: number } })
 			bar.Visible = false
 		end
 	end
+end
+
+-- Ghost ticks (§14): each replay's dz on the strip, already clamped to
+-- 0..Range by the caller — behind-you pins the bottom edge, out-of-range
+-- the top. nil hides that tick (echo not replaying).
+function Ui:setRadarGhosts(pbDz: number?, rivalDz: number?)
+	local function pin(t: Frame, dz: number?)
+		if dz then
+			t.Position = UDim2.new(t.Position.X, UDim.new(1 - dz / Config.Radar.Range, 0))
+			t.Visible = true
+		else
+			t.Visible = false
+		end
+	end
+	pin(self.pbTick, pbDz)
+	pin(self.rivalTick, rivalDz)
 end
 
 -- Pace delta (§12): signed meters vs the PB echo; nil hides the line

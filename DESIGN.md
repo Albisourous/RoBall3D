@@ -108,9 +108,9 @@ explainable.
   out. Charge lives on the bottom-left meter bar (§12).
 - **Dash** (`Config.Dash`): tap `Q`/`E` = lateral burst left/right —
   the same steer-ease math drives lateral velocity toward `Speed`
-  (60 s/s ≈ 2.3× max steer) at burst accel (~50ms to full, so the
+  (50 s/s ≈ 1.9× max steer) at burst accel (~40ms to full, so the
   dart eases in like steering does — no robotic hard-slide) for `Time`
-  (0.2s): a ~12-stud sidestep that clamps back into steer range on
+  (0.16s): a ~8-stud sidestep that clamps back into steer range on
   release. Steering is ignored mid-burst — the dodge is a commitment.
   Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
   of the **same** power meter boost/brake drain — offense, defense and
@@ -735,6 +735,11 @@ leaves the line off.
   at the ball, x = block offset vs the ball — re-read from the tagged
   `RoBallLethal` set every `ScanSeconds` so movers track for free;
   nearest `MaxBars` threats win the pooled frames.
+  The echoes you race read on the same ruler: a cyan **PB tick** on the
+  strip's left edge and a gold **rival tick** on the right pin each
+  replay's distance-ahead (`dz = -pace`) — a ghost in front climbs the
+  strip toward the top as it pulls away; behind-you clamps to the
+  bottom edge like a minimap indicator; out-of-range pins the top.
   Under the strip the **threat name** labels the nearest bar's chunk
   type via `Features.Label` — the player learns each hazard's name on
   every encounter, not only at its debut.

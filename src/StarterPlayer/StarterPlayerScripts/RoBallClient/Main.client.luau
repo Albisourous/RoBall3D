@@ -774,6 +774,7 @@ evRunEnded.OnClientEvent:Connect(
 		nextPingAt = 0
 		threatCache = nil :: string?
 		ui:setThreat("")
+		ui:setRadarGhosts(nil, nil)
 		if landingRing then
 			landingRing.Transparency = 1
 		end
@@ -853,7 +854,7 @@ evDebut.OnClientEvent:Connect(function(typeName: string)
 end)
 
 -- Dash (§4): Q/E spend a flat Cost slice of the power meter for a
--- ~12-stud sidestep. The gold RechargeGate notch is the readiness read:
+-- ~8-stud sidestep. The gold RechargeGate notch is the readiness read:
 -- a meter past the marker = all verbs armed (the latch can't outlive
 -- it); a denied press just flickers the bar dim.
 local function tryDash(dir: number): string
@@ -1104,6 +1105,12 @@ RunService.Heartbeat:Connect(function(dt)
 			scan = keep
 		end
 		ui:setRadar(scan)
+		-- Ghost ticks (§14): the echoes you race on the threat ruler —
+		-- dz ahead = -pace; behind-you clamps to the bottom edge.
+		ui:setRadarGhosts(
+			pace and math.clamp(-pace, 0, R.Range) or nil,
+			rpace and math.clamp(-rpace, 0, R.Range) or nil
+		)
 		-- Threat name (§12): the nearest bar's chunk label, cached so the
 		-- line doesn't thrash as distances jitter between scans.
 		local ct = nearest and (nearest :: BasePart):GetAttribute("ChunkType")
