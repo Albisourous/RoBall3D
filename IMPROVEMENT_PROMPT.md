@@ -252,6 +252,16 @@ runs the loop below and does not stop until you say **stop**.
     the pool types). Falls read `the VOID`, wedges `wedged geometry`,
     untrusted parts leave it off. Verified live: `felled by BLOCK
     GATE` screenshotted on the card)*
+38. **Deck-edge warning chevrons** *(done — a0da177: two heartbeat
+    probes `ProbeSide` studs beside the ball cast `ProbeDown` into the
+    ball's own lane folder only (backdrop towers and ghost echoes can't
+    fake ground; blocks/walls inside it support honestly). A side with
+    nothing under it lights a pink `◄`/`►` chevron at the screen edge —
+    over a cutout or one step from the rail; pad arcs stay quiet since
+    the deck is still in reach. Client-only, hidden on run end.
+    Verified live: right-rail pin → `EdgeL=false EdgeR=true`, airborne
+    mid-deck +10 → both false, high over void → both true (honest
+    nothing-below); both chevrons screenshotted mid-run)*
 
 ## Standing rules for new work
 
