@@ -400,6 +400,11 @@ Config.Score = {
 	-- PB ghost (DESIGN.md §11): a translucent "BEST n" gate floats on the
 	-- deck at your record's end distance — you race your own shadow.
 	PbMarkerMinDist = 150, -- meters — don't bother marking stub runs
+	-- The gate's "BEST n" label only renders inside this range — a quiet
+	-- approach cue, not a constant screen occupant.
+	PbMarkerViewDist = 140,
+	-- Crossing the line flashes "★ NEW BEST" under the HUD score.
+	PbFlashSeconds = 3,
 }
 
 Config.GemSfx = {

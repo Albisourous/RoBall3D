@@ -64,7 +64,7 @@ leaderboard is the replay hook; a seed system lets players run identical maps.
   + cyan/magenta wireframe rings; purple-black deck with neon transverse +
   longitudinal grid lines; lethal blocks are black bodies with red edge
   outlines; the horizon is a canyon of palette-outlined dark towers under a
-  giant striped synthwave sun; one big pink score centered at the top.
+  giant striped synthwave sun; one big pink score up in the top-left.
 
 **Design consequences**
 
@@ -172,8 +172,13 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   replication races make a client-side compare unreliable.
 - **PB ghost**: on run start a translucent magenta `BEST n` gate floats on
   the deck at your record's end distance (`Score.PbMarkerMinDist` = 150m) —
-  you race your own shadow. Record `dist`/`seed` only overwrite on a true
+  you race your own shadow. The label stays near-field only
+  (`PbMarkerViewDist`, no AlwaysOnTop) so it isn't a constant screen
+  occupant; crossing the line flashes a gold `★ NEW BEST` under the HUD
+  score for `PbFlashSeconds`. Record `dist`/`seed` only overwrite on a true
   new record, so the gate always marks the real best, never a later run.
+  The HUD score cluster lives top-left — the center cone stays clear for
+  the track read at speed.
 
 ## 7. Seed system
 
@@ -542,8 +547,10 @@ deferred.
 - **Obstacles**: near-black bodies with red `SelectionBox` edge outlines —
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
-- **HUD**: one big pink score centered at the top; distance/gems/seed on a
-  dim lavender subline. Bottom-right is a single big **BPM number** — the
+- **HUD**: one big pink score top-left (the center cone stays clear for
+  the track read at speed); distance/gems on a dim lavender subline, the
+  combo pip under that, and the gold pass-moment flash below.
+  Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music
   does. The digit's hue is still the speed meter: gradients cyan →

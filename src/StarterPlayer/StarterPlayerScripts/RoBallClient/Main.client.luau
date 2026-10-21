@@ -74,6 +74,8 @@ local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
 local dashUntil = 0
 local lastDashAt = 0
 local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
+local bestDist = 0 -- RoBallBestDist: the PB gate's z; 0 = no marked record
+local passedBest = false -- set when this run crosses it (one flash only)
 local wasDashing = false
 local camPos: Vector3? = nil -- damped camera position; nil = snap on next run frame
 
@@ -379,6 +381,10 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	currentSeed = seed
 	combo = 0
 	lastGemPts = 0
+	passedBest = false
+	-- The attribute is set server-side just before this event fires, but
+	-- replication order isn't promised — read it lazily per frame instead.
+	bestDist = 0
 	ui:setCombo(0)
 	camPos = nil -- snap the damped cam onto the new lane, don't ease from the menu orbit
 	CosmeticFx.onMode("running")
@@ -496,6 +502,15 @@ RunService.Heartbeat:Connect(function(dt)
 	-- refills once released, and an emptied meter latches out past
 	-- RechargeGate.
 	local dist = math.max(0, -b.Position.Z)
+	-- PB gate (§11): crossing the record distance earns one gold flash.
+	-- bestDist self-heals on the first frames while the attribute lands.
+	if bestDist == 0 then
+		bestDist = player:GetAttribute("RoBallBestDist") or 0
+	end
+	if not passedBest and bestDist > 0 and dist >= bestDist then
+		passedBest = true
+		ui:flashBest()
+	end
 	local wantBoost = UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up)
 	local wantBrake = UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down)
 	local boosting = wantBoost and not powerSpent

@@ -320,9 +320,13 @@ local function startRun(player: Player)
 
 	-- PB ghost (DESIGN.md §11): a translucent "BEST n" gate floats at your
 	-- record's end distance — you race your own shadow. Parented to the
-	-- lane folder so it dies with the run.
+	-- lane folder so it dies with the run. The label only renders in the
+	-- last approach window (MaxDistance) so it isn't a constant screen
+	-- occupant; the client flashes NEW BEST at the crossing instead.
 	local pb = bestOf[player]
-	if pb and pb.dist >= Config.Score.PbMarkerMinDist then
+	local pbDist = if pb and pb.dist >= Config.Score.PbMarkerMinDist then pb.dist else 0
+	player:SetAttribute("RoBallBestDist", pbDist)
+	if pb and pbDist > 0 then
 		local z = -pb.dist
 		local gate = Instance.new("Part")
 		gate.Name = "PbMarker"
@@ -338,7 +342,7 @@ local function startRun(player: Player)
 		local bb = Instance.new("BillboardGui")
 		bb.Size = UDim2.fromOffset(160, 24)
 		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
-		bb.AlwaysOnTop = true
+		bb.MaxDistance = Config.Score.PbMarkerViewDist
 		bb.Parent = gate
 		local tl = Instance.new("TextLabel")
 		tl.BackgroundTransparency = 1

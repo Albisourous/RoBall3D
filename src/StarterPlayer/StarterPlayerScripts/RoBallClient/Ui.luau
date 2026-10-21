@@ -530,13 +530,13 @@ function Ui.new(): Ui
 	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
-	-- Slope read: one big green score centered at the top; a thin subline
-	-- carries distance/speed/seed without competing for attention.
+	-- Top-left cluster: the score leaves the center cone clear for the
+	-- track read at speed; subline carries distance/speed/seed beneath.
 	local hud = Instance.new("Frame")
 	hud.Name = "Hud"
-	hud.AnchorPoint = Vector2.new(0.5, 0)
-	hud.Position = UDim2.new(0.5, 0, 0, 10)
-	hud.Size = UDim2.fromOffset(560, 92)
+	hud.AnchorPoint = Vector2.new(0, 0)
+	hud.Position = UDim2.fromOffset(18, 12)
+	hud.Size = UDim2.fromOffset(360, 118)
 	hud.BackgroundTransparency = 1
 	hud.Visible = false
 	hud.Parent = gui
@@ -547,6 +547,7 @@ function Ui.new(): Ui
 	scoreText.Font = F_DATA
 	scoreText.TextSize = 52
 	scoreText.TextColor3 = C_PINK
+	scoreText.TextXAlignment = Enum.TextXAlignment.Left
 	scoreText.Size = UDim2.new(1, 0, 0, 58)
 	scoreText.Parent = hud
 	self.scoreText = scoreText
@@ -556,7 +557,8 @@ function Ui.new(): Ui
 	subText.Font = F_DATA
 	subText.TextSize = 15
 	subText.TextColor3 = C_DIM
-	subText.Position = UDim2.fromOffset(0, 60)
+	subText.TextXAlignment = Enum.TextXAlignment.Left
+	subText.Position = UDim2.fromOffset(2, 60)
 	subText.Size = UDim2.new(1, 0, 0, 20)
 	subText.Parent = hud
 	self.subText = subText
@@ -569,12 +571,29 @@ function Ui.new(): Ui
 	comboText.TextSize = 16
 	comboText.TextColor3 = C_CYAN
 	comboText.TextStrokeTransparency = 0.5
-	comboText.Position = UDim2.fromOffset(0, 80)
+	comboText.TextXAlignment = Enum.TextXAlignment.Left
+	comboText.Position = UDim2.fromOffset(2, 80)
 	comboText.Size = UDim2.new(1, 0, 0, 18)
 	comboText.Text = ""
 	comboText.Visible = false
 	comboText.Parent = hud
 	self.comboText = comboText
+
+	-- Pass-moment gold (§11): the record earns its flash when you cross
+	-- the PB gate — flashBest() fires it, it never idles on screen.
+	local bestFlash = Instance.new("TextLabel")
+	bestFlash.BackgroundTransparency = 1
+	bestFlash.Font = F_DATA
+	bestFlash.TextSize = 16
+	bestFlash.TextColor3 = C_GOLD
+	bestFlash.TextStrokeTransparency = 0.5
+	bestFlash.TextXAlignment = Enum.TextXAlignment.Left
+	bestFlash.Position = UDim2.fromOffset(2, 98)
+	bestFlash.Size = UDim2.new(1, 0, 0, 18)
+	bestFlash.Text = "★ NEW BEST"
+	bestFlash.Visible = false
+	bestFlash.Parent = hud
+	self.bestFlash = bestFlash
 
 	--=========== SPEED + POWER METER (bottom corners) ===========--
 	-- Vaporwave BPM readout (DESIGN.md §12): the digit is the heard tempo
@@ -831,6 +850,7 @@ end
 function Ui:showHud()
 	self.menu.Visible = false
 	self.death.Visible = false
+	self.bestFlash.Visible = false -- reset for the new run's own crossing
 	self.hud.Visible = true
 	self.spdNum.Visible = true
 	self.spdUnit.Visible = true
@@ -947,6 +967,16 @@ end
 function Ui:setCombo(n: number)
 	self.comboText.Text = "x" .. tostring(n)
 	self.comboText.Visible = n >= 2
+end
+
+-- PB-gate crossing (§11): one gold flash under the score at the moment
+-- the record falls — the marker itself only renders near the deck.
+function Ui:flashBest()
+	self.bestFlash.Visible = true
+	local flash = self.bestFlash
+	task.delay(Config.Score.PbFlashSeconds, function()
+		flash.Visible = false
+	end)
 end
 
 function Ui:showDeath(
