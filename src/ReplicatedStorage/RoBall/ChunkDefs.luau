@@ -470,13 +470,14 @@ function ChunkDefs.SplitGap(rng: Random, st: GenState, _tier): ChunkSpec
 		local e = math.min(t / 0.15, (1 - t) / 0.15, 1)
 		return cutout * e
 	end
-	-- Rail-center lines through the middle where the split is full.
-	-- Both rails share one roll so the pair reads as the same grouping.
+	-- Rail-center lines from the mouth (cutout is full by t=0.15) — two
+	-- diverging gold lines at the opening ARE the "pick a rail" tell;
+	-- both rails share one roll so the pair reads as the same grouping.
 	local railOff = cutout / 2 + rail / 2
-	local size, spacing = rollRhythm(rng, Tiers.speedAt(st.dist), (GEM_BOUND - 0.35) * length, energyOf(st), bpmOf(st))
+	local size, spacing = rollRhythm(rng, Tiers.speedAt(st.dist), (GEM_BOUND - 0.18) * length, energyOf(st), bpmOf(st))
 	local gems = {}
-	appendAll(gems, gemLine(length, 0.35, -railOff, Config.Gems.ValueBeam, size, nil, spacing))
-	appendAll(gems, gemLine(length, 0.35, railOff, Config.Gems.ValueBeam, size, nil, spacing))
+	appendAll(gems, gemLine(length, 0.18, -railOff, Config.Gems.ValueBeam, size, nil, spacing))
+	appendAll(gems, gemLine(length, 0.18, railOff, Config.Gems.ValueBeam, size, nil, spacing))
 	return spec("SplitGap", st, length, function(t)
 		return {
 			width = st.width,

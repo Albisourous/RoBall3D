@@ -534,12 +534,16 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			end
 			eachStripSeg(span, zMid, topY, pitch, function(z0, y0, sub)
 				local c = Palette.neonAt(-z0)
+				-- Void-adjacent inner edges glow lethal red (DESIGN.md §3:
+				-- red = kill geometry; the void IS kill geometry). The pair
+				-- of red lines converging down the center is the split's
+				-- tell long before the hole is under the ball.
 				if railLW > 0.5 then
 					makeEdgeStrip(holder, lEdge + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
-					makeEdgeStrip(holder, cutL - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+					makeEdgeStrip(holder, cutL - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, Config.LethalColor)
 				end
 				if railRW > 0.5 then
-					makeEdgeStrip(holder, cutR + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
+					makeEdgeStrip(holder, cutR + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, Config.LethalColor)
 					makeEdgeStrip(holder, rEdge - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
 				end
 			end)

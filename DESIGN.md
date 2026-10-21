@@ -219,7 +219,7 @@ narrow. Then the seeded generator takes over.
 | `Narrow` | Width lerps down over the chunk | Precision | 2+ |
 | `Tilt` | Ribbon rolls around its long axis ±(8–20°) | Momentum management | 3+ |
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
-| `SplitGap` | Center channel removed → two side ribbons | Route choice | 4+ |
+| `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
 | `RampGap` | Launch ramp, full-width void, landing strip | Speed check / spectacle | 5+ |
 | `BlockGate` | Red blocks across the deck, one gap ≥ CorridorMin | Thread-the-gap | 2+ |
