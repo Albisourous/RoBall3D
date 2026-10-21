@@ -486,6 +486,14 @@ deferred.
   `+N` points popup with the ghost-diamond burst — the pickup's exact
   value read off the cumulative `RoBallGems` delta. Dial pods were tried
   and rejected — minimal chrome keeps eyes on track.
+- **Type**: three voices, one job each (`Ui.luau` font constants).
+  `F_HERO` = Garamond in letterspaced caps — the Floral Shoppe
+  "A E S T H E T I C" serif, reserved for hero titles (menu name,
+  RUN OVER). `F_DISPLAY` = Michroma — geometric retro-future caps for
+  chrome headers and action buttons (TOP RUNS, GARAGE, PACKS/BANK,
+  PLAY/RETRY). `F_DATA` = Code — the machine voice for every number,
+  tag and readout (score, BPM digit, rows, seed, popups; the server
+  PB gate and GemFx `+N` use it inline).
 - **Post FX**: `applyEnvironment` owns Lighting outright — it destroys every
   pre-existing `BloomEffect`/`Atmosphere`/`SunRaysEffect`/`ColorCorrectionEffect`
   (the place file carried a stale authored kit that double-stacked ours) and

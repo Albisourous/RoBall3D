@@ -21,8 +21,25 @@ local C_DIM = Color3.fromRGB(150, 120, 185)
 local C_WHITE = Color3.fromRGB(245, 238, 255)
 local C_GATE_DIM = C_GOLD:Lerp(C_PANEL, 0.78) -- unlit lock-zone cells: faint warm wash
 
-local F_DISPLAY = Enum.Font.SciFi
+-- Vaporwave type system (DESIGN.md §12): three voices, one job each.
+--   F_HERO    — Garamond spaced caps: the Floral Shoppe serif for
+--               "A E S T H E T I C" titles — menu name + RUN OVER only.
+--   F_DISPLAY — Michroma: geometric retro-future caps for chrome
+--               headers (TOP RUNS / GARAGE / BANK) and action buttons.
+--   F_DATA    — Code: the machine voice — every number, tag and readout
+--               (the server's PB gate and GemFx popups share it inline).
+local F_HERO = Enum.Font.Garamond
+local F_DISPLAY = Enum.Font.Michroma
 local F_DATA = Enum.Font.Code
+
+-- Letterspaced caps for the hero serif: "RUN OVER" -> "R U N  O V E R".
+local function spaced(s: string): string
+	local out = {}
+	for w in s:gmatch("%S+") do
+		table.insert(out, table.concat(w:split(""), " "))
+	end
+	return table.concat(out, "  ")
+end
 
 -- Boost strip geometry: LED-cell count + the segment strip's inset
 -- inside the capsule (tip/gate math derives the inner width from it).
@@ -152,7 +169,7 @@ function Ui.new(): Ui
 	menuCol.Parent = menu
 	vlist(menuCol, 14)
 
-	local title = label(menuCol, "ROBALL3D", 72, F_DISPLAY, C_WHITE, 1)
+	local title = label(menuCol, spaced("ROBALL3D"), 72, F_HERO, C_WHITE, 1)
 	local tgrad = Instance.new("UIGradient")
 	tgrad.Color = ColorSequence.new(C_CYAN, C_PINK)
 	tgrad.Rotation = 90
@@ -685,7 +702,7 @@ function Ui.new(): Ui
 	dCol.Parent = death
 	vlist(dCol, 12)
 
-	label(dCol, "RUN OVER", 48, F_DISPLAY, C_PINK, 1)
+	label(dCol, spaced("RUN OVER"), 48, F_HERO, C_PINK, 1)
 	-- NEW BEST! only shows when the run beat the stored record — gold,
 	-- placed right under the title so it's the first thing read.
 	self.dNewBest = label(dCol, "★ NEW BEST!", 20, F_DATA, C_GOLD, 2)
