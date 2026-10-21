@@ -415,7 +415,9 @@ runs the loop below and does not stop until you say **stop**.
     run's rival ghost, the death card offers `watch <name>`.
     **removed** — the whole replay mode went with watch-replay:
     `Ghost.replayCsv`/`replayPos`, the replay camera branch, and the
-    card's replay verbs all cut as clutter)*
+    card's replay verbs all cut as clutter. **DEFERRED, much later —
+    do NOT rebuild replay playback or a champion-watch feature unless
+    the user explicitly asks**; it needs dedicated design attention)*
 
 59. **Quest-complete flash** *(done — a quest crossed mid-run pulses
     `QUEST ✓ <name>` over the debut channel, driven by a per-quest met
@@ -426,6 +428,9 @@ runs the loop below and does not stop until you say **stop**.
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
   blocker modeling — never stream hazards outside the spec layer.
+- No replay playback or champion-watch features — cut as death-card
+  clutter (items 15/28b/53/58); deferred to much later, explicit
+  request only.
 - New config lands in `Config.luau` with a comment; no magic numbers.
 - Every session ends with a clean tree, passing gates, and a push.
 - If a change can't be verified in Studio (no API access), write it behind
