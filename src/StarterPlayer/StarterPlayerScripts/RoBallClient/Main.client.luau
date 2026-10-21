@@ -801,7 +801,7 @@ RunService.Heartbeat:Connect(function(dt)
 	-- canceling intent — real v.Z collapses while Y stays quiet (grounded).
 	-- Sustain that past UnstickTime → one Y impulse pops the seam lip.
 	local now = tick()
-	if not inFlip and math.abs(v.Y) < 6 and -v.Z < fwdSpeed * 0.15 then
+	if not inFlip and math.abs(v.Y) < steer.UnstickMaxY and -v.Z < fwdSpeed * 0.15 then
 		stuckT += dt
 	else
 		stuckT = 0

@@ -546,7 +546,8 @@ instantly. Ball touches `LethalColor` geometry → same outcome server-side via
 ball's full velocity vector every frame, so a visual freeze means physics is
 canceling the forward push against a perpendicular face — a deck-slab or
 wall-seam lip left where a section profile jogs. When the ball is grounded
-(|vY| small) yet its real forward velocity collapses below 15% of target for
+(|vY| under `UnstickMaxY` — resting slope contact reads ~7) yet its real
+forward velocity collapses below 15% of target for
 `Config.Steering.UnstickTime`, the client pops one Y impulse
 (`UnstickHop`, ~0.14s) to hop the lip. `UnstickCooldown` is the refractory so
 a true pocket falls through to the watchdog instead of bouncing forever.

@@ -75,6 +75,7 @@ Config.Steering = {
 	UnstickTime = 0.35, -- seconds of wedge before the hop fires
 	UnstickHop = 11, -- Y impulse studs/s, held ~0.14s
 	UnstickCooldown = 1.0, -- refractory; true pockets fall to StallSeconds
+	UnstickMaxY = 15, -- |vY| under this = grounded; resting slope reads ~7
 }
 
 Config.Camera = {
