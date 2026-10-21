@@ -1080,9 +1080,13 @@ end
 -- the strip — the pad line is the solve.
 function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
 	local length = rng:NextInteger(45, 65)
-	-- Kick math uses the EXIT speed: the ball only gets faster mid-chunk,
-	-- and a faster ball crosses the strip earlier in the arc — lower.
-	local speed = Tiers.speedAt(st.dist + length)
+	local padT = 0.3
+	-- Arc math uses the PAD-TIME speed — that's the forward speed the ball
+	-- actually carries through the flight. The audit evaluates the same
+	-- point; an exit-speed model is faster and plants the strip ~a stud
+	-- past the honest window's trailing edge.
+	local speed = Tiers.speedAt(st.dist + padT * length)
+	local speedLand = Tiers.speedAt(st.dist + length) -- exit: landing margin
 	local stripD = if debut then 5 else rng:NextNumber(Config.Pads.StripMin, Config.Pads.StripMax)
 	local stripH = Config.Pads.StripH
 	local padW = if debut then Config.Pads.DebutWidth else Config.Pads.Width
@@ -1100,7 +1104,6 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 		tApex = math.sqrt(2 * (h + G * wSec * wSec / 8) / G)
 	end
 	local kick = G * tApex
-	local padT = 0.3
 	-- Strip centered in the intersection: its leading edge sits just inside
 	-- the boosted arc's above-h opening, its trailing edge inside the slow
 	-- arc's — every entry speed crosses it airborne.
@@ -1110,7 +1113,7 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	-- The kick is inviolable (closed-form clearance). If the strip or the
 	-- landing wouldn't fit inside the chunk, the CHUNK grows — never the
 	-- kick shrinking below what the crossing demands.
-	local landZ = 2 * speed * tApex -- symmetric: lands back on deck level
+	local landZ = 2 * speedLand * tApex -- symmetric: lands back on deck level
 	length = math.max(length, math.ceil(stripZ / (0.78 - padT)), math.ceil(landZ / (0.95 - padT)))
 	local stripT = padT + stripZ / length
 	local obstacles = { { t = stripT, xOff = 0, w = st.width - 2, h = stripH, d = stripD } }
