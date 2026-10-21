@@ -269,6 +269,13 @@ runs the loop below and does not stop until you say **stop**.
     void where the edge chevrons already speak. Client-only readability;
     no physics, scoring, or generation touched. Verified live: ring at
     deck level under the ball tracked per-frame, screenshotted mid-run)*
+40. **Ghost overtake toast** *(done — c4d6b3d: after trailing a replay's
+    interpolated position by ≥ `Ghost.OvertakeArm` studs, crossing back
+    to even toasts `▸ PASSED PB` / `▸ PASSED <name>` once per ghost per
+    run through the shared `achToast` channel — a wire-to-wire lead
+    never counts as a pass. Verified live: stub ghost parked at -40
+    armed at pace −8 and toasted on the catch; `PASSED champion42`
+    screenshotted beside `+160 vs champion42`)*
 
 ## Standing rules for new work
 
