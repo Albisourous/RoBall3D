@@ -433,6 +433,12 @@ runs the loop below and does not stop until you say **stop**.
     (SnakeField ×3.5, third single-mover flavor). Order grows to 11
     with standard ×3 keeping ~1-in-4 vanilla)*
 
+61. **Swell chunk** *(done — full-width ribbon undulating in y, a pump
+    line of gentle crests; integer sine periods keep the exit seam
+    clean, `Swell.SlopeMax` caps added slope so crests pop not launch.
+    Breather family, pools ≥200m, no canRun gate — the reach band
+    stays full)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

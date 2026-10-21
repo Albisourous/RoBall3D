@@ -970,6 +970,43 @@ function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): C
 	end, { centerX = st.centerX, width = st.width, y = st.y - stepH * steps }, nil, gems)
 end
 
+-- Swell: a full-width ribbon whose deck undulates in y — a pump line of
+-- gentle crests and troughs. Integer periods land the exit exactly on
+-- the entry height so the seam is clean; the slope cap keeps a fast
+-- ball hopping the crests rather than launching off them. Rest-family
+-- like Terrace — no canRun gate, the audit's reach band stays full.
+function ChunkDefs.Swell(rng: Random, st: GenState, _tier): ChunkSpec
+	local C = Config.Swell
+	local length = rng:NextInteger(C.LenMin, C.LenMax)
+	local periods = rng:NextInteger(C.PeriodsMin, C.PeriodsMax)
+	-- Peak added slope = amp*2π*periods/length, capped by Config.SlopeMax.
+	local ampHi = math.max(C.AmpMin, math.min(C.AmpMax, C.SlopeMax * length / (2 * math.pi * periods)))
+	local amp = rng:NextNumber(C.AmpMin, ampHi)
+	local phase = rng:NextNumber(0, math.pi * 2)
+	local s0 = math.sin(phase) -- seam anchor: lift(0) = 0
+	-- Centerline gems ride the wave — pickups trace the pump line.
+	local gems = gemRhythmLine(
+		rng,
+		Tiers.speedAt(st.dist),
+		length,
+		0.15,
+		0.75,
+		0,
+		Config.Gems.ValueSafe,
+		nil,
+		energyOf(st),
+		bpmOf(st)
+	)
+	return spec("Swell", st, length, function(t)
+		return {
+			width = st.width,
+			centerX = st.centerX,
+			y = st.y + amp * (math.sin(phase + t * periods * math.pi * 2) - s0),
+			rollDeg = 0,
+		}
+	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+end
+
 -- Chained-row chunks (SnakeField/Chicane) size their length around the
 -- row spacing instead of cramming rows into a standard chunk: at speed,
 -- ReactionTime between lethal reads needs more studs than 90 of deck.

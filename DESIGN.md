@@ -326,6 +326,7 @@ narrow. Then the seeded generator takes over.
 | `BlockField` | Scattered red blocks, density scales with tier | Weaving pressure | 3+ |
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
 | `Terrace` | Deck descends in lips — each drop rides a real ~10° ramp over the tread's back half so a slow/mid-hop ball can't snag the edge | Free ballistic spectacle | 2+ |
+| `Swell` | Full-width ribbon undulating in y — a pump line of gentle crests; integer sine periods land the exit on the entry height, and a slope cap (`Swell.SlopeMax`) keeps crests as hops, not launches | Kinesthetic rest | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |
 | `Blackout` | Flat geometry, grid/center neon dims to rails+gems only — break sections only | Atmosphere | 3+ |
 | `Chicane` | Wall rows with gaps pinned to alternating rails | S-steer combo | 4+ |
