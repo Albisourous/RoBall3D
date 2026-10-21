@@ -138,11 +138,9 @@ type Run = {
 	dist: number, -- studs traveled (-Z), drives score
 	gemPts: number, -- gem pickups this run
 	nmPts: number, -- near-miss bonus points this run (§10)
-	nmCount: number, -- near-misses awarded (drives the HUD flash counter)
-	threadCount: number, -- press threads awarded (drives the THREAD flash)
-	nmChain: number, -- consecutive grazes inside ChainWindow (§10)
-	nmChainAt: number, -- run-elapsed seconds at the last award
 	nmCursor: number, -- scan cursor into streamer.hazards
+	gateCursor: number, -- scan cursor into streamer.gates (§10 hoop bonus)
+	hoopThreads: number, -- clean ring threads this run — drives the whoosh attribute
 	dbCursor: number, -- scan cursor into streamer.debuts (§8.6 banners)
 	hzPassed: number, -- lethal planes crossed alive (death-screen stat)
 	closest: number, -- tightest crossing gap seen, studs (inf = never close)
@@ -263,7 +261,7 @@ local function plausible(run: Run, score: number): boolean
 	-- Near-miss headroom: ~8 lethal planes per 30-stud chunk slice is
 	-- already impossible (rows are ReactionTime-spaced), so this stays a
 	-- loose ceiling, not a knob cheaters could reach.
-	local nearCap = math.ceil(run.dist / 30) * 8 * Config.Score.NearMiss.Points * Config.Score.NearMiss.ChainMax
+	local nearCap = math.ceil(run.dist / 30) * 8 * Config.Score.NearMiss.Points
 	return score <= maxDist + math.max(gemCap, 100) + nearCap
 end
 
@@ -382,11 +380,9 @@ local function startRun(player: Player)
 		dist = 0,
 		gemPts = 0,
 		nmPts = 0,
-		nmCount = 0,
-		threadCount = 0,
-		nmChain = 0,
-		nmChainAt = -math.huge,
 		nmCursor = 1,
+		gateCursor = 1,
+		hoopThreads = 0,
 		dbCursor = 1,
 		hzPassed = 0,
 		closest = math.huge,
@@ -526,6 +522,7 @@ function launch(player: Player, run: Run, streamer: TrackStreamer.Streamer, seed
 	player:SetAttribute("RoBallScore", 0)
 	player:SetAttribute("RoBallDist", 0)
 	player:SetAttribute("RoBallGems", 0)
+	player:SetAttribute("RoBallHoop", 0)
 	local ls = statsOf[player]
 	if ls then
 		ls.score.Value = 0
@@ -913,11 +910,8 @@ RunService.Heartbeat:Connect(function(dt)
 					close = math.abs(bx - h.cx) <= h.halfW and drop >= Config.Press.ThreadMinDrop
 					if close then
 						run.nmPts += Config.Press.ThreadBonus
-						run.threadCount += 1
-						player:SetAttribute("RoBallNmAward", Config.Press.ThreadBonus)
-						player:SetAttribute("RoBallThread", run.threadCount)
 						writeScore(player, run)
-						close = false -- paid as a thread; skips the graze-chain block
+						close = false -- paid as a thread; skips the graze block
 					end
 				else
 					local gap = math.abs(bx - h.cx) - h.halfW - ballR
@@ -925,21 +919,36 @@ RunService.Heartbeat:Connect(function(dt)
 					run.closest = math.min(run.closest, gap)
 				end
 				if close then
-					-- Chain (§10): a graze inside the window grows the
-					-- multiplier; a quiet stretch drops it back to ×1.
-					local elapsed = os.clock() - run.t0
-					if elapsed - run.nmChainAt <= nm.ChainWindow then
-						run.nmChain += 1
-					else
-						run.nmChain = 1
-					end
-					run.nmChainAt = elapsed
-					local mult = math.min(run.nmChain, nm.ChainMax)
-					run.nmPts += nm.Points * mult
-					run.nmCount += 1
-					player:SetAttribute("RoBallNmAward", nm.Points * mult)
-					player:SetAttribute("RoBallNmChain", mult)
-					player:SetAttribute("RoBallNearMiss", run.nmCount)
+					run.nmPts += nm.Points
+					writeScore(player, run)
+				end
+			end
+
+			-- RampGap hoops (§10): crossing a hoop's plane inside the ring
+			-- opening pays flat gems — the same cursor walk + interpolated
+			-- crossing as hazards; outside the circle or over the top pays nil.
+			local gt = Config.Hoop
+			while true do
+				local g = run.streamer.gates[run.gateCursor]
+				if not g or pos.Z >= g.z then
+					break
+				end
+				run.gateCursor += 1
+				local px = run.lastPos and run.lastPos.X or pos.X
+				local py = run.lastPos and run.lastPos.Y or pos.Y
+				local pz = run.lastPos and run.lastPos.Z or pos.Z
+				local t = math.clamp((pz - g.z) / math.max(pz - pos.Z, 0.001), 0, 1)
+				local dx = px + (pos.X - px) * t - g.cx
+				local dy = py + (pos.Y - py) * t - g.cy
+				if dx * dx + dy * dy <= (g.r + ballR) * (g.r + ballR) then
+					run.gemPts += gt.Score
+					-- Same dual-purpose path as a pickup: score + banked
+					-- currency (§18 P2), and the RoBallGems bump gives the
+					-- client its pickup flourish for free. RoBallHoop fires
+					-- the thread whoosh (§10).
+					run.banked += ShopService.awardGems(player, gt.Bank)
+					run.hoopThreads += 1
+					player:SetAttribute("RoBallHoop", run.hoopThreads)
 					writeScore(player, run)
 				end
 			end

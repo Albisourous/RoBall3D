@@ -149,13 +149,14 @@ function Sfx.dashDenied()
 	end)
 end
 
--- Graze whoosh (§10): the bell inhale-swept up through the pass — air
--- rushing past the face the ball just missed. Mirror of the dash's
--- falling zip; rides the `wind` mixer channel like the speed bed.
-function Sfx.grazeWhoosh()
-	local cfg = Config.Score.Graze
+-- Hoop whoosh (§10): the bell inhale-swept up through the pass — air
+-- rushing through the ring's opening the ball just threaded. Rides the
+-- `wind` mixer channel like the speed bed; the gem chime on the same
+-- award supplies the consonant hit on top.
+function Sfx.hoop()
+	local cfg = Config.Hoop
 	local s = Instance.new("Sound")
-	s.Name = "GrazeWhoosh"
+	s.Name = "HoopWhoosh"
 	s.SoundId = assetUri(Config.DashSfx)
 	s.Volume = cfg.WhooshVol * AudioMix.gain("wind")
 	local ps = Instance.new("PitchShiftSoundEffect")
@@ -204,6 +205,14 @@ function Sfx.init()
 			chime()
 		end
 		lastGems = n
+	end)
+	local lastHoop = player:GetAttribute("RoBallHoop") or 0
+	player:GetAttributeChangedSignal("RoBallHoop"):Connect(function()
+		local n = player:GetAttribute("RoBallHoop") or 0
+		if n > lastHoop then
+			Sfx.hoop()
+		end
+		lastHoop = n
 	end)
 end
 

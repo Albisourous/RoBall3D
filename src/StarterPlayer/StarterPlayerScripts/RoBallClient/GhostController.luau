@@ -229,30 +229,6 @@ function GhostController.stop()
 	rivalEcho = nil
 end
 
--- Death replay (§11): re-run the last `span` seconds of THIS run's
--- recording as a dim echo during the death-cam orbit — the fatal line
--- plays back on cue, ending at the kill spot as the card lands. Called
--- after stop() so the recording is already frozen; frames re-baseline
--- to t=0 and the echo plays on the shared replay clock.
-function GhostController.replayTail(span: number): boolean
-	local f: Frames = {}
-	local t0 = recT - span
-	for i = 1, #rec, 4 do
-		if rec[i] >= t0 then
-			table.insert(f, rec[i] - t0)
-			table.insert(f, rec[i + 1])
-			table.insert(f, rec[i + 2])
-			table.insert(f, rec[i + 3])
-		end
-	end
-	if #f < 8 then
-		return false
-	end
-	table.insert(echoes, spawnEcho(f, "DeathEcho", Color3.fromRGB(0, 230, 255), Config.Ghost.DeathTrans))
-	playing = true
-	return true
-end
-
 -- Enough recording to be worth replaying (§11): two frames minimum.
 function GhostController.canReplay(): boolean
 	return #rec >= 8

@@ -128,8 +128,8 @@ Budgets (targets, not laws):
   `GetTagged` scans.
 - Hazard/debut scans use monotonic cursors (`nmCursor`, `dbCursor`) —
   keep the z-descending invariants they rely on.
-- Radar bars, power segments, board rows, landing ring, and the graze
-  emitter are pooled — pool, don't create-per-event.
+- Radar bars, power segments, and board rows are pooled — pool, don't
+  create-per-event.
 - All `InvokeServer` calls are `pcall`ed on the client; keep it.
 - DataStore path already has retry/backoff, cooldown-cached leaderboards,
   probe deduplication (`probeInFlight`), and write-thrift (records only).

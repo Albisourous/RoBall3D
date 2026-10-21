@@ -320,7 +320,7 @@ narrow. Then the seeded generator takes over.
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
 | `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
-| `RampGap` | Launch ramp, full-width void, landing strip | Speed check / spectacle | 5+ |
+| `RampGap` | Launch ramp, full-width void, landing strip + a gem-paying hoop at the flight apex | Speed check / spectacle | 5+ |
 | `BlockGate` | Red blocks across the deck, one gap ≥ CorridorMin | Thread-the-gap | 2+ |
 | `BlockField` | Scattered red blocks, density scales with tier | Weaving pressure | 3+ |
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
@@ -365,9 +365,9 @@ narrow. Then the seeded generator takes over.
   velocity): GD pads as terrain, not a jump button.
 - `ChunkSpec.dim` (Blackout) dims grid/center neon to `Blackout.GridScale`
   — edges + gems stay lit.
-- `ChunkSpec.tierGate` — a chunk straddling a tier boundary carries a
-  non-collide neon portal bridge: two frames joined by top rails (no
-  distance label — the HUD already owns numbers).
+- `ChunkSpec.hoop` — `RampGap` carries a faceted neon ring at the void's
+  flight apex (`Hoop.Radius`/`Tube`, center `Hoop.ApexLift` above the
+  launch plane). Threading it mid-air pays gems (§10).
 
 ### 8.4 Gem placement
 
@@ -583,27 +583,22 @@ already marks risk honestly). One award per obstacle; hanging roof slabs never
 count (a lateral graze under a ceiling isn't a dodge) — except PressRow's
 `dropY` plates, where the dodge is vertical: crossing the plane *inside the
 plate's span* (the guaranteed lane sits outside it) while the plate is
-≥`Press.ThreadMinDrop` into its travel pays `Press.ThreadBonus` and flashes
-`THREAD +N` on its own `RoBallThread` counter — a free pass under a raised
-plate pays nothing, and a crossing that kills can't award. The server walks
-the streamer's ordered hazard-plane list with a cursor — zero per-frame
-scans — and `plausible()` carries a loose `ceil(dist/30) × 8 × Points ×
-ChainMax` ceiling. Each graze bumps `RoBallNearMiss`; the HUD flashes a
-short cyan `CLOSE +N`, a pooled `Graze` particle burst fires at the
-ball, and an inhale-swept whoosh rides the `wind` channel — the dodge
-reads physically at the moment of risk, not only as HUD text (threads
-get the same spark + whoosh).
+≥`Press.ThreadMinDrop` into its travel pays `Press.ThreadBonus` — a free
+pass under a raised plate pays nothing, and a crossing that kills can't
+award. The server walks the streamer's ordered hazard-plane list with a
+cursor — zero per-frame scans — and `plausible()` carries a loose
+`ceil(dist/30) × 8 × Points` ceiling. The trickle pays silently into
+score — no flash, particles, audio, or camera kick (the CLOSE ping /
+chain ×N row / graze whoosh / FOV-kick layer was cut for noise).
 
-**Chains**: a graze within `NearMiss.ChainWindow` seconds of the last one
-multiplies the award — `Points × min(chain, ChainMax)` — so threading a
-dense section pays geometrically while isolated scrapes stay flat. The
-run's chain resets on the first quiet stretch. `RoBallNmAward`/`RoBallNmChain`
-mirror the last award for the flash, which shows `CLOSE +N ×M` from chain
-two up (the suffix is the capped multiplier — the label never promises
-more than it pays). From chain two the HUD also holds a `chain ×N` row
-in the left column with a thin bar draining across `ChainWindow` — the
-"keep it alive" pressure gauge; an empty bar is the dropped chain, and
-the next graze restarts at ×1 exactly like the server's reset.
+**Hoop bonus**: the `RampGap` ring (§8.3) is a payout line, not just a
+spectacle — crossing its plane inside the opening
+(`dist(ball, ring center) ≤ r + ballR` at the interpolated crossing
+point) pays `Hoop.Score` gem points and `Hoop.Bank` banked gems through
+the same dual-purpose path as a pickup, so the `RoBallGems` bump gives
+it the pickup flourish for free, while a `RoBallHoop` bump fires the
+inhale-swept thread whoosh on the `wind` channel. Off-line or
+over-the-top passes pay nothing — threading the ring is the ask.
 
 ## 11. Death
 
@@ -645,10 +640,7 @@ spot — yaw sweeps `DeathOrbitArc` (~31°) while the radius pulls back
 toward `DeathOrbitPull`× and FOV settles to FovMin — *then* the death
 card lands. R mid-orbit skips straight to restart; a stale delayed card
 is dropped by the death-sequence guard. No lives, no shields — they were
-explicitly deferred. During the orbit the run's own recording replays
-its last `DeathOrbitSec` as a dim cyan echo (`Ghost.replayTail`) — the
-fatal approach is visible on-screen, ending at the kill spot as the card
-lands. Cosmetic only; it dies with the next run's `Ghost.stop()`. The
+explicitly deferred. The
 card's `watch replay` button (V) re-runs the run's **entire recording**
 down the still-standing track — `Ghost.replayFull()` rebases the frames
 to t=0 and the chase cam follows the echo with the live run's framing,
@@ -726,11 +718,9 @@ leaves the line off.
 - **HUD**: one big pink score top-right (top-left sits under Roblox's
   native menu; the center cone stays clear for the track read at
   speed); distance/gems on a dim lavender subline, the combo pip under
-  that, then the gold pass-moment flash, the cyan near-miss ping, and
-  the `±N vs PB` pace line when a PB echo replays. A graze also kicks
-  `Camera.MissFovKick` degrees of FOV that decays at `MissFovDecay`/s —
-  the near-miss you feel, riding the same `RoBallNearMiss` bump as the
-  ping. Below the stack a narrow **look-ahead radar** (`Config.Radar`)
+  that, then the gold pass-moment flash and the `±N vs PB` pace line
+  when a PB echo replays. Below the stack a narrow **look-ahead radar**
+  (`Config.Radar`)
   strips the next `Range` studs down to red bars — top = far, bottom =
   at the ball, x = block offset vs the ball — re-read from the tagged
   `RoBallLethal` set every `ScanSeconds` so movers track for free;
@@ -747,10 +737,6 @@ leaves the line off.
   (`Config.EdgeWarn`) light when a short probe beside the ball finds no
   ground — over a cutout or one step from the rail; anything hit
   (deck, wall, face) counts as supported.
-  A cyan **landing shadow** ring (`Config.Landing`) sits on the ground
-  directly under the ball — the same lane-only probe straight down —
-  so a pad arc's landing spot reads on the descending deck; over void
-  it hides and the chevrons speak.
   A red **danger vignette** (`Config.Danger`) strokes the screen frame
   with intensity rising toward contact distance when a lethal part
   overlaps the ball's own line (`Danger.Lane`) inside `Danger.Near`

@@ -104,8 +104,6 @@ local edgeFilter: { Instance } = {}
 local EDGE_DOWN = Vector3.new(0, -1, 0)
 local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
-local landingRing: Part? = nil -- pooled blob shadow, made once on first use
-local grazeEmitter: ParticleEmitter? = nil -- pooled burst, lives on the ball
 local dangerDz: number? = nil -- nearest corridor threat ahead, set by the radar scan
 local nextPingAt = 0 -- sonar cadence clock; 0 re-arms on zone entry
 local threatCache: string? = nil -- threat label currently on the radar
@@ -276,22 +274,6 @@ local function bindBall(b: Instance)
 			and lanesFolder:FindFirstChild("Lane" .. math.round(ball.Position.X / Config.Generation.RowSpacing))
 		edgeFilter[1] = edgeLane :: Instance
 		edgeParams.FilterDescendantsInstances = edgeFilter
-		-- Graze spark (§10): one pooled burst emitter rides the ball;
-		-- near-miss/thread bumps Emit() a handful of icy shards.
-		local G = Config.Score.Graze
-		local em = Instance.new("ParticleEmitter")
-		em.Name = "GrazeSpark"
-		em.Rate = 0
-		em.Lifetime = NumberRange.new(G.Life * 0.6, G.Life)
-		em.Speed = NumberRange.new(G.Speed * 0.5, G.Speed)
-		em.SpreadAngle = Vector2.new(G.Spread, G.Spread)
-		em.Size = NumberSequence.new(G.Size)
-		em.Drag = G.Drag
-		em.Color = ColorSequence.new(G.Color)
-		em.LightEmission = 1
-		em.Enabled = false -- Emit() only; Rate=0 emits nothing on its own
-		em.Parent = ball
-		grazeEmitter = em
 	end
 end
 for _, c in ipairs(workspace:GetChildren()) do
@@ -301,7 +283,6 @@ workspace.ChildAdded:Connect(bindBall)
 workspace.ChildRemoved:Connect(function(c)
 	if c == ball then
 		ball = nil -- destroyed part isn't nil; clear so we stop driving it
-		grazeEmitter = nil -- emitter died with the ball
 	end
 end)
 
@@ -640,9 +621,6 @@ local radarPool: { { dx: number, dz: number, w: number } } = {}
 -- only if no restart/menu happened mid-orbit.
 local deathSeq = 0
 local deathT0 = 0
--- Near-miss FOV pulse (§12): a near-miss kicks a few degrees of FOV that
--- decays out — the graze you feel without stealing the track read.
-local missFovKick = 0
 player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 	local n = player:GetAttribute("RoBallGems") or 0
 	if n > lastGemPts then
@@ -658,37 +636,6 @@ player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 		end)
 	end
 	lastGemPts = n
-end)
-
--- Near-miss ping (§10): the server's count attribute is the signal — each
--- increment flashes CLOSE +N under the score. No reset needed: the count
--- is per-run and the flash is momentary.
-player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
-	if mode == "running" then
-		local chain = (player:GetAttribute("RoBallNmChain") :: number?) or 1
-		ui:flashMiss((player:GetAttribute("RoBallNmAward") :: number?) or Config.Score.NearMiss.Points, chain)
-		if chain > 1 then
-			ui:chainPulse(chain) -- re-arms the drain; ×1 stays flash-only
-		end
-		if grazeEmitter then
-			grazeEmitter:Emit(Config.Score.Graze.Sparks)
-		end
-		Sfx.grazeWhoosh()
-		missFovKick = Config.Camera.MissFovKick
-	end
-end)
-
--- Press thread (§10): same ping, different word — crossing under a
--- dropped plate is a timed dodge, so it rides its own counter.
-player:GetAttributeChangedSignal("RoBallThread"):Connect(function()
-	if mode == "running" then
-		ui:flashMiss((player:GetAttribute("RoBallNmAward") :: number?) or Config.Press.ThreadBonus, nil, "THREAD")
-		if grazeEmitter then
-			grazeEmitter:Emit(Config.Score.Graze.Sparks)
-		end
-		Sfx.grazeWhoosh()
-		missFovKick = Config.Camera.MissFovKick
-	end
 end)
 
 evRunStarted.OnClientEvent:Connect(function(seed: number)
@@ -780,16 +727,12 @@ evRunEnded.OnClientEvent:Connect(
 		combo = 0
 		ui:setCombo(0)
 		ui:setEdgeWarn(false, false)
-		ui:chainHide()
 		ui:setDanger(0)
 		dangerDz = nil
 		nextPingAt = 0
 		threatCache = nil :: string?
 		ui:setThreat("")
 		ui:setRadarGhosts(nil, nil)
-		if landingRing then
-			landingRing.Transparency = 1
-		end
 		CosmeticFx.onMode("dead")
 		DeathFx.burst(lastBallPos)
 		-- Ghost echo (§14): this run's frames become the stored ghost only
@@ -801,9 +744,6 @@ evRunEnded.OnClientEvent:Connect(
 		if newBest and ghostCsv then
 			evSaveGhost:FireServer(seed, ghostCsv, score)
 		end
-		-- Death replay (§11): the run's own tail replays as a dim echo
-		-- through the orbit — the misread is visible before the card.
-		Ghost.replayTail(Config.Camera.DeathOrbitSec)
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
 		-- The card waits out the death-cam orbit (§11); R mid-orbit skips it
@@ -1156,34 +1096,10 @@ RunService.Heartbeat:Connect(function(dt)
 	local rp = workspace:Raycast(bp + Vector3.new(E.ProbeSide, 0, 0), EDGE_DOWN * E.ProbeDown, edgeParams)
 	ui:setEdgeWarn(lp == nil, rp == nil)
 
-	-- Landing shadow (§12): the same lane-only probe straight down marks
-	-- where the ball comes back to ground — most useful mid pad-arc.
-	local ring = landingRing
-	if not ring then
-		ring = Instance.new("Part")
-		ring.Name = "LandingShadow"
-		ring.Shape = Enum.PartType.Cylinder
-		ring.Size = Vector3.new(0.12, Config.Landing.Radius * 2, Config.Landing.Radius * 2)
-		ring.Orientation = Vector3.new(0, 0, 90) -- cylinder axis upright
-		ring.Anchored = true
-		ring.CanCollide = false
-		ring.CanQuery = false
-		ring.CanTouch = false
-		ring.CastShadow = false
-		ring.Material = Enum.Material.Neon
-		ring.Color = Color3.fromRGB(80, 225, 235)
-		ring.Parent = workspace
-		landingRing = ring
-	end
+	-- Airtime stat (§11): a lane-only probe straight down decides
+	-- grounded vs airborne — the death card turns it into "air N%" of
+	-- run time.
 	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
-	if drop then
-		ring.Position = drop.Position + Vector3.new(0, 0.1, 0)
-		ring.Transparency = 0.35
-	else
-		ring.Transparency = 1 -- over the void the chevrons speak instead
-	end
-	-- Airtime stat (§11): the same probe decides grounded vs airborne —
-	-- the death card turns it into "air N%" of run time.
 	if drop and bp.Y - drop.Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad then
 		statGroundT += dt
 	else
@@ -1246,8 +1162,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local b = ball
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
-		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT + missFovKick
-		missFovKick *= math.exp(-dt * cam.MissFovDecay)
+		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
 		-- Blur meter: power curve — clear through the 0-100 game, smear
 		-- climbs hard into endless mode, capped at MaxBlur.
 		local bl = Config.Blur

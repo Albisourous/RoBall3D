@@ -65,7 +65,7 @@ export type ChunkSpec = {
 	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
 	debut: boolean?, -- set by GenCore when this chunk is the feature's gentle showcase
-	tierGate: { dist: number, t: number }?, -- arch marker where dist crosses a tier boundary
+	hoop: { t: number }?, -- RampGap: neon ring at the gap's flight apex — threading it pays gems (§10)
 }
 
 -- Lethal geometry placed on the deck (DESIGN.md §8.3 obstacle rules).
@@ -625,7 +625,7 @@ function ChunkDefs.RampGap(_rng: Random, st: GenState, tier): ChunkSpec
 		})
 	end
 
-	return spec("RampGap", st, length, function(t)
+	local s = spec("RampGap", st, length, function(t)
 		local z = t * length
 		if z < rampLen then
 			-- rising ramp
@@ -643,6 +643,10 @@ function ChunkDefs.RampGap(_rng: Random, st: GenState, tier): ChunkSpec
 			rollDeg = 0,
 		}
 	end, { centerX = st.centerX, width = landW, y = yLand }, nil, gems)
+	-- The hoop (§8.6): a gem-paying ring dead-center over the void at the
+	-- flight apex — the one guaranteed airborne moment in the run.
+	s.hoop = { t = (rampLen + gapLen / 2) / length }
+	return s
 end
 
 -- Obstacle chunks (DESIGN.md §8.3). All obey the exit-line rule: every lethal
@@ -823,6 +827,18 @@ end
 -- difficulty.
 
 local G = 196.2 -- workspace gravity, studs/s^2
+
+-- Ballistic gem arcs (§8.4): pad chunks float their gem line ON the
+-- nominal-speed flight parabola — the old sine bump sat studs under the
+-- real arc and the ball sailed over it. `u` = studs past the pad center,
+-- `speed` = nominal forward speed; returns yOff (height above the graded
+-- section plane): launch height + parabola + the grade the deck keeps
+-- dropping under the arc.
+local PAD_LAUNCH_H = 1.7 -- ball-center height at pad contact (radius + pad top)
+local function padArcH(kick: number, speed: number, u: number): number
+	local tf = u / math.max(speed, 1)
+	return PAD_LAUNCH_H + kick * tf - 0.5 * G * tf * tf + Config.Generation.Grade * u
+end
 
 -- Wall row with the gap pinned to gx — Chicane/DropGate force alternating
 -- or accent-marked corridors instead of gateRow's random placement.
@@ -1147,10 +1163,12 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 		local f = (i + 0.5) / 4
 		local t = padT + (stripT - padT) * 2 * f
 		if t < GEM_BOUND then
-			table.insert(
-				gems,
-				{ t = t, xOff = padX, value = Config.Gems.ValueGapArc, yOff = 1.2 + h * math.sin(f * math.pi) }
-			)
+			table.insert(gems, {
+				t = t,
+				xOff = padX,
+				value = Config.Gems.ValueGapArc,
+				yOff = padArcH(kick, speed, (t - padT) * length),
+			})
 		end
 	end
 	local s = spec(
@@ -1182,14 +1200,19 @@ function ChunkDefs.PadVoid(rng: Random, st: GenState, _tier, debut: boolean?): C
 	local landW = math.min(st.width * 1.25, Config.Generation.BaseWidth)
 	local yLand = st.y - drop
 	local gems = {}
+	local padCZ = padT * length -- flight launches from pad center, ahead of the lip
 	for i = 0, 3 do
 		local f = (i + 0.5) / 4
-		table.insert(gems, {
-			t = (runupLen + f * gapLen) / length,
-			xOff = 0,
-			value = Config.Gems.ValueGapArc,
-			yOff = 1 + math.sin(f * math.pi) * apexH,
-		})
+		local gz = runupLen + f * gapLen
+		local hgt = padArcH(kick, speed, gz - padCZ)
+		if hgt > -drop + 0.5 then -- still airborne at nominal; deeper sits past the landing
+			table.insert(gems, {
+				t = gz / length,
+				xOff = 0,
+				value = Config.Gems.ValueGapArc,
+				yOff = hgt,
+			})
+		end
 	end
 	local s = spec("PadVoid", st, length, function(t)
 		local z = t * length
@@ -1558,12 +1581,16 @@ function ChunkDefs.OrbHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	local gems = {}
 	for i = 0, 3 do
 		local f = (i + 0.5) / 4
-		table.insert(gems, {
-			t = (lipZ + f * gapLen) / length,
-			xOff = 0,
-			value = Config.Gems.ValueGapArc,
-			yOff = 2 + apexH * math.sin(f * math.pi),
-		})
+		local gz = lipZ + f * gapLen
+		local hgt = padArcH(kick1, speed, gz - padZ)
+		if hgt > 1 then -- past arc-1's dip the void has claimed the ball
+			table.insert(gems, {
+				t = gz / length,
+				xOff = 0,
+				value = Config.Gems.ValueGapArc,
+				yOff = hgt,
+			})
+		end
 	end
 	local s = spec("OrbHop", st, length, function(t)
 		local z = t * length

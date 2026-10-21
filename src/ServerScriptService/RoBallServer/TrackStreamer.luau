@@ -81,6 +81,9 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	-- Debut banners (§8.6): {z, name} per showcase chunk — chunks build in
 	-- order so the list stays z-descending for the run loop's bare cursor.
 	self.debuts = {} :: { { z: number, name: string } }
+	-- RampGap hoops (§10): {z, cx, cy, r} per hoop — same cursor shape
+	-- as hazards; a crossing inside the ring opening pays the hoop bonus.
+	self.gates = {} :: { { z: number, cx: number, cy: number, r: number } }
 	return self
 end
 
@@ -333,66 +336,42 @@ local function makePad(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpe
 	return p
 end
 
--- TierGate arch (§8.6): non-collide neon portal frames marking each tier
--- boundary — two frames joined by top rails so the arch reads as a bridge
--- with real depth, not a flat hoop. Zero gameplay effect.
-local function makeTierGate(
+-- RampGap hoop (§8.6): a faceted neon ring floating at the void's flight
+-- apex — the ball threads it mid-jump for the gem bonus (§10). Faceted
+-- box segments match the angular wireframe palette (no torus primitive).
+-- The record feeds streamer.gates: inside-the-ring pays Hoop.Score/.Bank.
+local function makeHoop(
 	parent: Instance,
 	laneX: number,
 	spec: ChunkDefs.ChunkSpec,
-	gate: { dist: number, t: number }
-)
-	local mid = spec.section(gate.t)
-	local zMid = spec.startZ - gate.t * spec.length
+	hoop: { t: number }
+): { z: number, cx: number, cy: number, r: number }
+	local mid = spec.section(hoop.t)
+	local zMid = spec.startZ - hoop.t * spec.length
 	local cX = laneX + mid.centerX
-	local w = math.max(mid.width, 8)
+	local cfg = Config.Hoop
+	local r = cfg.Radius
+	local centerY = mid.y + cfg.ApexLift
 	local neon = Palette.neonAt(-zMid)
-	local postH = 9
-	local depth = 6
-	local grade = Config.Generation.Grade
-	for i = 0, 1 do
-		local z = zMid - i * depth
-		local y = mid.y - grade * i * depth -- frames follow the deck's drop
-		for _, s in ipairs({ -1, 1 }) do
-			local post = Instance.new("Part")
-			post.Name = "GatePost"
-			post.Anchored = true
-			post.CanCollide = false
-			post.CanQuery = false
-			post.CastShadow = false
-			post.Size = Vector3.new(0.8, postH, 0.8)
-			post.CFrame = CFrame.new(cX + s * (w / 2 - 0.6), y + postH / 2, z)
-			post.Color = neon
-			post.Material = Enum.Material.Neon
-			post.Parent = parent
-		end
-		local bar = Instance.new("Part")
-		bar.Name = "GateBar"
-		bar.Anchored = true
-		bar.CanCollide = false
-		bar.CanQuery = false
-		bar.CastShadow = false
-		bar.Size = Vector3.new(w - 0.4, 0.8, 0.8)
-		bar.CFrame = CFrame.new(cX, y + postH + 0.4, z)
-		bar.Color = neon
-		bar.Material = Enum.Material.Neon
-		bar.Parent = parent
+	local SEGS = 14
+	local rMid = r + cfg.Tube * 0.5 -- ring centerline radius
+	local segLen = (2 * math.pi * rMid / SEGS) * 1.25 -- ~25% overlap: no slivers
+	for s = 0, SEGS - 1 do
+		local a = s / SEGS * math.pi * 2
+		local seg = Instance.new("Part")
+		seg.Name = "HoopRing"
+		seg.Anchored = true
+		seg.CanCollide = false
+		seg.CanQuery = false
+		seg.CastShadow = false
+		seg.Size = Vector3.new(segLen, cfg.Tube, cfg.Tube)
+		seg.CFrame = CFrame.new(cX + rMid * math.cos(a), centerY + rMid * math.sin(a), zMid)
+			* CFrame.Angles(0, 0, a + math.rad(90))
+		seg.Color = neon
+		seg.Material = Enum.Material.Neon
+		seg.Parent = parent
 	end
-	-- Top rails join the frames into a bridge the ball passes under.
-	for _, s in ipairs({ -1, 1 }) do
-		local rail = Instance.new("Part")
-		rail.Name = "GateRail"
-		rail.Anchored = true
-		rail.CanCollide = false
-		rail.CanQuery = false
-		rail.CastShadow = false
-		rail.Size = Vector3.new(0.8, 0.8, depth + 0.8)
-		rail.CFrame = CFrame.new(cX + s * (w / 2 - 0.6), mid.y + postH + 0.4 - grade * depth / 2, zMid - depth / 2)
-			* CFrame.Angles(-math.atan(grade), 0, 0)
-		rail.Color = neon
-		rail.Material = Enum.Material.Neon
-		rail.Parent = parent
-	end
+	return { z = zMid, cx = cX, cy = centerY, r = r }
 end
 
 -- JumpOrb (§8.6 stretch): a lime ring floating over the void. Non-collide —
@@ -855,8 +834,8 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		emitFlipZone(holder, self.laneX, spec, spec.flip, deckColorAt)
 	end
 
-	if spec.tierGate then
-		makeTierGate(holder, self.laneX, spec, spec.tierGate)
+	if spec.hoop then
+		table.insert(self.gates, makeHoop(holder, self.laneX, spec, spec.hoop))
 	end
 
 	if spec.gems then

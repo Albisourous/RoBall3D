@@ -1233,51 +1233,6 @@ function Ui.new(): Ui
 	bestFlash.Parent = hud
 	self.bestFlash = bestFlash
 
-	-- Near-miss ping (§10): a quick cyan "CLOSE +N" under the score when
-	-- a lethal-plane crossing grazes the face — the trickle made visible.
-	local missFlash = Instance.new("TextLabel")
-	missFlash.BackgroundTransparency = 1
-	missFlash.Font = F_DATA
-	missFlash.TextSize = 14
-	missFlash.TextColor3 = C_CYAN
-	missFlash.TextStrokeTransparency = 0.5
-	missFlash.TextXAlignment = Enum.TextXAlignment.Right
-	missFlash.Position = UDim2.fromOffset(0, 116)
-	missFlash.Size = UDim2.new(1, 0, 0, 18)
-	missFlash.Text = ""
-	missFlash.Visible = false
-	missFlash.Parent = hud
-	self.missFlash = missFlash
-
-	-- Chain meter (§10): while a graze chain is alive, "×N" holds in the
-	-- left column with a thin bar draining across ChainWindow — the
-	-- "keep it alive" pressure the per-graze flash can't carry. Drain
-	-- restarts on every pulse; empty = the window lapsed, next graze
-	-- reads ×1.
-	local chainRow = Instance.new("TextLabel")
-	chainRow.BackgroundTransparency = 1
-	chainRow.Font = F_DATA
-	chainRow.TextSize = 13
-	chainRow.TextColor3 = C_GOLD
-	chainRow.TextStrokeTransparency = 0.5
-	chainRow.TextXAlignment = Enum.TextXAlignment.Left
-	chainRow.Position = UDim2.fromOffset(0, 188)
-	chainRow.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 16)
-	chainRow.Text = ""
-	chainRow.Visible = false
-	chainRow.Parent = hud
-	self.chainRow = chainRow
-	local chainBar = Instance.new("Frame")
-	chainBar.BorderSizePixel = 0
-	chainBar.BackgroundColor3 = C_GOLD
-	chainBar.BackgroundTransparency = 0.35
-	chainBar.Position = UDim2.fromOffset(0, 206)
-	chainBar.Size = UDim2.fromOffset(90, 2)
-	chainBar.Visible = false
-	chainBar.Parent = hud
-	self.chainBar = chainBar
-	self.chainGen = 0 -- pulse-generation counter; stale drains die
-
 	-- Pace delta (§12): while the PB echo replays (same-seed runs), a
 	-- persistent "+N vs PB" / "-N vs PB" line — cyan ahead, pink behind.
 	local paceText = Instance.new("TextLabel")
@@ -1789,7 +1744,6 @@ function Ui:showHud()
 	self.menu.Visible = false
 	self.death.Visible = false
 	self.bestFlash.Visible = false -- reset for the new run's own crossing
-	self:chainHide()
 	self.hud.Visible = true
 	self.spdNum.Visible = true
 	self.spdUnit.Visible = true
@@ -1967,57 +1921,6 @@ function Ui:flashBest()
 	task.delay(Config.Score.PbFlashSeconds, function()
 		flash.Visible = false
 	end)
-end
-
--- Near-miss ping (§10): "CLOSE +N" per graze, "+N ×M" while a chain is
--- running — the multiplier suffix only earns its space from chain two.
--- `word` swaps the label ("THREAD" for press threads).
-function Ui:flashMiss(points: number, chain: number?, word: string?)
-	local text = (word or "CLOSE") .. " +" .. tostring(points)
-	if chain and chain > 1 then
-		text ..= " ×" .. tostring(chain)
-	end
-	self.missFlash.Text = text
-	self.missFlash.Visible = true
-	local flash = self.missFlash
-	task.delay(Config.Score.NearMiss.FlashSeconds, function()
-		flash.Visible = false
-	end)
-end
-
--- Chain meter (§10): every chain bump re-arms the drain — the bar is a
--- live countdown of the ChainWindow the next graze must land inside.
--- The server mirrors this: a quiet window drops the next graze to ×1.
-function Ui:chainPulse(mult: number)
-	self.chainRow.Text = string.format("chain ×%d", mult)
-	self.chainRow.Visible = true
-	self.chainBar.Visible = true
-	self.chainGen += 1
-	local gen = self.chainGen
-	local bar = self.chainBar
-	local row = self.chainRow
-	local window = Config.Score.NearMiss.ChainWindow
-	local t0 = os.clock()
-	task.spawn(function()
-		while self.chainGen == gen do
-			local frac = 1 - (os.clock() - t0) / window
-			if frac <= 0 then
-				break
-			end
-			bar.Size = UDim2.fromOffset(math.ceil(90 * frac), 2)
-			task.wait(0.05)
-		end
-		if self.chainGen == gen then -- drain lapsed; the chain dropped
-			row.Visible = false
-			bar.Visible = false
-		end
-	end)
-end
-
-function Ui:chainHide()
-	self.chainGen += 1
-	self.chainRow.Visible = false
-	self.chainBar.Visible = false
 end
 
 -- Achievement toast (§14): "◈ NAME · +N gems" — a ribbon for the unlock

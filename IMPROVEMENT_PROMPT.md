@@ -151,7 +151,7 @@ runs the loop below and does not stop until you say **stop**.
     verified live via stubbed GetGhost)*
 21. **Near-miss FOV pulse** *(done — adc8d41: graze attr kicks
     `Config.Camera.MissFovKick` degrees, decays at MissFovDecay/s;
-    verified live 72→78→73)*
+    verified live 72→78→73 — later removed with the near-miss FX layer)*
 22. **Look-ahead radar** *(done — f12b3f0: `Config.Radar` strip beside
     the top-right HUD maps tagged `RoBallLethal` blocks into pooled red
     bars, top=far/bottom=ball/x=lateral; heartbeat re-scans at
@@ -166,7 +166,9 @@ runs the loop below and does not stop until you say **stop**.
     multiply the award `Points × min(chain, ChainMax=4)`; `RoBallNmAward`/
     `RoBallNmChain` attrs feed a `CLOSE +N ×M` flash; plausible() cap
     gained the ChainMax factor. Verified live: chain=2 award=6 on a
-    two-plane pair)*
+    two-plane pair — later removed: all near-miss FX (CLOSE flash, chain
+    row, graze whoosh, sparks, FOV kick) cut for noise; grazes pay flat
+    `Points` silently)*
 25. **Rival pace line** *(done — 7b65cd0: `Ghost.rivalPace()` reads the
     champion echo's lead separately; gold `±N vs <name>` line under the
     cyan PB line, pink when behind; radar shifted to y174. PaceText/
@@ -191,9 +193,9 @@ runs the loop below and does not stop until you say **stop**.
 28. **Ghost split trails** *(done — 7c7f019: each echo draws a Trail
     between two y-offset attachments; Config.Ghost.TrailLife/TrailGap/
     TrailFade. Verified live — ribbons on both echoes)*
-28b. **Death replay** *(done — b58a7b0: `Ghost.replayTail` re-baselines
-    the run's last DeathOrbitSec as a dim echo through the death-cam;
-    the fatal approach is visible before the card. Verified live)*
+28b. **Death replay** *(done — b58a7b0; **removed** — the parked dim
+    echo on the death card read as a stray ball; V's `watch replay`
+    still re-runs the full recording on demand)*
 29. **Crowd ghost on daily runs** *(done — b755f11: the champ store is
     now a podium `{c, r}` merged atomically in UpdateAsync (v1 bare-Champ
     keys migrate on read); `GetGhost` returns `r` too, and on the daily
@@ -231,7 +233,8 @@ runs the loop below and does not stop until you say **stop**.
     ordered hazard list carrying the live plate + baseY/amp; a crossing
     inside the plate's span while `drop >= Press.ThreadMinDrop` pays
     `Press.ThreadBonus` on its own `RoBallThread` counter and flashes
-    `THREAD +N` (Ui `flashMiss` gained a word param; same FOV kick).
+    `THREAD +N` (flash/kick later removed with the near-miss FX layer —
+    the bonus still pays silently).
     Corridor crossings and raised-plate passes pay nil; a paid thread
     suppresses the graze-chain block — no double award. Verified live:
     record fields match spec (z=-2691, cx, halfW, amp), drop tracks the
@@ -262,13 +265,9 @@ runs the loop below and does not stop until you say **stop**.
     Verified live: right-rail pin → `EdgeL=false EdgeR=true`, airborne
     mid-deck +10 → both false, high over void → both true (honest
     nothing-below); both chevrons screenshotted mid-run)*
-39. **Landing shadow** *(done — b933b6c: a cyan ring projected on the
-    ground directly under the ball — one down-probe per heartbeat into
-    the lane folder, pooled part, no per-frame creation. It doubles as
-    the landing spot on pad arcs over a descending track and hides over
-    void where the edge chevrons already speak. Client-only readability;
-    no physics, scoring, or generation touched. Verified live: ring at
-    deck level under the ball tracked per-frame, screenshotted mid-run)*
+39. **Landing shadow** *(done — b933b6c; **removed** — the cyan disc
+    read as clutter under the ball; the down-probe survives only as the
+    airtime stat's grounded check)*
 40. **Ghost overtake toast** *(done — c4d6b3d: after trailing a replay's
     interpolated position by ≥ `Ghost.OvertakeArm` studs, crossing back
     to even toasts `▸ PASSED PB` / `▸ PASSED <name>` once per ghost per

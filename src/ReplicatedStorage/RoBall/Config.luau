@@ -57,9 +57,9 @@ Config.Power = {
 -- power meter (offense/defense/dodge bid on one resource). Discrete
 -- spend, not a held drain, but it still needs a meter past the marker.
 Config.Dash = {
-	Speed = 60, -- studs/s lateral target during the burst (~2.3x max steer)
-	Time = 0.2, -- burst window — ~12 studs of sidestep before hand-back
-	Accel = 1200, -- burst ease rate: reaches Speed in ~50ms, eases in like steering
+	Speed = 50, -- studs/s lateral target during the burst (~1.9x max steer)
+	Time = 0.16, -- burst window — ~8 studs of sidestep before hand-back
+	Accel = 1200, -- burst ease rate: reaches Speed in ~40ms, eases in like steering
 	Cost = 0.3, -- meter fraction per dash (~4 LED cells, 3 dashes per full bar)
 	Cooldown = 0.45, -- seconds between dashes (the meter is the real limiter)
 }
@@ -87,10 +87,6 @@ Config.Camera = {
 	LeanMax = 3, -- degrees of camera roll toward the steer direction
 	FovMin = 70,
 	FovMax = 88, -- FOV widens with speed for sense of velocity
-	-- Near-miss pulse (§12): a graze kicks this many extra FOV degrees,
-	-- decaying at MissFovDecay/s — felt, never nauseating.
-	MissFovKick = 6,
-	MissFovDecay = 5,
 	SmoothTime = 0.12,
 	-- Death-cam (§11): on a kill the camera orbits the wreck for
 	-- DeathOrbitSec — an ease-out yaw sweep of DeathOrbitArc pulling back
@@ -125,14 +121,12 @@ Config.EdgeWarn = {
 	Y = 0.62, -- screen-height fraction of the chevrons
 }
 
--- Landing shadow (§12): a cyan ring projected on the ground under the
--- ball — a blob shadow that doubles as the landing spot on pad arcs.
+-- Ground probe (§11): a lane-only raycast straight down from the ball.
+-- The ball's underside within ContactPad of the hit counts as contact —
+-- the death card's "air N%" stat is 1 minus the grounded share of run
+-- time.
 Config.Landing = {
-	MaxDrop = 40, -- studs below the ball the shadow can still find ground
-	Radius = 2.0, -- ring radius in studs
-	-- Grounded epsilon (§11): the ball's underside within this many studs
-	-- of the probe hit counts as contact — the death card's "air N%"
-	-- stat is 1 minus the grounded share of run time.
+	MaxDrop = 40, -- studs below the ball the probe can still find ground
 	ContactPad = 0.7,
 }
 
@@ -331,6 +325,22 @@ Config.Pads = {
 	SlowCrossFrac = 0.55, -- PadHop's strip clearance covers entries down to this fraction of tier speed
 	VoidAirFrac = 0.55, -- PadVoid gap = this fraction of pad airtime * speed (< brake floor)
 	Color = Color3.fromRGB(0, 230, 255),
+}
+
+-- RampGap hoop (§8.6): a neon ring floating at the void's flight apex —
+-- non-collide; threading it mid-air pays a flat gem bonus (§10).
+Config.Hoop = {
+	Radius = 5, -- opening radius — reads as a target at jump speed
+	Tube = 1.1, -- ring tube thickness (studs)
+	ApexLift = 3.5, -- ring center above the void's launch plane
+	Score = 25, -- gem points for a clean thread (beam-tier value)
+	Bank = 3, -- banked gems paid through ShopService.awardGems
+	-- Whoosh (§10): the bell inhale-swept up through the pass — air
+	-- rushing through the opening; rides the `wind` mixer channel.
+	WhooshVol = 0.38,
+	WhooshStartOct = 0.45, -- starts flattened…
+	WhooshEndOct = 1.3, -- …lifts through the thread — triumphant, not a zip
+	WhooshTime = 0.26, -- sweep seconds
 }
 
 Config.Movers = {
@@ -565,29 +575,6 @@ Config.Score = {
 	NearMiss = {
 		Range = 4,
 		Points = 3,
-		FlashSeconds = 1.2,
-		-- Chain (§10): grazes within ChainWindow seconds multiply the award
-		-- up to ChainMax — threading a dense section pays geometrically,
-		-- isolated scrapes stay flat.
-		ChainWindow = 6,
-		ChainMax = 4,
-	},
-	-- Graze spark (§10): a small particle burst at the ball the moment a
-	-- near-miss pays — the dodge reads physically, not only as HUD text.
-	Graze = {
-		Sparks = 8, -- particles per burst
-		Life = 0.45, -- particle seconds
-		Speed = 16, -- studs/s outward (range top)
-		Spread = 40, -- cone degrees
-		Size = 0.35, -- particle studs
-		Drag = 4,
-		Color = Color3.fromRGB(160, 240, 255), -- icy cyan: scraped and lived
-		-- Whoosh (§10): the bell inhale-swept up — air rushing past the
-		-- face. Rides the `wind` mixer channel like the speed bed.
-		WhooshVol = 0.32,
-		WhooshStartOct = 0.4, -- starts flattened…
-		WhooshEndOct = 1.15, -- …lifts through the pass — inhale, not dash-zip
-		WhooshTime = 0.22, -- sweep seconds
 	},
 }
 
@@ -617,7 +604,6 @@ Config.Ghost = {
 	-- Duel tag (§14): a pace line within this many studs either way earns
 	-- the "· DUEL" suffix — close-race tension the number alone misses.
 	DuelRange = 8,
-	DeathTrans = 0.78, -- death-replay echo: airier than the racing ghosts
 }
 
 Config.GemSfx = {

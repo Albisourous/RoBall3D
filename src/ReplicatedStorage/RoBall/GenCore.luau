@@ -184,15 +184,6 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 			end
 			spec = ChunkDefs[name](self.rng, snap, tier)
 		end
-
-		-- TierGate (§8.6): a chunk straddling a tier boundary carries the
-		-- distance arch — the marker lands where the tier actually flips.
-		local nextTier = Tiers.forDistance(st.dist + spec.length)
-		local curTier = Tiers.forDistance(st.dist)
-		if nextTier.index > curTier.index then
-			local boundary = Config.Tiers[nextTier.index].dist
-			spec.tierGate = { dist = boundary, t = (boundary - st.dist) / spec.length }
-		end
 	end
 
 	-- Advance the musical clock by the beats this chunk spans, then the
