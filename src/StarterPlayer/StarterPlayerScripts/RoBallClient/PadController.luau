@@ -13,7 +13,9 @@ local PadController = {}
 local getBall: () -> BasePart? = function()
 	return nil
 end
-local fired: { [BasePart]: boolean } = {}
+-- Weak keys: pads die with their chunks; a strong table would pin every
+-- dead pad part for the whole session.
+local fired = setmetatable({} :: { [BasePart]: boolean }, { __mode = "k" })
 
 local function hook(pad: Instance)
 	if not pad:IsA("BasePart") then

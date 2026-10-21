@@ -75,6 +75,7 @@ local dashUntil = 0
 local lastDashAt = 0
 local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
 local wasDashing = false
+local camPos: Vector3? = nil -- damped camera position; nil = snap on next run frame
 
 --============================ garage ==============================--
 -- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids,
@@ -208,6 +209,9 @@ local function bindBall(b: Instance)
 		dashDeniedAt = 0
 		wasDashing = false
 		lastBallPos = ball.Position
+		-- The settle starts when the ball EXISTS for the client, not when
+		-- the event lands — replication order vs RunStarted isn't promised.
+		controlAt = tick() + Config.Steering.SettleSeconds
 	end
 end
 for _, c in ipairs(workspace:GetChildren()) do
@@ -363,7 +367,7 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	combo = 0
 	lastGemPts = 0
 	ui:setCombo(0)
-	controlAt = tick() + Config.Steering.SettleSeconds -- DESIGN.md §6: "rolling…" settle before control
+	camPos = nil -- snap the damped cam onto the new lane, don't ease from the menu orbit
 	CosmeticFx.onMode("running")
 	ui:showHud()
 	Music.onStart(seed)
@@ -525,7 +529,7 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function(dt)
 	camera.CameraType = Enum.CameraType.Scriptable
 	local cam = Config.Camera
 	local pulse = Music.sample()
@@ -550,7 +554,13 @@ RunService.RenderStepped:Connect(function()
 		local target = b.Position + Config.Generation.TravelAxis * cam.LookAhead
 		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
 		local lean = -math.clamp(lateralVel / Config.Steering.MaxLateralSpeed, -1, 1) * math.rad(cam.LeanMax)
-		camera.CFrame = CFrame.lookAt(b.Position + cam.Offset, target) * CFrame.Angles(0, 0, lean)
+		-- Position eases with an exp damp (alpha = 1 - e^-dt/τ — frame-rate
+		-- independent): deck-seam and landing bumps filter out at SmoothTime
+		-- while the aim stays locked on the lead point, so dashes read as a
+		-- brief elastic trail, never as swim.
+		local desired = b.Position + cam.Offset
+		camPos = if camPos then camPos + (desired - camPos) * (1 - math.exp(-dt / cam.SmoothTime)) else desired
+		camera.CFrame = CFrame.lookAt(camPos :: Vector3, target) * CFrame.Angles(0, 0, lean)
 		Backdrop.update(b.Position)
 	elseif mode == "dead" then
 		-- Camera pulls back from the last known ball position (DESIGN.md §11)

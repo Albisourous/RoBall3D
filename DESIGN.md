@@ -147,6 +147,10 @@ not flat-ahead — it drops to the deck plane `LookAhead = 16` studs out
 (~28°) the way Slope does: ball low in frame, long readable runway ahead.
 FOV eases `70 -> 88` with speed. Up to `LeanMax = 3°` of roll into the steer
 direction for momentum readability. No vertical bob (keeps precision readable).
+The position follows with an exp damp at `Camera.SmoothTime` (0.12s —
+`alpha = 1 - e^-dt/τ`, frame-rate independent): deck-seam and landing bumps
+filter out while the aim stays locked on the lead point, so a dash reads as
+a brief elastic trail. Run starts snap rather than ease in from the menu.
 
 ## 6. Run structure & menu
 
@@ -360,7 +364,8 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
 1. Every lethal row leaves ≥ `Obstacles.CorridorMin` of continuous deck —
    including movers: the Pacer's gap is constant-width (slabs overhang the
    rim and slide together); the Rotor's swept disc is bounded so the far
-   corridor is never swept.
+   corridor is never swept. And no chunk may squeeze the deck under
+   `Generation.MinWidth` (4 studs) — Pinch and SplitGap rails floor there.
 2. Read distance ≥ `speed × ReactionTime` before any commitment. A chain
    of ONE repeated pattern (Chicane/SnakeField) may use a ×0.75/×0.5
    window — the read is learned from the first row. Chained chunks size
@@ -377,13 +382,38 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
    Miss the pad → death is earned.
 4. Context gating (`ChunkDefs.canRun`): DropGate only on accent downbeats
    at energy ≥ 0.8; Blackout only in `break` sections; movers/rails only
-   above honest width floors. Ineligible types never roll.
-5. Gem lines breadcrumb the intended line through every hard chunk —
+   above honest width floors. Ineligible types never roll. Entry width is
+   declared per type in `ChunkDefs.MinEntryWidth` (wide enough for the
+   *debut* variant too) — below it the builder would emit a silently-empty
+   obstacle chunk or squeeze under `MinWidth`; both are generator bugs the
+   pool routes around. `gateRow` clamps its corridor draw into the feasible
+   range rather than returning an empty row.
+5. **Lateral-authority honesty** (`ChunkDefs.latTravel`/`latReach`):
+   transitions are sized so the closing edge never outruns the steering
+   from ANY entry position the previous chunk could force. Both helpers
+   use the *slowest survivable* entry (`SlowCrossFrac`× tier speed × 0.85
+   authority) — a line transit-able while braking is transit-able at any
+   entry. `Flat`/`Narrow`/`Blackout` grow their length with the width
+   drift; `Pinch` is sized against its peak collapse rate; `SplitGap`/
+   `Fork` fade the void mouth over `latTravel(cut/2 + r + margin)` studs
+   (a center entry must reach a rail before the floor is gone); `gateRow`
+   and `DropGate` draw the slot inside `latReach(lead)` of the far edge;
+   `Chicane` bounds its alternating amplitude by the entry→row-1 and
+   row→row transits. Empty chunks are still refused over silently-empty.
+6. Gem lines breadcrumb the intended line through every hard chunk —
    SnakeField's zig line, Fork's risk rail, gate gaps, pad arcs.
 
 **GenVerify** (`ReplicatedStorage/RoBall/GenVerify.luau`) is the proof:
 a pure-Luau sweep walking GenCore for N seeds asserting all of the above
-plus entry continuity and debut ordering. Studio-only
+plus entry continuity and debut ordering. Two further audits: the
+**flat-exit seam** (roll/cutout/wall/roof are chunk-internal — every chunk
+must hand the next a level, open seam) and **lateral reachability** — the
+set of lane-local x positions a ball can still occupy is propagated through
+each chunk's valid ribbon band (minus ball radius, split by cutouts,
+shrunk around static lethal blockers over their depth, voids expand-only)
+at `MaxLateralSpeed` of travel per stud — modelled at `SlowCrossFrac`× tier
+speed, the most permissive budget, so an empty set means no survivable
+line exists at ANY entry: a generator bug, not player error. Studio-only
 (`Config.Debug.VerifySeeds`), run by `GenVerifyRunner.server.luau`.
 
 **Stretch pillars (flag-off, built)**: `Config.Features.JumpOrbs` /

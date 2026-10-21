@@ -21,6 +21,70 @@ local GRAV = 196.2
 local ROW_T_EPS = 0.03 -- obstacles within this t share one lethal row
 local SPACING_FLOOR = 0.45 -- fraction of speed*ReactionTime rows may use (weave rule)
 
+type ISet = { { lo: number, hi: number } }
+
+-- Interval-set helpers for the lateral-reachability audit: `reach` is the
+-- set of lane-local x positions the ball can still occupy at the current
+-- sample. Expansion adds MaxLateralSpeed-per-stud of travel on both ends;
+-- void spans expand without intersecting (an airborne ball still steers).
+local function expandSet(set: ISet, d: number): ISet
+	local grown = {}
+	for _, iv in ipairs(set) do
+		table.insert(grown, { lo = iv.lo - d, hi = iv.hi + d })
+	end
+	table.sort(grown, function(a, b)
+		return a.lo < b.lo
+	end)
+	local merged = {}
+	for _, iv in ipairs(grown) do
+		local last = merged[#merged]
+		if last and iv.lo <= last.hi then
+			last.hi = math.max(last.hi, iv.hi)
+		else
+			table.insert(merged, iv)
+		end
+	end
+	return merged
+end
+
+local function intersectSet(a: ISet, b: ISet): ISet
+	local out = {}
+	local i, j = 1, 1
+	while i <= #a and j <= #b do
+		local lo = math.max(a[i].lo, b[j].lo)
+		local hi = math.min(a[i].hi, b[j].hi)
+		if lo < hi then
+			table.insert(out, { lo = lo, hi = hi })
+		end
+		if a[i].hi < b[j].hi then
+			i += 1
+		else
+			j += 1
+		end
+	end
+	return out
+end
+
+-- Remove a blocked x-span from every interval in the set (lethal blocks
+-- shrink the valid band over their depth — the ball threads the corridor,
+-- which is exactly what the next chunk's transitions must survive).
+local function subtractSpan(set: ISet, lo: number, hi: number): ISet
+	local out = {}
+	for _, iv in ipairs(set) do
+		if hi <= iv.lo or lo >= iv.hi then
+			table.insert(out, iv)
+		else
+			if lo > iv.lo then
+				table.insert(out, { lo = iv.lo, hi = math.min(iv.hi, lo) })
+			end
+			if hi < iv.hi then
+				table.insert(out, { lo = math.max(iv.lo, hi), hi = iv.hi })
+			end
+		end
+	end
+	return out
+end
+
 export type Report = {
 	seed: number,
 	chunks: number,
@@ -70,6 +134,7 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 	local counts: { [string]: number } = {}
 	local firstSeen: { [string]: number } = {}
 	local prevEnd: { width: number, centerX: number, y: number }? = nil
+	local reach: ISet? = nil -- reachable lateral band at the current sample
 	local dist = 0
 
 	local function bad(msg: string, spec: ChunkDefs.ChunkSpec, i: number)
@@ -110,11 +175,50 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		end
 		prevEnd = spec.endState
 
+		-- Flat-exit contract: roll, cutout, walls and roof are chunk-internal —
+		-- every chunk must hand the next a level, open seam. A non-flat entry
+		-- means the previous chunk's exit broke the convention.
+		if math.abs(s0.rollDeg) > 0.5 or (s0.cutout or 0) > 0.5 or (s0.wallH or 0) > 0.5 or (s0.roofH or 0) > 0.5 then
+			bad(
+				string.format(
+					"non-flat entry: roll %.2f cut %.2f wall %.2f roof %.2f",
+					s0.rollDeg,
+					s0.cutout or 0,
+					s0.wallH or 0,
+					s0.roofH or 0
+				),
+				spec,
+				i
+			)
+		end
+
 		-- Section sweep: sanity + void spans + ballistic clearance.
 		local N = 24
 		local voidT0: number? = nil
 		local voidLipY = 0
 		local voidLipSlope = 0
+		local reachFlagged = false
+		local halfR = Config.Ball.Diameter / 2
+
+		-- Static lethal blockers for the reachability band: at a row's
+		-- depth the ball can only occupy the corridor gaps, which shapes
+		-- what the next chunk must survive. Movers and tunnel teeth are
+		-- timing/decoration, and pad chunks exempt their strip — the
+		-- crossing is airborne (the kick audit owns it).
+		local blockers: { { t0: number, t1: number, xOff: number, hw: number } } = {}
+		if spec.obstacles then
+			local stripHMax = Config.Pads.StripH + 0.01
+			for _, ob in ipairs(spec.obstacles) do
+				local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
+				local isMover = ob.motion ~= nil
+				local isStrip = spec.pads ~= nil and ob.h <= stripHMax
+				if not (isTooth or isMover or isStrip) then
+					local zHalf = ob.d / (2 * spec.length)
+					table.insert(blockers, { t0 = ob.t - zHalf, t1 = ob.t + zHalf, xOff = ob.xOff, hw = ob.w / 2 })
+				end
+			end
+		end
+
 		for k = 0, N do
 			local t = k / N
 			local s = spec.section(t)
@@ -122,6 +226,63 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 				bad("NaN section", spec, i)
 				break
 			end
+
+			-- Lateral reachability: does any survivable line still exist?
+			-- The valid band is the ribbon minus ball radius, split into
+			-- rails by cutouts and shrunk around lethal blockers; an empty
+			-- reach set = geometry the player cannot possibly survive — an
+			-- impossible seam, not player error.
+			local valid: ISet = {}
+			if s.width > 0.5 then
+				local eL = s.centerX - s.width / 2 + halfR
+				local eR = s.centerX + s.width / 2 - halfR
+				local cut = s.cutout or 0
+				if cut > 1 then
+					local off = s.cutoutOff or 0
+					local cL = s.centerX + off - cut / 2 - halfR
+					local cR = s.centerX + off + cut / 2 + halfR
+					if eL < cL then
+						table.insert(valid, { lo = eL, hi = cL })
+					end
+					if cR < eR then
+						table.insert(valid, { lo = cR, hi = eR })
+					end
+				elseif eL < eR then
+					table.insert(valid, { lo = eL, hi = eR })
+				end
+				for _, bl in ipairs(blockers) do
+					if t >= bl.t0 and t <= bl.t1 then
+						valid = subtractSpan(
+							valid,
+							s.centerX + bl.xOff - bl.hw - halfR,
+							s.centerX + bl.xOff + bl.hw + halfR
+						)
+					end
+				end
+			end
+			-- Lateral budget at the SLOWEST survivable entry — a braked ball
+			-- gets the most sideways room per stud, so a line only flagged
+			-- here is impossible at ANY entry speed, not just nominal.
+			local stepZ = (spec.length / N)
+				* Config.Steering.MaxLateralSpeed
+				/ math.max(Tiers.speedAt(dist + t * spec.length) * Config.Pads.SlowCrossFrac, 1)
+			if not reach then
+				reach = valid
+			else
+				reach = expandSet(reach, stepZ)
+				if #valid > 0 then
+					reach = intersectSet(reach, valid)
+					if #reach == 0 and not reachFlagged then
+						reachFlagged = true
+						bad(string.format("no reachable line through deck at t=%.2f", t), spec, i)
+						-- Revive on the valid band so later samples/chunks
+						-- audit independently instead of re-flagging the
+						-- same death forever.
+						reach = valid
+					end
+				end
+			end
+
 			if s.width < -0.01 then
 				bad(string.format("negative width %.2f at t=%.2f", s.width, t), spec, i)
 			end

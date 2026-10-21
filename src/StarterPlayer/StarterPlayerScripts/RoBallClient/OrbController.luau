@@ -16,7 +16,8 @@ local getBall: () -> BasePart? = function()
 	return nil
 end
 local enabled = false
-local fired: { [BasePart]: boolean } = {}
+-- Weak keys: orbs die with their chunks; see PadController.
+local fired = setmetatable({} :: { [BasePart]: boolean }, { __mode = "k" })
 
 local function tryOrb()
 	local b = getBall()
