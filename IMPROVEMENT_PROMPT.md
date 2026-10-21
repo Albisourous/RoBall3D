@@ -129,7 +129,9 @@ runs the loop below and does not stop until you say **stop**.
 15. **Same-seed rerun** — death screen gets a RERUN chip next to RETRY that
     restarts on the run's exact seed: the deterministic rematch button.
     *(done — `rerun #N` ghost button + T key while dead fires the run's
-    numeric seed; verified live, card chip matches dead run's seed)*
+    numeric seed; verified live, card chip matches dead run's seed.
+    **removed** — death-card declutter dropped the chip + T key; the
+    seed box and RECENT strip still rerun maps)*
 16. **Recent-runs strip** — profile-persisted last-N runs (score/dist/seed)
     on the menu; click a row to prefill the seed box. Deterministic
     replay of your own past maps.
@@ -194,8 +196,7 @@ runs the loop below and does not stop until you say **stop**.
     between two y-offset attachments; Config.Ghost.TrailLife/TrailGap/
     TrailFade. Verified live — ribbons on both echoes)*
 28b. **Death replay** *(done — b58a7b0; **removed** — the parked dim
-    echo on the death card read as a stray ball; V's `watch replay`
-    still re-runs the full recording on demand)*
+    echo on the death card read as a stray ball)*
 29. **Crowd ghost on daily runs** *(done — b755f11: the champ store is
     now a podium `{c, r}` merged atomically in UpdateAsync (v1 bare-Champ
     keys migrate on read); `GetGhost` returns `r` too, and on the daily
@@ -370,18 +371,10 @@ runs the loop below and does not stop until you say **stop**.
     spawned the marker at exactly z=-300 labeled `LAST 900` at 0.6
     transparency (off-seed entries ignored); an 80m fall spawned none)*
 
-53. **Watch replay** *(done — bd1bd61: `watch replay` / V on the death
-    card re-runs the just-ended run's ENTIRE recording down the
-    still-standing track — `Ghost.replayFull()` rebases frames to t=0,
-    the chase cam follows the echo with the live run's framing, V or
-    playback's end re-shows the same card from the stored arg tuple, R
-    skips to retry, `Ghost.stop()` on the next run clears the echo.
-    `Ghost.canReplay` hides the button on stub runs. Verified: the
-    button renders on the live card (Studio click/keyboard injection is
-    capability-blocked, so the full record→rebase→spawn→travel→park
-    path was driven through the real module API — `dur=7.8` for 40×0.2s
-    frames, echo at frame 1's `z=-6, x=2.4`, parked at the final frame's
-    `z=-240`)*
+53. **Watch replay** *(done — bd1bd61; **removed** — death-card
+    declutter dropped `watch replay` / V; `Ghost.replayFull` and
+    `canReplay` went with it. The champion `watch <name>` replay
+    (`replayCsv`, item 58) still rides the replay mode)*
 
 54. **Radar ghost ticks** *(done — c5d0f45: a cyan PB tick on the
     radar's left edge and a gold rival tick on the right pin each

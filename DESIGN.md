@@ -208,8 +208,6 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   `SCORE / DISTANCE / BEST / SEED`, `[R]` or the `RETRY` button = instant
   restart on the seed box's pick (`daily` by default — a run's rolled
   seed is mirrored into the box, so it names the map you just played).
-  `rerun #seed` / `[T]` = deterministic rematch on the run's literal seed —
-  identical map and PB ghost even across a daily rollover.
   A gold `★ NEW BEST!` line appears under the title when the run beat the
   stored record — the flag is computed server-side since attribute
   replication races make a client-side compare unreliable. A dim stats
@@ -661,18 +659,14 @@ spot — yaw sweeps `DeathOrbitArc` (~31°) while the radius pulls back
 toward `DeathOrbitPull`× and FOV settles to FovMin — *then* the death
 card lands. R mid-orbit skips straight to restart; a stale delayed card
 is dropped by the death-sequence guard. No lives, no shields — they were
-explicitly deferred. The
-card's `watch replay` button (V) re-runs the run's **entire recording**
-down the still-standing track — `Ghost.replayFull()` rebases the frames
-to t=0 and the chase cam follows the echo with the live run's framing,
-so the fatal line re-reads at speed. V or playback's end returns to the
-same card (re-shown from the stored arg tuple); R skips straight to a
-retry, and any new run's `Ghost.stop()` clears the echo. Runs under
-~2 frames hide the button (`Ghost.canReplay`). When the seed has a
-champion (a rival ghost replayed this run), the card also offers
+explicitly deferred. When the seed has a
+champion (a rival ghost replayed this run), the card offers
 **`watch <name>`** — `Ghost.replayCsv` plays the record holder's stored
-frames through the same path as a labeled gold echo, so the fatal
-comparison is the line that holds the board. The
+frames down the still-standing track as a labeled gold echo, the chase
+cam following with the live run's framing, so the fatal comparison is
+the line that holds the board. Playback's end returns to the
+same card (re-shown from the stored arg tuple); R skips straight to a
+retry, and any new run's `Ghost.stop()` clears the echo. The
 card also **names the killer**: `FatalController` reports the lethal
 part it simulated, the server reads the part's `ChunkType` stamp (set
 at build from the spec) and carries the type on `RunEnded` — the stats

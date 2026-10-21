@@ -81,7 +81,7 @@ local currentSeed: number? = nil
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
 local replayEndAt = 0 -- replay mode (§11): wall-clock the playback ends
-local cardArgs: { any }? = nil -- last showDeath arg tuple — V returns here
+local cardArgs: { any }? = nil -- last showDeath arg tuple — replay end returns here
 local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
 local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
@@ -326,8 +326,8 @@ local function requestStart()
 end
 ui.onPlay = requestStart
 ui.onRetry = requestStart
--- Replay exits (§11): V (or the playback reaching its end) drops back to
--- the death card — it re-shows from the stored arg tuple.
+-- Replay exit (§11): the playback reaching its end drops back to the
+-- death card — it re-shows from the stored arg tuple.
 local function endReplay()
 	if mode ~= "replay" then
 		return
@@ -337,17 +337,6 @@ local function endReplay()
 	if cardArgs then
 		ui:showDeath(table.unpack(cardArgs))
 	end
-end
--- WATCH REPLAY (§11): the just-ended run's own recording plays down the
--- live track as an echo — the deterministic "how did that happen" read.
-ui.onReplay = function()
-	local dur = Ghost.replayFull()
-	if not dur then
-		return
-	end
-	mode = "replay"
-	replayEndAt = os.clock() + dur + 0.5 -- hold a beat on the final frame
-	ui:showReplay(true)
 end
 -- WATCH CHAMPION (§11): the seed's record replay — fetched fresh (the
 -- run-start fetch already proved one exists; this gets the frames back
@@ -368,14 +357,6 @@ ui.onChampion = function()
 	mode = "replay"
 	replayEndAt = os.clock() + dur + 0.5 -- hold a beat on the final frame
 	ui:showReplay(true)
-end
--- Same-seed rerun (§10): the deterministic rematch — identical map, the PB
--- ghost included. Fires the numeric seed, not the box text, so "daily"
--- still lands on the day's seed (same-day replay rules apply anyway).
-ui.onRerun = function()
-	if currentSeed then
-		evStart:FireServer(tostring(currentSeed))
-	end
 end
 
 -- Equip arrows: browse the WHOLE slot order, wrap around. Owned items
@@ -779,7 +760,7 @@ evRunEnded.OnClientEvent:Connect(
 		-- The card waits out the death-cam orbit (§11); R mid-orbit skips it
 		-- via requestStart — the seq guard drops the stale delayed show.
 		local seq = deathSeq
-		-- Stored for the replay exit: V leaves the echo and re-shows this
+		-- Stored for the replay exit: a champion playback's end re-shows this
 		-- exact card — ranks still fill in late via their attr listeners.
 		cardArgs = {
 			score,
@@ -804,7 +785,6 @@ evRunEnded.OnClientEvent:Connect(
 				pbDelta = paceCache,
 				rivalDelta = rivalPaceCache,
 				rivalName = rivalName,
-				canReplay = Ghost.canReplay(),
 			},
 		}
 		task.delay(Config.Camera.DeathOrbitSec, function()
@@ -866,28 +846,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	-- R restarts in ANY mode — mid-run it abandons the run and re-rolls
-	-- instantly (the Slope rage-restart). It starts on the seed box's
-	-- pick — "daily" by default, a typed seed, or a rolled random that's
-	-- been mirrored back into the box — so a reload keeps the same map
-	-- unless the menu says otherwise. Enter starts from the menu; T on
-	-- the death screen reruns the dead run's literal seed.
-	if input.KeyCode == Enum.KeyCode.V then
-		if mode == "replay" then
-			endReplay()
-			return
-		elseif mode == "dead" then
-			ui.onReplay() -- the card's watch-replay verb, keyed
-			return
-		end
-	end
-	local wantsRestart = input.KeyCode == Enum.KeyCode.R
-	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
-	local wantsRerun = input.KeyCode == Enum.KeyCode.T and (mode == "dead" or mode == "replay")
-	if wantsRestart or wantsPlay then
+	-- instantly (the Slope rage-restart), mid-replay it exits to a fresh
+	-- run. It starts on the seed box's pick — "daily" by default, a typed
+	-- seed, or a rolled random that's been mirrored back into the box —
+	-- so a reload keeps the same map unless the menu says otherwise.
+	-- Enter starts from the menu.
+	if input.KeyCode == Enum.KeyCode.R or (input.KeyCode == Enum.KeyCode.Return and mode == "menu") then
 		requestStart()
-		return
-	elseif wantsRerun and ui.onRerun then
-		ui.onRerun()
 		return
 	end
 	if input.KeyCode == Enum.KeyCode.Q then

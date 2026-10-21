@@ -229,39 +229,6 @@ function GhostController.stop()
 	rivalEcho = nil
 end
 
--- Enough recording to be worth replaying (§11): two frames minimum.
-function GhostController.canReplay(): boolean
-	return #rec >= 8
-end
-
--- Full replay (§11): the run's entire recording rebased to t=0 — the
--- death card's WATCH REPLAY rides this. `rec` survives so repeat
--- viewings work; prior echoes clear so only the replay moves. Returns
--- the replay's duration so the caller can end the mode on cue.
-function GhostController.replayFull(): number?
-	if #rec < 8 then
-		return nil
-	end
-	for _, echo in ipairs(echoes) do
-		echo.part:Destroy()
-	end
-	table.clear(echoes)
-	pbEcho = nil
-	rivalEcho = nil
-	local f: Frames = {}
-	local t0 = rec[1]
-	for i = 1, #rec, 4 do
-		table.insert(f, rec[i] - t0)
-		table.insert(f, rec[i + 1])
-		table.insert(f, rec[i + 2])
-		table.insert(f, rec[i + 3])
-	end
-	table.insert(echoes, spawnEcho(f, "ReplayEcho", Color3.fromRGB(0, 230, 255), Config.Ghost.Transparency))
-	ghostT = 0
-	playing = true
-	return f[#f - 3]
-end
-
 -- Watch champion (§11): a foreign recording (the seed's stored record
 -- frames) plays back through the same path — gold echo carrying the
 -- holder's name. Returns nil on a malformed csv, like attach().
@@ -276,8 +243,8 @@ function GhostController.replayCsv(csv: string, label: string?): number?
 	table.clear(echoes)
 	pbEcho = nil
 	rivalEcho = nil
-	-- Stored CSVs start at ~t=0 but rebase anyway — same contract as
-	-- replayFull so playback never waits on a stale lead-in.
+	-- Stored CSVs start at ~t=0 but rebase anyway, so playback never
+	-- waits on a stale lead-in.
 	local t0 = f[1]
 	if t0 ~= 0 then
 		for i = 1, #f, 4 do
