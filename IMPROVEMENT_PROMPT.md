@@ -371,6 +371,19 @@ runs the loop below and does not stop until you say **stop**.
     spawned the marker at exactly z=-300 labeled `LAST 900` at 0.6
     transparency (off-seed entries ignored); an 80m fall spawned none)*
 
+53. **Watch replay** *(done — bd1bd61: `watch replay` / V on the death
+    card re-runs the just-ended run's ENTIRE recording down the
+    still-standing track — `Ghost.replayFull()` rebases frames to t=0,
+    the chase cam follows the echo with the live run's framing, V or
+    playback's end re-shows the same card from the stored arg tuple, R
+    skips to retry, `Ghost.stop()` on the next run clears the echo.
+    `Ghost.canReplay` hides the button on stub runs. Verified: the
+    button renders on the live card (Studio click/keyboard injection is
+    capability-blocked, so the full record→rebase→spawn→travel→park
+    path was driven through the real module API — `dur=7.8` for 40×0.2s
+    frames, echo at frame 1's `z=-6, x=2.4`, parked at the final frame's
+    `z=-240`)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
