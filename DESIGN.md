@@ -469,8 +469,9 @@ deferred.
   the digits themselves are the meter: hue gradients cyan → violet →
   magenta across 0–100 and snaps hot red + pulsing past it. Bottom-left
   is a glanceable **boost bar**: a tilted capsule of LED segments ramping
-  cyan→magenta like a VU meter, diamond bead riding the lit edge, gold
-  slash tick at `RechargeGate`, pink flare while boosting, hot orange
+  cyan→magenta like a VU meter, diamond bead riding the lit edge,
+  `RechargeGate` shown as a gold notch between cells with the lock zone
+  tinted warm, pink flare while boosting, hot orange
   while braking (same meter), blink while latched out —
   and a gold ping the moment charge crosses the gate upward, so W coming
   back is felt, not watched. Under the subline a small `xN` **combo pip**

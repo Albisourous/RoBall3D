@@ -19,6 +19,7 @@ local C_CYAN = Color3.fromRGB(0, 230, 255)
 local C_GOLD = Color3.fromRGB(255, 212, 64)
 local C_DIM = Color3.fromRGB(150, 120, 185)
 local C_WHITE = Color3.fromRGB(245, 238, 255)
+local C_GATE_DIM = C_GOLD:Lerp(C_PANEL, 0.78) -- unlit lock-zone cells: faint warm wash
 
 local F_DISPLAY = Enum.Font.SciFi
 local F_DATA = Enum.Font.Code
@@ -515,8 +516,9 @@ function Ui.new(): Ui
 	-- Boost bar: a vaporwave nitro strip — a tilted pill of LED segments
 	-- ramping cyan->magenta like a tape-deck VU meter. A diamond bead
 	-- rides the lit edge; the boundary cell glows partial so charge reads
-	-- analog-smooth between cells. Gold slash at RechargeGate; the strip
-	-- still flares (pink boost, orange brake, gold ready-ping).
+	-- analog-smooth between cells. RechargeGate is a gold notch slotted
+	-- between cells, its lock zone tinted warm; the strip still flares
+	-- (pink boost, orange brake, gold ready-ping).
 	local bWrap = Instance.new("Frame")
 	bWrap.Name = "BoostBar"
 	bWrap.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -538,33 +540,46 @@ function Ui.new(): Ui
 	bStroke.Transparency = 0.35
 	bStroke.Parent = bWrap
 	-- Segment strip inside the capsule; unlit cells stay visible as dark
-	-- LED slots so the meter has structure even when empty.
+	-- LED slots so the meter has structure even when empty. Cells below
+	-- RechargeGate read as a faint warm "lock zone" — after a burnout the
+	-- meter must refill past them before W fires again.
 	local bInner = Instance.new("Frame")
 	bInner.BackgroundTransparency = 1
 	bInner.Position = UDim2.fromOffset(BOOST_PAD, 4)
 	bInner.Size = UDim2.new(1, -BOOST_PAD * 2, 1, -8)
 	bInner.Parent = bWrap
-	local bLayout = Instance.new("UIListLayout")
-	bLayout.FillDirection = Enum.FillDirection.Horizontal
-	bLayout.Padding = UDim.new(0, 3)
-	bLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	bLayout.Parent = bInner
+	local innerW = BOOST_W - BOOST_PAD * 2
+	local gap = 3
+	local cellW = (innerW - gap * (BOOST_SEGS - 1)) / BOOST_SEGS
+	local gateCells = math.floor(Config.Boost.RechargeGate * BOOST_SEGS + 1e-4)
+	self._gateCells = gateCells
 	self.boostSegs = {}
 	for i = 1, BOOST_SEGS do
 		local s = Instance.new("Frame")
-		s.Size = UDim2.new(1 / BOOST_SEGS, -3, 1, 0)
-		s.BackgroundColor3 = C_PANEL
+		s.Position = UDim2.fromOffset((i - 1) * (cellW + gap), 0)
+		s.Size = UDim2.new(0, cellW, 1, 0)
+		s.BackgroundColor3 = i <= gateCells and C_GATE_DIM or C_PANEL
 		s.BackgroundTransparency = 0.4
 		s.BorderSizePixel = 0
-		s.LayoutOrder = i
 		local sc = Instance.new("UICorner")
 		sc.CornerRadius = UDim.new(0, 3)
 		sc.Parent = s
 		s.Parent = bInner
 		self.boostSegs[i] = s
 	end
-	-- Diamond bead riding the lit edge — in wrap space (not the layout)
-	-- so its x tracks the smoothed fill fraction every frame.
+	-- The recharge gate is a notch IN the strip, not a floating tick: a
+	-- slim gold divider slotted into the gap right after the lock zone.
+	local bGate = Instance.new("Frame")
+	bGate.AnchorPoint = Vector2.new(0, 0.5)
+	bGate.Position = UDim2.new(0, gateCells * cellW + (gateCells - 1) * gap + 0.5, 0.5, 0)
+	bGate.Size = UDim2.fromOffset(2, 8)
+	bGate.BackgroundColor3 = C_GOLD
+	bGate.BackgroundTransparency = 0.25
+	bGate.BorderSizePixel = 0
+	bGate.Parent = bInner
+	self.boostGate = bGate
+	-- Diamond bead riding the lit edge — in wrap space so its x tracks
+	-- the smoothed fill fraction every frame.
 	local bTip = Instance.new("Frame")
 	bTip.AnchorPoint = Vector2.new(0.5, 0.5)
 	bTip.Position = UDim2.new(0, BOOST_PAD, 0.5, 0)
@@ -575,15 +590,6 @@ function Ui.new(): Ui
 	bTip.Visible = false
 	bTip.Parent = bWrap
 	self.boostTip = bTip
-	local bGate = Instance.new("Frame") -- gate slash; positioned by gateFrac
-	bGate.AnchorPoint = Vector2.new(0.5, 0.5)
-	bGate.Position = UDim2.fromScale(0.35, 0.5)
-	bGate.Rotation = 22
-	bGate.Size = UDim2.fromOffset(2, 20)
-	bGate.BackgroundColor3 = C_GOLD
-	bGate.BorderSizePixel = 0
-	bGate.Parent = bWrap
-	self.boostGate = bGate
 	local bLab = Instance.new("TextLabel")
 	bLab.AnchorPoint = Vector2.new(0, 1)
 	bLab.Position = UDim2.fromOffset(0, -3)
@@ -706,9 +712,6 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 		local h = 0.53 + (speed / 100) * 0.35
 		self.spdNum.TextColor3 = Color3.fromHSV(h, 0.92, 1)
 	end
-	if self.gateFrac then
-		self.boostGate.Position = UDim2.fromScale(self.gateFrac, 0.5)
-	end
 	-- Analog-smooth across the discrete cells: the shown charge eases to
 	-- the real value (~70ms) and the leading cell only glows partial, so
 	-- the strip breathes instead of stepping.
@@ -738,6 +741,12 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 		if edge > 0 then
 			s.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / BOOST_SEGS)
 			s.BackgroundTransparency = math.clamp((1 - edge) * 0.85, 0, 0.85)
+		elseif i <= (self._gateCells or 0) then
+			-- Lock-zone slot: permanent warm tint, gently pulsing while
+			-- latched out — "recharging through the gate" reads without
+			-- needing a floating tick.
+			s.BackgroundColor3 = C_GATE_DIM
+			s.BackgroundTransparency = boostSpent and (0.35 + 0.3 * math.sin(now * 6)) or 0.4
 		else
 			s.BackgroundColor3 = C_PANEL
 			s.BackgroundTransparency = 0.4
