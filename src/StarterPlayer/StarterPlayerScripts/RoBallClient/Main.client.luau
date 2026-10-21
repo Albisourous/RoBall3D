@@ -26,6 +26,7 @@ local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
 local PadController = require(script.Parent.PadController)
 local OrbController = require(script.Parent.OrbController)
+local FatalController = require(script.Parent.FatalController)
 local Ghost = require(script.Parent.GhostController)
 
 local player = Players.LocalPlayer
@@ -54,6 +55,7 @@ local remotes = ReplicatedStorage:WaitForChild("RoBallRemotes")
 local evStart = remotes:WaitForChild("RequestStart") :: RemoteEvent
 local evRunStarted = remotes:WaitForChild("RunStarted") :: RemoteEvent
 local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
+local evReportFatal = remotes:WaitForChild("ReportFatal") :: RemoteEvent
 local evSaveGhost = remotes:WaitForChild("SaveGhost") :: RemoteEvent
 local fnGetGhost = remotes:WaitForChild("GetGhost") :: RemoteFunction
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
@@ -908,6 +910,16 @@ end)
 OrbController.init(function()
 	return ball
 end, Config.Features.JumpOrbs == true)
+-- Lethal hits are reported where they're simulated (§11): this client owns
+-- the ball, so its contact is the truth the player sees. Report once; the
+-- server seals the run and answers with the normal RunEnded flow.
+FatalController.init(function()
+	return ball
+end, function()
+	return mode == "running"
+end, function()
+	evReportFatal:FireServer()
+end)
 CosmeticFx.onMode("menu")
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 refreshGarage()

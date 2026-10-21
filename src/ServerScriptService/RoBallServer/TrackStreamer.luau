@@ -46,8 +46,6 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.folder = Instance.new("Folder")
 	self.folder.Name = "Lane" .. laneIndex
 	self.folder.Parent = lanesRoot
-	-- Optional: set by Main. Fired when something touches lethal geometry.
-	self.onFatalTouch = nil :: ((hit: BasePart) -> ())?
 	-- Optional: set by Main. Fired when the ball touches a gem: (hit, value).
 	self.onGem = nil :: ((hit: BasePart, value: number) -> ())?
 	-- Beat-locked movers (§8.6): obstacle parts animated on Heartbeat.
@@ -213,6 +211,10 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	b.Color = Config.Obstacles.FaceColor
 	b.Material = Enum.Material.SmoothPlastic
 	b:SetAttribute("ChunkType", spec.type)
+	-- Client-authoritative kills (§11): the ball's physics owner reports
+	-- contact — server-side Touched judged an interpolated copy of the ball
+	-- and killed dodges that never touched on screen.
+	CollectionService:AddTag(b, "RoBallLethal")
 	local outline = Instance.new("SelectionBox")
 	outline.Adornee = b
 	outline.Color3 = Config.LethalColor
@@ -706,11 +708,6 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		local hzSeg = {}
 		for _, ob in ipairs(spec.obstacles) do
 			local block = makeBlock(holder, self.laneX, spec, ob)
-			block.Touched:Connect(function(hit)
-				if self.onFatalTouch then
-					self.onFatalTouch(hit)
-				end
-			end)
 			if not ob.hang then
 				local mid = spec.section(ob.t)
 				table.insert(hzSeg, {

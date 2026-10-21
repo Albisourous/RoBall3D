@@ -109,6 +109,9 @@ fnBuyPack.Parent = remotes
 local fnBuyGems = Instance.new("RemoteFunction")
 fnBuyGems.Name = "BuyGems"
 fnBuyGems.Parent = remotes
+local evReportFatal = Instance.new("RemoteEvent")
+evReportFatal.Name = "ReportFatal"
+evReportFatal.Parent = remotes
 local evSaveGhost = Instance.new("RemoteEvent")
 evSaveGhost.Name = "SaveGhost"
 evSaveGhost.Parent = remotes
@@ -377,11 +380,6 @@ local function startRun(player: Player)
 	}
 	runs[player] = run
 
-	streamer.onFatalTouch = function(hit)
-		if run.ball and hit == run.ball then
-			killRun(player, run)
-		end
-	end
 	streamer.onGem = function(hit, value)
 		if run.ball and hit == run.ball then
 			run.gemPts += value
@@ -445,6 +443,19 @@ local function startRun(player: Player)
 	evRunStarted:FireClient(player, seed)
 	print("[RoBall3D] run started for", player.Name, "seed", seed)
 end
+
+-- Lethal contact is client-adjudicated (§11): the ball's network owner is
+-- the client, so server-side Touched judged an interpolated ghost of the
+-- ball — dodges that visibly cleared a block still registered hits (the
+-- "random death" report). The client reports the contact it simulated;
+-- falls, stalls and external destruction stay server-checked in the
+-- heartbeat below — they're unambiguous on the server's view.
+evReportFatal.OnServerEvent:Connect(function(player)
+	local run = runs[player]
+	if run then
+		killRun(player, run)
+	end
+end)
 
 evRequestStart.OnServerEvent:Connect(function(player, seedText)
 	seedPref[player] = typeof(seedText) == "string" and string.sub(seedText, 1, 64) or ""

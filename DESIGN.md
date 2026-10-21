@@ -541,8 +541,18 @@ award bumps `RoBallNearMiss`; the HUD flashes a short cyan `CLOSE +N`.
 
 Ball leaves track → Y drops below kill plane (`trackY - Config.Death.KillDrop`,
 15 studs) → run over
-instantly. Ball touches `LethalColor` geometry → same outcome server-side via
-`Touched`. **Unstick hop** (client, first line): the heartbeat writes the
+instantly. Ball touches `LethalColor` geometry → same outcome — but the
+verdict belongs to the **client**, not the server. The ball's network owner
+is the client, so server-side `Touched` judged an interpolated ghost of the
+ball and killed dodges that never touched on screen (the "random death"
+class of bug). Lethal blocks carry the `RoBallLethal` tag;
+`FatalController` on the client fires `ReportFatal` when *its* simulation
+touches one — `Touched` for ordinary contact plus a per-frame swept
+`Spherecast` along the displacement so hitch-frames can't tunnel through a
+block unseen. What the player sees hit them is what kills them. The server
+keeps the backstops that can't false-fire on its lagged view: the kill
+plane (self-consistent — it compares the same replicated position's y to
+the deck at its own z), the stall watchdog, and external destruction. **Unstick hop** (client, first line): the heartbeat writes the
 ball's full velocity vector every frame, so a visual freeze means physics is
 canceling the forward push against a perpendicular face — a deck-slab or
 wall-seam lip left where a section profile jogs. When the ball is grounded
@@ -838,6 +848,9 @@ src/
                                    --   client-owned ball on pad touch (§8.6)
     OrbController.luau             -- JumpOrb taps: Space/touch within Radius
                                    --   re-kicks vY (§8.6, flag-off)
+    FatalController.luau           -- client-authoritative lethal contact:
+                                   --   Touched + swept spherecast ->
+                                   --   ReportFatal remote (§11)
 ```
 
 Generation runs **server-side** (authoritative + leaderboard integrity);
