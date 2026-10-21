@@ -197,7 +197,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - Audio console — an `AUDIO` garage page, five channel sliders stacked
     one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
     mixer taps in AUDIO.md §7, persisted via `profile.audio` →
-    `RoBallVol_<ch>` attributes so a mix survives sessions
+    `RoBallVol_<ch>` attributes so a mix survives sessions. Defaults
+    (`Config.Audio.Defaults`): MUSIC unity, SFX channels at half — the
+    sources are mixed hot; full-everything was deafening.
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.

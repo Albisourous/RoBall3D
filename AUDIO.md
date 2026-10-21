@@ -367,11 +367,13 @@ Anything that *sounds* musical lands on the grid:
   exponentially smoothed (~140ms approach) so the per-heartbeat tracking
   doesn't zipper the filter. The speed you hear is wind + tempo — two
   channels of the same signal.
-- **Menu mixer** (`Config.Audio`, `AudioMix`) — a collapsible console on
-  the menu under the controls hint: an `audio ▸` ghost button unfolds
-  three rows pairing five sliders `MUSIC + GEMS / DASH + WIND / CUES`,
-  each 0–100%, live-dragged (apply on every move, persist on release).
-  Gains land on dedicated taps: `musicFader` post-duck, `sfxFader` for
+- **Menu mixer** (`Config.Audio`, `AudioMix`) — the garage's `AUDIO`
+  page: five stacked sliders `MUSIC / GEMS / DASH / WIND / CUES`, each
+  0–100%, live-dragged (apply on every move, persist on release).
+  Defaults come from `Config.Audio.Defaults` — MUSIC at unity (the
+  killer feature) and the SFX channels at half, since the sources are
+  mixed hot and full-everything was deafening. Gains land on dedicated
+  taps: `musicFader` post-duck, `sfxFader` for
   pickup voices, `stingFader` inserted pre-lowpass for the cues,
   `windFader`'s per-frame target scaled, and dash one-shots multiplied
   at spawn. State round-trips through `RoBallVol_<ch>` attributes +

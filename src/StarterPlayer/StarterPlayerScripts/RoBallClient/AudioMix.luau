@@ -27,7 +27,7 @@ local function attr(ch: string): string
 end
 
 function AudioMix.gain(ch: string): number
-	return gains[ch] or 1
+	return gains[ch] or Config.Audio.Defaults[ch] or 1
 end
 
 -- Ui registers a per-channel refresh so a server echo (or a future
@@ -65,7 +65,7 @@ end
 
 function AudioMix.init()
 	for _, ch in ipairs(Config.Audio.Channels) do
-		gains[ch] = 1
+		gains[ch] = Config.Audio.Defaults[ch] or 1
 		local cur = player:GetAttribute(attr(ch))
 		if typeof(cur) == "number" then
 			gains[ch] = math.clamp(cur, 0, 1)

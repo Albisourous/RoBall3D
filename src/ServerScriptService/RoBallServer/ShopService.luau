@@ -139,9 +139,13 @@ local function pushAttrs(player: Player)
 		table.insert(hist, string.format("%d,%d,%d", r.s, r.d, r.z))
 	end
 	player:SetAttribute("RoBallHistory", table.concat(hist, ";"))
-	-- Mixer (AUDIO.md §7): RoBallVol_<ch> per channel, default 1.
+	-- Mixer (AUDIO.md §7): RoBallVol_<ch> per channel, falling back to
+	-- Config.Audio.Defaults (music 1, SFX half) for unsaved channels.
 	for _, ch in ipairs(Config.Audio.Channels) do
-		player:SetAttribute(Config.Audio.AttrPrefix .. ch, (audioVol[player] or {})[ch] or 1)
+		player:SetAttribute(
+			Config.Audio.AttrPrefix .. ch,
+			(audioVol[player] or {})[ch] or Config.Audio.Defaults[ch] or 1
+		)
 	end
 	-- COLOR LAB (§18): RoBallHue* per channel — always pushed so the
 	-- client preview + dress paths never see a missing attr.

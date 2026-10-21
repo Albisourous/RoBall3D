@@ -667,8 +667,11 @@ Config.Audio = {
 	-- Menu mixer (AUDIO.md §7): the AUDIO panel's slider channels. Keys
 	-- are the attribute/profile/remote namespace (RoBallVol_<ch>); the
 	-- panel labels are player-facing. All sliders are attenuation-only
-	-- (0..1, default 1) — the mix is tuned at the sources.
+	-- (0..1) — the mix is tuned at the sources. Defaults: MUSIC stays
+	-- full (it's the feature); the SFX channels start at half — the
+	-- sources are mixed hot and full-everything was deafening.
 	Channels = { "music", "gems", "dash", "wind", "stings" },
+	Defaults = { music = 1, gems = 0.5, dash = 0.5, wind = 0.5, stings = 0.5 },
 	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH", wind = "WIND", stings = "CUES" },
 	RemoteName = "SetAudio", -- RemoteFunction: SetAudio(ch, 0..1) -> bool
 	AttrPrefix = "RoBallVol_", -- per-channel attribute mirror
