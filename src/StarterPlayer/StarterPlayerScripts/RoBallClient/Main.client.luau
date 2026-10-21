@@ -24,6 +24,7 @@ local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
 local PadController = require(script.Parent.PadController)
 local OrbController = require(script.Parent.OrbController)
+local Ghost = require(script.Parent.GhostController)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -51,6 +52,8 @@ local remotes = ReplicatedStorage:WaitForChild("RoBallRemotes")
 local evStart = remotes:WaitForChild("RequestStart") :: RemoteEvent
 local evRunStarted = remotes:WaitForChild("RunStarted") :: RemoteEvent
 local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
+local evSaveGhost = remotes:WaitForChild("SaveGhost") :: RemoteEvent
+local fnGetGhost = remotes:WaitForChild("GetGhost") :: RemoteFunction
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
@@ -450,6 +453,17 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	CosmeticFx.onMode("running")
 	ui:showHud()
 	Music.onStart(seed)
+	-- PB echo (§14): start recording this run's frames, and fetch the
+	-- stored ghost — it replays only when its seed matches this run's.
+	-- stop() first clears any echo still alive from a mid-run restart.
+	Ghost.stop()
+	Ghost.beginRecord()
+	task.spawn(function()
+		local g = fnGetGhost:InvokeServer()
+		if mode == "running" and g and g.s == seed then
+			Ghost.attach(g.f)
+		end
+	end)
 end)
 
 evRunEnded.OnClientEvent:Connect(
@@ -472,6 +486,15 @@ evRunEnded.OnClientEvent:Connect(
 		ui:setCombo(0)
 		CosmeticFx.onMode("dead")
 		DeathFx.burst(lastBallPos)
+		-- Ghost echo (§14): this run's frames become the stored ghost only
+		-- when the run is the new PB — the server holds a one-shot
+		-- credential from that same kill, so the echo can't be forged to
+		-- a run that never set a record.
+		local ghostCsv = Ghost.framesCsv()
+		Ghost.stop()
+		if newBest and ghostCsv then
+			evSaveGhost:FireServer(seed, ghostCsv, score)
+		end
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
 		ui:showDeath(
@@ -626,6 +649,7 @@ RunService.Heartbeat:Connect(function(dt)
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 	ui:setSpeedo(fwdSpeed, Music.bpm(), powerCharge, boosting, powerSpent, braking, dashing, dashDeniedAt)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
+	Ghost.tick(dt, b.Position) -- record this run + advance the PB echo
 
 	local v = b.AssemblyLinearVelocity
 	-- Inside a flip zone vY is pinned to +Lift so gravity can't pull the

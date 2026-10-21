@@ -407,6 +407,19 @@ Config.Score = {
 	PbFlashSeconds = 3,
 }
 
+-- PB ghost replay (DESIGN.md §14): your record run leaves a translucent
+-- echo on its seed — record at SampleSeconds cadence while running, save
+-- the frames only when the run ends as a new personal best, replay them
+-- on the same seed. Cosmetic only: the ghost never touches physics,
+-- scoring, or generation.
+Config.Ghost = {
+	Store = "RoBall3D_Ghost_v1", -- datastore key, per-userId
+	SampleSeconds = 0.2, -- client records one frame per N seconds of run
+	MaxSamples = 600, -- 2 minutes of run — hard payload cap, server-enforced
+	MinFrames = 25, -- runs under ~5s aren't worth a ghost
+	Transparency = 0.55, -- the echo ball's translucency
+}
+
 Config.GemSfx = {
 	-- Gem pickup chime (SfxController): rapid pickups climb a pentatonic
 	-- ladder so cluster lines play little runs. rbxasset:// fallback is a

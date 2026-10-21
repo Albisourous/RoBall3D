@@ -80,11 +80,13 @@ runs the loop below and does not stop until you say **stop**.
    audio pipeline)*
 6. **Achievements** — milestone badges (first 1k/2.5k/5k, 50 rotor passes,
    10k lifetime gems banked). Menu section + a toast on unlock. Server-tracked
-   in the profile store.
+   in the profile store. *(done — 3a47c5d: 8 badges / 5 kinds, RoBallAch
+   tally + RoBallAchNew toast batch)*
 7. **PB ghost** — race your best run: record position samples during a run
    (already-sequenced data), replay a translucent ball on the same seed.
    Must replay deterministically from the seed, not stored frames, to stay
-   honest.
+   honest. *(done: GhostController + SaveGhost one-shot credential; the
+   echo only ever replays the PB run on its own seed)*
 8. **New world themes** — `Backdrop.luau` supports `theme` strings; add
    `void` (starfield well) and `grid` (retro horizon) themes + world items,
    then a bundle. Verify with screenshots — do not blind-place geometry.

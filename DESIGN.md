@@ -693,6 +693,20 @@ Full spec: `AUDIO.md`. Binding decisions:
   `RoBallAchNew` = only the just-unlocked batch — the client toasts
   `◈ NAME · ◊ +N` off that attribute and clears, so a restored profile
   never re-fires ribbons.
+- **PB ghost**: your record run leaves a replayable echo. The client
+  samples ball position every `Config.Ghost.SampleSeconds` during a run
+  (flat table — no per-frame instancing); when the run ends as a new
+  session PB, the server arms a one-shot `ghostAuth` credential and the
+  client submits the frames through `SaveGhost`. The server accepts only
+  frames whose seed/score match the credential — the echo provably IS
+  the PB run — after a format check (frame cap, monotone -Z, sane
+  bounds). Stored per-userId in `RoBall3D_Ghost_v1` as
+  `{s = seed, f = csv}`. On run start the client fetches it via
+  `GetGhost` and replays only when `ghost.seed == run.seed` — the echo
+  always traces the identical lane, which is what makes it honest.
+  Playback is a translucent neon ball lerping between time-stamped
+  frames; it's cosmetic — CanCollide/Query/Touch all off, no physics,
+  no scoring effect, dies with the run.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`

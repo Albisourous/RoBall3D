@@ -106,6 +106,12 @@ fnBuyPack.Parent = remotes
 local fnBuyGems = Instance.new("RemoteFunction")
 fnBuyGems.Name = "BuyGems"
 fnBuyGems.Parent = remotes
+local evSaveGhost = Instance.new("RemoteEvent")
+evSaveGhost.Name = "SaveGhost"
+evSaveGhost.Parent = remotes
+local fnGetGhost = Instance.new("RemoteFunction")
+fnGetGhost.Name = "GetGhost"
+fnGetGhost.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 type Run = {
@@ -131,6 +137,10 @@ local bestOf: { [Player]: { score: number, dist: number, seed: number } } = {}
 local dailyBestOf: { [Player]: number } = {}
 -- Same session-best thrift for the weekly cup board.
 local weeklyBestOf: { [Player]: number } = {}
+-- PB ghost (§14): when a clean run sets the session record, it earns a
+-- one-shot credential — the client may then submit that run's position
+-- frames as the new ghost echo. Consumed on use, never persisted.
+local ghostAuth: { [Player]: { seed: number, score: number } } = {}
 local lbCooldown: { [Player]: number } = {}
 local statsOf: { [Player]: { best: IntValue, score: IntValue } } = {}
 local nextLane = 0
@@ -297,6 +307,9 @@ local function killRun(player: Player, run: Run)
 		local isRecord = not prev or score > (prev.score or 0)
 		if isRecord then
 			bestOf[player] = { score = score, dist = dist, seed = run.seed }
+			-- Ghost credential (§14): the client may claim it with this
+			-- run's recorded frames — the echo always IS the PB run.
+			ghostAuth[player] = { seed = run.seed, score = score }
 		end
 		task.spawn(function()
 			SaveService.saveBest(player.UserId, bestOf[player])
@@ -541,6 +554,53 @@ fnBuyGems.OnServerInvoke = function(player, key)
 	return ShopService.claimGemPack(player, key)
 end
 
+-- PB ghost (§14): the client claims the one-shot credential its record
+-- run earned by submitting that run's position frames. Validation: the
+-- seed/score must match the credential, the csv must parse as
+-- "t,x,y,z;..." with sane bounds — frames are cosmetic (self-scoped
+-- echo) but an unbounded payload still isn't allowed through.
+local function ghostCsvOk(csv: string): boolean
+	local g = Config.Ghost
+	if #csv == 0 or #csv > g.MaxSamples * 32 then
+		return false
+	end
+	local n = 0
+	local lastZ = math.huge -- frames run toward -Z: each z must be < last
+	for frame in string.gmatch(csv, "[^;]+") do
+		local t, x, y, z = frame:match("^([%d%.]+),([%-%d%.]+),([%-%d%.]+),([%-%d%.]+)$")
+		local tn, xn, yn, zn = tonumber(t), tonumber(x), tonumber(y), tonumber(z)
+		if not tn or not xn or not yn or not zn then
+			return false
+		end
+		if math.abs(xn) > 100 or zn > lastZ or tn > 86400 then
+			return false
+		end
+		lastZ = zn
+		n += 1
+	end
+	return n >= g.MinFrames and n <= g.MaxSamples
+end
+
+evSaveGhost.OnServerEvent:Connect(function(player, seed, csv, score)
+	local auth = ghostAuth[player]
+	if not auth or typeof(seed) ~= "number" or typeof(score) ~= "number" or typeof(csv) ~= "string" then
+		return
+	end
+	ghostAuth[player] = nil -- one-shot: consume it either way
+	if seed ~= auth.seed or score ~= auth.score or not ghostCsvOk(csv) then
+		return
+	end
+	task.spawn(function()
+		SaveService.saveGhost(player.UserId, seed, csv)
+	end)
+end)
+
+-- The echo for the run about to start: the stored ghost's seed decides —
+-- replaying it on a different seed would trace a lane that doesn't exist.
+fnGetGhost.OnServerInvoke = function(player)
+	return SaveService.loadGhost(player.UserId)
+end
+
 ShopService.init()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
@@ -569,6 +629,7 @@ Players.PlayerRemoving:Connect(function(player)
 	bestOf[player] = nil
 	dailyBestOf[player] = nil
 	weeklyBestOf[player] = nil
+	ghostAuth[player] = nil
 	joinedOnce[player] = nil
 	lbCooldown[player] = nil
 	statsOf[player] = nil

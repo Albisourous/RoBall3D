@@ -23,6 +23,7 @@ local bestStore: DataStore? = nil
 local topStore: OrderedDataStore? = nil
 local metaStore: DataStore? = nil
 local profileStore: DataStore? = nil
+local ghostStore: DataStore? = nil -- PB-run replay frames, per userId (§14)
 
 -- Per-day daily-board handles, memoized — a new day tag just means a new
 -- OrderedDataStore name; yesterday's store is simply never read again.
@@ -59,6 +60,7 @@ local function ensureStores(): boolean
 		topStore = DataStoreService:GetOrderedDataStore(Config.Leaderboard.TopRunsStore)
 		metaStore = DataStoreService:GetDataStore(Config.Leaderboard.TopRunsStore .. "_Meta")
 		profileStore = DataStoreService:GetDataStore(Config.Leaderboard.ProfileStore)
+		ghostStore = DataStoreService:GetDataStore(Config.Ghost.Store)
 		-- A real read, not just handle creation — proves API access works.
 		if bestStore then
 			bestStore:GetAsync("__probe__")
@@ -167,6 +169,33 @@ function SaveService.saveProfile(userId: number, profile: Profile)
 	end
 	retry("saveProfile", function()
 		(profileStore :: DataStore):SetAsync("u" .. userId, profile)
+	end)
+end
+
+-- PB ghost (§14): the record run's position frames — {s = seed, f = csv}
+-- where the csv is "t,x,y,z;t,x,y,z;..." in hundredths/tenths. One ghost
+-- per player (the PB's), overwritten only when the PB falls. Cosmetic
+-- data: a corrupt load just means no echo, never a run dependency.
+function SaveService.loadGhost(userId: number): { s: number, f: string }?
+	if not ensureStores() or not ghostStore then
+		return nil
+	end
+	local value = nil
+	retry("loadGhost", function()
+		value = (ghostStore :: DataStore):GetAsync("u" .. userId)
+	end)
+	if typeof(value) == "table" and typeof(value.s) == "number" and typeof(value.f) == "string" then
+		return value
+	end
+	return nil
+end
+
+function SaveService.saveGhost(userId: number, seed: number, csv: string)
+	if not ensureStores() or not ghostStore then
+		return
+	end
+	retry("saveGhost", function()
+		(ghostStore :: DataStore):SetAsync("u" .. userId, { s = seed, f = csv })
 	end)
 end
 
