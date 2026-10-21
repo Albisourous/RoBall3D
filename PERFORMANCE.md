@@ -174,3 +174,34 @@ Budgets (targets, not laws):
 | `ensureAhead` build budget (run-start spike) | Med (multiplayer) | Med |
 | `FilterDescendantsInstances` / `tick()` / hudCache / CameraType / FindFirstChild | Low | Trivial |
 | `section()` memoization, `framesCsv`, `yAt` cursor, gem Touched consolidation | Low | Med |
+
+## 7. Findings log
+
+**2026-10-21 — A/B/C cleanup pass landed.** Measured in Studio (single
+player, ~600 m into a run, `Stats`/`gcinfo` probes — not full
+MicroProfiler): client Heartbeat avg 0.304 → 0.263 ms, p-max 0.54 →
+0.31 ms; server→client send rate ~0.41 → ~0.35 KB/s steady-state
+(movers 60 Hz → 25 Hz + behind-ball cull + per-meter score gating);
+LuaHeap drift flat both sides (~1 KB over 5 s — the removed per-frame
+allocs were small but now strictly value-type). Before-baseline built
+from a `git worktree` of the pre-perf commit; note it predates the
+near-miss-FX removal so client "before" is slightly heavy.
+
+- **GenVerify: one pre-existing fairness violation.** 8 seeds × 600
+  chunks: `identicalMaps: true`, 1 violation —
+  `[s8 c439 PressRow] no reachable line through deck at t=0.50`.
+  GenCore/ChunkDefs were untouched by this pass, so this predates it —
+  a seeded PressRow layout whose middle sample leaves no safe line.
+  Needs a generation-side fix (out of scope here); deterministic, so
+  it reproduces on every seed-8 run at c439.
+- **`Enum.PartType.Torus` does not exist.** An in-flight TierGate-ring
+  refactor set `ring.Shape = Enum.PartType.Torus`, which throws in
+  `makeTierGate` and kills `ensureAhead` (no ball spawns). Valid
+  shapes: Ball/Block/Cylinder/Wedge/CornerWedge — use a MeshPart or
+  PartOperation for a torus.
+- **Rojo sync hazard for A/B testing:** the Rojo plugin auto-connects
+  any newly opened `.rbxl` to a running `rojo serve`, silently
+  overwriting the opened file's tree with the live working copy. Kill
+  `rojo serve` before opening a baseline build.
+- `rbxassetid://203785492` fails to load ("asset type does not match")
+  — pre-existing, unrelated to perf.
