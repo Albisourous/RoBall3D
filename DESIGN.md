@@ -829,15 +829,23 @@ Full spec: `AUDIO.md`. Binding decisions:
   y-offset attachments — the *line* each replay took reads through
   bends, not just the two balls' current distance.
 - **Champion ghost**: the same credentialed upload also offers the run to
-  `RoBall3D_GhostChamp_v1`, keyed `s<seed>` → `{n, s, u, f}` — the
-  seed's record holder and their replay. `crownChampion` compares inside
-  `UpdateAsync` so simultaneous records can't tear (a tie keeps the
-  earlier champion). `GetGhost(seed)` returns `{s, f, c}` — your ghost
-  plus the champion's, omitted when the champion IS you — and the client
-  replays it as a gold echo carrying the record holder's name on a
+  `RoBall3D_GhostChamp_v1`, keyed `s<seed>` → a podium `{c, r}` — the
+  seed's record holder plus the silver seat and their replays (v1 keys
+  stored a bare champ `{n,s,u,f}`; reads migrate it to `{c = …}`).
+  `crownChampion` merges inside `UpdateAsync` so simultaneous records
+  can't tear (a tie keeps the earlier holder, a dethroned champion
+  slides to silver, and one player never holds both seats).
+  `GetGhost(seed)` returns `{s, f, c, r}` — your ghost plus both podium
+  replays, each omitted when it's your own — and the client replays the
+  champion as a gold echo carrying the record holder's name on a
   billboard. While it replays, a second pace line under `±N vs PB` shows
   `±N vs <name>` — the live gap to the seed's record, gold when you're
   ahead of it. Same cosmetic-only contract; `pace()` stays yours-vs-you.
+- **Crowd ghost**: on the daily seed (`seed == Daily.seed()`) the silver
+  seat's replay also attaches as a labeled silver echo
+  (`Ghost.CrowdColor`/`CrowdTransparency`) — airier than the rival, no
+  pace line. Racing a field, not just the record; non-daily seeds skip
+  it so a quiet seed doesn't stage a race that isn't there.
 - **Split-time sectors**: every `Config.Sectors.Length` studs the HUD
   flashes `SEC n · T.Ts` plus a `±S.Ss` delta per live replay — the
   replay's interpolated crossing time minus yours, positive = ahead.

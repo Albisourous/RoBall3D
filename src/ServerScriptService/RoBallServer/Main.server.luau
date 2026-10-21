@@ -642,15 +642,22 @@ end)
 -- races a second copy of their best.
 fnGetGhost.OnServerInvoke = function(player, seed)
 	local own = SaveService.loadGhost(player.UserId)
-	local out: { s: number?, f: string?, c: SaveService.Champ? } = {}
+	local out: { s: number?, f: string?, c: SaveService.Champ?, r: SaveService.Champ? } = {}
 	if own then
 		out.s = own.s
 		out.f = own.f
 	end
 	if typeof(seed) == "number" then
-		local champ = SaveService.loadChampion(seed)
+		local podium = SaveService.loadPodium(seed)
+		local champ = podium and podium.c
+		local runner = podium and podium.r
 		if champ and champ.u ~= player.UserId then
 			out.c = champ
+		end
+		-- Crowd ghost (§14): the seed's silver seat — the client only
+		-- replays it on the daily seed, where a field exists to race.
+		if runner and runner.u ~= player.UserId and (champ == nil or runner.u ~= champ.u) then
+			out.r = runner
 		end
 	end
 	return out

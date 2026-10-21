@@ -207,20 +207,35 @@ function SaveService.saveGhost(userId: number, seed: number, csv: string)
 	end)
 end
 
--- Champion ghost (§14): the single best run on a seed, keyed "s<seed>" —
--- any player who starts that seed gets the record holder's replay as a
--- rival echo. crownChampion compares inside UpdateAsync so two near-
--- simultaneous records can't tear; a tie keeps the earlier champion
--- (first to the score holds the crown).
+-- Champion ghost (§14): the best run on a seed, keyed "s<seed>" — any
+-- player who starts that seed gets the record holder's replay as a rival
+-- echo. The stored value is a podium `{c, r}` — the seed's #2 replay
+-- rides the daily run as a silver crowd echo (§14). crownChampion
+-- merges inside UpdateAsync so near-simultaneous records can't tear; a
+-- tie keeps the earlier holder (first to the score holds the seat), and
+-- a player never occupies both seats at once.
 export type Champ = { n: string, s: number, u: number, f: string }
+export type Podium = { c: Champ?, r: Champ? }
 
-function SaveService.loadChampion(seed: number): Champ?
+-- v1 rows were a bare Champ `{n,s,u,f}` — read through this so old keys
+-- still load, and writes always land the podium shape.
+local function asPodium(raw: any): Podium?
+	if raw == nil then
+		return nil
+	end
+	if raw.n ~= nil then
+		return { c = raw :: Champ }
+	end
+	return raw :: Podium
+end
+
+function SaveService.loadPodium(seed: number): Podium?
 	if not ensureStores() or not champStore then
 		return nil
 	end
-	local value: Champ? = nil
-	retry("loadChampion", function()
-		value = (champStore :: DataStore):GetAsync("s" .. seed)
+	local value: Podium? = nil
+	retry("loadPodium", function()
+		value = asPodium((champStore :: DataStore):GetAsync("s" .. seed))
 	end)
 	return value
 end
@@ -230,11 +245,33 @@ function SaveService.crownChampion(seed: number, userId: number, name: string, s
 		return
 	end
 	retry("crownChampion", function()
-		(champStore :: DataStore):UpdateAsync("s" .. seed, function(old: Champ?)
-			if old and old.s >= score then
-				return nil -- keep the crown; UpdateAsync treats nil as "no write"
+		(champStore :: DataStore):UpdateAsync("s" .. seed, function(raw: any)
+			local old = asPodium(raw)
+			local c = old and old.c
+			local r = old and old.r
+			local shot: Champ = { n = name, s = score, u = userId, f = csv }
+			if c and c.u == userId then
+				if c.s >= score then
+					return nil -- own crown stands; UpdateAsync treats nil as "no write"
+				end
+				return { c = shot, r = r }
 			end
-			return { n = name, s = score, u = userId, f = csv }
+			if r and r.u == userId then
+				if c == nil or score > c.s then
+					return { c = shot, r = c } -- silver seat takes the crown
+				end
+				if r.s >= score then
+					return nil
+				end
+				return { c = c, r = shot }
+			end
+			if c == nil or score > c.s then
+				return { c = shot, r = c } -- dethroned champion slides to silver
+			end
+			if r == nil or score > r.s then
+				return { c = c, r = shot }
+			end
+			return nil
 		end)
 	end)
 end

@@ -634,6 +634,12 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 		if champ and champ.f and Ghost.attachRival(champ.f, champ.n) then
 			rivalName = champ.n
 		end
+		-- Crowd ghost (§14): on the daily seed the silver seat replays as
+		-- a labeled silver echo — you're racing a field, not just a champ.
+		local runner = g.r
+		if runner and runner.f and seed == Daily.seed() then
+			Ghost.attachCrowd(runner.f, runner.n)
+		end
 	end)
 end)
 

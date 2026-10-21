@@ -205,6 +205,19 @@ function GhostController.attachRival(csv: string, name: string): boolean
 	return true
 end
 
+-- Crowd ghost (§14): the daily seed's silver seat — a labeled silver
+-- echo on the same shared clock. No pace line: presence, not another
+-- HUD debt; stop() clears it with the rest.
+function GhostController.attachCrowd(csv: string, name: string): boolean
+	local f = parseFrames(csv)
+	if not f then
+		return false
+	end
+	table.insert(echoes, spawnEcho(f, "CrowdGhost", Config.Ghost.CrowdColor, Config.Ghost.CrowdTransparency, name))
+	playing = true
+	return true
+end
+
 function GhostController.stop()
 	recording = false
 	playing = false
