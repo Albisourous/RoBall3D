@@ -236,6 +236,14 @@ runs the loop below and does not stop until you say **stop**.
     suppresses the graze-chain block — no double award. Verified live:
     record fields match spec (z=-2691, cx, halfW, amp), drop tracks the
     plate 0..1, attr → `THREAD +6` flash screenshotted)*
+36. **Debut banner** *(done — 24619d8: `GenCore` stamps `spec.debut` on
+    the gentle showcase, the streamer queues `{startZ, type}` per chunk,
+    and the server fires `Debut` as the ball crosses in — gold
+    `NEW ▸ LABEL` HUD line (`Config.Features.Label`/`BannerSeconds`)
+    names each mechanic once per type per run. Presentation only.
+    Verified live: 10 records milestone-correct in z-desc order, cursor
+    fired Terrace at -426 and Chicane at -1294 — `NEW ▸ CHICANE`
+    screenshotted mid-run beside `SEC 5`)*
 
 ## Standing rules for new work
 
