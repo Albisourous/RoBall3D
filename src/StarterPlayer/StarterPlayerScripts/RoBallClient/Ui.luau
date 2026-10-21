@@ -1510,6 +1510,7 @@ function Ui.new(): Ui
 	-- Run-stats card (§11): one quiet dim line — top speed, gates passed,
 	-- boost share, closest call. Display-only; never score.
 	self.dStats = label(dCol, "", 13, F_DATA, C_DIM, 9)
+	self.dStats.RichText = true
 	self.dStats.Visible = false
 	local retry = outlineButton(dCol, "RETRY", 30, 10)
 	retry.Size = UDim2.fromOffset(300, 56)
@@ -1745,7 +1746,14 @@ function Ui:showDeath(
 	streakBonus: number?,
 	questBonus: number?,
 	questHits: number?,
-	stats: { top: number, boost: number, dashes: number, hazards: number?, closest: number? }?
+	stats: {
+		top: number,
+		boost: number,
+		dashes: number,
+		hazards: number?,
+		closest: number?,
+		cause: string?,
+	}?
 )
 	self.menu.Visible = false
 	self.hud.Visible = false
@@ -1786,6 +1794,16 @@ function Ui:showDeath(
 			boostPct,
 			margin
 		)
+		-- Death cause (§11): the chunk type that killed the run, or the
+		-- backstop that fired — VOID for falls, STALL for wedges.
+		if stats.cause then
+			local c = stats.cause
+			local name = if c == "VOID"
+				then "the VOID"
+				elseif c == "STALL" then "wedged geometry"
+				else Config.Features.Label[c] or string.upper(c)
+			self.dStats.Text ..= string.format('\n<font color="#FF40BE">felled by %s</font>', name)
+		end
 		self.dStats.Visible = true
 	else
 		self.dStats.Visible = false

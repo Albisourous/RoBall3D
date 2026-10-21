@@ -231,10 +231,22 @@ Config.Features = {
 	-- are designed but flag-off — they change core physics/controls.
 	GravityFlip = false,
 	JumpOrbs = false,
-	-- Debut banner (§8.6): crossing a showcase chunk names the mechanic.
-	-- Label maps the type to its HUD callout; missing names fall back to
-	-- the uppercased type.
+	-- Type → HUD display name: the debut banner (§8.6) and the death
+	-- card's "felled by" line both resolve through this map. Missing
+	-- names fall back to the uppercased type.
 	Label = {
+		Flat = "FLAT",
+		Slalom = "SLALOM",
+		Narrow = "NARROW",
+		Widen = "WIDEN",
+		Tilt = "TILT",
+		Pinch = "PINCH",
+		SplitGap = "SPLIT GAP",
+		Bowl = "BOWL",
+		RampGap = "RAMP GAP",
+		BlockGate = "BLOCK GATE",
+		BlockField = "BLOCK FIELD",
+		WallSlot = "WALL SLOT",
 		Terrace = "TERRACES",
 		SnakeField = "SNAKE FIELD",
 		Blackout = "BLACKOUT",

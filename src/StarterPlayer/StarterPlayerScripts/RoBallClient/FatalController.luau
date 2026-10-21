@@ -22,7 +22,7 @@ end
 local armed: () -> boolean = function()
 	return false
 end
-local report: () -> () = function() end
+local report: (BasePart?) -> () = function(_part: BasePart?) end
 
 local lethal = {} :: { [BasePart]: boolean }
 local lethalList = {} :: { BasePart }
@@ -45,12 +45,12 @@ local function hook(part: Instance)
 	p.Touched:Connect(function(hit)
 		if hit == getBall() and armed() and not reported then
 			reported = true
-			report()
+			report(p)
 		end
 	end)
 end
 
-function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolean, reportFn: () -> ())
+function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolean, reportFn: (BasePart?) -> ())
 	getBall = ballGetter
 	armed = armedFn
 	report = reportFn
@@ -92,7 +92,7 @@ function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolea
 				local hit = workspace:Spherecast(lastPos, ballR, delta, castParams)
 				if hit then
 					reported = true
-					report()
+					report(hit.Instance)
 				end
 			end
 		end

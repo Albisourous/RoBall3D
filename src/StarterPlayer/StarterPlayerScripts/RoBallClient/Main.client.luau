@@ -674,7 +674,8 @@ evRunEnded.OnClientEvent:Connect(
 		questBonus: number?,
 		questHits: number?,
 		hzPassed: number?,
-		closestCall: number?
+		closestCall: number?,
+		cause: string?
 	)
 		mode = "dead"
 		deathSeq += 1
@@ -720,6 +721,7 @@ evRunEnded.OnClientEvent:Connect(
 						dashes = statDashes,
 						hazards = hzPassed,
 						closest = closestCall,
+						cause = cause,
 					}
 				)
 			end
@@ -1074,8 +1076,8 @@ FatalController.init(function()
 	return ball
 end, function()
 	return mode == "running"
-end, function()
-	evReportFatal:FireServer()
+end, function(killerPart: BasePart?)
+	evReportFatal:FireServer(killerPart)
 end)
 CosmeticFx.onMode("menu")
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)

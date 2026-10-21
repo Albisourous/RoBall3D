@@ -5,6 +5,7 @@
 -- and waits for the next request — an entered seed is reused on retry
 -- (DESIGN.md §6-7); blank seed = fresh random each run.
 
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -267,7 +268,7 @@ end
 
 -- Death is instant (DESIGN.md §11): fall below the deck OR touch lethal
 -- geometry. Seal the score, report to the client, wait for the next request.
-local function killRun(player: Player, run: Run)
+local function killRun(player: Player, run: Run, cause: string?)
 	local score = math.floor(run.dist) + run.gemPts + run.nmPts
 	local dist = math.floor(run.dist)
 	local oldBest = player:GetAttribute("RoBallBest") or 0
@@ -314,7 +315,8 @@ local function killRun(player: Player, run: Run)
 		questBonus,
 		questHits,
 		run.hzPassed,
-		if run.closest < math.huge then run.closest else nil
+		if run.closest < math.huge then run.closest else nil,
+		cause
 	)
 
 	if cleanRun then
@@ -456,10 +458,21 @@ end
 -- "random death" report). The client reports the contact it simulated;
 -- falls, stalls and external destruction stay server-checked in the
 -- heartbeat below — they're unambiguous on the server's view.
-evReportFatal.OnServerEvent:Connect(function(player)
+evReportFatal.OnServerEvent:Connect(function(player, killerPart: Instance?)
 	local run = runs[player]
 	if run then
-		killRun(player, run)
+		-- Death cause (§11): the reported part carries ChunkType from the
+		-- spec that built it — the card names the mechanic that killed
+		-- the run. Untrusted arg: only a real lethal tag earns a label.
+		local cause: string? = nil
+		if
+			typeof(killerPart) == "Instance"
+			and killerPart:IsA("BasePart")
+			and CollectionService:HasTag(killerPart, "RoBallLethal")
+		then
+			cause = killerPart:GetAttribute("ChunkType") :: string?
+		end
+		killRun(player, run, cause)
 	end
 end)
 
@@ -764,7 +777,7 @@ RunService.Heartbeat:Connect(function(dt)
 			if run.lastPos and (pos - run.lastPos).Magnitude < 0.05 then
 				run.stillT += math.min(dt, 0.25)
 				if run.stillT > Config.Death.StallSeconds and run.dist > Config.Death.StallGraceDist then
-					killRun(player, run)
+					killRun(player, run, "STALL")
 					continue
 				end
 			else
@@ -852,7 +865,7 @@ RunService.Heartbeat:Connect(function(dt)
 			run.lastPos = pos
 
 			if ball.Position.Y < run.streamer:yAt(z) - Config.Death.KillDrop then
-				killRun(player, run)
+				killRun(player, run, "VOID")
 			end
 		end
 	end

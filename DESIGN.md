@@ -620,7 +620,13 @@ is dropped by the death-sequence guard. No lives, no shields — they were
 explicitly deferred. During the orbit the run's own recording replays
 its last `DeathOrbitSec` as a dim cyan echo (`Ghost.replayTail`) — the
 fatal approach is visible on-screen, ending at the kill spot as the card
-lands. Cosmetic only; it dies with the next run's `Ghost.stop()`.
+lands. Cosmetic only; it dies with the next run's `Ghost.stop()`. The
+card also **names the killer**: `FatalController` reports the lethal
+part it simulated, the server reads the part's `ChunkType` stamp (set
+at build from the spec) and carries the type on `RunEnded` — the stats
+line ends `felled by NAME` (`Config.Features.Label`, pink). Falls read
+`the VOID`, wedge-kills `wedged geometry`; an untrusted or missing part
+leaves the line off.
 
 ## 12. Presentation
 
