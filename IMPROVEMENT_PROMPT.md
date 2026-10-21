@@ -160,6 +160,11 @@ runs the loop below and does not stop until you say **stop**.
     the credentialed SaveGhost path; `GetGhost(seed)` returns own+champ,
     gold `RivalGhost` with name billboard shares the run clock; pace
     stays PB-only; verified live via stubbed GetGhost)*
+24. **Near-miss chains** *(done — c2c3f75: grazes inside `ChainWindow` 6s
+    multiply the award `Points × min(chain, ChainMax=4)`; `RoBallNmAward`/
+    `RoBallNmChain` attrs feed a `CLOSE +N ×M` flash; plausible() cap
+    gained the ChainMax factor. Verified live: chain=2 award=6 on a
+    two-plane pair)*
 
 ## Standing rules for new work
 
