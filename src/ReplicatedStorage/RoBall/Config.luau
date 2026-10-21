@@ -555,6 +555,7 @@ Config.Ghost = {
 	TrailLife = 1.1,
 	TrailGap = 1.1, -- attachment half-span (studs) — ribbon thickness
 	TrailFade = 0.35, -- extra transparency added over the echo's own
+	OvertakeArm = 2, -- studs behind a replay before catching it counts as a pass
 	DeathTrans = 0.78, -- death-replay echo: airier than the racing ghosts
 }
 

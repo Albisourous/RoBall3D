@@ -875,6 +875,10 @@ Full spec: `AUDIO.md`. Binding decisions:
   billboard. While it replays, a second pace line under `±N vs PB` shows
   `±N vs <name>` — the live gap to the seed's record, gold when you're
   ahead of it. Same cosmetic-only contract; `pace()` stays yours-vs-you.
+  Catching a replay's interpolated position after trailing it by at
+  least `Ghost.OvertakeArm` studs toasts `▸ PASSED PB` / `▸ PASSED
+  <name>` once per ghost per run — a wire-to-wire lead never counts
+  as a pass.
 - **Crowd ghost**: on the daily seed (`seed == Daily.seed()`) the silver
   seat's replay also attaches as a labeled silver echo
   (`Ghost.CrowdColor`/`CrowdTransparency`) — airier than the rival, no

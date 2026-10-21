@@ -564,6 +564,8 @@ local statPrevZ = 0
 local paceCache: number? = nil
 -- Rival pace (§14): same deal vs the champion echo; name rides the line.
 local rivalPaceCache: number? = nil
+local overtakePb: boolean? = nil -- armed after trailing the PB echo (§14)
+local overtakeRival: boolean? = nil -- same vs the champion echo
 local rivalName: string? = nil
 -- Sector splits (§14): run clock + deepest boundary already flashed.
 local runT0 = 0
@@ -629,6 +631,8 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	paceCache = nil :: number? -- pace line re-renders on whole-meter change
 	ui:setPace(nil)
 	rivalPaceCache = nil :: number?
+	overtakePb = nil :: boolean?
+	overtakeRival = nil :: boolean?
 	rivalName = nil :: string?
 	ui:setRivalPace(nil, nil)
 	runT0 = os.clock()
@@ -923,6 +927,25 @@ RunService.Heartbeat:Connect(function(dt)
 	if rpaceR ~= rivalPaceCache then
 		rivalPaceCache = rpaceR
 		ui:setRivalPace(rpaceR, rivalName)
+	end
+	-- Overtake toast (§14): catching a replay's interpolated position is a
+	-- pass, once per ghost per run — armed only after actually trailing it
+	-- by OvertakeArm studs, so leading wire-to-wire stays quiet.
+	if pace then
+		if pace <= -Config.Ghost.OvertakeArm then
+			overtakePb = true
+		elseif overtakePb and pace >= 0 then
+			overtakePb = nil
+			ui:toast("▸ PASSED PB")
+		end
+	end
+	if rpace then
+		if rpace <= -Config.Ghost.OvertakeArm then
+			overtakeRival = true
+		elseif overtakeRival and rpace >= 0 then
+			overtakeRival = nil
+			ui:toast("▸ PASSED " .. (rivalName or "CHAMP"))
+		end
 	end
 	-- Sector splits (§14): a flash per Config.Sectors.Length crossed —
 	-- elapsed time plus the split vs each replay that reached this depth.
