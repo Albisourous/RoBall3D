@@ -70,6 +70,11 @@ local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
 local boostCharge = 1 -- 0..1 boost meter (DESIGN.md §6)
 local boostSpent = false -- emptied latch until RechargeGate refills
+local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
+local dashUntil = 0
+local lastDashAt = 0
+local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
+local wasDashing = false
 
 --============================ garage ==============================--
 -- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids,
@@ -197,6 +202,11 @@ local function bindBall(b: Instance)
 		fwdSpeed = Config.Speed.Start
 		boostCharge = 1
 		boostSpent = false
+		dashDir = 0
+		dashUntil = 0
+		lastDashAt = 0
+		dashDeniedAt = 0
+		wasDashing = false
 		lastBallPos = ball.Position
 	end
 end
@@ -373,6 +383,28 @@ evRunEnded.OnClientEvent:Connect(
 	end
 )
 
+-- Dash (§4): Q/E spend a flat Cost slice of the boost meter for a
+-- ~12-stud sidestep. Needs the charge AND a non-burnt meter — the
+-- latch gates all three verbs; a denied press just flickers the bar.
+local function tryDash(dir: number): string
+	local now = tick()
+	if mode ~= "running" or now < controlAt then
+		return "not-running"
+	end
+	if now < dashUntil or now - lastDashAt < Config.Dash.Cooldown then
+		return "cooldown"
+	end
+	if boostSpent or boostCharge < Config.Dash.Cost then
+		dashDeniedAt = now
+		return "denied"
+	end
+	boostCharge = math.max(0, boostCharge - Config.Dash.Cost)
+	dashDir = dir
+	dashUntil = now + Config.Dash.Time
+	lastDashAt = now
+	return "fired"
+end
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
@@ -383,6 +415,23 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
 	if wantsRestart or wantsPlay then
 		requestStart()
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.Q then
+		tryDash(-1)
+	elseif input.KeyCode == Enum.KeyCode.E then
+		tryDash(1)
+	end
+end)
+
+-- TEMP test hook (removed before commit): MCP can't inject keys and _G
+-- isn't shared across VMs — drive the real tryDash through an attribute.
+player:GetAttributeChangedSignal("RoBallDashTest"):Connect(function()
+	local v = player:GetAttribute("RoBallDashTest")
+	if typeof(v) == "number" and v ~= 0 then
+		player:SetAttribute("RoBallDashTest", 0)
+		player:SetAttribute("RoBallDashResult", tryDash(v))
+		player:SetAttribute("RoBallCharge", boostCharge)
 	end
 end)
 
@@ -417,9 +466,23 @@ RunService.Heartbeat:Connect(function(dt)
 
 	local steer = Config.Steering
 	local intent = if tick() >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
+	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
+	-- — the target pins to dash Speed and the accel is ~13x, so the dart
+	-- eases in over ~50ms instead of hard-sliding. Steering input is
+	-- ignored for the window; on expiry the velocity clamps back into
+	-- steer range so residual drift is normal steering, not a free slide.
+	local dashing = tick() < dashUntil
 	local targetLat = intent * steer.MaxLateralSpeed
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
+	if dashing then
+		targetLat = dashDir * (if inFlip then -1 else 1) * Config.Dash.Speed
+		accel = Config.Dash.Accel
+	end
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
+	if wasDashing and not dashing then
+		lateralVel = math.clamp(lateralVel, -steer.MaxLateralSpeed, steer.MaxLateralSpeed)
+	end
+	wasDashing = dashing
 
 	-- Tier-paced forward speed, eased (DESIGN.md §9). Hold W to boost, S to
 	-- brake — same meter, same Mult, opposite direction; it only refills
@@ -450,7 +513,7 @@ RunService.Heartbeat:Connect(function(dt)
 	-- norm lands before the speedo so Music.bpm() reads this frame's
 	-- tempo, not last frame's.
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
-	ui:setSpeedo(fwdSpeed, Music.bpm(), boostCharge, boosting, boostSpent, braking)
+	ui:setSpeedo(fwdSpeed, Music.bpm(), boostCharge, boosting, boostSpent, braking, dashing, dashDeniedAt)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity

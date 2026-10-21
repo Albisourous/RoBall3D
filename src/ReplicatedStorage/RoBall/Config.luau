@@ -47,6 +47,18 @@ Config.Boost = {
 	RechargeGate = 0.35, -- emptied meter must refill this far to boost again
 }
 
+-- Dash (DESIGN.md §4): tap Q/E for a lateral burst — a flat slice of the
+-- SAME meter boost/brake drain (offense/defense/dodge bid on one
+-- resource). Discrete spend, not a held drain — but a burnt meter still
+-- locks it, same latch as the held verbs.
+Config.Dash = {
+	Speed = 60, -- studs/s lateral target during the burst (~2.3x max steer)
+	Time = 0.2, -- burst window — ~12 studs of sidestep before hand-back
+	Accel = 1200, -- burst ease rate: reaches Speed in ~50ms, eases in like steering
+	Cost = 0.3, -- meter fraction per dash (~4 LED cells, 3 dashes per full bar)
+	Cooldown = 0.45, -- seconds between dashes (the meter is the real limiter)
+}
+
 -- Steering is force/momentum based (Super Monkey Ball feel), not snapping.
 Config.Steering = {
 	MaxLateralSpeed = 26, -- studs/s

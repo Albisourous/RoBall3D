@@ -103,6 +103,25 @@ explainable.
   Boosting and braking both ease at 4× normal accel so the HUD tempo
   visibly jumps; the bar flares pink on boost, orange on brake.
   Charge lives on the bottom-left boost dial (§12).
+- **Dash** (`Config.Dash`): tap `Q`/`E` = lateral burst left/right —
+  the same steer-ease math drives lateral velocity toward `Speed`
+  (60 s/s ≈ 2.3× max steer) at burst accel (~50ms to full, so the
+  dart eases in like steering does — no robotic hard-slide) for `Time`
+  (0.2s): a ~12-stud sidestep that clamps back into steer range on
+  release. Steering is ignored mid-burst — the dodge is a commitment.
+  Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
+  of the **same** meter boost/brake drain — offense, defense and dodge
+  all bid on one resource, so a spent dodge is a boost you don't have.
+  A burnt meter locks all three verbs: dash needs its `Cost` slice AND
+  a meter past the `RechargeGate` (a denied press flickers the bar
+  dim). `Cooldown` (0.45s) paces repeat bursts — the meter is the real
+  limiter. Airborne is legal physics: a bad Terrace bounce or ramp arc
+  can be bought sideways at meter cost, and a dash can even carry a
+  narrow cutout laterally — voids still kill (Y stays gravity's), so
+  the skip is a gamble, not a cheat. The bar flashes white for the
+  burst window. No chunk ever *requires* a dash — it only widens the
+  movement envelope, so every §8.1 solvability invariant still stands
+  on steering alone.
 - **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
   down server-side without firing `RunEnded` and without saving the score —
   restarting to dodge a death never banks it. Blank seed → fresh random.
@@ -485,7 +504,8 @@ deferred.
   cyan→magenta like a VU meter, diamond bead riding the lit edge,
   `RechargeGate` shown as a gold notch between cells with the lock zone
   tinted warm, pink flare while boosting, hot orange
-  while braking (same meter), blink while latched out —
+  while braking, white flash for a dash burst, a dim flicker on a
+  denied press (same meter — §4), blink while latched out —
   and a gold ping the moment charge crosses the gate upward, so W coming
   back is felt, not watched. Under the subline a small `xN` **combo pip**
   tracks gem streaks (same `GemSfx.ComboWindow` the chime ladder uses, so

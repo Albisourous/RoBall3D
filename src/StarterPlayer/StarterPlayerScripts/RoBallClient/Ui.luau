@@ -207,7 +207,7 @@ function Ui.new(): Ui
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 8)
 	label(menuCol, "", 8, F_DATA, C_DIM, 9)
-	label(menuCol, "A/D steer   ·   hold W to boost   ·   R instant restart", 14, F_DATA, C_DIM, 10)
+	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 10)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -778,7 +778,9 @@ function Ui:setSpeedo(
 	boostFrac: number,
 	boosting: boolean,
 	boostSpent: boolean,
-	braking: boolean?
+	braking: boolean?,
+	dashing: boolean?,
+	dashDeniedAt: number?
 )
 	local num = tostring(math.floor(bpm + 0.5))
 	self.spdNum.Text = num
@@ -826,8 +828,12 @@ function Ui:setSpeedo(
 	local blink = boostSpent and math.sin(tick() * 10) > 0
 	local flash = self._readyFlash ~= nil and tick() - self._readyFlash < 0.45
 	-- Forced state color overrides the cyan->magenta ramp: gold ready-ping,
+	-- white dash flash, dim flicker on a denied press (§4: broke/latched),
 	-- hot orange while braking (S spends the same meter), pink boost flare.
+	local denied = dashDeniedAt ~= nil and (now - dashDeniedAt) < 0.3
 	local forced = flash and C_GOLD
+		or dashing and C_WHITE
+		or (denied and (math.sin(now * 18) > 0 and C_DIM or C_PANEL))
 		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or nil))
 	local lit = disp * BOOST_SEGS
 	for i, s in ipairs(self.boostSegs) do
