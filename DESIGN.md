@@ -263,7 +263,7 @@ narrow. Then the seeded generator takes over.
 | `TunnelSlot` | Roof ribbon + hanging slabs leaving one corridor + decor teeth | Enclosed corridor | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
-| `Rotor` | Near-center post + spinning arm; swept disc can't reach either rim — both rails are always-clear lanes | Timing + bait gems | 6+ |
+| `Rotor` | Near-center post + neon spinning blade; swept disc can't reach either rim — both rails are always-clear lanes, and a translucent danger disc tints the swept zone | Timing + bait gems | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
 - Every row of lethal geometry must leave ≥1 clear corridor ≥

@@ -216,8 +216,10 @@ Config.Movers = {
 	RotorBeats = 6, -- full sweep period in beats (debut runs it 1.5x)
 	RotorArmFrac = 1.15, -- arm half-length vs half deck width (pre-clamp)
 	RotorPostJitter = 0.12, -- post wanders this fraction of halfW off center
-	RotorArmH = 1.4, -- arm bar height — sweeps the ball's lower half
+	RotorArmH = 3.2, -- arm bar height — a blade you can't miss, not a curb
 	RotorPostH = 5,
+	RotorDiscH = 0.12, -- translucent danger-disc slab height under the sweep
+	RotorDiscTrans = 0.8, -- ghost tint marking the swept zone's edge
 }
 
 Config.Tunnel = {

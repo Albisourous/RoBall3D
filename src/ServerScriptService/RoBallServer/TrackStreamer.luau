@@ -216,6 +216,34 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	outline.SurfaceTransparency = 1
 	outline.Parent = b
 	b.Parent = parent
+	-- Spin arms (Rotor): the moving hazard gets the loudest read — a neon
+	-- blade, plus a translucent disc tinting exactly the swept zone so the
+	-- always-clear rim lanes read from render distance.
+	if ob.motion and ob.motion.kind == "spin" then
+		b.Material = Enum.Material.Neon
+		b.Color = Config.LethalColor
+		local r = ob.w / 2
+		local disc = Instance.new("Part")
+		disc.Name = "RotorDisc"
+		disc.Anchored = true
+		disc.CanCollide = false
+		disc.CanQuery = false
+		disc.CanTouch = false
+		disc.CastShadow = false
+		disc.Shape = Enum.PartType.Cylinder
+		disc.Transparency = Config.Movers.RotorDiscTrans
+		disc.Material = Enum.Material.Neon
+		disc.Color = Config.LethalColor
+		disc.Size = Vector3.new(Config.Movers.RotorDiscH, r * 2, r * 2)
+		-- Cylinder axis is local X: roll it up to deck-normal via the same
+		-- pitch/roll basis the deck uses.
+		disc.CFrame = CFrame.new(
+			laneX + mid.centerX + ob.xOff,
+			yBase + Config.Movers.RotorDiscH,
+			spec.startZ - ob.t * spec.length
+		) * CFrame.Angles(pitch, 0, roll) * CFrame.Angles(0, 0, math.rad(90))
+		disc.Parent = parent
+	end
 	return b
 end
 
