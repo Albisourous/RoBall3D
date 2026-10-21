@@ -138,6 +138,15 @@ runs the loop below and does not stop until you say **stop**.
 17. **Log speed curve** *(done — 7581359: Speed.Start/LogGain/LogDist
     `34 + 49.3·ln(1+d/625)` replaces tier speed steps + EndlessRamp;
     width-shrink still drives the endless tail)*
+18. **Client-authoritative kills** *(done — dbf099f: FatalController tags
+    RoBallLethal parts, Touched + swept Spherecast on the ball's owner,
+    ReportFatal latch; server keeps fall/stall backstops. Kills the
+    "random death" class from server-interpolated ball copies)*
+19. **Menu RunSetup** *(done — 11fd79d: RANDOM/DAILY/WEEKLY chips + type-a-
+    seed box in one setup card; PLAY is the single solid slab)*
+20. **Pace delta** *(done — 245b5b8: `±N vs PB` HUD line off the echo
+    part's interpolated position; cyan/pink, hidden without a ghost;
+    verified live via stubbed GetGhost)*
 
 ## Standing rules for new work
 

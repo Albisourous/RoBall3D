@@ -528,6 +528,9 @@ local paceCache: number? = nil
 -- only if no restart/menu happened mid-orbit.
 local deathSeq = 0
 local deathT0 = 0
+-- Near-miss FOV pulse (§12): a near-miss kicks a few degrees of FOV that
+-- decays out — the graze you feel without stealing the track read.
+local missFovKick = 0
 player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 	local n = player:GetAttribute("RoBallGems") or 0
 	if n > lastGemPts then
@@ -551,6 +554,7 @@ end)
 player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
 	if mode == "running" then
 		ui:flashMiss(Config.Score.NearMiss.Points)
+		missFovKick = Config.Camera.MissFovKick
 	end
 end)
 
@@ -854,7 +858,8 @@ RunService.RenderStepped:Connect(function(dt)
 	local b = ball
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
-		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
+		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT + missFovKick
+		missFovKick *= math.exp(-dt * cam.MissFovDecay)
 		-- Blur meter: power curve — clear through the 0-100 game, smear
 		-- climbs hard into endless mode, capped at MaxBlur.
 		local bl = Config.Blur

@@ -87,6 +87,10 @@ Config.Camera = {
 	LeanMax = 3, -- degrees of camera roll toward the steer direction
 	FovMin = 70,
 	FovMax = 88, -- FOV widens with speed for sense of velocity
+	-- Near-miss pulse (§12): a graze kicks this many extra FOV degrees,
+	-- decaying at MissFovDecay/s — felt, never nauseating.
+	MissFovKick = 6,
+	MissFovDecay = 5,
 	SmoothTime = 0.12,
 	-- Death-cam (§11): on a kill the camera orbits the wreck for
 	-- DeathOrbitSec — an ease-out yaw sweep of DeathOrbitArc pulling back

@@ -643,7 +643,10 @@ explicitly deferred.
   native menu; the center cone stays clear for the track read at
   speed); distance/gems on a dim lavender subline, the combo pip under
   that, then the gold pass-moment flash, the cyan near-miss ping, and
-  the `±N vs PB` pace line when a PB echo replays.
+  the `±N vs PB` pace line when a PB echo replays. A graze also kicks
+  `Camera.MissFovKick` degrees of FOV that decays at `MissFovDecay`/s —
+  the near-miss you feel, riding the same `RoBallNearMiss` bump as the
+  ping.
   Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music
