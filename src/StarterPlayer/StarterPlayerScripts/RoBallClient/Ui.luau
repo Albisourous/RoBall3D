@@ -243,10 +243,20 @@ function Ui.new(): Ui
 	label(menuCol, "", 6, F_DATA, C_DIM, 15)
 	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 16)
 
-	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): a mini console — channels
-	-- pair two-per-row so five sliders fit three lines. Drag applies
-	-- instantly; release persists through RoBallVol_<ch> -> profile.audio.
-	label(menuCol, "audio", 11, F_DATA, C_DIM, 17)
+	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): a mini console hidden
+	-- behind an "audio" toggle — click to unfold the channel rows. Drag
+	-- applies instantly; release persists through RoBallVol_<ch> ->
+	-- profile.audio.
+	local mixerRows: { Frame } = {}
+	local mixerOpen = false
+	local audioToggle = ghostButton(menuCol, "audio ▸", 11, 17)
+	audioToggle.MouseButton1Click:Connect(function()
+		mixerOpen = not mixerOpen
+		audioToggle.Text = if mixerOpen then "audio ▾" else "audio ▸"
+		for _, row in ipairs(mixerRows) do
+			row.Visible = mixerOpen
+		end
+	end)
 	local function sliderUnit(parent: Frame, ch: string, x: number)
 		local name = label(parent, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
 		name.TextXAlignment = Enum.TextXAlignment.Left
@@ -333,9 +343,11 @@ function Ui.new(): Ui
 	for i = 1, 3 do
 		local row = Instance.new("Frame")
 		row.BackgroundTransparency = 1
+		row.Visible = false
 		row.Size = UDim2.new(1, 0, 0, 19)
 		row.LayoutOrder = 17 + i
 		row.Parent = menuCol
+		table.insert(mixerRows, row)
 		sliderUnit(row, Config.Audio.Channels[i * 2 - 1], 20)
 		if Config.Audio.Channels[i * 2] then
 			sliderUnit(row, Config.Audio.Channels[i * 2], 270)
