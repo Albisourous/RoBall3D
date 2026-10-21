@@ -524,6 +524,9 @@ local statPrevZ = 0
 -- Pace delta (§12): last whole-meter delta shown; nil when no ghost
 -- echoes (different seed / no PB yet) so the HUD line stays hidden.
 local paceCache: number? = nil
+-- Rival pace (§14): same deal vs the champion echo; name rides the line.
+local rivalPaceCache: number? = nil
+local rivalName: string? = nil
 -- Hazard radar (§12): scan clock for the look-ahead strip.
 local radarT = 0
 -- Death-cam (§11): each death bumps the sequence so a pending card lands
@@ -575,6 +578,9 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	statPrevZ = 2
 	paceCache = nil :: number? -- pace line re-renders on whole-meter change
 	ui:setPace(nil)
+	rivalPaceCache = nil :: number?
+	rivalName = nil :: string?
+	ui:setRivalPace(nil, nil)
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0
@@ -599,8 +605,8 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 		-- Champion ghost (§14): the seed's record holder replays as a
 		-- labeled gold echo — racing the top line, not just your own.
 		local champ = g.c
-		if champ and champ.f then
-			Ghost.attachRival(champ.f, champ.n)
+		if champ and champ.f and Ghost.attachRival(champ.f, champ.n) then
+			rivalName = champ.n
 		end
 	end)
 end)
@@ -827,6 +833,12 @@ RunService.Heartbeat:Connect(function(dt)
 	if paceR ~= paceCache then
 		paceCache = paceR
 		ui:setPace(paceR)
+	end
+	local rpace = Ghost.rivalPace(b.Position)
+	local rpaceR = rpace and math.floor(rpace + 0.5) or nil
+	if rpaceR ~= rivalPaceCache then
+		rivalPaceCache = rpaceR
+		ui:setRivalPace(rpaceR, rivalName)
 	end
 	-- Hazard radar (§12): re-read the tagged lethal set at ScanSeconds —
 	-- movers/spinners track for free. Ball-relative: dz ahead, dx off

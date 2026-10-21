@@ -27,6 +27,7 @@ type Echo = { part: BasePart, frames: Frames, idx: number }
 
 local echoes: { Echo } = {}
 local pbEcho: Echo? = nil -- the echo pace() reads; nil without a PB replay
+local rivalEcho: Echo? = nil -- the champion echo rivalPace() reads
 local ghostT = 0 -- replay clock, shared by every echo on the run
 local playing = false
 
@@ -176,7 +177,8 @@ function GhostController.attachRival(csv: string, name: string): boolean
 	if not f then
 		return false
 	end
-	table.insert(echoes, spawnEcho(f, "RivalGhost", Config.Ghost.RivalColor, Config.Ghost.RivalTransparency, name))
+	rivalEcho = spawnEcho(f, "RivalGhost", Config.Ghost.RivalColor, Config.Ghost.RivalTransparency, name)
+	table.insert(echoes, rivalEcho :: Echo)
 	playing = true
 	return true
 end
@@ -190,6 +192,7 @@ function GhostController.stop()
 	end
 	table.clear(echoes)
 	pbEcho = nil
+	rivalEcho = nil
 end
 
 -- Pace delta (§12): meters ahead of the PB echo at this instant —
@@ -199,6 +202,15 @@ end
 function GhostController.pace(ballPos: Vector3): number?
 	if playing and pbEcho then
 		return pbEcho.part.Position.Z - ballPos.Z
+	end
+	return nil
+end
+
+-- Rival pace (§14): same lead math vs the champion echo — the gap to
+-- the seed's record. nil when no rival is replaying.
+function GhostController.rivalPace(ballPos: Vector3): number?
+	if playing and rivalEcho then
+		return rivalEcho.part.Position.Z - ballPos.Z
 	end
 	return nil
 end

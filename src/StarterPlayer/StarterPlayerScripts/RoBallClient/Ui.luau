@@ -1028,6 +1028,7 @@ function Ui.new(): Ui
 	-- Pace delta (§12): while the PB echo replays (same-seed runs), a
 	-- persistent "+N vs PB" / "-N vs PB" line — cyan ahead, pink behind.
 	local paceText = Instance.new("TextLabel")
+	paceText.Name = "PaceText"
 	paceText.BackgroundTransparency = 1
 	paceText.Font = F_DATA
 	paceText.TextSize = 14
@@ -1041,6 +1042,23 @@ function Ui.new(): Ui
 	paceText.Parent = hud
 	self.paceText = paceText
 
+	-- Rival pace (§14): while the champion echo replays, a gold
+	-- "+N vs <name>" line under the PB one — the gap to the record.
+	local rivalText = Instance.new("TextLabel")
+	rivalText.Name = "RivalText"
+	rivalText.BackgroundTransparency = 1
+	rivalText.Font = F_DATA
+	rivalText.TextSize = 14
+	rivalText.TextColor3 = Config.Ghost.RivalColor
+	rivalText.TextStrokeTransparency = 0.5
+	rivalText.TextXAlignment = Enum.TextXAlignment.Right
+	rivalText.Position = UDim2.fromOffset(0, 150)
+	rivalText.Size = UDim2.new(1, 0, 0, 16)
+	rivalText.Text = ""
+	rivalText.Visible = false
+	rivalText.Parent = hud
+	self.rivalText = rivalText
+
 	-- Look-ahead radar (§12): a vertical strip under the stack — top is
 	-- Radar.Range studs out, bottom is the ball; bars are lethal blocks
 	-- in ball-relative studs with the cyan line as "you". Pooled bars —
@@ -1049,7 +1067,7 @@ function Ui.new(): Ui
 	local radar = Instance.new("Frame")
 	radar.Name = "Radar"
 	radar.AnchorPoint = Vector2.new(1, 0)
-	radar.Position = UDim2.new(1, 0, 0, 158)
+	radar.Position = UDim2.new(1, 0, 0, 174)
 	radar.Size = UDim2.fromOffset(R.Width, R.Height)
 	radar.BackgroundColor3 = C_PANEL
 	radar.BackgroundTransparency = 0.45
@@ -1755,6 +1773,18 @@ function Ui:setPace(delta: number?)
 	self.paceText.Text = string.format("%+d vs PB", delta)
 	self.paceText.TextColor3 = delta >= 0 and C_CYAN or C_PINK
 	self.paceText.Visible = true
+end
+
+-- Rival pace (§14): "+N vs <name>" while the champion echo replays —
+-- gold when you're beating the record's line, pink when it owns you.
+function Ui:setRivalPace(delta: number?, name: string?)
+	if not delta or not name then
+		self.rivalText.Visible = false
+		return
+	end
+	self.rivalText.Text = string.format("%+d vs %s", delta, name)
+	self.rivalText.TextColor3 = if delta >= 0 then Config.Ghost.RivalColor else C_PINK
+	self.rivalText.Visible = true
 end
 
 function Ui:setSeedText(text: string)

@@ -823,7 +823,9 @@ Full spec: `AUDIO.md`. Binding decisions:
   earlier champion). `GetGhost(seed)` returns `{s, f, c}` — your ghost
   plus the champion's, omitted when the champion IS you — and the client
   replays it as a gold echo carrying the record holder's name on a
-  billboard. Same cosmetic-only contract; `pace()` stays yours-vs-you.
+  billboard. While it replays, a second pace line under `±N vs PB` shows
+  `±N vs <name>` — the live gap to the seed's record, gold when you're
+  ahead of it. Same cosmetic-only contract; `pace()` stays yours-vs-you.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`
