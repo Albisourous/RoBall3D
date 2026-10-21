@@ -58,6 +58,7 @@ local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
 local evReportFatal = remotes:WaitForChild("ReportFatal") :: RemoteEvent
 local evSaveGhost = remotes:WaitForChild("SaveGhost") :: RemoteEvent
 local fnGetGhost = remotes:WaitForChild("GetGhost") :: RemoteFunction
+local evCrown = remotes:WaitForChild("Crown") :: RemoteEvent
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
@@ -710,6 +711,17 @@ evRunEnded.OnClientEvent:Connect(
 		Music.onDeath()
 	end
 )
+
+-- Crown toast (§14): the server fires this when a PB upload dethrones
+-- the seed champion — the gold echo you were racing now wears your
+-- name. Empty name = the seed had no prior champion.
+evCrown.OnClientEvent:Connect(function(name: string)
+	if name ~= "" then
+		ui:toast(string.format("♛ CROWN TAKEN from %s", name))
+	else
+		ui:toast("♛ SEED CROWN CLAIMED")
+	end
+end)
 
 -- Dash (§4): Q/E spend a flat Cost slice of the power meter for a
 -- ~12-stud sidestep. The gold RechargeGate notch is the readiness read:

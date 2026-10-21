@@ -846,6 +846,11 @@ Full spec: `AUDIO.md`. Binding decisions:
   (`Ghost.CrowdColor`/`CrowdTransparency`) — airier than the rival, no
   pace line. Racing a field, not just the record; non-daily seeds skip
   it so a quiet seed doesn't stage a race that isn't there.
+- **Crown toast**: when a credentialed ghost upload changes the podium
+  (a before/after `loadPodium` read brackets `crownChampion`), the
+  server fires `Crown` and the client toasts `♛ CROWN TAKEN from <name>`
+  — or `♛ SEED CROWN CLAIMED` on an unclaimed seed. Improving your own
+  crown doesn't re-announce.
 - **Split-time sectors**: every `Config.Sectors.Length` studs the HUD
   flashes `SEC n · T.Ts` plus a `±S.Ss` delta per live replay — the
   replay's interpolated crossing time minus yours, positive = ahead.

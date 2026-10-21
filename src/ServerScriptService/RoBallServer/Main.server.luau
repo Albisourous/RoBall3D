@@ -121,6 +121,9 @@ evSaveGhost.Parent = remotes
 local fnGetGhost = Instance.new("RemoteFunction")
 fnGetGhost.Name = "GetGhost"
 fnGetGhost.Parent = remotes
+local evCrown = Instance.new("RemoteEvent")
+evCrown.Name = "Crown"
+evCrown.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 type Run = {
@@ -631,8 +634,17 @@ evSaveGhost.OnServerEvent:Connect(function(player, seed, csv, score)
 		SaveService.saveGhost(player.UserId, seed, csv)
 		-- Champion shot (§14): the run already earned the PB credential, so
 		-- if it also tops this seed's stored record its frames become the
-		-- rival echo everyone on the seed races.
+		-- rival echo everyone on the seed races. A before/after podium
+		-- read tells us whether the shot dethroned somebody — toast the
+		-- takeover so the crown story closes the loop.
+		local before = SaveService.loadPodium(seed)
+		local oldChamp = before and before.c
 		SaveService.crownChampion(seed, player.UserId, player.Name, score, csv)
+		local after = SaveService.loadPodium(seed)
+		local newChamp = after and after.c
+		if newChamp and newChamp.u == player.UserId and (oldChamp == nil or oldChamp.u ~= player.UserId) then
+			evCrown:FireClient(player, oldChamp and oldChamp.n or "")
+		end
 	end)
 end)
 
