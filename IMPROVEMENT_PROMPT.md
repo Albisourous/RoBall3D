@@ -292,6 +292,15 @@ runs the loop below and does not stop until you say **stop**.
     `BLOCK GATE` tracked the approach z=-113→-315 and rendered under
     the radar — screenshotted mid-run)*
 
+43. **All-time rank on death card** *(done — d3f48e3: symmetric with
+    the daily line — a session-record `submitTop` triggers
+    `SaveService.topRank` (fresh `getTop` read since the write drops the
+    cache) and publishes `RoBallTopRank`; the client listener fills
+    `all-time #n` on the card, hidden when nil/0 or outside
+    `TopCount`, cleared on every run start. Verified live: attr → card
+    path rendered `all-time #7` under the seed line — screenshotted on a
+    real death card)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
