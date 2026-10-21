@@ -50,6 +50,24 @@ local function hook(part: Instance)
 	end)
 end
 
+-- Shared read (PERFORMANCE.md §1): the radar scans the same lethal set —
+-- this is the incremental tag-tracking the audit says to reuse instead of
+-- re-paying a workspace-wide GetTagged every scan.
+local function rebuildList()
+	table.clear(lethalList)
+	for p in lethal do
+		table.insert(lethalList, p)
+	end
+	listDirty = false
+end
+
+function FatalController.lethalParts(): { BasePart }
+	if listDirty then
+		rebuildList()
+	end
+	return lethalList
+end
+
 function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolean, reportFn: (BasePart?) -> ())
 	getBall = ballGetter
 	armed = armedFn
@@ -74,12 +92,8 @@ function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolea
 			return
 		end
 		if listDirty then
-			table.clear(lethalList)
-			for p in lethal do
-				table.insert(lethalList, p)
-			end
+			rebuildList()
 			castParams.FilterDescendantsInstances = lethalList
-			listDirty = false
 		end
 		local pos = b.Position
 		-- Swept sphere along this frame's travel: at 200+ s/s a hitch can

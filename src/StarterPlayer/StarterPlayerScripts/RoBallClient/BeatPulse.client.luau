@@ -38,25 +38,51 @@ end
 CollectionService:GetInstanceAddedSignal(TAG):Connect(track)
 CollectionService:GetInstanceRemovedSignal(TAG):Connect(untrack)
 
-RunService.RenderStepped:Connect(function()
+-- Camera-near subset (PERFORMANCE.md §1): the full tagged set only gets a
+-- cadence pass — per frame we iterate `near`, a few dozen parts instead
+-- of every lane's hundreds. A gem crossing out of radius keeps its last
+-- swell at most ScanSeconds before the sweep restores it.
+local near: { BasePart } = {}
+local scanT = 0
+
+RunService.RenderStepped:Connect(function(dt)
 	local beat = Music.beatPos()
 	if beat <= 0 or next(bases) == nil then
 		return
 	end
+
+	local cam = workspace.CurrentCamera
+	local camPos = cam and cam.CFrame.Position or Vector3.zero
+	local r2 = radius * radius
+
+	scanT += dt
+	if scanT >= Config.Gems.BeatPulseScanSeconds then
+		scanT = 0
+		table.clear(near)
+		for g, base in pairs(bases) do
+			local d = g.Position - camPos
+			if d.X * d.X + d.Y * d.Y + d.Z * d.Z <= r2 then
+				table.insert(near, g)
+			elseif g.Size ~= base then
+				g.Size = base
+			end
+		end
+	end
+
 	local frac = beat % 1
 	local pulse = (1 - frac) ^ 2.5 -- sharp attack, beat-long decay
 	local accent = if beat % SongMap.beatsPerBar < 1 then 1.3 else 1 -- bar 1 emphasis
 	local scale = 1 + pulseK * pulse * accent
 
-	local cam = workspace.CurrentCamera
-	local camPos = cam and cam.CFrame.Position or Vector3.zero
-	local r2 = radius * radius
-	for g, base in pairs(bases) do
-		local d = g.Position - camPos
-		if d.X * d.X + d.Y * d.Y + d.Z * d.Z <= r2 then
-			g.Size = base * scale
-		elseif g.Size ~= base then
-			g.Size = base
+	for _, g in ipairs(near) do
+		local base = bases[g]
+		if base then
+			local d = g.Position - camPos
+			if d.X * d.X + d.Y * d.Y + d.Z * d.Z <= r2 then
+				g.Size = base * scale
+			elseif g.Size ~= base then
+				g.Size = base
+			end
 		end
 	end
 end)

@@ -57,6 +57,10 @@ local stingPlayers: { [string]: any } = {}
 local norm = 0 -- last speedNorm, kept so layer fades and stings see it
 local tier = 1
 local pulseSmooth = 0
+local sampleAt = 0 -- os.clock() deadline for the next analyzer re-read
+-- Pooled chime voices (PERFORMANCE.md §3): { player, busyUntil } — the
+-- gem chime was building an AudioPlayer + Wire per pickup before.
+local chimeVoices: { { p: any, busyUntil: number } } = {}
 local curMap: SongMap.Map = SongMap -- active track's chart (default until a run picks)
 local curTrack: string? = nil
 local curAssets: any = nil -- active track's TrackAssets entry
@@ -557,28 +561,52 @@ function Music.duck(depth: number, release: number?)
 end
 
 -- One-shot voice on the post-duck SFX tap (see init): takes a resolved
--- ContentId string, plays at `speedRatio`, self-destroys. Returns false
--- when the bus isn't built so callers can fall back to a plain Sound.
+-- ContentId string, plays at `speedRatio` on a pooled voice. Returns
+-- false when the bus isn't built so callers can fall back to a plain
+-- Sound. Chimes run ≤4s (0.75s source at the slowest ~0.25x ladder
+-- step); saturated pools recycle the voice whose hold expires first —
+-- a drowned chime beats a GC spike mid-cluster (PERFORMANCE.md §3).
 function Music.playOneShot(asset: string, speedRatio: number, volume: number): boolean
 	if not sfxFader or not root then
 		return false
 	end
-	local p = Instance.new("AudioPlayer")
-	p.Asset = asset
-	p.Looping = false
-	p.AutoLoad = true
-	p.PlaybackSpeed = speedRatio
-	p.Volume = volume
-	p.Parent = root
-	wire(p, sfxFader)
-	p:Play()
-	-- AudioPlayer.Ended is unreliable for clean-up; the gem file is 0.75s
-	-- and the slowest ladder step plays it back at ~0.25x — 4s covers all.
-	task.delay(4, function()
-		if p.Parent then
-			p:Destroy()
+	local now = os.clock()
+	local voice: { p: any, busyUntil: number }? = nil
+	local soonest = math.huge
+	local soonestV: { p: any, busyUntil: number }? = nil
+	for _, v in ipairs(chimeVoices) do
+		if v.busyUntil <= now then
+			voice = v
+			break
+		elseif v.busyUntil < soonest then
+			soonest = v.busyUntil
+			soonestV = v
 		end
-	end)
+	end
+	if not voice and #chimeVoices < Config.Music.ChimeVoices then
+		local p = Instance.new("AudioPlayer")
+		p.Looping = false
+		p.AutoLoad = true
+		p.Parent = root
+		wire(p, sfxFader)
+		voice = { p = p, busyUntil = 0 }
+		table.insert(chimeVoices, voice)
+	end
+	if not voice then
+		voice = soonestV
+		if not voice then
+			return false
+		end
+		-- Pool saturated — steal the voice freeing soonest.
+		voice.p:Stop()
+	end
+	voice.p.Asset = asset
+	voice.p.PlaybackSpeed = speedRatio
+	voice.p.Volume = volume
+	-- AudioPlayer.Ended is unreliable; hold by wall-clock like the old
+	-- task.delay cleanup did — 4s covers the slowest ladder step.
+	voice.busyUntil = now + 4
+	voice.p:Play()
 	return true
 end
 
@@ -639,19 +667,28 @@ function Music.sample(): number
 	if not analyzer then
 		return 0
 	end
-	local energy = analyzer.RmsLevel
-	local ok, spectrum = pcall(function()
-		return analyzer:GetSpectrum()
-	end)
-	if ok and type(spectrum) == "table" and #spectrum >= 8 then
-		local bass = 0
-		for i = 2, 8 do
-			bass += spectrum[i]
+	-- Spectrum reads throttle to AnalyzerHz (PERFORMANCE.md §1): each
+	-- GetSpectrum allocates a table, and the pulse envelope smooths over
+	-- the gap anyway — the decay keeps running per frame so visuals stay
+	-- continuous between reads.
+	pulseSmooth *= 0.88
+	local now = os.clock()
+	if now >= sampleAt then
+		sampleAt = now + 1 / Config.Music.AnalyzerHz
+		local energy = analyzer.RmsLevel
+		local ok, spectrum = pcall(function()
+			return analyzer:GetSpectrum()
+		end)
+		if ok and type(spectrum) == "table" and #spectrum >= 8 then
+			local bass = 0
+			for i = 2, 8 do
+				bass += spectrum[i]
+			end
+			energy = math.max(energy, bass / 7)
 		end
-		energy = math.max(energy, bass / 7)
+		-- attack fast, release slow — reads as a thump not a strobe
+		pulseSmooth = math.max(pulseSmooth, energy)
 	end
-	-- attack fast, release slow — reads as a thump not a strobe
-	pulseSmooth = math.max(energy, pulseSmooth * 0.88)
 	return pulseSmooth
 end
 

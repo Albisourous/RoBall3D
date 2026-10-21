@@ -539,6 +539,10 @@ Config.Gems = {
 	-- decaying over the beat; downbeats hit ~30% harder (BeatPulse client).
 	BeatPulse = 0.22,
 	BeatPulseRadius = 140, -- studs from camera — farther gems skip the pulse
+	-- Near-set rebuild cadence (PERFORMANCE.md §1): iterating every tagged
+	-- gem per render frame was the script's widest scan — this keeps a
+	-- camera-near subset and only refreshes it a few times a second.
+	BeatPulseScanSeconds = 0.25,
 	-- Reserved gold: collectible, never lethal, and reads as the "sunset"
 	-- accent against the magenta/cyan world.
 	Color = Color3.fromRGB(255, 212, 64),
@@ -816,6 +820,14 @@ Config.Music = {
 	WindVolume = 0.12,
 	WindCutMin = 500,
 	WindCutMax = 4200,
+	-- Analyzer cadence (PERFORMANCE.md §1): GetSpectrum allocates a table
+	-- per call — re-read at this rate and keep the pulse envelope's decay
+	-- running per frame between reads, so visuals stay continuous.
+	AnalyzerHz = 30,
+	-- Gem-chime voice pool (PERFORMANCE.md §3): playOneShot used to build
+	-- an AudioPlayer + Wire per pickup; this many pooled voices cover
+	-- even dense cluster runs, recycling the oldest when saturated.
+	ChimeVoices = 6,
 }
 
 -- The seeded/garage pool: Tracklist order, minus ids that can't play —

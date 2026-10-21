@@ -18,16 +18,16 @@ Budgets (targets, not laws):
 
 ## 1. Per-frame loops — client
 
-- [ ] **Cache `tick()`/`os.clock()` once per frame.** `Main.client.luau`
+- [x] **Cache `tick()`/`os.clock()` once per frame.** (fixed: hoisted `now` in heartbeat + setSpeedo) `Main.client.luau`
   heartbeat calls `tick()` at lines ~948, ~954, ~1173 (and `tryDash`),
   and `Ui:setSpeedo` calls it ~5 more times. Hoist `local now = tick()`
   to the top of each loop body and pass it down.
-- [ ] **`Tiers.forDistance` clones a table every frame.**
+- [x] **`Tiers.forDistance` clones a table every frame.** (fixed: `Tiers.indexAt`, scan-only)
   `Main.client.luau:1014` calls it only for `.index`. `Tiers.luau:36-58`
   does `table.clone` + width-floor math per call. Add
   `Tiers.indexAt(dist)` (scan only, no clone) or cache the tier index in
   the run state and recompute only when `dist` crosses a tier boundary.
-- [ ] **Radar rebuilds the whole lethal tag set at ~16 Hz.**
+- [x] **Radar rebuilds the whole lethal tag set at ~16 Hz.** (fixed: `FatalController.lethalParts()` + pooled scan rows)
   `Main.client.luau:1079` calls `CollectionService:GetTagged("RoBallLethal")`
   every `Config.Radar.ScanSeconds` (0.06 s): allocates the full
   workspace-wide tagged array (all players' lanes) every scan, then
@@ -36,13 +36,13 @@ Budgets (targets, not laws):
   `listDirty` — lift that pattern into a shared tagged-set cache and let
   the radar filter it by the run's lane X (skips other players' lanes
   without paying the scan).
-- [ ] **`FilterDescendantsInstances` allocates a table per frame.**
+- [x] **`FilterDescendantsInstances` allocates a table per frame.** (fixed: persistent `edgeFilter`, re-seated in bindBall)
   `Main.client.luau:1128` builds `{ edgeLane }` every heartbeat. Assign
   only when `edgeLane` actually changes (bindBall / run start).
 - [ ] **HUD cache allocates a string per frame.**
   `Main.client.luau:1210` `string.format("%d|%d|%d|%d", ...)` — compare
   the four numeric fields against cached numbers instead.
-- [ ] **`Ui:setSpeedo` writes ~10 UI properties every heartbeat.**
+- [x] **`Ui:setSpeedo` writes ~10 UI properties every heartbeat.** (fixed: write-gating + whole-pixel/quantized steps)
   `Ui.luau:1828-1903`: 3× `.Text`, 3× `.TextSize` (pulse-driven, forces
   text relayout every frame), 2× `.Position`, 2× `.TextTransparency`,
   `.TextColor3`, stroke `.Color`. Gate writes on changed values;
@@ -52,19 +52,21 @@ Budgets (targets, not laws):
   every RenderStepped (`Main.client.luau:1218`) — set once.
   `Ui:setEdgeWarn`/`setDanger` run every frame — early-out when the
   visibility state is unchanged.
-- [ ] **`Music.sample()` calls `analyzer:GetSpectrum()` every render
+- [x] **`Music.sample()` calls `analyzer:GetSpectrum()` every render
   frame** (`MusicController.luau:638-656`) — allocates a spectrum table
   per frame plus a `pcall`. Sample on a ~30 Hz cadence clock and return
   the last value between ticks; the pulse envelope already smooths.
-- [ ] **`BeatPulse` scans every tracked gem per render frame**
+  (fixed: `Config.Music.AnalyzerHz = 30` cadence, per-frame decay kept)
+- [x] **`BeatPulse` scans every tracked gem per render frame**
   (`BeatPulse.client.luau:54-61`): distance² check over the full
   `RoBallGem` set (all lanes, ~hundreds of parts). Keep a "near" subset
   refreshed on a cadence clock (reuse the radar's lane-scoped set), and
   only iterate that per frame.
-- [ ] **`CosmeticFx` does `workspace:FindFirstChild(ballName)` per
+  (fixed: `Config.Gems.BeatPulseScanSeconds = 0.25` near-set refresh)
+- [x] **`CosmeticFx` does `workspace:FindFirstChild(ballName)` per
   frame** (`CosmeticFx.luau:151`) while an animated skin is equipped —
   accept the already-bound `ball` from Main via a getter like the other
-  controllers.
+  controllers. (fixed: bound-ball getter, same as Pad/Fatal init)
 - [ ] **Backdrop is in good shape** (pooled parts, park-on-swap, lazy
   theme builds, client-local). Remaining nits: the sun's 16
   `.Size` writes/frame could quantize the pulse; `stepAurora` writes
@@ -98,7 +100,7 @@ Budgets (targets, not laws):
 
 ## 3. Instance churn / GC pressure
 
-- [ ] **`Music.playOneShot` creates AudioPlayer + Wire per gem pickup**
+- [x] **`Music.playOneShot` creates AudioPlayer + Wire per gem pickup** (fixed: `Config.Music.ChimeVoices` pool of 6)
   (`MusicController.luau:562-583`) plus a `task.delay(4)` cleanup. Pool
   ~6 reusable chime voices on `sfxFader` (recycle oldest when full).
 - [ ] **`SfxController` spawns a `Sound` + `PitchShiftSoundEffect` per

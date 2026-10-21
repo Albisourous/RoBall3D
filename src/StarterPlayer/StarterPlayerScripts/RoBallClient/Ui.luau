@@ -1825,37 +1825,63 @@ function Ui:setSpeedo(
 	dashing: boolean?,
 	dashDeniedAt: number?
 )
-	local num = tostring(math.floor(bpm + 0.5))
-	self.spdNum.Text = num
-	self.spdGhostA.Text = num
-	self.spdGhostB.Text = num
+	-- Write-gating + pixel quantization (PERFORMANCE.md §1): the digit's
+	-- pulse used to dirty 3 text relayouts and 10 property writes every
+	-- heartbeat — pulse-driven dims snap to whole pixels / quantized
+	-- steps, and every write skips when the value didn't actually change.
+	local now = tick()
 	local pulse = self.pulse or 0
-	local size = 56 + pulse * 5 -- beat thump: swell on the heard grid
-	self.spdNum.TextSize = size
-	self.spdGhostA.TextSize = size
-	self.spdGhostB.TextSize = size
-	local spread = 2 + pulse * 4 -- VHS fringe widens with the kick
-	self.spdGhostA.Position = UDim2.fromOffset(-spread, 0)
-	self.spdGhostB.Position = UDim2.fromOffset(spread, 0)
-	self.spdGhostA.TextTransparency = 0.82 - pulse * 0.42
-	self.spdGhostB.TextTransparency = 0.82 - pulse * 0.42
+	local num = tostring(math.floor(bpm + 0.5))
+	if num ~= self._spdNum then
+		self._spdNum = num
+		self.spdNum.Text = num
+		self.spdGhostA.Text = num
+		self.spdGhostB.Text = num
+	end
+	local size = math.floor(56 + pulse * 5 + 0.5) -- beat thump: swell on the heard grid
+	if size ~= self._spdSize then
+		self._spdSize = size
+		self.spdNum.TextSize = size
+		self.spdGhostA.TextSize = size
+		self.spdGhostB.TextSize = size
+	end
+	local spread = math.floor(2 + pulse * 4 + 0.5) -- VHS fringe widens with the kick
+	if spread ~= self._spdSpread then
+		self._spdSpread = spread
+		self.spdGhostA.Position = UDim2.fromOffset(-spread, 0)
+		self.spdGhostB.Position = UDim2.fromOffset(spread, 0)
+	end
+	local tr = math.floor((0.82 - pulse * 0.42) * 64 + 0.5) / 64
+	if tr ~= self._spdTr then
+		self._spdTr = tr
+		self.spdGhostA.TextTransparency = tr
+		self.spdGhostB.TextTransparency = tr
+	end
 	local col
 	if speed >= 100 then
 		-- Over the line: flat hot red, pulsing so it reads as "pegged".
-		local v = 0.85 + 0.15 * math.sin(tick() * 9)
+		local v = 0.85 + 0.15 * math.sin(now * 9)
 		col = Color3.fromRGB(255, 40, 60):Lerp(Color3.fromRGB(255, 120, 140), v)
 	else
 		-- Gradient hue cyan(0.53) -> violet(0.75) -> magenta(0.88) with speed.
 		local h = 0.53 + (speed / 100) * 0.35
 		col = Color3.fromHSV(h, 0.92, 1)
 	end
-	self.spdNum.TextColor3 = col:Lerp(C_WHITE, pulse * 0.3)
-	self.spdStroke.Color = col -- rim wears the hue so it reads as glow
+	local cq = col:Lerp(C_WHITE, pulse * 0.3)
+	cq = Color3.fromRGB(math.round(cq.R * 255), math.round(cq.G * 255), math.round(cq.B * 255))
+	if cq ~= self._spdCol then
+		self._spdCol = cq
+		self.spdNum.TextColor3 = cq
+	end
+	local sq = Color3.fromRGB(math.round(col.R * 255), math.round(col.G * 255), math.round(col.B * 255))
+	if sq ~= self._spdStrokeCol then
+		self._spdStrokeCol = sq
+		self.spdStroke.Color = sq -- rim wears the hue so it reads as glow
+	end
 	-- Analog-smooth across the discrete cells: the shown charge eases to
 	-- the real value (~70ms) and the leading cell only glows partial, so
 	-- the strip breathes instead of stepping.
 	local frac = math.clamp(powerFrac, 0, 1)
-	local now = tick()
 	local disp = self._powerDisp or frac
 	disp += (frac - disp) * math.min(1, math.max(0, now - (self._powerT or now)) * 14)
 	self._powerT = now
@@ -1865,11 +1891,11 @@ function Ui:setSpeedo(
 	local gate = self.gateFrac or 1
 	local ready = powerFrac >= gate
 	if ready and self._powerReady == false then
-		self._readyFlash = tick()
+		self._readyFlash = now
 	end
 	self._powerReady = ready
-	local blink = powerSpent and math.sin(tick() * 10) > 0
-	local flash = self._readyFlash ~= nil and tick() - self._readyFlash < 0.45
+	local blink = powerSpent and math.sin(now * 10) > 0
+	local flash = self._readyFlash ~= nil and now - self._readyFlash < 0.45
 	-- Forced state color overrides the cyan->magenta ramp: gold ready-ping,
 	-- white dash flash, dim flicker on a denied press (§4: broke/latched),
 	-- hot orange while braking (S spends the same power meter), pink boost flare.
@@ -1879,27 +1905,52 @@ function Ui:setSpeedo(
 		or (denied and (math.sin(now * 18) > 0 and C_DIM or C_PANEL))
 		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or nil))
 	local lit = disp * METER_SEGS
+	local segCol = self._segCol or {}
+	local segTr = self._segTr or {}
+	self._segCol = segCol
+	self._segTr = segTr
 	for i, s in ipairs(self.powerSegs) do
 		local edge = lit - (i - 1)
+		local c, ctr
 		if edge > 0 then
-			s.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / METER_SEGS)
-			s.BackgroundTransparency = math.clamp((1 - edge) * 0.85, 0, 0.85)
+			c = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / METER_SEGS)
+			ctr = math.floor(math.clamp((1 - edge) * 0.85, 0, 0.85) * 64 + 0.5) / 64
 		elseif i <= (self._gateCells or 0) then
 			-- Lock-zone slot: permanent warm tint, gently pulsing while
 			-- latched out — "recharging through the gate" reads without
 			-- needing a floating tick.
-			s.BackgroundColor3 = C_GATE_DIM
-			s.BackgroundTransparency = powerSpent and (0.35 + 0.3 * math.sin(now * 6)) or 0.4
+			c = C_GATE_DIM
+			ctr = powerSpent and (math.floor((0.35 + 0.3 * math.sin(now * 6)) * 64 + 0.5) / 64) or 0.4
 		else
-			s.BackgroundColor3 = C_PANEL
-			s.BackgroundTransparency = 0.4
+			c = C_PANEL
+			ctr = 0.4
+		end
+		if c ~= segCol[i] then
+			segCol[i] = c
+			s.BackgroundColor3 = c
+		end
+		if ctr ~= segTr[i] then
+			segTr[i] = ctr
+			s.BackgroundTransparency = ctr
 		end
 	end
 	-- The bead tip rides the smoothed lit edge, wearing the same color;
 	-- hidden when the meter is empty so it doesn't dangle off the left end.
-	self.powerTip.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, disp)
-	self.powerTip.Position = UDim2.new(0, METER_PAD + disp * (METER_W - METER_PAD * 2), 0.5, 0)
-	self.powerTip.Visible = disp > 0.04
+	local tipC = forced or C_CYAN:Lerp(C_PINK, disp)
+	if tipC ~= self._tipCol then
+		self._tipCol = tipC
+		self.powerTip.BackgroundColor3 = tipC
+	end
+	local tipPos = UDim2.new(0, math.floor(METER_PAD + disp * (METER_W - METER_PAD * 2) + 0.5), 0.5, 0)
+	if tipPos ~= self._tipPos then
+		self._tipPos = tipPos
+		self.powerTip.Position = tipPos
+	end
+	local tipVis = disp > 0.04
+	if tipVis ~= self._tipVis then
+		self._tipVis = tipVis
+		self.powerTip.Visible = tipVis
+	end
 end
 
 -- Gem combo pip under the subline (n>=2 shows "xN").

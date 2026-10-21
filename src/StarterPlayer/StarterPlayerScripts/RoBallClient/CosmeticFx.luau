@@ -16,7 +16,13 @@ local BallDress = require(ReplicatedStorage.RoBall.BallDress)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local player = Players.LocalPlayer
-local ballName = player.Name .. "_Ball"
+
+-- The live ball comes from Main's getter (PERFORMANCE.md §1): polling
+-- workspace:FindFirstChild by name every render frame was a per-frame
+-- string-keyed lookup — the bound ball is already canonical.
+local getBall: () -> BasePart? = function()
+	return nil
+end
 
 -- Menu cam orbits but always aims at (0, StartY-15, -120): a ball parked
 -- on that look-ray stays centered in frame at any orbit phase. Rendered 5x
@@ -135,7 +141,8 @@ function Fx.refresh()
 	end
 end
 
-function Fx.init()
+function Fx.init(ballGetter: () -> BasePart?)
+	getBall = ballGetter
 	equipped()
 	-- COLOR LAB (§18): a hue write lands on attributes — re-dress the
 	-- mannequin so the sliders preview live.
@@ -148,8 +155,8 @@ function Fx.init()
 		if anim then
 			-- Lazy-collect the run ball: replication order of parts vs
 			-- adornments isn't guaranteed, so watch until rings show up.
-			local b = workspace:FindFirstChild(ballName)
-			if b and b:IsA("BasePart") and not watched[b] and b:FindFirstChildOfClass("CylinderHandleAdornment") then
+			local b = getBall()
+			if b and not watched[b] and b:FindFirstChildOfClass("CylinderHandleAdornment") then
 				collect(b)
 			end
 		end

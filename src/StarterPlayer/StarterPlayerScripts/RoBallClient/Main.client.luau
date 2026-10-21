@@ -95,6 +95,11 @@ local unstickAfter = 0 -- refractory before another hop may fire
 local camPos: Vector3? = nil -- damped camera position; nil = snap on next run frame
 local edgeParams = RaycastParams.new()
 edgeParams.FilterType = Enum.RaycastFilterType.Include
+-- Persistent filter table (PERFORMANCE.md §1): FilterDescendantsInstances
+-- takes the table by reference, so reassigning a fresh { edgeLane } every
+-- frame was a pure allocation — only re-seats when the lane actually
+-- changes (bindBall, once per run).
+local edgeFilter: { Instance } = {}
 local EDGE_DOWN = Vector3.new(0, -1, 0)
 local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
@@ -268,6 +273,8 @@ local function bindBall(b: Instance)
 		-- Edge probes only count the ball's own lane as ground (§12).
 		edgeLane = lanesFolder
 			and lanesFolder:FindFirstChild("Lane" .. math.round(ball.Position.X / Config.Generation.RowSpacing))
+		edgeFilter[1] = edgeLane :: Instance
+		edgeParams.FilterDescendantsInstances = edgeFilter
 		-- Graze spark (§10): one pooled burst emitter rides the ball;
 		-- near-miss/thread bumps Emit() a handful of icy shards.
 		local G = Config.Score.Graze
@@ -622,8 +629,12 @@ local rivalName: string? = nil
 -- Sector splits (§14): run clock + deepest boundary already flashed.
 local runT0 = 0
 local sectorCursor = 0
--- Hazard radar (§12): scan clock for the look-ahead strip.
+-- Hazard radar (§12): scan clock for the look-ahead strip. `radarScan`
+-- is the bar list handed to Ui and `radarPool` recycles its row tables —
+-- both persist so the ~16 Hz scan allocates nothing (PERFORMANCE.md §1).
 local radarT = 0
+local radarScan: { { dx: number, dz: number, w: number } } = {}
+local radarPool: { { dx: number, dz: number, w: number } } = {}
 -- Death-cam (§11): each death bumps the sequence so a pending card lands
 -- only if no restart/menu happened mid-orbit.
 local deathSeq = 0
@@ -924,6 +935,9 @@ RunService.Heartbeat:Connect(function(dt)
 	if mode ~= "running" or not b then
 		return
 	end
+	-- One clock read per frame (PERFORMANCE.md §1): controlAt, the dash
+	-- window, the danger ping and unstick timers all key off the same now.
+	local now = tick()
 
 	-- FlipRide (§8.6 stretch, flag-off): inside a RoBallFlipZone box the
 	-- ball rides the ceiling ribbon — vY holds +Lift, steering mirrors.
@@ -945,13 +959,13 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 
 	local steer = Config.Steering
-	local intent = if tick() >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
+	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
 	-- — the target pins to dash Speed and the accel is ~13x, so the dart
 	-- eases in over ~50ms instead of hard-sliding. Steering input is
 	-- ignored for the window; on expiry the velocity clamps back into
 	-- steer range so residual drift is normal steering, not a free slide.
-	local dashing = tick() < dashUntil
+	local dashing = now < dashUntil
 	local targetLat = intent * steer.MaxLateralSpeed
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	if dashing then
@@ -1011,7 +1025,7 @@ RunService.Heartbeat:Connect(function(dt)
 	-- tempo, not last frame's.
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 	ui:setSpeedo(fwdSpeed, Music.bpm(), powerCharge, boosting, powerSpent, braking, dashing, dashDeniedAt)
-	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
+	Music.setTier(Tiers.indexAt(dist)) -- layer mix + sting on tier-ups
 	Ghost.tick(dt, b.Position) -- record this run + advance the PB echo
 	-- Pace delta (§12): live "±N vs PB" — ghost position IS the PB's
 	-- position at this elapsed time on this same map.
@@ -1074,13 +1088,20 @@ RunService.Heartbeat:Connect(function(dt)
 	if radarT >= Config.Radar.ScanSeconds then
 		radarT = 0
 		local R = Config.Radar
-		local scan = {}
+		local scan = radarScan
+		-- FatalController already tracks RoBallLethal incrementally — the
+		-- radar reads its set and lane-filters on dx instead of re-paying a
+		-- workspace-wide GetTagged (PERFORMANCE.md §1).
 		local nearest: Instance? = nil
-		for _, p in ipairs(CollectionService:GetTagged("RoBallLethal")) do
+		for _, p in ipairs(FatalController.lethalParts()) do
 			local dz = b.Position.Z - p.Position.Z
 			local dx = p.Position.X - b.Position.X
 			if dz > -2 and dz < R.Range and math.abs(dx) - p.Size.X / 2 < R.HalfWidth then
-				table.insert(scan, { dx = dx, dz = math.max(dz, 0), w = p.Size.X })
+				local e = table.remove(radarPool) or { dx = 0, dz = 0, w = 0 }
+				e.dx = dx
+				e.dz = math.max(dz, 0)
+				e.w = p.Size.X
+				table.insert(scan, e)
 				if not nearest or dz < (b.Position.Z - (nearest :: BasePart).Position.Z) then
 					nearest = p
 				end
@@ -1097,14 +1118,15 @@ RunService.Heartbeat:Connect(function(dt)
 		table.sort(scan, function(a, c)
 			return a.dz < c.dz
 		end)
-		if #scan > R.MaxBars then
-			local keep = {}
-			for i = 1, R.MaxBars do
-				keep[i] = scan[i]
-			end
-			scan = keep
+		while #scan > R.MaxBars do
+			table.insert(radarPool, table.remove(scan))
 		end
 		ui:setRadar(scan)
+		-- Rows live beyond the call only inside Ui's same-frame read —
+		-- recycle them for the next scan.
+		while #scan > 0 do
+			table.insert(radarPool, table.remove(scan))
+		end
 		-- Ghost ticks (§14): the echoes you race on the threat ruler —
 		-- dz ahead = -pace; behind-you clamps to the bottom edge.
 		ui:setRadarGhosts(
@@ -1125,7 +1147,6 @@ RunService.Heartbeat:Connect(function(dt)
 	-- with nothing under it reads as a chevron. Only the ball's own lane
 	-- folder counts as support (backdrop towers and ghost echoes can't
 	-- fake ground); blocks and walls inside it support honestly.
-	edgeParams.FilterDescendantsInstances = edgeLane and { edgeLane } or {}
 	local E = Config.EdgeWarn
 	local bp = b.Position
 	local lp = workspace:Raycast(bp + Vector3.new(-E.ProbeSide, 0, 0), EDGE_DOWN * E.ProbeDown, edgeParams)
@@ -1170,7 +1191,6 @@ RunService.Heartbeat:Connect(function(dt)
 	-- distance — steady ramp, no pulse: speed already thins the time it
 	-- reads. Past PingMin a blip repeats on a cadence that tightens with
 	-- closeness — the audible mirror of the frame closing in.
-	local now = tick()
 	local dd = dangerDz
 	local dInt = dd and math.clamp(1 - dd / Config.Danger.Near, 0, 1) or 0
 	ui:setDanger(dInt)
@@ -1308,7 +1328,9 @@ Music.init()
 AudioMix.init()
 Sfx.init()
 GemFx.init()
-CosmeticFx.init()
+CosmeticFx.init(function()
+	return ball
+end)
 PadController.init(function()
 	return ball
 end)

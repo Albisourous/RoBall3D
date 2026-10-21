@@ -33,6 +33,20 @@ function Tiers.speedAt(dist: number): number
 	return s.Start + s.LogGain * math.log(1 + dist / s.LogDist)
 end
 
+-- Scan-only variant (PERFORMANCE.md §1): per-frame callers that only need
+-- the tier number skip forDistance's table.clone + endless-floor math.
+function Tiers.indexAt(dist: number): number
+	local best = 1
+	for i, t in ipairs(Config.Tiers) do
+		if dist >= t.dist then
+			best = i
+		else
+			break
+		end
+	end
+	return best
+end
+
 function Tiers.forDistance(dist: number): TierDef
 	local best = Config.Tiers[1] :: TierDef
 	for _, t in ipairs(Config.Tiers) do
