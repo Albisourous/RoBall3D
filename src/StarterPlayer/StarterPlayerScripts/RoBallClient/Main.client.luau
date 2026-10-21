@@ -15,6 +15,7 @@ local CollectionService = game:GetService("CollectionService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
+local Daily = require(ReplicatedStorage.RoBall.Daily)
 local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
@@ -160,17 +161,29 @@ local function packStates(): { [string]: { label: string, enabled: boolean } }
 	end
 	for _, key in ipairs(keys) do
 		local passId = Config.Monetization.Passes[key] or 0
-		if owned[key] then
-			states[key] = { label = "OWNED", enabled = false }
-		elseif Config.Monetization.FreeForTesting then
-			states[key] = { label = "FREE", enabled = true } -- temp: no paywall yet
-		elseif passId == 0 then
-			states[key] = { label = "SOON", enabled = false } -- pass not created yet
-		else
-			states[key] = {
-				label = "R$" .. tostring(priceCache[key] or Config.Monetization.Price[key] or "?"),
-				enabled = true,
-			}
+		-- Seasonal slot (§18): outside the yearly window the pack shows a
+		-- countdown instead of a price — the server refuses the buy too.
+		local offSeason = false
+		if key == Config.Monetization.Seasonal.Bundle and not owned[key] then
+			local live, days = Daily.seasonalStatus()
+			offSeason = not live
+			if offSeason then
+				states[key] = { label = string.format("IN %dD", days), enabled = false }
+			end
+		end
+		if not offSeason then
+			if owned[key] then
+				states[key] = { label = "OWNED", enabled = false }
+			elseif Config.Monetization.FreeForTesting then
+				states[key] = { label = "FREE", enabled = true } -- temp: no paywall yet
+			elseif passId == 0 then
+				states[key] = { label = "SOON", enabled = false } -- pass not created yet
+			else
+				states[key] = {
+					label = "R$" .. tostring(priceCache[key] or Config.Monetization.Price[key] or "?"),
+					enabled = true,
+				}
+			end
 		end
 	end
 	return states

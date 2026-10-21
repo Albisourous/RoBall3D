@@ -925,6 +925,16 @@ families the launch bundles left open: **AURORA** (green-polar: teal-green
 rings, borealis nova) and **PHANTOM** (ghost-mono: white/amethyst rings,
 static shatter). All stay inside color law — nothing near `LethalColor`.
 
+**Seasonal slot**: `Config.Monetization.Seasonal` holds one bundle id plus
+a yearly UTC `[Start, End]` month/day window (wrap-around legal, e.g.
+Dec 15 → Jan 8). Inside the window the pack sells like any other; outside
+it the button reads `IN Nd` (days until opening) and the server refuses
+both the bundle claim and à-la-carte gem buys of its member items.
+Ownership already granted is permanent — scarcity gates acquisition, not
+use. Currently **SOLSTICE**: frost skin/trail/gemfx + AVALANCHE death
+(shatter style in the ice palette). `Daily.seasonalStatus` is the shared
+UTC math so client display and server enforcement agree.
+
 **Score integrity contract**: the leaderboard meta row carries
 `assisted = false` today. Any future advantage item (bounded power-ups sit
 in the §17 backlog) must set it and submit to a separate `*_Assisted`

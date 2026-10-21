@@ -340,6 +340,13 @@ function ShopService.grantGems(player: Player, n: number): number
 	return bank[player]
 end
 
+-- Seasonal slot (§18): the gated bundle can't be claimed outside its
+-- yearly window; member items refuse à-la-carte gem buys too. Ownership
+-- already granted is untouched — the gate only blocks NEW acquisitions.
+local function seasonalLive(): boolean
+	return (Daily.seasonalStatus())
+end
+
 -- Per-item gem purchase (§18 P2): the grind path. Server re-validates
 -- everything — catalog record, price, ownership, balance — then deducts,
 -- records the item id, auto-equips (same delight rule as bundle passes),
@@ -351,6 +358,9 @@ function ShopService.buyItem(player: Player, itemId: string): (boolean, string)
 	local item = Cosmetics.Items[itemId]
 	if not item or item.free or item.gemPrice == nil then
 		return false, "not for sale"
+	end
+	if Cosmetics.bundleOf(itemId) == Config.Monetization.Seasonal.Bundle and not seasonalLive() then
+		return false, "offseason"
 	end
 	if ShopService.ownsItem(player, itemId) then
 		return false, "owned"
@@ -445,6 +455,9 @@ function ShopService.claimPass(player: Player, key: string): (boolean, string)
 	end
 	if Config.Monetization.Passes[key] == nil then
 		return false, "unknown pass"
+	end
+	if key == Config.Monetization.Seasonal.Bundle and not seasonalLive() then
+		return false, "offseason"
 	end
 	if ShopService.ownsPass(player, key) then
 		return false, "owned"

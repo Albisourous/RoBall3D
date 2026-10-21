@@ -906,6 +906,7 @@ Config.Monetization = {
 		aurora = 0, -- AURORA — green-polar set + borealis death (~149)
 		phantom = 0, -- PHANTOM — ghost-mono set + static death (~199)
 		deepspace = 0, -- DEEP SPACE — star well + grid plane worlds (~149)
+		solstice = 0, -- SOLSTICE — seasonal frost set + avalanche death (~149)
 	},
 	Price = {
 		starter = 49,
@@ -917,6 +918,18 @@ Config.Monetization = {
 		aurora = 149,
 		phantom = 199,
 		deepspace = 149,
+		solstice = 149,
+	},
+	-- Seasonal slot (§18): ONE rotating bundle gated on a yearly UTC
+	-- window so the garage always has something coming or going. The
+	-- window recurs annually; wrap-around ranges (Dec → Jan) are legal.
+	-- Outside the window the pack button shows "IN Nd" and the server
+	-- refuses the bundle AND its member items à-la-carte — owned pieces
+	-- keep working year-round once granted.
+	Seasonal = {
+		Bundle = "solstice", -- Cosmetics.Bundles id the window gates
+		Start = { 12, 15 }, -- {month, day} UTC, inclusive
+		End = { 1, 8 }, -- {month, day} UTC, inclusive
 	},
 	-- Gem bank (§18 P2): each pickup banks this many gems, credited live.
 	BankPerGem = 1,

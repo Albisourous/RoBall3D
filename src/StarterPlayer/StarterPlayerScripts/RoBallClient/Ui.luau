@@ -626,6 +626,7 @@ function Ui.new(): Ui
 		dl.TextSize = 10
 		dl.TextColor3 = C_DIM
 		dl.TextXAlignment = Enum.TextXAlignment.Left
+		dl.TextTruncate = Enum.TextTruncate.AtEnd
 		dl.Text = desc
 		dl.Position = UDim2.fromOffset(14, y + 17)
 		dl.Size = UDim2.fromOffset(210, 14)
@@ -670,8 +671,19 @@ function Ui.new(): Ui
 			end
 		end)
 	end
+	-- Seasonal slot (§18): its desc advertises the yearly window, derived
+	-- from Config.Monetization.Seasonal so the text never lies about dates.
+	local MONTH_ABBR = { "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec" }
+	local function seasonalDesc(desc: string): string
+		local S = Config.Monetization.Seasonal
+		local function md(t: { number }): string
+			return MONTH_ABBR[t[1]] .. " " .. t[2]
+		end
+		return string.format("%s · %s–%s", desc, md(S.Start), md(S.End))
+	end
 	for i, b in ipairs(Cosmetics.Bundles) do
-		packRow(b.id, b.name, b.desc, 264 + (i - 1) * 38)
+		local desc = if b.id == Config.Monetization.Seasonal.Bundle then seasonalDesc(b.desc) else b.desc
+		packRow(b.id, b.name, desc, 264 + (i - 1) * 34)
 	end
 
 	--=========== BANK (§18 P2) ===========--

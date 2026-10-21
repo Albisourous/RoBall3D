@@ -111,7 +111,7 @@ runs the loop below and does not stop until you say **stop**.
 12. **Friends board** — third leaderboard tab filtered to Roblox friends
     (GetFriendsAsync ids ∩ top-store meta). Only if the store count stays
     manageable.
-    *(done — client-side `◈ friends` filter chip riding all three tabs;
+    *(done — 028bccc: client-side `◈ friends` filter chip riding all three tabs;
     lazy `GetFriendsAsync` set (no 4th store), real ranks preserved,
     offline/empty/err states verified live vs running module)*
 13. **Music packs** — `SongMap_*.luau` stems pattern exists; add one more
@@ -119,6 +119,10 @@ runs the loop below and does not stop until you say **stop**.
     if none available.
 14. **Seasonal pack slot** — one time-limited bundle window (config dates) so
     the shop always has something rotating.
+    *(done — `Config.Monetization.Seasonal` yearly UTC window + SOLSTICE
+    frost set; `Daily.seasonalStatus` shared math, `IN Nd` countdown
+    button, server refuses bundle + member items off-window; verified
+    live incl. boundary dates)*
 
 ## Standing rules for new work
 

@@ -69,6 +69,36 @@ function Daily.isWeekKeyword(s: string): boolean
 	return l == "weekly" or l == "week" or l == "cup"
 end
 
+-- Seasonal shop slot (§18): a yearly UTC window [Start, End] both days
+-- inclusive — Dec 15 → Jan 8 wraps the year boundary. Returns
+-- (live, days): live → days left in the window; else → days until the
+-- next opening. Pure math — os.time/os.date are UTC in Luau.
+local function mdStamp(year: number, md: { number }): number
+	return os.time({ year = year, month = md[1], day = md[2], hour = 0 })
+end
+
+function Daily.seasonalStatus(t: number?): (boolean, number)
+	local Config = require(script.Parent.Config)
+	local S = Config.Monetization.Seasonal
+	local now = t or os.time()
+	local y = tonumber(os.date("!%Y", now)) :: number
+	local wraps = mdStamp(2000, S.End) <= mdStamp(2000, S.Start)
+	local nearest = math.huge
+	-- The candidate windows that can contain `now` start this year or
+	-- last; +1 year covers the "next opening" answer for the countdown.
+	for sy = y - 1, y + 1 do
+		local s = mdStamp(sy, S.Start)
+		local e = mdStamp(if wraps then sy + 1 else sy, S.End) + DAY_SECONDS
+		if now >= s and now < e then
+			return true, math.ceil((e - now) / DAY_SECONDS)
+		end
+		if now < s then
+			nearest = math.min(nearest, s - now)
+		end
+	end
+	return false, math.ceil(nearest / DAY_SECONDS)
+end
+
 -- Daily quests (§14): three seeded missions per UTC day. The day's seed
 -- picks one target per pool — every player gets the same quests, so the
 -- list is pure and identical on client and server (menu lines are drawn

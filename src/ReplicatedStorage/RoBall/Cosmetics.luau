@@ -63,6 +63,9 @@ local SILVER = Color3.fromRGB(140, 150, 190)
 local AURORA_G = Color3.fromRGB(80, 255, 170) -- teal-green (the unused family)
 local AURORA_B = Color3.fromRGB(80, 180, 255)
 local PALE_VIOLET = Color3.fromRGB(210, 200, 255)
+local ICE = Color3.fromRGB(150, 222, 255) -- solstice seasonal family
+local FROST = Color3.fromRGB(228, 246, 255)
+local DEEP_ICE = Color3.fromRGB(70, 150, 255)
 
 Cosmetics.Items = {
 	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball face
@@ -133,6 +136,16 @@ Cosmetics.Items = {
 		core = Color3.fromRGB(6, 4, 12),
 		fx = "pulse",
 	},
+	--==== SOLSTICE — seasonal window slot (§18; Config.Monetization.Seasonal
+	-- gates the bundle and à-la-carte buys of these ids)
+	skin_frost = {
+		slot = "skin",
+		name = "FROSTBITE",
+		gemPrice = 800,
+		ringA = FROST,
+		ringB = DEEP_ICE,
+		core = Color3.fromRGB(4, 8, 16),
+	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
 	trail_magenta = { slot = "trail", name = "PALETTE WAKE", free = true, color = "palette" },
@@ -143,6 +156,7 @@ Cosmetics.Items = {
 	trail_uv = { slot = "trail", name = "ULTRAVIOLET", gemPrice = 500, color = UV },
 	trail_aurora = { slot = "trail", name = "AURORA WAKE", gemPrice = 450, color = AURORA_G },
 	trail_spectre = { slot = "trail", name = "SPECTRE", gemPrice = 500, color = PALE_VIOLET },
+	trail_frost = { slot = "trail", name = "FROSTWAKE", gemPrice = 450, color = ICE },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -153,6 +167,7 @@ Cosmetics.Items = {
 	gemfx_amethyst = { slot = "gemFx", name = "AMETHYST", gemPrice = 500, color = AMETHYST },
 	gemfx_aurora = { slot = "gemFx", name = "AURORA POP", gemPrice = 450, color = AURORA_G },
 	gemfx_spectre = { slot = "gemFx", name = "SPECTRE POP", gemPrice = 500, color = PALE_VIOLET },
+	gemfx_frost = { slot = "gemFx", name = "FROST POP", gemPrice = 450, color = ICE },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -211,6 +226,14 @@ Cosmetics.Items = {
 		colorA = WHITE,
 		colorB = AMETHYST,
 	},
+	deathfx_avalanche = {
+		slot = "deathFx",
+		name = "AVALANCHE",
+		gemPrice = 600,
+		style = "shatter",
+		colorA = FROST,
+		colorB = DEEP_ICE,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -230,6 +253,7 @@ Cosmetics.Order = {
 		"skin_void",
 		"skin_aurora",
 		"skin_phantom",
+		"skin_frost",
 	},
 	trail = {
 		"trail_magenta",
@@ -240,6 +264,7 @@ Cosmetics.Order = {
 		"trail_uv",
 		"trail_aurora",
 		"trail_spectre",
+		"trail_frost",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -250,6 +275,7 @@ Cosmetics.Order = {
 		"gemfx_amethyst",
 		"gemfx_aurora",
 		"gemfx_spectre",
+		"gemfx_frost",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -259,6 +285,7 @@ Cosmetics.Order = {
 		"deathfx_horizon",
 		"deathfx_borealis",
 		"deathfx_static",
+		"deathfx_avalanche",
 	},
 	world = { "world_city", "world_peaks", "world_void", "world_grid" },
 } :: { [string]: { string } }
@@ -321,6 +348,14 @@ Cosmetics.Bundles = {
 		name = "DEEP SPACE",
 		desc = "star well + grid plane worlds",
 		items = { "world_void", "world_grid" },
+	},
+	{
+		-- Seasonal slot (§18): Config.Monetization.Seasonal holds the UTC
+		-- window; Ui derives this row's desc from it at build time.
+		id = "solstice",
+		name = "SOLSTICE",
+		desc = "frost set · avalanche death",
+		items = { "skin_frost", "trail_frost", "gemfx_frost", "deathfx_avalanche" },
 	},
 }
 
