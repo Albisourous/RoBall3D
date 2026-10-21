@@ -618,6 +618,7 @@ function Ui.new(): Ui
 		gTabs[name] = b
 
 		local pg = Instance.new("Frame")
+		pg.Name = "Page" .. name
 		pg.BackgroundTransparency = 1
 		pg.Position = UDim2.fromOffset(0, 72)
 		pg.Size = UDim2.new(1, 0, 1, -72)
