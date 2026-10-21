@@ -132,6 +132,12 @@ runs the loop below and does not stop until you say **stop**.
 16. **Recent-runs strip** — profile-persisted last-N runs (score/dist/seed)
     on the menu; click a row to prefill the seed box. Deterministic
     replay of your own past maps.
+    *(done — 796afeb: RECENT strip under the leaderboard rows, newest
+    five, `pts · m · #seed`, click fills the seed box; history rides
+    profile.history + RoBallHistory attr, verified live 2-deep)*
+17. **Log speed curve** *(done — 7581359: Speed.Start/LogGain/LogDist
+    `34 + 49.3·ln(1+d/625)` replaces tier speed steps + EndlessRamp;
+    width-shrink still drives the endless tail)*
 
 ## Standing rules for new work
 
