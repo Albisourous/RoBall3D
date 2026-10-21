@@ -158,8 +158,6 @@ function Ui.new(): Ui
 	self.onPlay = nil :: ((seedText: string) -> ())?
 	self.onRetry = nil :: (() -> ())?
 	self.onMenu = nil :: (() -> ())?
-	self.onRerun = nil :: (() -> ())?
-	self.onReplay = nil :: (() -> ())?
 	self.onChampion = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
@@ -1730,27 +1728,10 @@ function Ui.new(): Ui
 			self.onRetry()
 		end
 	end)
-	label(dCol, "R retry · T rerun · V replay", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
-	-- Watch replay (§11): re-run the just-ended recording down the live
-	-- track — only meaningful when the run lasted long enough to record.
-	self.dReplay = ghostButton(dCol, "watch replay", 15, 12)
-	self.dReplay.Visible = false
-	self.dReplay.MouseButton1Click:Connect(function()
-		if self.onReplay then
-			self.onReplay()
-		end
-	end)
-	-- Same-seed rerun (§10): the deterministic rematch — identical map,
-	-- your ghost included. Label carries the seed so the intent is plain.
-	self.dRerun = ghostButton(dCol, "rerun", 15, 13)
-	self.dRerun.MouseButton1Click:Connect(function()
-		if self.onRerun then
-			self.onRerun()
-		end
-	end)
+	label(dCol, "R retry", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
 	-- Watch champion (§11): the seed's record replay, labeled with the
 	-- holder — only offered when a champion ghost exists for the seed.
-	self.dChamp = ghostButton(dCol, "watch champion", 15, 14)
+	self.dChamp = ghostButton(dCol, "watch champion", 15, 12)
 	self.dChamp.Visible = false
 	self.dChamp.MouseButton1Click:Connect(function()
 		if self.onChampion then
@@ -1758,16 +1739,16 @@ function Ui.new(): Ui
 		end
 	end)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 15)
+	local toMenu = ghostButton(dCol, "menu", 15, 13)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
 		end
 	end)
 
-	-- Replay hint (§11): bottom-center while a recording plays back —
-	-- V returns to the card, R skips straight into a retry.
-	local rh = label(gui, "V card · R retry", 13, F_DATA, C_DIM, 0)
+	-- Replay hint (§11): bottom-center while a champion recording plays
+	-- back — R skips straight into a retry, playback's end re-shows the card.
+	local rh = label(gui, "R retry", 13, F_DATA, C_DIM, 0)
 	rh.AnchorPoint = Vector2.new(0.5, 1)
 	rh.Position = UDim2.new(0.5, 0, 1, -14)
 	rh.Size = UDim2.fromOffset(300, 20)
@@ -2010,9 +1991,13 @@ end
 
 -- Live mission tracker (§14): snapshot the bank balance at run start so
 -- the bank quest can add this run's pickups to the stored today-tally.
+-- missionMet resets so a mid-run quest flip gets its flash edge.
 function Ui:missionArm(bankNow: number)
 	self.missionBank0 = bankNow
+	self.missionMet = nil
 end
+
+local pulse: (TextLabel, string) -> ()
 
 local QUEST_LABEL = { reach = "reach %dm", score = "score %d", bank = "bank %d ◊" }
 
@@ -2020,11 +2005,19 @@ function Ui:setMissionTrack(score: number, dist: number, bankNow: number)
 	local parts = string.split(self.missionCsv, ",")
 	local banked = (tonumber(parts[#parts]) or 0) + math.max(bankNow - self.missionBank0, 0)
 	local allMet = true
+	local metPrev = self.missionMet or {}
 	for i, q in ipairs(Daily.quests()) do
 		local prog = if q.kind == "reach" then dist elseif q.kind == "score" then score else banked
 		local met = parts[i] == "1" or prog >= q.target
 		allMet = allMet and met
 		local short = string.format(QUEST_LABEL[q.kind] or "%s", q.target)
+		-- Completion edge (§14): a quest finished mid-run announces over
+		-- the debut channel — the payout lands on the card, the flash
+		-- marks the moment it was earned.
+		if met and metPrev[i] == false then
+			pulse(self.debutFlash, "QUEST ✓ " .. short)
+		end
+		metPrev[i] = met
 		local text = string.format(
 			"%s %s",
 			met and "✓" or "◇",
@@ -2036,6 +2029,7 @@ function Ui:setMissionTrack(score: number, dist: number, bankNow: number)
 		end
 		line.TextColor3 = met and C_GOLD or C_DIM
 	end
+	self.missionMet = metPrev
 	for _, line in ipairs(self.missionLines) do
 		line.Visible = not allMet
 	end
@@ -2064,7 +2058,6 @@ function Ui:showDeath(
 		pbDelta: number?,
 		rivalDelta: number?,
 		rivalName: string?,
-		canReplay: boolean?,
 	}?
 )
 	self.menu.Visible = false
@@ -2078,7 +2071,6 @@ function Ui:showDeath(
 	self.dBreakdown.Text =
 		string.format('%d m  ·  +%d gem pts    <font color="#FFD440">◊ +%d BANKED</font>', dist, gems, banked or 0)
 	self.dBest.Text = string.format("BEST %d   ·   seed %d%s", best, seed, flavorTag(seed))
-	self.dRerun.Text = string.format("rerun #%d", seed)
 	self.dNewBest.Visible = newBest == true
 	local n = streak or 0
 	local bonus = streakBonus or 0
@@ -2093,8 +2085,6 @@ function Ui:showDeath(
 	self.dQuest.Visible = hits > 0
 	self.dRank.Visible = false -- daily rank fills in late via setDailyRank
 	self.tRank.Visible = false -- all-time rank fills in late via setTopRank
-	-- WATCH REPLAY needs a recording — stub deaths under ~2 frames hide it.
-	self.dReplay.Visible = stats ~= nil and stats.canReplay == true
 	-- WATCH CHAMPION needs a champ on this seed — rivalName is set only
 	-- when one replayed during the run.
 	self.dChamp.Visible = stats ~= nil and stats.rivalName ~= nil
@@ -2394,27 +2384,26 @@ function Ui:flashSector(idx: number, elapsed: number, pbDelta: number?, rvDelta:
 	end)
 end
 
--- Debut banner (§8.6): "NEW ▸ PRESS ROW" — names a mechanic at its
--- scripted gentle showcase. Fires once per type per run.
-function Ui:flashDebut(typeName: string)
-	local name = Config.Features.Label[typeName] or string.upper(typeName)
-	self.debutFlash.Text = "NEW ▸ " .. name
-	self.debutFlash.Visible = true
-	local flash = self.debutFlash
+-- Shared banner pulse (§8.6/§8.7/§14): one slot, BannerSeconds on screen.
+function pulse(flash: TextLabel, text: string)
+	flash.Text = text
+	flash.Visible = true
 	task.delay(Config.Features.BannerSeconds, function()
 		flash.Visible = false
 	end)
 end
 
+-- Debut banner (§8.6): "NEW ▸ PRESS ROW" — names a mechanic at its
+-- scripted gentle showcase. Fires once per type per run.
+function Ui:flashDebut(typeName: string)
+	local name = Config.Features.Label[typeName] or string.upper(typeName)
+	pulse(self.debutFlash, "NEW ▸ " .. name)
+end
+
 -- Seed flavor banner (§8.7): "FLAVOR ▸ PRESS GANG" — announces a
 -- non-standard mutator at run start over the same channel.
 function Ui:flashFlavor(flavorName: string)
-	self.debutFlash.Text = "FLAVOR ▸ " .. flavorName
-	self.debutFlash.Visible = true
-	local flash = self.debutFlash
-	task.delay(Config.Features.BannerSeconds, function()
-		flash.Visible = false
-	end)
+	pulse(self.debutFlash, "FLAVOR ▸ " .. flavorName)
 end
 
 -- Deck-edge warning (§12): one chevron per unsupported side. Called from

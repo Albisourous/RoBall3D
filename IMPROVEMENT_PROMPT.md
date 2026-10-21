@@ -424,6 +424,11 @@ runs the loop below and does not stop until you say **stop**.
     the replay path as a labeled gold echo. Learn the line you're
     chasing)*
 
+59. **Quest-complete flash** *(done — a quest crossed mid-run pulses
+    `QUEST ✓ <name>` over the debut channel, driven by a per-quest met
+    edge armed at run start; banner pulses refactored onto one shared
+    helper)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

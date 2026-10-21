@@ -900,8 +900,9 @@ Full spec: `AUDIO.md`. Binding decisions:
   same quests live — `reach`/`score` read the run's own counters and
   `bank` adds the run's banked delta (snapshotted `RoBallBank` at run
   start) to the stored today-tally; a line goes `✓` gold once its
-  number is in the bag (the flag itself still lands at run end), and
-  the block hides entirely once nothing is left to chase.
+  number is in the bag (the flag itself still lands at run end), a
+  mid-run completion also pulses `QUEST ✓ <name>` over the debut
+  channel, and the block hides entirely once nothing is left to chase.
 - **Achievements**: `Config.Monetization.Achievements` — milestone badges
   evaluated server-side at every clean run end (`ShopService.onRunEnd`,
   after streak + quest eval so those counts are fresh). Kinds:
