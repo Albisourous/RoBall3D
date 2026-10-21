@@ -178,6 +178,8 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   screen shows
   `SCORE / DISTANCE / BEST / SEED`, `[R]` or button = instant restart (new
   random seed unless one was entered — same seed if entered manually).
+  `rerun #seed` / `[T]` = deterministic rematch on the run's exact seed —
+  identical map and PB ghost, no seed-box round-trip.
   A gold `★ NEW BEST!` line appears under the title when the run beat the
   stored record — the flag is computed server-side since attribute
   replication races make a client-side compare unreliable. A dim stats

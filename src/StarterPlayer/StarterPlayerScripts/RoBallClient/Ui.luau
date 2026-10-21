@@ -150,6 +150,7 @@ function Ui.new(): Ui
 	self.onPlay = nil :: ((seedText: string) -> ())?
 	self.onRetry = nil :: (() -> ())?
 	self.onMenu = nil :: (() -> ())?
+	self.onRerun = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
 	self.onBuy = nil :: ((bundleId: string) -> ())?
@@ -1097,9 +1098,17 @@ function Ui.new(): Ui
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
+	label(dCol, "R retry · T rerun", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
+	-- Same-seed rerun (§10): the deterministic rematch — identical map,
+	-- your ghost included. Label carries the seed so the intent is plain.
+	self.dRerun = ghostButton(dCol, "rerun", 15, 12)
+	self.dRerun.MouseButton1Click:Connect(function()
+		if self.onRerun then
+			self.onRerun()
+		end
+	end)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 12)
+	local toMenu = ghostButton(dCol, "menu", 15, 13)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
@@ -1324,6 +1333,7 @@ function Ui:showDeath(
 	self.dBreakdown.Text =
 		string.format('%d m  ·  +%d gem pts    <font color="#FFD440">◊ +%d BANKED</font>', dist, gems, banked or 0)
 	self.dBest.Text = string.format("BEST %d   ·   seed %d", best, seed)
+	self.dRerun.Text = string.format("rerun #%d", seed)
 	self.dNewBest.Visible = newBest == true
 	local n = streak or 0
 	local bonus = streakBonus or 0

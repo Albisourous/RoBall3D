@@ -282,6 +282,14 @@ local function requestStart()
 end
 ui.onPlay = requestStart
 ui.onRetry = requestStart
+-- Same-seed rerun (§10): deterministic rematch — identical map, the PB
+-- ghost included. Fires the numeric seed, not the box text, so "daily"
+-- still lands on the day's seed (same-day replay rules apply anyway).
+ui.onRerun = function()
+	if currentSeed then
+		evStart:FireServer(tostring(currentSeed))
+	end
+end
 
 -- Equip arrows: browse the WHOLE slot order, wrap around. Owned items
 -- equip as they come into view (server re-validates — this is only a
@@ -645,11 +653,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	-- R restarts in ANY mode — mid-run it abandons the run and re-rolls
-	-- instantly (the Slope rage-restart); Enter starts from the menu.
+	-- instantly (the Slope rage-restart); Enter starts from the menu;
+	-- T on the death screen reruns the dead run's exact seed.
 	local wantsRestart = input.KeyCode == Enum.KeyCode.R
 	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
+	local wantsRerun = input.KeyCode == Enum.KeyCode.T and mode == "dead"
 	if wantsRestart or wantsPlay then
 		requestStart()
+		return
+	elseif wantsRerun and ui.onRerun then
+		ui.onRerun()
 		return
 	end
 	if input.KeyCode == Enum.KeyCode.Q then

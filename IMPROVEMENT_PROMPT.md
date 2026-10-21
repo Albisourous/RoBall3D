@@ -117,12 +117,21 @@ runs the loop below and does not stop until you say **stop**.
 13. **Music packs** — `SongMap_*.luau` stems pattern exists; add one more
     track as a bundleable. Needs real audio assets — flag as human-blocked
     if none available.
+    *(blocked — all 13 cataloged tracks already wired to real uploads;
+    a new bundle needs a human-provided master/stem upload)*
 14. **Seasonal pack slot** — one time-limited bundle window (config dates) so
     the shop always has something rotating.
-    *(done — `Config.Monetization.Seasonal` yearly UTC window + SOLSTICE
-    frost set; `Daily.seasonalStatus` shared math, `IN Nd` countdown
-    button, server refuses bundle + member items off-window; verified
-    live incl. boundary dates)*
+    *(done — 125d20c: `Config.Monetization.Seasonal` yearly UTC window +
+    SOLSTICE frost set; `Daily.seasonalStatus` shared math, `IN Nd`
+    countdown button, server refuses bundle + member items off-window;
+    verified live incl. boundary dates)*
+15. **Same-seed rerun** — death screen gets a RERUN chip next to RETRY that
+    restarts on the run's exact seed: the deterministic rematch button.
+    *(done — `rerun #N` ghost button + T key while dead fires the run's
+    numeric seed; verified live, card chip matches dead run's seed)*
+16. **Recent-runs strip** — profile-persisted last-N runs (score/dist/seed)
+    on the menu; click a row to prefill the seed box. Deterministic
+    replay of your own past maps.
 
 ## Standing rules for new work
 
