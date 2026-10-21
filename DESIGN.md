@@ -209,11 +209,13 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   A gold `★ NEW BEST!` line appears under the title when the run beat the
   stored record — the flag is computed server-side since attribute
   replication races make a client-side compare unreliable. A dim stats
-  line closes the card: `top N s/s · M gates · P% boost · margin X` —
-  top forward speed, lethal planes crossed, share of distance spent
-  boosting (client-tracked, display-only), and the tightest near-miss
-  margin of the run (`in-disc` when the closest call was inside a rotor's
-  sweep).
+  line closes the card: `top N s/s · M gates · P% boost · air A% ·
+  margin X` — top forward speed, lethal planes crossed, share of
+  distance spent boosting, share of run time airborne (the landing
+  probe counts contact when the ball's underside is within
+  `Landing.ContactPad` of lane ground), and the tightest near-miss
+  margin of the run (`in-disc` when the closest call was inside a
+  rotor's sweep).
 - **PB ghost**: on run start a translucent magenta `BEST n` gate floats on
   the deck at your record's end distance (`Score.PbMarkerMinDist` = 150m) —
   you race your own shadow. The label stays near-field only

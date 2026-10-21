@@ -582,6 +582,8 @@ local lastGemPts = 0
 -- never part of the score.
 local statMaxFwd = 0
 local statBoostDist = 0
+local statGroundT = 0 -- seconds with the lane probe finding contact
+local statAirT = 0 -- airborne share shows on the death card (§11)
 local statDashes = 0
 local statPrevZ = 0
 -- Pace delta (§12): last whole-meter delta shown; nil when no ghost
@@ -660,6 +662,8 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	passedBest = false
 	statMaxFwd = 0
 	statBoostDist = 0
+	statGroundT = 0
+	statAirT = 0
 	statDashes = 0
 	statPrevZ = 2
 	paceCache = nil :: number? -- pace line re-renders on whole-meter change
@@ -779,6 +783,7 @@ evRunEnded.OnClientEvent:Connect(
 						hazards = hzPassed,
 						closest = closestCall,
 						cause = cause,
+						air = statAirT / math.max(statAirT + statGroundT, 0.01),
 					}
 				)
 			end
@@ -1103,6 +1108,13 @@ RunService.Heartbeat:Connect(function(dt)
 		ring.Transparency = 0.35
 	else
 		ring.Transparency = 1 -- over the void the chevrons speak instead
+	end
+	-- Airtime stat (§11): the same probe decides grounded vs airborne —
+	-- the death card turns it into "air N%" of run time.
+	if drop and bp.Y - drop.Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad then
+		statGroundT += dt
+	else
+		statAirT += dt
 	end
 
 	-- Danger vignette + sonar (§12): intensity rises toward contact

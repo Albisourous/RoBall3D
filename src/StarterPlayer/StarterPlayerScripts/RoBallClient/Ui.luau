@@ -1987,6 +1987,7 @@ function Ui:showDeath(
 		hazards: number?,
 		closest: number?,
 		cause: string?,
+		air: number?,
 	}?
 )
 	self.menu.Visible = false
@@ -2023,10 +2024,11 @@ function Ui:showDeath(
 			then (stats.closest <= 0 and "in-disc" or string.format("%.1fs", stats.closest))
 			else "—"
 		self.dStats.Text = string.format(
-			"top %d s/s · %d gates · %d%% boost · margin %s",
+			"top %d s/s · %d gates · %d%% boost · air %d%% · margin %s",
 			math.floor(stats.top),
 			stats.hazards or 0,
 			boostPct,
+			math.floor(100 * (stats.air or 0)),
 			margin
 		)
 		-- Death cause (§11): the chunk type that killed the run, or the

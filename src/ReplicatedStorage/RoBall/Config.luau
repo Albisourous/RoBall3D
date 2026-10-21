@@ -130,6 +130,10 @@ Config.EdgeWarn = {
 Config.Landing = {
 	MaxDrop = 40, -- studs below the ball the shadow can still find ground
 	Radius = 2.0, -- ring radius in studs
+	-- Grounded epsilon (§11): the ball's underside within this many studs
+	-- of the probe hit counts as contact — the death card's "air N%"
+	-- stat is 1 minus the grounded share of run time.
+	ContactPad = 0.7,
 }
 
 -- Danger vignette (§12): a red screen-frame stroke that tightens as the
