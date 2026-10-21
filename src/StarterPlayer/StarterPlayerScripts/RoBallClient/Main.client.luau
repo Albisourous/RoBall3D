@@ -75,7 +75,7 @@ local mode: "menu" | "running" | "dead" = "menu"
 local ball: BasePart? = nil
 local lateralVel = 0
 local fwdSpeed = Config.Speed.Start
-local currentSeed = 0
+local currentSeed: number? = nil
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
 local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
@@ -98,6 +98,7 @@ local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
 local landingRing: Part? = nil -- pooled blob shadow, made once on first use
 local dangerDz: number? = nil -- nearest corridor threat ahead, set by the radar scan
+local nextPingAt = 0 -- sonar cadence clock; 0 re-arms on zone entry
 local threatCache: string? = nil -- threat label currently on the radar
 
 --============================ garage ==============================--
@@ -706,6 +707,7 @@ evRunEnded.OnClientEvent:Connect(
 		ui:chainHide()
 		ui:setDanger(0)
 		dangerDz = nil
+		nextPingAt = 0
 		threatCache = nil :: string?
 		ui:setThreat("")
 		if landingRing then
@@ -809,12 +811,23 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	-- R restarts in ANY mode — mid-run it abandons the run and re-rolls
-	-- instantly (the Slope rage-restart); Enter starts from the menu;
-	-- T on the death screen reruns the dead run's exact seed.
+	-- instantly (the Slope rage-restart). R is a same-seed reload: the
+	-- retry lands on the map you were just on, even when the seed box is
+	-- holding other text — it's a menu preference, not a live intent.
+	-- There's nothing to rerun until the first RunStarted, so R falls
+	-- back to a normal start there. Enter/PLAY/RETRY button start fresh;
+	-- T on the death screen is the same rerun R performs.
 	local wantsRestart = input.KeyCode == Enum.KeyCode.R
 	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
 	local wantsRerun = input.KeyCode == Enum.KeyCode.T and mode == "dead"
-	if wantsRestart or wantsPlay then
+	if wantsRestart then
+		if currentSeed then
+			ui.onRerun()
+		else
+			requestStart()
+		end
+		return
+	elseif wantsPlay then
 		requestStart()
 		return
 	elseif wantsRerun and ui.onRerun then
@@ -1057,16 +1070,26 @@ RunService.Heartbeat:Connect(function(dt)
 		ring.Transparency = 1 -- over the void the chevrons speak instead
 	end
 
-	-- Danger vignette (§12): intensity rises toward contact distance —
-	-- steady ramp, no pulse: speed already thins the time it reads.
+	-- Danger vignette + sonar (§12): intensity rises toward contact
+	-- distance — steady ramp, no pulse: speed already thins the time it
+	-- reads. Past PingMin a blip repeats on a cadence that tightens with
+	-- closeness — the audible mirror of the frame closing in.
+	local now = tick()
 	local dd = dangerDz
-	ui:setDanger(dd and math.clamp(1 - dd / Config.Danger.Near, 0, 1) or 0)
+	local dInt = dd and math.clamp(1 - dd / Config.Danger.Near, 0, 1) or 0
+	ui:setDanger(dInt)
+	local dn = Config.Danger
+	if dInt >= dn.PingMin and now >= nextPingAt then
+		Sfx.dangerPing(dInt)
+		nextPingAt = now + dn.PingSlow + (dn.PingFast - dn.PingSlow) * (dInt - dn.PingMin) / (1 - dn.PingMin)
+	elseif dInt < dn.PingMin then
+		nextPingAt = 0 -- re-arm instantly on the next entry
+	end
 
 	local v = b.AssemblyLinearVelocity
 	-- Unstick hop (§11): the -Z write below means a freeze is physics
 	-- canceling intent — real v.Z collapses while Y stays quiet (grounded).
 	-- Sustain that past UnstickTime → one Y impulse pops the seam lip.
-	local now = tick()
 	if not inFlip and math.abs(v.Y) < steer.UnstickMaxY and -v.Z < fwdSpeed * 0.15 then
 		stuckT += dt
 	else
@@ -1091,7 +1114,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local key = string.format("%d|%d|%d|%d", score, d, gems, fwdSpeed)
 	if key ~= hudCache then
 		hudCache = key
-		ui:setHud(score, d, gems, math.floor(fwdSpeed + 0.5), currentSeed)
+		ui:setHud(score, d, gems, math.floor(fwdSpeed + 0.5), currentSeed or 0)
 	end
 end)
 

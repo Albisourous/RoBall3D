@@ -149,6 +149,28 @@ function Sfx.dashDenied()
 	end)
 end
 
+-- Proximity ping (§12): one flattened blip of the same bell — pitched
+-- down PingOctave so it can't read as a pickup, lifting PingLift at
+-- contact distance. The cadence itself is scheduled by the caller.
+function Sfx.dangerPing(intensity: number)
+	local cfg = Config.Danger
+	local s = Instance.new("Sound")
+	s.Name = "DangerPing"
+	s.SoundId = assetUri(Config.GemSfx)
+	s.Volume = cfg.PingVol * AudioMix.gain("dash")
+	local ps = Instance.new("PitchShiftSoundEffect")
+	ps.Octave = cfg.PingOctave * (1 + cfg.PingLift * math.clamp(intensity, 0, 1))
+	ps.Parent = s
+	s.Parent = SoundService
+	s:Play()
+	s.Ended:Connect(function()
+		s:Destroy()
+	end)
+	task.delay(3, function()
+		s:Destroy()
+	end)
+end
+
 function Sfx.init()
 	Music.preloadSfx(assetUri(Config.GemSfx)) -- warm the decode so the first pickup isn't late
 	lastGems = player:GetAttribute("RoBallGems") or 0

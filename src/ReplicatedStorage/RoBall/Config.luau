@@ -140,6 +140,15 @@ Config.Danger = {
 	Lane = 4, -- half-width of "overlaps my line" in studs
 	MaxAlpha = 0.6, -- stroke opacity at contact distance
 	Stroke = 10, -- frame thickness px
+	-- Proximity ping (§12): a flattened sonar blip while the vignette is
+	-- live — interval tightens Slow→Fast as the threat closes, pitch lifts
+	-- PingLift octaves at contact. Audible brace, not a pickup sound.
+	PingMin = 0.35, -- intensity floor before the sonar speaks
+	PingSlow = 1.0, -- seconds between pings at the floor
+	PingFast = 0.22, -- seconds between pings at contact distance
+	PingOctave = 0.5, -- base pitch (gem bell down an octave)
+	PingLift = 0.35, -- extra pitch rise at full intensity
+	PingVol = 0.3,
 }
 
 -- Split-time sectors (§14): every Length studs down-track the HUD

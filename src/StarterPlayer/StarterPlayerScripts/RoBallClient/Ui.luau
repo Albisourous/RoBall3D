@@ -1717,7 +1717,7 @@ function Ui.new(): Ui
 			self.onRetry()
 		end
 	end)
-	label(dCol, "R retry · T rerun", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
+	label(dCol, "R / T · retry same seed", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
 	-- Same-seed rerun (§10): the deterministic rematch — identical map,
 	-- your ghost included. Label carries the seed so the intent is plain.
 	self.dRerun = ghostButton(dCol, "rerun", 15, 12)
