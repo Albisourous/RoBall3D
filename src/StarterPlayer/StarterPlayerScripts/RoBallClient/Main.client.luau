@@ -430,6 +430,10 @@ local statMaxFwd = 0
 local statBoostDist = 0
 local statDashes = 0
 local statPrevZ = 0
+-- Death-cam (§11): each death bumps the sequence so a pending card lands
+-- only if no restart/menu happened mid-orbit.
+local deathSeq = 0
+local deathT0 = 0
 player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 	local n = player:GetAttribute("RoBallGems") or 0
 	if n > lastGemPts then
@@ -505,6 +509,8 @@ evRunEnded.OnClientEvent:Connect(
 		closestCall: number?
 	)
 		mode = "dead"
+		deathSeq += 1
+		deathT0 = os.clock()
 		combo = 0
 		ui:setCombo(0)
 		CosmeticFx.onMode("dead")
@@ -520,27 +526,34 @@ evRunEnded.OnClientEvent:Connect(
 		end
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
-		ui:showDeath(
-			score,
-			dist,
-			gems,
-			best,
-			seed,
-			newBest,
-			banked,
-			streak,
-			streakBonus,
-			questBonus,
-			questHits,
-			weeklyBonus,
-			{
-				top = statMaxFwd,
-				boost = statBoostDist,
-				dashes = statDashes,
-				hazards = hzPassed,
-				closest = closestCall,
-			}
-		)
+		-- The card waits out the death-cam orbit (§11); R mid-orbit skips it
+		-- via requestStart — the seq guard drops the stale delayed show.
+		local seq = deathSeq
+		task.delay(Config.Camera.DeathOrbitSec, function()
+			if mode == "dead" and deathSeq == seq then
+				ui:showDeath(
+					score,
+					dist,
+					gems,
+					best,
+					seed,
+					newBest,
+					banked,
+					streak,
+					streakBonus,
+					questBonus,
+					questHits,
+					weeklyBonus,
+					{
+						top = statMaxFwd,
+						boost = statBoostDist,
+						dashes = statDashes,
+						hazards = hzPassed,
+						closest = closestCall,
+					}
+				)
+			end
+		end)
 		Music.onDeath()
 	end
 )
@@ -741,10 +754,17 @@ RunService.RenderStepped:Connect(function(dt)
 		camera.CFrame = CFrame.lookAt(camPos :: Vector3, target) * CFrame.Angles(0, 0, lean)
 		Backdrop.update(b.Position)
 	elseif mode == "dead" then
-		-- Camera pulls back from the last known ball position (DESIGN.md §11)
-		local target = lastBallPos + Config.Generation.TravelAxis * cam.LookAhead
-		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
-		camera.CFrame = CFrame.lookAt(lastBallPos + cam.Offset * 1.6, target)
+		-- Death-cam (§11): an ease-out orbit of the kill spot — yaw sweeps
+		-- DeathOrbitArc while the radius pulls back toward DeathOrbitPull.
+		-- FOV settles back to FovMin so the card lands on a calm frame.
+		local k = math.clamp((os.clock() - deathT0) / cam.DeathOrbitSec, 0, 1)
+		local ease = 1 - (1 - k) ^ 2
+		local yaw = ease * cam.DeathOrbitArc
+		local off = cam.Offset * (1 + (cam.DeathOrbitPull - 1) * ease)
+		local rx = off.Z * math.sin(yaw)
+		local rz = off.Z * math.cos(yaw)
+		camera.FieldOfView = cam.FovMin + (camera.FieldOfView - cam.FovMin) * (1 - ease)
+		camera.CFrame = CFrame.lookAt(lastBallPos + Vector3.new(rx, off.Y, rz), lastBallPos)
 		Backdrop.update(lastBallPos)
 	else
 		-- Menu vista: slow orbit toward the track start

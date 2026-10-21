@@ -526,9 +526,13 @@ normal run-over + instant retry. **External destruction** (e.g.
 script crashes the script). The default -500 ate the ball around 3.4km in)
 also seals the run:
 if `run.ball` loses its Parent, the heartbeat treats it as a death rather
-than leaving a ghost run. Effects: music pitch slides to 0.6, camera
-pulls back, death screen. No lives, no shields — they were explicitly
-deferred.
+than leaving a ghost run. Effects: music pitch slides to 0.6, then the
+**death-cam**: a `Camera.DeathOrbitSec` (1.5s) ease-out orbit of the kill
+spot — yaw sweeps `DeathOrbitArc` (~31°) while the radius pulls back
+toward `DeathOrbitPull`× and FOV settles to FovMin — *then* the death
+card lands. R mid-orbit skips straight to restart; a stale delayed card
+is dropped by the death-sequence guard. No lives, no shields — they were
+explicitly deferred.
 
 ## 12. Presentation
 

@@ -102,6 +102,8 @@ runs the loop below and does not stop until you say **stop**.
    RoBallVol_ attrs + profile.audio — complete and verified wiring.)*
 10. **Run stats panel** — death screen adds: top speed reached, obstacles
     passed, distance under boost, closest-call. Cheap, big feel win.
+    *(done — 3c8c3c3: `top N s/s · M gates · P% boost · margin X` line;
+    server sends hazards+closest on RunEnded, client owns top/boost/dash)*
 11. **Death-cam** — on death, 1.5s orbit of the kill spot before the
     RUN OVER card. Presentation only.
 12. **Friends board** — third leaderboard tab filtered to Roblox friends

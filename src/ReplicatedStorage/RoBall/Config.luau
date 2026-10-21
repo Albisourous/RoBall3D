@@ -77,6 +77,12 @@ Config.Camera = {
 	FovMin = 70,
 	FovMax = 88, -- FOV widens with speed for sense of velocity
 	SmoothTime = 0.12,
+	-- Death-cam (§11): on a kill the camera orbits the wreck for
+	-- DeathOrbitSec — an ease-out yaw sweep of DeathOrbitArc pulling back
+	-- ×Pull — then the RUN OVER card lands. R during the orbit skips it.
+	DeathOrbitSec = 1.5,
+	DeathOrbitArc = 0.55, -- radians of yaw sweep (~31°)
+	DeathOrbitPull = 1.6, -- offset multiplier at the end of the sweep
 }
 
 -- Speed blur (DESIGN.md §12): the world smears as the ball gets faster —
@@ -431,7 +437,7 @@ Config.GemSfx = {
 	-- built-in Roblox ping — always resolvable if the asset fails to load.
 	-- Numeric id for production OR an rbxasset:// ContentId URI resolving
 	-- Studio's bundled content dir for local dev (the vaporwave-bell render).
-	AssetId = 88208694516408, -- uploaded rb3_gem_pickup (vaporwave bell cascade)
+	AssetId = 87429654015431, -- uploaded "Gem Pickup SFX" (FlowMusic render)
 	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
 	Volume = 0.18, -- baseline sits under the mix; the menu mixer's GEMS slider rides on top
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
