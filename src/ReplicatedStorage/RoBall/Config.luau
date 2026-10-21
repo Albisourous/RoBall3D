@@ -440,7 +440,16 @@ Config.Score = {
 	-- studs of its lethal face — or anywhere inside a rotor's marked
 	-- sweep disc — without dying pays Points of score. Per-obstacle,
 	-- once each; small on purpose, it's seasoning not a farm.
-	NearMiss = { Range = 4, Points = 3, FlashSeconds = 1.2 },
+	NearMiss = {
+		Range = 4,
+		Points = 3,
+		FlashSeconds = 1.2,
+		-- Chain (§10): grazes within ChainWindow seconds multiply the award
+		-- up to ChainMax — threading a dense section pays geometrically,
+		-- isolated scrapes stay flat.
+		ChainWindow = 6,
+		ChainMax = 4,
+	},
 }
 
 -- PB ghost replay (DESIGN.md §14): your record run leaves a translucent

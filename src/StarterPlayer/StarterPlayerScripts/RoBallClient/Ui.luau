@@ -1502,9 +1502,14 @@ function Ui:flashBest()
 	end)
 end
 
--- Near-miss ping (§10): "CLOSE +N" — one short cyan flash per graze.
-function Ui:flashMiss(points: number)
-	self.missFlash.Text = "CLOSE +" .. tostring(points)
+-- Near-miss ping (§10): "CLOSE +N" per graze, "+N ×M" while a chain is
+-- running — the multiplier suffix only earns its space from chain two.
+function Ui:flashMiss(points: number, chain: number?)
+	local text = "CLOSE +" .. tostring(points)
+	if chain and chain > 1 then
+		text ..= " ×" .. tostring(chain)
+	end
+	self.missFlash.Text = text
 	self.missFlash.Visible = true
 	local flash = self.missFlash
 	task.delay(Config.Score.NearMiss.FlashSeconds, function()

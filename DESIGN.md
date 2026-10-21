@@ -545,8 +545,17 @@ block's edge, or anywhere inside a rotor's translucent sweep disc (the disc
 already marks risk honestly). One award per obstacle; hanging roof slabs never
 count (a lateral graze under a ceiling isn't a dodge). The server walks the
 streamer's ordered hazard-plane list with a cursor — zero per-frame scans —
-and `plausible()` carries a loose `ceil(dist/30) × 8 × Points` ceiling. Each
-award bumps `RoBallNearMiss`; the HUD flashes a short cyan `CLOSE +N`.
+and `plausible()` carries a loose `ceil(dist/30) × 8 × Points × ChainMax`
+ceiling. Each award bumps `RoBallNearMiss`; the HUD flashes a short cyan
+`CLOSE +N`.
+
+**Chains**: a graze within `NearMiss.ChainWindow` seconds of the last one
+multiplies the award — `Points × min(chain, ChainMax)` — so threading a
+dense section pays geometrically while isolated scrapes stay flat. The
+run's chain resets on the first quiet stretch. `RoBallNmAward`/`RoBallNmChain`
+mirror the last award for the flash, which shows `CLOSE +N ×M` from chain
+two up (the suffix is the capped multiplier — the label never promises
+more than it pays).
 
 ## 11. Death
 

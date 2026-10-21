@@ -155,6 +155,11 @@ runs the loop below and does not stop until you say **stop**.
     bars, top=far/bottom=ball/x=lateral; heartbeat re-scans at
     ScanSeconds so movers track; verified live incl. death-card hide.
     Same commit named the menu controls MCP playtests click by path)*
+23. **Champion ghost** *(done — 2714395: per-seed record holder's replay
+    in `RoBall3D_GhostChamp_v1`, UpdateAsync compare-and-set crown on
+    the credentialed SaveGhost path; `GetGhost(seed)` returns own+champ,
+    gold `RivalGhost` with name billboard shares the run clock; pace
+    stays PB-only; verified live via stubbed GetGhost)*
 
 ## Standing rules for new work
 

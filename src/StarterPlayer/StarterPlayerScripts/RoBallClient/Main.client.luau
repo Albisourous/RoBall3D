@@ -555,7 +555,10 @@ end)
 -- is per-run and the flash is momentary.
 player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
 	if mode == "running" then
-		ui:flashMiss(Config.Score.NearMiss.Points)
+		ui:flashMiss(
+			(player:GetAttribute("RoBallNmAward") :: number?) or Config.Score.NearMiss.Points,
+			(player:GetAttribute("RoBallNmChain") :: number?) or 1
+		)
 		missFovKick = Config.Camera.MissFovKick
 	end
 end)

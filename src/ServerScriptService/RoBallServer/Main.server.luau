@@ -129,6 +129,8 @@ type Run = {
 	gemPts: number, -- gem pickups this run
 	nmPts: number, -- near-miss bonus points this run (§10)
 	nmCount: number, -- near-misses awarded (drives the HUD flash counter)
+	nmChain: number, -- consecutive grazes inside ChainWindow (§10)
+	nmChainAt: number, -- run-elapsed seconds at the last award
 	nmCursor: number, -- scan cursor into streamer.hazards
 	hzPassed: number, -- lethal planes crossed alive (death-screen stat)
 	closest: number, -- tightest crossing gap seen, studs (inf = never close)
@@ -254,7 +256,7 @@ local function plausible(run: Run, score: number): boolean
 	-- Near-miss headroom: ~8 lethal planes per 30-stud chunk slice is
 	-- already impossible (rows are ReactionTime-spaced), so this stays a
 	-- loose ceiling, not a knob cheaters could reach.
-	local nearCap = math.ceil(run.dist / 30) * 8 * Config.Score.NearMiss.Points
+	local nearCap = math.ceil(run.dist / 30) * 8 * Config.Score.NearMiss.Points * Config.Score.NearMiss.ChainMax
 	return score <= maxDist + math.max(gemCap, 100) + nearCap
 end
 
@@ -370,6 +372,8 @@ local function startRun(player: Player)
 		gemPts = 0,
 		nmPts = 0,
 		nmCount = 0,
+		nmChain = 0,
+		nmChainAt = -math.huge,
 		nmCursor = 1,
 		hzPassed = 0,
 		closest = math.huge,
@@ -771,8 +775,20 @@ RunService.Heartbeat:Connect(function(dt)
 					run.closest = math.min(run.closest, gap)
 				end
 				if close then
-					run.nmPts += nm.Points
+					-- Chain (§10): a graze inside the window grows the
+					-- multiplier; a quiet stretch drops it back to ×1.
+					local elapsed = os.clock() - run.t0
+					if elapsed - run.nmChainAt <= nm.ChainWindow then
+						run.nmChain += 1
+					else
+						run.nmChain = 1
+					end
+					run.nmChainAt = elapsed
+					local mult = math.min(run.nmChain, nm.ChainMax)
+					run.nmPts += nm.Points * mult
 					run.nmCount += 1
+					player:SetAttribute("RoBallNmAward", nm.Points * mult)
+					player:SetAttribute("RoBallNmChain", mult)
 					player:SetAttribute("RoBallNearMiss", run.nmCount)
 					writeScore(player, run)
 				end
