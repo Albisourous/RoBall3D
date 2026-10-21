@@ -262,6 +262,34 @@ function GhostController.replayFull(): number?
 	return f[#f - 3]
 end
 
+-- Watch champion (§11): a foreign recording (the seed's stored record
+-- frames) plays back through the same path — gold echo carrying the
+-- holder's name. Returns nil on a malformed csv, like attach().
+function GhostController.replayCsv(csv: string, label: string?): number?
+	local f = parseFrames(csv)
+	if not f then
+		return nil
+	end
+	for _, echo in ipairs(echoes) do
+		echo.part:Destroy()
+	end
+	table.clear(echoes)
+	pbEcho = nil
+	rivalEcho = nil
+	-- Stored CSVs start at ~t=0 but rebase anyway — same contract as
+	-- replayFull so playback never waits on a stale lead-in.
+	local t0 = f[1]
+	if t0 ~= 0 then
+		for i = 1, #f, 4 do
+			f[i] -= t0
+		end
+	end
+	table.insert(echoes, spawnEcho(f, "ReplayEcho", Config.Ghost.RivalColor, Config.Ghost.RivalTransparency, label))
+	ghostT = 0
+	playing = true
+	return f[#f - 3]
+end
+
 -- Replay position (§11): the chase cam tracks this while mode==replay.
 function GhostController.replayPos(): Vector3?
 	local e = echoes[1]

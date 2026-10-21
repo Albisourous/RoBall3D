@@ -349,7 +349,27 @@ ui.onReplay = function()
 	replayEndAt = os.clock() + dur + 0.5 -- hold a beat on the final frame
 	ui:showReplay(true)
 end
--- Same-seed rerun (§10): deterministic rematch — identical map, the PB
+-- WATCH CHAMPION (§11): the seed's record replay — fetched fresh (the
+-- run-start fetch already proved one exists; this gets the frames back
+-- after stop() cleared the echo) and played down the live track.
+ui.onChampion = function()
+	if not currentSeed then
+		return
+	end
+	local g = fnGetGhost:InvokeServer(currentSeed)
+	local champ = g and g.c
+	if not (champ and champ.f) then
+		return
+	end
+	local dur = Ghost.replayCsv(champ.f, champ.n)
+	if not dur then
+		return
+	end
+	mode = "replay"
+	replayEndAt = os.clock() + dur + 0.5 -- hold a beat on the final frame
+	ui:showReplay(true)
+end
+-- Same-seed rerun (§10): the deterministic rematch — identical map, the PB
 -- ghost included. Fires the numeric seed, not the box text, so "daily"
 -- still lands on the day's seed (same-day replay rules apply anyway).
 ui.onRerun = function()

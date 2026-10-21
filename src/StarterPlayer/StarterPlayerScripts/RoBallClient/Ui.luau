@@ -160,6 +160,7 @@ function Ui.new(): Ui
 	self.onMenu = nil :: (() -> ())?
 	self.onRerun = nil :: (() -> ())?
 	self.onReplay = nil :: (() -> ())?
+	self.onChampion = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
 	self.onBuy = nil :: ((bundleId: string) -> ())?
@@ -1747,8 +1748,17 @@ function Ui.new(): Ui
 			self.onRerun()
 		end
 	end)
+	-- Watch champion (§11): the seed's record replay, labeled with the
+	-- holder — only offered when a champion ghost exists for the seed.
+	self.dChamp = ghostButton(dCol, "watch champion", 15, 14)
+	self.dChamp.Visible = false
+	self.dChamp.MouseButton1Click:Connect(function()
+		if self.onChampion then
+			self.onChampion()
+		end
+	end)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 14)
+	local toMenu = ghostButton(dCol, "menu", 15, 15)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
@@ -2085,6 +2095,12 @@ function Ui:showDeath(
 	self.tRank.Visible = false -- all-time rank fills in late via setTopRank
 	-- WATCH REPLAY needs a recording — stub deaths under ~2 frames hide it.
 	self.dReplay.Visible = stats ~= nil and stats.canReplay == true
+	-- WATCH CHAMPION needs a champ on this seed — rivalName is set only
+	-- when one replayed during the run.
+	self.dChamp.Visible = stats ~= nil and stats.rivalName ~= nil
+	if stats and stats.rivalName then
+		self.dChamp.Text = "watch " .. stats.rivalName
+	end
 	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
 	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
 	if stats then

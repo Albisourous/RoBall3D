@@ -418,6 +418,12 @@ runs the loop below and does not stop until you say **stop**.
     `FLAVOR ▸ PRESS GANG`, same slot/seconds. Makes the daily's
     personality legible, not just a corner label)*
 
+58. **Watch champion** *(done — when the seed's champion replayed as the
+    run's rival ghost, the death card offers `watch <name>`:
+    `Ghost.replayCsv` plays the record holder's stored frames through
+    the replay path as a labeled gold echo. Learn the line you're
+    chasing)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
