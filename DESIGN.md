@@ -824,6 +824,8 @@ Full spec: `AUDIO.md`. Binding decisions:
   rows and publishes `RoBallDailyRank` — the death card fills in
   `daily #n today` a beat later (0 when off the TopCount window; cleared
   on every run start so a non-daily death never shows a stale slot).
+  A session-record `submitTop` publishes `RoBallTopRank` the same way —
+  `all-time #n` on the card, reset with the daily line on run start.
 - **Daily streak**: finishing a daily-seeded run counts the UTC day —
   same day again is a no-op, yesterday continues the streak, a gap resets
   to 1. Each counted day pays `min(streak, DailyStreakCap) *

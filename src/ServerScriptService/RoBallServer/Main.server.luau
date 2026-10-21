@@ -337,6 +337,12 @@ local function killRun(player: Player, run: Run, cause: string?)
 			-- non-record deaths halves write traffic for free.
 			if isRecord then
 				SaveService.submitTop(player.UserId, score, run.seed)
+				-- All-time rank (§14): the board slot lands a beat after
+				-- the death card — the attr listener fills it in late.
+				local topRank = SaveService.topRank(player.UserId)
+				if topRank then
+					player:SetAttribute("RoBallTopRank", topRank)
+				end
 			end
 		end)
 		-- Daily board (§14): a run on today's seed competes on today's store.
@@ -387,6 +393,7 @@ local function startRun(player: Player)
 	runs[player] = run
 	-- A stale daily rank can't leak onto a non-daily run's death card.
 	player:SetAttribute("RoBallDailyRank", 0)
+	player:SetAttribute("RoBallTopRank", 0)
 
 	streamer.onGem = function(hit, value)
 		if run.ball and hit == run.ball then

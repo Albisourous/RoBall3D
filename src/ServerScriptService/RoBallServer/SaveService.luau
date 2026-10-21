@@ -455,6 +455,22 @@ function SaveService.submitDaily(userId: number, score: number)
 	end
 end
 
+-- The player's 1-based slot on the all-time board, nil when off-board or
+-- the stores are down. Called right after submitTop — a real write drops
+-- topCache so this read is fresh.
+function SaveService.topRank(userId: number): number?
+	local rows = SaveService.getTop(Config.Leaderboard.TopCount)
+	if not rows then
+		return nil
+	end
+	for i, row in ipairs(rows) do
+		if row.userId == userId then
+			return i
+		end
+	end
+	return nil
+end
+
 -- The player's 1-based slot on today's board, nil when off-board or the
 -- stores are down. Called right after submitDaily — a real write drops
 -- dailyCache so this read is fresh, and the rank is only meaningful

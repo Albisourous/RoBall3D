@@ -1578,6 +1578,9 @@ function Ui.new(): Ui
 	-- setDailyRank fills this late via the RoBallDailyRank attribute.
 	self.dRank = label(dCol, "", 14, F_DATA, C_CYAN, 8)
 	self.dRank.Visible = false
+	-- All-time rank (§14): the record submit's board slot, same late fill.
+	self.tRank = label(dCol, "", 14, F_DATA, C_CYAN, 8)
+	self.tRank.Visible = false
 
 	-- Run-stats card (§11): one quiet dim line — top speed, gates passed,
 	-- boost share, closest call. Display-only; never score.
@@ -1852,6 +1855,7 @@ function Ui:showDeath(
 	self.dQuest.Text = string.format("%s done · ◊ +%d banked", hits == 1 and "quest" or hits .. " quests", qb)
 	self.dQuest.Visible = hits > 0
 	self.dRank.Visible = false -- daily rank fills in late via setDailyRank
+	self.tRank.Visible = false -- all-time rank fills in late via setTopRank
 	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
 	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
 	if stats then
@@ -1890,6 +1894,16 @@ function Ui:setDailyRank(rank: number?)
 	self.dRank.Visible = n > 0
 	if n > 0 then
 		self.dRank.Text = string.format("daily #%d today", n)
+	end
+end
+
+-- All-time rank (§14): "all-time #7" — same late-arriving attr shape as
+-- the daily line, published only on session records.
+function Ui:setTopRank(rank: number?)
+	local n = rank or 0
+	self.tRank.Visible = n > 0
+	if n > 0 then
+		self.tRank.Text = string.format("all-time #%d", n)
 	end
 end
 

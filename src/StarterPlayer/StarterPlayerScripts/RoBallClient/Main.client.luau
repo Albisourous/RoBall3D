@@ -516,6 +516,10 @@ end
 player:GetAttributeChangedSignal("RoBallDailyRank"):Connect(function()
 	ui:setDailyRank(player:GetAttribute("RoBallDailyRank") :: number?)
 end)
+-- All-time rank (§14): same late-arriving attr after a record submitTop.
+player:GetAttributeChangedSignal("RoBallTopRank"):Connect(function()
+	ui:setTopRank(player:GetAttribute("RoBallTopRank") :: number?)
+end)
 
 -- Achievements (§14): RoBallAch = full unlock set -> menu tally;
 -- RoBallAchNew = only ids unlocked by the latest eval -> the toast batch.
