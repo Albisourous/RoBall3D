@@ -128,11 +128,12 @@ explainable.
   (AUDIO.md §6). No chunk ever *requires* a dash — it only widens the
   movement envelope, so every §8.1 solvability invariant still stands
   on steering alone.
-- **Restart**: `R` in any mode = instant same-seed reload — the retry lands
-  on the map you were just on, regardless of what the seed box is holding;
-  before the first run it falls back to a normal start. Mid-run it tears
-  the run down server-side without firing `RunEnded` and without saving
-  the score — restarting to dodge a death never banks it.
+- **Restart**: `R` in any mode = instant restart on the seed box's pick —
+  `daily` by default, a typed seed, or a rolled random that gets mirrored
+  back into the box on `RunStarted`, so a reload keeps the same map
+  unless the menu says otherwise. Mid-run it tears the run
+  down server-side without firing `RunEnded` and without saving the score —
+  restarting to dodge a death never banks it.
 - **No jump** in MVP.
 - Keyboard only in MVP; touch later.
 
@@ -202,10 +203,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   then control handed over.
 - **Death**: pitch drop on music, death-cam orbit (§11), then the death
   screen shows
-  `SCORE / DISTANCE / BEST / SEED`, `[R]` / `[T]` / `rerun #seed` =
-  deterministic rematch on the run's exact seed — identical map and PB
-  ghost, no seed-box round-trip. The `RETRY` button = instant restart on
-  a fresh roll (new random seed unless one was entered).
+  `SCORE / DISTANCE / BEST / SEED`, `[R]` or the `RETRY` button = instant
+  restart on the seed box's pick (`daily` by default — a run's rolled
+  seed is mirrored into the box, so it names the map you just played).
+  `rerun #seed` / `[T]` = deterministic rematch on the run's literal seed —
+  identical map and PB ghost even across a daily rollover.
   A gold `★ NEW BEST!` line appears under the title when the run beat the
   stored record — the flag is computed server-side since attribute
   replication races make a client-side compare unreliable. A dim stats

@@ -657,6 +657,13 @@ end)
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
+	-- Mirror a rolled seed into the box: a blank box ("random" chip or a
+	-- cleared field) launched this run, so write the resolved number back
+	-- and every later start — R included — reloads the same map. A held
+	-- value ("daily", a typed pick) is the stronger intent and stays.
+	if ui:seedText() == "" then
+		ui:setSeedText(tostring(seed))
+	end
 	combo = 0
 	lastGemPts = 0
 	passedBest = false
@@ -842,23 +849,15 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	-- R restarts in ANY mode — mid-run it abandons the run and re-rolls
-	-- instantly (the Slope rage-restart). R is a same-seed reload: the
-	-- retry lands on the map you were just on, even when the seed box is
-	-- holding other text — it's a menu preference, not a live intent.
-	-- There's nothing to rerun until the first RunStarted, so R falls
-	-- back to a normal start there. Enter/PLAY/RETRY button start fresh;
-	-- T on the death screen is the same rerun R performs.
+	-- instantly (the Slope rage-restart). It starts on the seed box's
+	-- pick — "daily" by default, a typed seed, or a rolled random that's
+	-- been mirrored back into the box — so a reload keeps the same map
+	-- unless the menu says otherwise. Enter starts from the menu; T on
+	-- the death screen reruns the dead run's literal seed.
 	local wantsRestart = input.KeyCode == Enum.KeyCode.R
 	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
 	local wantsRerun = input.KeyCode == Enum.KeyCode.T and mode == "dead"
-	if wantsRestart then
-		if currentSeed then
-			ui.onRerun()
-		else
-			requestStart()
-		end
-		return
-	elseif wantsPlay then
+	if wantsRestart or wantsPlay then
 		requestStart()
 		return
 	elseif wantsRerun and ui.onRerun then
