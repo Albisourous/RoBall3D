@@ -366,11 +366,14 @@ function Ui.new(): Ui
 	-- never disagree. Two boards (§14): ALL-TIME top runs and DAILY — every
 	-- run on today's shared seed races the same map.
 	local TOP_N = Config.Leaderboard.TopCount
+	-- The recent-runs strip (§14) pins to the board's bottom — it shares
+	-- the seed column, so a click there prefills the seed box for a rerun.
+	local RECENT_H = 16 + Config.Leaderboard.HistoryShown * 17 + 6
 	local board = Instance.new("Frame")
 	board.Name = "Leaderboard"
 	board.AnchorPoint = Vector2.new(1, 0.5)
 	board.Position = UDim2.fromScale(0.96, 0.5)
-	board.Size = UDim2.fromOffset(320, 78 + TOP_N * 25)
+	board.Size = UDim2.fromOffset(320, 78 + TOP_N * 25 + RECENT_H)
 	board.BackgroundColor3 = C_PANEL
 	board.BackgroundTransparency = 0.25
 	board.BorderSizePixel = 0
@@ -461,7 +464,7 @@ function Ui.new(): Ui
 
 	local boardBody = Instance.new("Frame")
 	boardBody.BackgroundTransparency = 1
-	boardBody.Size = UDim2.new(1, -24, 1, -72)
+	boardBody.Size = UDim2.new(1, -24, 1, -72 - RECENT_H)
 	boardBody.Position = UDim2.fromOffset(12, 62)
 	boardBody.Parent = board
 	vlist(boardBody, 4)
@@ -473,6 +476,46 @@ function Ui.new(): Ui
 		self.boardRows[i] = row
 	end
 	self.boardRows[1].Text = "  loading…" -- first refreshBoard() lands shortly after boot
+
+	-- Recent runs (§14): newest-first { s=score, d=dist, z=seed } rows.
+	-- Clicking one hands its seed to onHistoryPick (Main fills the seed
+	-- box — one tap from PLAY reproduces that exact map).
+	self.onHistoryPick = nil :: ((seed: number) -> ())?
+	self.historyRows = {} :: { { s: number, d: number, z: number } }
+	local recent = Instance.new("Frame")
+	recent.Name = "Recent"
+	recent.BackgroundTransparency = 1
+	recent.AnchorPoint = Vector2.new(0, 1)
+	recent.Position = UDim2.new(0, 12, 1, -8)
+	recent.Size = UDim2.new(1, -24, 0, RECENT_H)
+	recent.Visible = false
+	recent.Parent = board
+	vlist(recent, 2)
+	local recentHead = label(recent, "RECENT  ·  tap to rerun", 11, F_DATA, C_DIM, 1)
+	recentHead.TextXAlignment = Enum.TextXAlignment.Left
+	self.recentBtns = {}
+	for i = 1, Config.Leaderboard.HistoryShown do
+		local b = Instance.new("TextButton")
+		b.BackgroundTransparency = 1
+		b.AutoButtonColor = false
+		b.Font = F_DATA
+		b.TextSize = 12
+		b.TextColor3 = C_WHITE
+		b.TextXAlignment = Enum.TextXAlignment.Left
+		b.Text = ""
+		b.Size = UDim2.new(1, 0, 0, 15)
+		b.LayoutOrder = i + 1
+		b.Visible = false
+		b.Parent = recent
+		b.MouseButton1Click:Connect(function()
+			local r = self.historyRows[i]
+			if r and self.onHistoryPick then
+				self.onHistoryPick(r.z)
+			end
+		end)
+		self.recentBtns[i] = b
+	end
+	self.recent = recent
 
 	--============================ GARAGE ============================--
 	-- Neon shop (DESIGN.md §18): left-panel mirror of the leaderboard.
@@ -1478,6 +1521,27 @@ end
 
 function Ui:seedText(): string
 	return self.seedBox.Text
+end
+
+function Ui:setSeedText(text: string)
+	self.seedBox.Text = text
+end
+
+-- Recent runs (§14): rows are { s=score, d=dist, z=seed } newest-first,
+-- straight off the RoBallHistory attribute. Hidden entirely when empty
+-- (fresh profile) — no "no runs yet" dead space on the board.
+function Ui:setHistory(rows: { { s: number, d: number, z: number } })
+	self.historyRows = rows
+	for i, b in ipairs(self.recentBtns) do
+		local r = rows[i]
+		if r then
+			b.Text = string.format("%6d pts · %5d m · #%d", r.s, r.d, r.z)
+			b.Visible = true
+		else
+			b.Visible = false
+		end
+	end
+	self.recent.Visible = #rows > 0
 end
 
 function Ui:setTrackRow(text: string)

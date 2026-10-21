@@ -44,6 +44,10 @@ local achNew: { [Player]: { string } } = {} -- ids unlocked by the latest eval (
 local statsGems: { [Player]: number } = {} -- lifetime gems banked through play
 local statsRuns: { [Player]: number } = {} -- lifetime clean runs finished
 local statsBestDist: { [Player]: number } = {} -- lifetime best single-run distance
+-- Recent runs (§14): { s=score, d=dist, z=seed }, newest first. Session
+-- state persists via profile.history on save; mirrored to the client as
+-- the RoBallHistory CSV attr so the menu strip can render + replay seeds.
+local history: { [Player]: { { s: number, d: number, z: number } } } = {}
 -- Menu mixer (AUDIO.md §7): per-channel gains mirrored as
 -- RoBallVol_<ch> attributes; missing entries mean 1 (full).
 local audioVol: { [Player]: { [string]: number } } = {}
@@ -117,6 +121,12 @@ local function pushAttrs(player: Player)
 	player:SetAttribute("RoBallAch", table.concat(ach, ","))
 	player:SetAttribute("RoBallAchNew", table.concat(achNew[player] or {}, ","))
 	achNew[player] = {}
+	-- Recent runs (§14): "s,d,z;s,d,z" — seeds survive for click-to-replay.
+	local hist = {}
+	for _, r in ipairs(history[player] or {}) do
+		table.insert(hist, string.format("%d,%d,%d", r.s, r.d, r.z))
+	end
+	player:SetAttribute("RoBallHistory", table.concat(hist, ";"))
 	-- Mixer (AUDIO.md §7): RoBallVol_<ch> per channel, default 1.
 	for _, ch in ipairs(Config.Audio.Channels) do
 		player:SetAttribute(Config.Audio.AttrPrefix .. ch, (audioVol[player] or {})[ch] or 1)
@@ -156,6 +166,11 @@ local function saveNow(player: Player)
 		table.insert(achSnapshot, id)
 	end
 	local audioSnapshot = table.clone(audioVol[player] or {})
+	-- Snapshot entries too — a shallow clone would alias the live history.
+	local histSnapshot = {}
+	for _, r in ipairs(history[player] or {}) do
+		table.insert(histSnapshot, { s = r.s, d = r.d, z = r.z })
+	end
 	task.spawn(function()
 		SaveService.saveProfile(player.UserId, {
 			equipped = eqSnapshot,
@@ -172,6 +187,7 @@ local function saveNow(player: Player)
 			statsRuns = statsRuns[player] or 0,
 			statsBestDist = statsBestDist[player] or 0,
 			audio = audioSnapshot,
+			history = histSnapshot,
 		})
 	end)
 end
@@ -230,7 +246,29 @@ end
 -- `bankedDelta` = gems this run banked (pickups + streak bonus); the bank
 -- quest tracks today's total. Rewards pay banked gems — never score.
 -- Returns (bonusGems, completedCount).
-function ShopService.onRunEnd(player: Player, dist: number, score: number, bankedDelta: number): (number, number)
+function ShopService.onRunEnd(
+	player: Player,
+	dist: number,
+	score: number,
+	bankedDelta: number,
+	seed: number?
+): (number, number)
+	-- Recent runs (§14): recorded even when the profile hasn't landed —
+	-- it's session state first, persisted on the next saveNow. The attr
+	-- writes here since the ready-gate below skips pushAttrs for unready.
+	local h = history[player]
+	if h and seed then
+		table.insert(h, 1, { s = score, d = dist, z = seed })
+		while #h > Config.Leaderboard.HistoryCount do
+			table.remove(h)
+		end
+		local csv = {}
+		for _, r in ipairs(h) do
+			table.insert(csv, string.format("%d,%d,%d", r.s, r.d, r.z))
+		end
+		player:SetAttribute("RoBallHistory", table.concat(csv, ";"))
+		dirty[player] = true
+	end
 	if not profileReady[player] then
 		return 0, 0
 	end
@@ -506,6 +544,7 @@ function ShopService.onPlayerAdded(player: Player)
 	statsRuns[player] = 0
 	statsBestDist[player] = 0
 	audioVol[player] = {}
+	history[player] = {}
 	profileReady[player] = false
 	task.spawn(function()
 		local eq = equipped[player]
@@ -557,6 +596,20 @@ function ShopService.onPlayerAdded(player: Player)
 			end
 			if typeof(prof.weeklyTag) == "string" then
 				weeklyTag[player] = prof.weeklyTag
+			end
+			-- Recent runs restore unconditionally — display data, replay
+			-- seeds. Entries are validated shape-only (numbers in place).
+			if typeof(prof.history) == "table" then
+				for _, r in ipairs(prof.history) do
+					if
+						typeof(r) == "table"
+						and typeof(r.s) == "number"
+						and typeof(r.d) == "number"
+						and typeof(r.z) == "number"
+					then
+						table.insert(history[player], { s = r.s, d = r.d, z = r.z })
+					end
+				end
 			end
 			-- Mixer gains restore unconditionally; unknown channels die here.
 			if typeof(prof.audio) == "table" then
@@ -629,6 +682,7 @@ function ShopService.onPlayerRemoving(player: Player)
 	statsRuns[player] = nil
 	statsBestDist[player] = nil
 	audioVol[player] = nil
+	history[player] = nil
 end
 
 function ShopService.init()

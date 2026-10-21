@@ -291,7 +291,7 @@ local function killRun(player: Player, run: Run)
 	end
 	local questBonus, questHits = 0, 0
 	if cleanRun then
-		questBonus, questHits = ShopService.onRunEnd(player, dist, score, run.banked + streakBonus)
+		questBonus, questHits = ShopService.onRunEnd(player, dist, score, run.banked + streakBonus, run.seed)
 	end
 	-- newBest rides the event: attribute replication order vs the remote
 	-- isn't guaranteed, so the client can't derive this reliably.

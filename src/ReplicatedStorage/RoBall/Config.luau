@@ -840,6 +840,10 @@ Config.Leaderboard = {
 	SaveRetryCount = 3,
 	CacheSeconds = 45, -- server-side top-board cache: menu fetches share it
 	FetchCooldown = 8, -- per-player GetLeaderboard throttle -> cached rows
+	-- Recent runs (§14): profile-persisted history, newest first; the menu
+	-- strip shows the newest few, a click prefills the seed box.
+	HistoryCount = 8,
+	HistoryShown = 5,
 }
 
 -- Monetization (DESIGN.md §18). Bundle gamepasses grant themed item sets

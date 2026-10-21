@@ -165,7 +165,15 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     daily shows the shared seed + time to reset, weekly shows the cup
     seed + days to reset. A `◈ friends` toggle filters whichever board is
     open to your Roblox friends — rows keep their real rank numbers; the
-    id set lazy-loads once per session via `GetFriendsAsync`
+    id set lazy-loads once per session via `GetFriendsAsync`. A `RECENT`
+    strip pinned under the rows lists the newest
+    `Config.Leaderboard.HistoryShown` runs of your own history
+    (`pts · m · #seed`, newest first) — a tap prefills the seed box for
+    a deterministic rerun of that map. The server keeps
+    `Config.Leaderboard.HistoryCount` entries per profile (`history`,
+    appended on every clean run end, also session-only until the first
+    save) and mirrors them to the client as the `RoBallHistory`
+    `s,d,z;…` CSV attribute
   - Audio console — a collapsed `audio ▸` toggle under the controls hint
     unfolds five channel sliders in three paired rows (`MUSIC + GEMS /
     DASH + WIND / CUES`, 0–100%) riding the mixer taps in AUDIO.md §7,

@@ -450,6 +450,25 @@ end
 player:GetAttributeChangedSignal("RoBallQuests"):Connect(refreshQuests)
 refreshQuests()
 
+-- Recent runs (§14): server pushes "s,d,z;s,d,z" after every clean run
+-- end and once the profile lands; the board strip renders the newest
+-- five and a tap prefills the seed box for that map.
+local function refreshHistory()
+	local rows = {}
+	for entry in string.gmatch(player:GetAttribute("RoBallHistory") or "", "[^;]+") do
+		local s, d, z = string.match(entry, "(%d+),(%d+),(%d+)")
+		if s then
+			table.insert(rows, { s = tonumber(s), d = tonumber(d), z = tonumber(z) })
+		end
+	end
+	ui:setHistory(rows)
+end
+player:GetAttributeChangedSignal("RoBallHistory"):Connect(refreshHistory)
+refreshHistory()
+ui.onHistoryPick = function(seed)
+	ui:setSeedText(tostring(seed))
+end
+
 -- Achievements (§14): RoBallAch = full unlock set -> menu tally;
 -- RoBallAchNew = only ids unlocked by the latest eval -> the toast batch.
 -- Keeping them separate means a restored profile never re-fires ribbons.
