@@ -301,6 +301,13 @@ runs the loop below and does not stop until you say **stop**.
     path rendered `all-time #7` under the seed line — screenshotted on a
     real death card)*
 
+44. **Chain meter** *(done — 946719f: from chain two a `chain ×N` row
+    holds under the miss flash with a thin bar draining across
+    `ChainWindow` — every bump re-arms the drain, an empty bar is the
+    dropped chain (next graze reads ×1, mirroring the server reset).
+    Hidden on run start/end. Verified live: attr bump mid-run rendered
+    `CLOSE +12 ×4` + `chain ×4` + drain bar — screenshotted)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
