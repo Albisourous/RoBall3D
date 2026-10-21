@@ -169,7 +169,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK | AUDIO`: equip
     cyclers, bundle passes, the gem bank, and the audio mixer each get
     their own page so the shop can't flood the menu (§18). The preview
-    ball still dresses live.
+    ball still dresses live. PACKS is a scrolling list — each row is an
+    accordion whose body lists the bundle's actual contents
+    (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
+    color), one open at a time, so a purchase is never a guess.
   - Leaderboard panel — DAILY / TOP tabs (`name / score / seed`), DAILY
     left and selected by default to match the default run mode; the
     daily tab shows the shared seed + UTC reset countdown.
