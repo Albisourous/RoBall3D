@@ -170,8 +170,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     cyclers, bundle passes, the gem bank, and the audio mixer each get
     their own page so the shop can't flood the menu (§18). The preview
     ball still dresses live.
-  - Leaderboard panel — TOP / DAILY tabs (`name / score / seed`);
-    the daily tab shows the shared seed + UTC reset countdown.
+  - Leaderboard panel — DAILY / TOP tabs (`name / score / seed`), DAILY
+    left and selected by default to match the default run mode; the
+    daily tab shows the shared seed + UTC reset countdown.
     A `◈ friends` toggle filters whichever board is
     open to your Roblox friends — rows keep their real rank numbers; the
     id set lazy-loads once per session via `GetFriendsAsync`. A `RECENT`

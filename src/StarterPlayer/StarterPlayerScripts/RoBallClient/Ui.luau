@@ -443,7 +443,7 @@ function Ui.new(): Ui
 	boardCorner.CornerRadius = UDim.new(0, 10)
 	boardCorner.Parent = board
 
-	self.boardMode = "top" :: string
+	self.boardMode = "daily" :: string
 	self.onBoardTab = nil :: ((board: string) -> ())?
 	local function boardTab(text, x)
 		local b = Instance.new("TextButton")
@@ -457,15 +457,17 @@ function Ui.new(): Ui
 		b.Parent = board
 		return b
 	end
-	self.tabTop = boardTab("TOP", 54)
-	self.tabTop.Name = "TabTop"
-	self.tabDaily = boardTab("DAILY", 170)
+	-- DAILY leads: the menu's default run is today's shared seed, so its
+	-- board is the one that answers "how am I doing" at a glance.
+	self.tabDaily = boardTab("DAILY", 54)
 	self.tabDaily.Name = "TabDaily"
-	self.tabTop.MouseButton1Click:Connect(function()
-		self:setBoard("top")
-	end)
+	self.tabTop = boardTab("TOP", 170)
+	self.tabTop.Name = "TabTop"
 	self.tabDaily.MouseButton1Click:Connect(function()
 		self:setBoard("daily")
+	end)
+	self.tabTop.MouseButton1Click:Connect(function()
+		self:setBoard("top")
 	end)
 
 	-- Daily status line: today's shared seed + reset countdown (UTC).
@@ -479,6 +481,10 @@ function Ui.new(): Ui
 	self.dailyInfo.Size = UDim2.new(1, -28, 0, 18)
 	self.dailyInfo.Visible = false
 	self.dailyInfo.Parent = board
+
+	-- Paint the default selection (onBoardTab is still nil here, so this
+	-- only recolors — the real fetch happens via refreshBoard in Main).
+	self:setBoard("daily")
 
 	-- Friends filter (§14): rides every board — the fetched top-N rows
 	-- shrink to your friends, keeping their REAL rank numbers. The id set
