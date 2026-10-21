@@ -515,8 +515,9 @@ end
 
 -- The synthwave sun is built once as a stack of horizontal strips:
 -- chord width follows the disk's circle, color slides orange -> magenta
--- top to bottom, and the gaps between strips widen downward (the classic
--- striped-sunset read).
+-- top to bottom. The top SunSolidFrac of strips abut into a solid dome;
+-- below that they taper to slivers so the disk dissolves into the
+-- horizon (the classic striped-sunset read).
 -- Sun strips keep their authored sizes so the analyzer pulse can breathe
 -- the disk without drifting (AUDIO.md §8).
 local sunParts: { { part: Part, base: Vector3 } } = {}
@@ -532,14 +533,22 @@ local function makeSun(parent: Instance): Model
 	local model = Instance.new("Model")
 	model.Name = "Sun"
 	local r = Art.SunRadius
-	for i = 1, Art.SunStrips do
-		-- Strip centers run from near the top (+0.9R) to below center
-		-- (-0.55R); the lowest sliver area is left open so the disk reads
-		-- as dissolving into the horizon.
-		local t = (i - 1) / math.max(Art.SunStrips - 1, 1)
-		local y = r * (0.9 - 1.45 * t)
+	local n = math.max(Art.SunStrips, 2)
+	local yTop, yBot = 0.92 * r, -0.92 * r
+	local spacing = (yTop - yBot) / (n - 1)
+	for i = 1, n do
+		local t = (i - 1) / (n - 1)
+		local y = yTop - (yTop - yBot) * t
 		local halfChord = math.sqrt(math.max(r * r - y * y, 0))
-		local h = Art.SunMaxStripH + (Art.SunMinStripH - Art.SunMaxStripH) * t
+		-- Solid crown: strips overlap their pitch so the dome has no gaps.
+		-- Below the solid fraction, heights ease spacing -> SunMinStripH.
+		local h
+		if t < Art.SunSolidFrac then
+			h = spacing * 1.04
+		else
+			local u = (t - Art.SunSolidFrac) / math.max(1 - Art.SunSolidFrac, 0.001)
+			h = spacing + (Art.SunMinStripH - spacing) * u
+		end
 		local strip = Instance.new("Part")
 		strip.Anchored = true
 		strip.CanCollide = false

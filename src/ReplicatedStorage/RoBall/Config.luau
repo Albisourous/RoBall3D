@@ -976,19 +976,20 @@ Config.Art = {
 	MeteorDrop = 160, -- respawn once this far below the deck plane
 	MeteorValue = 1.0,
 	MeteorWhite = 0.45, -- fraction painted pure white (hot heads)
-	-- Synthwave sun: a striped neon disk parked far down the slope, riding
-	-- the descent so it always hangs on the horizon. Built from horizontal
-	-- strips (orange -> magenta) with gaps that widen toward the bottom.
+	-- Synthwave sun: a neon disk parked far down the slope, riding the
+	-- descent so it hangs on the horizon. The crown is a solid dome
+	-- (orange -> magenta), the bottom SunSolidFrac->1 dissolves into the
+	-- classic horizontal strips with gaps widening downward.
 	SunDist = 380, -- studs ahead; close enough that atmosphere doesn't fade it
 	SunRadius = 90,
-	SunLift = 58, -- studs above the ball — puts ~2/3 of the disk in the
+	SunLift = 34, -- studs above the ball — disk center sits inside the
 	-- frame's upper band against the camera's downward pitch
-	SunStrips = 11,
+	SunStrips = 16,
+	SunSolidFrac = 0.55, -- top share of strips abut into a solid dome
 	SunDepth = 3, -- strip thickness along z
 	SunTopColor = Color3.fromRGB(255, 176, 64), -- hot orange crown
 	SunBottomColor = Color3.fromRGB(255, 46, 160), -- magenta base
 	SunMinStripH = 0.5, -- thinnest strips at the bottom (classic fade)
-	SunMaxStripH = 3.2, -- tallest strips near the top
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
 	RingA = Color3.fromRGB(0, 230, 255),
 	RingB = Color3.fromRGB(255, 64, 190),

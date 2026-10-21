@@ -637,10 +637,10 @@ leaves the line off.
   with `SelectionBox` neon outlines flanking the track, 1–3 stacked segments
   per tower, recycled per row for parallax, each tower tint-jittered along
   the vaporwave wheel so the skyline mixes cyan/magenta/violet. A giant
-  **striped synthwave sun** (stacked Neon strips, orange crown → magenta
-  base, gaps widening downward) rides at a fixed distance + lift ahead of
-  the ball so it always hangs in the upper frame like a sunset at the end
-  of the slope. Bases follow the deck's
+  **striped synthwave sun** (a solid Neon dome, orange crown → magenta
+  base, dissolving into strips below `SunSolidFrac` with gaps widening
+  downward) rides at a fixed distance + lift ahead of the ball so it
+  hangs low in the upper frame like a sunset at the end of the slope. Bases follow the deck's
   downhill grade so the canyon hugs the slope. **Backdrop is client-local**
   (`Backdrop.luau`): zero replication cost. The Atmosphere dims towers past
   ~600 studs; `CitySpan` stays inside the visible band.
