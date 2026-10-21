@@ -127,6 +127,8 @@ type Run = {
 	nmPts: number, -- near-miss bonus points this run (§10)
 	nmCount: number, -- near-misses awarded (drives the HUD flash counter)
 	nmCursor: number, -- scan cursor into streamer.hazards
+	hzPassed: number, -- lethal planes crossed alive (death-screen stat)
+	closest: number, -- tightest crossing gap seen, studs (inf = never close)
 	banked: number, -- gems credited to the bank this run (§18 P2 — never score)
 	t0: number, -- os.clock() at start; feeds the plausibility cap
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
@@ -306,7 +308,9 @@ local function killRun(player: Player, run: Run)
 		streakBonus,
 		questBonus,
 		questHits,
-		weeklyBonus
+		weeklyBonus,
+		run.hzPassed,
+		if run.closest < math.huge then run.closest else nil
 	)
 
 	if cleanRun then
@@ -364,6 +368,8 @@ local function startRun(player: Player)
 		nmPts = 0,
 		nmCount = 0,
 		nmCursor = 1,
+		hzPassed = 0,
+		closest = math.huge,
 		banked = 0,
 		t0 = os.clock(),
 		lastPos = nil,
@@ -719,15 +725,21 @@ RunService.Heartbeat:Connect(function(dt)
 					break
 				end
 				run.nmCursor += 1
+				run.hzPassed += 1
 				local px = run.lastPos and run.lastPos.X or pos.X
 				local pz = run.lastPos and run.lastPos.Z or pos.Z
 				local t = math.clamp((pz - h.z) / math.max(pz - pos.Z, 0.001), 0, 1)
 				local bx = px + (pos.X - px) * t
 				local close
 				if h.spin then
-					close = math.abs(bx - h.cx) <= h.halfW + nm.Range
+					-- Disc-edge distance; negative = inside the sweep zone.
+					local gap = math.abs(bx - h.cx) - h.halfW
+					close = gap <= nm.Range
+					run.closest = math.min(run.closest, gap)
 				else
-					close = math.abs(bx - h.cx) - h.halfW - ballR <= nm.Range
+					local gap = math.abs(bx - h.cx) - h.halfW - ballR
+					close = gap <= nm.Range
+					run.closest = math.min(run.closest, gap)
 				end
 				if close then
 					run.nmPts += nm.Points

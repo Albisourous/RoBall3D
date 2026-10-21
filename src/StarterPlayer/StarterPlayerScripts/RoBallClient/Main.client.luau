@@ -423,6 +423,13 @@ refreshAchievements()
 local combo = 0
 local lastPickupAt = 0
 local lastGemPts = 0
+-- Run-stats card (death screen): the client owns the drive-channel truth —
+-- boost/dash are local input state the server never sees. Display-only,
+-- never part of the score.
+local statMaxFwd = 0
+local statBoostDist = 0
+local statDashes = 0
+local statPrevZ = 0
 player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 	local n = player:GetAttribute("RoBallGems") or 0
 	if n > lastGemPts then
@@ -455,6 +462,10 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	combo = 0
 	lastGemPts = 0
 	passedBest = false
+	statMaxFwd = 0
+	statBoostDist = 0
+	statDashes = 0
+	statPrevZ = 2
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0
@@ -489,7 +500,9 @@ evRunEnded.OnClientEvent:Connect(
 		streakBonus: number?,
 		questBonus: number?,
 		questHits: number?,
-		weeklyBonus: number?
+		weeklyBonus: number?,
+		hzPassed: number?,
+		closestCall: number?
 	)
 		mode = "dead"
 		combo = 0
@@ -519,7 +532,14 @@ evRunEnded.OnClientEvent:Connect(
 			streakBonus,
 			questBonus,
 			questHits,
-			weeklyBonus
+			weeklyBonus,
+			{
+				top = statMaxFwd,
+				boost = statBoostDist,
+				dashes = statDashes,
+				hazards = hzPassed,
+				closest = closestCall,
+			}
 		)
 		Music.onDeath()
 	end
@@ -543,6 +563,7 @@ local function tryDash(dir: number): string
 		return "denied"
 	end
 	powerCharge = math.max(0, powerCharge - Config.Dash.Cost)
+	statDashes += 1
 	dashDir = dir
 	dashUntil = now + Config.Dash.Time
 	lastDashAt = now
@@ -654,6 +675,13 @@ RunService.Heartbeat:Connect(function(dt)
 	-- boost/brake has to FEEL like a kick, not a suggestion.
 	local fwdAccel = Config.Speed.Accel * ((boosting or braking) and Config.Power.AccelMult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
+	-- Run-stats card: top speed + meters traveled while the boost verb
+	-- was actually draining the meter. prevZ tracks the same -Z dist.
+	statMaxFwd = math.max(statMaxFwd, fwdSpeed)
+	if boosting then
+		statBoostDist += math.max(0, statPrevZ - b.Position.Z)
+	end
+	statPrevZ = b.Position.Z
 	-- norm lands before the speedo so Music.bpm() reads this frame's
 	-- tempo, not last frame's.
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))

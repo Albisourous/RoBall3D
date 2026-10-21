@@ -177,7 +177,12 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   random seed unless one was entered — same seed if entered manually).
   A gold `★ NEW BEST!` line appears under the title when the run beat the
   stored record — the flag is computed server-side since attribute
-  replication races make a client-side compare unreliable.
+  replication races make a client-side compare unreliable. A dim stats
+  line closes the card: `top N s/s · M gates · P% boost · margin X` —
+  top forward speed, lethal planes crossed, share of distance spent
+  boosting (client-tracked, display-only), and the tightest near-miss
+  margin of the run (`in-disc` when the closest call was inside a rotor's
+  sweep).
 - **PB ghost**: on run start a translucent magenta `BEST n` gate floats on
   the deck at your record's end distance (`Score.PbMarkerMinDist` = 150m) —
   you race your own shadow. The label stays near-field only

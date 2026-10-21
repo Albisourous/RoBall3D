@@ -1043,16 +1043,20 @@ function Ui.new(): Ui
 	-- "weekly cup · ◊ +225 banked", same gold accent.
 	self.dWeekly = label(dCol, "", 15, F_DATA, C_GOLD, 8)
 	self.dWeekly.Visible = false
-	local retry = outlineButton(dCol, "RETRY", 30, 9)
+	-- Run-stats card (§11): one quiet dim line — top speed, gates passed,
+	-- boost share, closest call. Display-only; never score.
+	self.dStats = label(dCol, "", 13, F_DATA, C_DIM, 9)
+	self.dStats.Visible = false
+	local retry = outlineButton(dCol, "RETRY", 30, 10)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 10).TextTransparency = 0.25
+	label(dCol, "or press R", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 11)
+	local toMenu = ghostButton(dCol, "menu", 15, 12)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
@@ -1263,7 +1267,8 @@ function Ui:showDeath(
 	streakBonus: number?,
 	questBonus: number?,
 	questHits: number?,
-	weeklyBonus: number?
+	weeklyBonus: number?,
+	stats: { top: number, boost: number, dashes: number, hazards: number?, closest: number? }?
 )
 	self.menu.Visible = false
 	self.hud.Visible = false
@@ -1291,6 +1296,24 @@ function Ui:showDeath(
 	local wb = weeklyBonus or 0
 	self.dWeekly.Text = string.format("weekly cup · ◊ +%d banked", wb)
 	self.dWeekly.Visible = wb > 0
+	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
+	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
+	if stats then
+		local boostPct = if dist > 0 then math.floor(100 * stats.boost / dist) else 0
+		local margin = if stats.closest
+			then (stats.closest <= 0 and "in-disc" or string.format("%.1fs", stats.closest))
+			else "—"
+		self.dStats.Text = string.format(
+			"top %d s/s · %d gates · %d%% boost · margin %s",
+			math.floor(stats.top),
+			stats.hazards or 0,
+			boostPct,
+			margin
+		)
+		self.dStats.Visible = true
+	else
+		self.dStats.Visible = false
+	end
 end
 
 -- Garage state push (§18): one table per refresh — slot row text/afford,
