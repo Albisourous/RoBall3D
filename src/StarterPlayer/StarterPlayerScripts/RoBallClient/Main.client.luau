@@ -668,6 +668,9 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	ui:setRivalPace(nil, nil)
 	runT0 = os.clock()
 	sectorCursor = 0
+	-- Live mission tracker (§14): snapshot the bank so the bank quest can
+	-- add this run's pickups to the stored today-tally.
+	ui:missionArm(player:GetAttribute("RoBallBank") or 0)
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0
@@ -871,7 +874,7 @@ end)
 
 -- HUD fields compared numerically (PERFORMANCE.md §1): the change key
 -- was a string.format every heartbeat — four cached numbers instead.
-local hudS, hudD, hudG, hudV = -1, -1, -1, -1
+local hudS, hudD, hudG, hudV, hudB = -1, -1, -1, -1, -1
 
 RunService.Heartbeat:Connect(function(dt)
 	local b = ball
@@ -1146,10 +1149,12 @@ RunService.Heartbeat:Connect(function(dt)
 	local score = player:GetAttribute("RoBallScore") or 0
 	local d = player:GetAttribute("RoBallDist") or 0
 	local gems = player:GetAttribute("RoBallGems") or 0
+	local bank = player:GetAttribute("RoBallBank") or 0
 	local shown = math.floor(fwdSpeed + 0.5)
-	if score ~= hudS or d ~= hudD or gems ~= hudG or shown ~= hudV then
-		hudS, hudD, hudG, hudV = score, d, gems, shown
+	if score ~= hudS or d ~= hudD or gems ~= hudG or shown ~= hudV or bank ~= hudB then
+		hudS, hudD, hudG, hudV, hudB = score, d, gems, shown, bank
 		ui:setHud(score, d, gems, shown, currentSeed or 0)
+		ui:setMissionTrack(score, d, bank)
 	end
 end)
 

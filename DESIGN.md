@@ -889,7 +889,13 @@ Full spec: `AUDIO.md`. Binding decisions:
   when the stored tag IS today — yesterday's missions die with the day.
   The client reads the `RoBallQuests` CSV attribute
   (`done flags + bankedToday`) to draw the menu lines and the death
-  screen's `N quests done · ◊ +N banked` line.
+  screen's `N quests done · ◊ +N banked` line. During a run a dim
+  three-line **mission tracker** under the HUD's left column shows the
+  same quests live — `reach`/`score` read the run's own counters and
+  `bank` adds the run's banked delta (snapshotted `RoBallBank` at run
+  start) to the stored today-tally; a line goes `✓` gold once its
+  number is in the bag (the flag itself still lands at run end), and
+  the block hides entirely once nothing is left to chase.
 - **Achievements**: `Config.Monetization.Achievements` — milestone badges
   evaluated server-side at every clean run end (`ShopService.onRunEnd`,
   after streak + quest eval so those counts are fresh). Kinds:

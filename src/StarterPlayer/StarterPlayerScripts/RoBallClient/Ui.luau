@@ -1318,6 +1318,30 @@ function Ui.new(): Ui
 	debutFlash.Parent = hud
 	self.debutFlash = debutFlash
 
+	-- Live mission tracker (§14): the day's three seeded quests with
+	-- in-run progress — reach/score read the live run counters, bank adds
+	-- the run's banked delta to the stored today-tally. Dim open, gold
+	-- in-the-bag; the whole block hides once nothing is left to chase.
+	self.missionCsv = ""
+	self.missionBank0 = 0
+	self.missionLines = {}
+	for i = 1, 3 do
+		local ml = Instance.new("TextLabel")
+		ml.Name = "Mission" .. i
+		ml.BackgroundTransparency = 1
+		ml.Font = F_DATA
+		ml.TextSize = 12
+		ml.TextColor3 = C_DIM
+		ml.TextStrokeTransparency = 0.5
+		ml.TextXAlignment = Enum.TextXAlignment.Left
+		ml.Position = UDim2.fromOffset(0, 208 + (i - 1) * 15)
+		ml.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 14)
+		ml.Text = ""
+		ml.Visible = false
+		ml.Parent = hud
+		self.missionLines[i] = ml
+	end
+
 	-- Deck-edge warning (§12): pink chevrons at the screen edges when the
 	-- ball's far side hangs over a cutout or the rail. gui-rooted — they
 	-- flank the track view, not the HUD cluster; the driver hides them
@@ -1957,6 +1981,7 @@ end
 -- defs are recomputed here from Daily.quests() so client and server can
 -- never disagree about what today's missions are.
 function Ui:setQuests(csv: string)
+	self.missionCsv = csv
 	local parts = string.split(csv, ",")
 	local banked = tonumber(parts[#parts]) or 0
 	for i, q in ipairs(Daily.quests()) do
@@ -1970,6 +1995,39 @@ function Ui:setQuests(csv: string)
 			line.Text = string.format("%s %s%s  ·  +%d ◊", done and "✓" or "◇", q.text, prog, q.reward)
 			line.TextColor3 = done and C_GOLD or C_DIM
 		end
+	end
+end
+
+-- Live mission tracker (§14): snapshot the bank balance at run start so
+-- the bank quest can add this run's pickups to the stored today-tally.
+function Ui:missionArm(bankNow: number)
+	self.missionBank0 = bankNow
+end
+
+local QUEST_LABEL = { reach = "reach %dm", score = "score %d", bank = "bank %d ◊" }
+
+function Ui:setMissionTrack(score: number, dist: number, bankNow: number)
+	local parts = string.split(self.missionCsv, ",")
+	local banked = (tonumber(parts[#parts]) or 0) + math.max(bankNow - self.missionBank0, 0)
+	local allMet = true
+	for i, q in ipairs(Daily.quests()) do
+		local prog = if q.kind == "reach" then dist elseif q.kind == "score" then score else banked
+		local met = parts[i] == "1" or prog >= q.target
+		allMet = allMet and met
+		local short = string.format(QUEST_LABEL[q.kind] or "%s", q.target)
+		local text = string.format(
+			"%s %s",
+			met and "✓" or "◇",
+			if met then short else short .. string.format(" · %d", math.min(prog, q.target))
+		)
+		local line = self.missionLines[i]
+		if line.Text ~= text then
+			line.Text = text
+		end
+		line.TextColor3 = met and C_GOLD or C_DIM
+	end
+	for _, line in ipairs(self.missionLines) do
+		line.Visible = not allMet
 	end
 end
 

@@ -405,6 +405,14 @@ runs the loop below and does not stop until you say **stop**.
     reach-honest lead, `canRun` declines degenerate runways — the
     documented s8 c439 violation is gone)*
 
+56. **Live mission tracker** *(done — the day's three seeded quests as
+    dim HUD lines mid-run (Mission1..3 under the left column):
+    `reach`/`score` read the run's counters, `bank` adds the run's
+    banked delta (RoBallBank snapshotted at run start) to the stored
+    today-tally; `✓` gold when in the bag, block hides when all done.
+    Verified live: `◇ reach 1500m · 60`/`◇ score 1600 · 100`/`◇ bank
+    60 ◊ · 10` screenshotted mid-run)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
