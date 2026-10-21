@@ -446,6 +446,11 @@ runs the loop below and does not stop until you say **stop**.
 - No replay playback or champion-watch features — cut as death-card
   clutter (items 15/28b/53/58); deferred to much later, explicit
   request only.
+- HUD stays four zones — score cluster top-right, minimap + quest
+  tracker right, power meter bottom-left, BPM bottom-right. No
+  banners/flashes/HUD text features (debut banner, SEC flash, flavor
+  banner, QUEST ✓ flash all cut as clutter) — communicate on the
+  track itself (deck ribbons, geometry, gems) or in the menu/card.
 - New config lands in `Config.luau` with a comment; no magic numbers.
 - Every session ends with a clean tree, passing gates, and a push.
 - If a change can't be verified in Studio (no API access), write it behind
