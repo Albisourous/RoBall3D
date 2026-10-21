@@ -5,6 +5,10 @@
 --             parallax (the default canyon).
 --   "peaks" — NEON PEAKS: a seeded wireframe ridge field, neon edges over
 --             near-black facets rising straight out of the void.
+--   "void"  — STAR WELL: a shell of neon motes ringing the descent axis,
+--             half below the deck plane — the drop reads as open space.
+--   "grid"  — GRID PLANE: the retro wireframe floor riding the descent
+--             below the deck — cross wires + longitudinal rays.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -34,9 +38,20 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-local theme: "city" | "peaks" = "city"
+type Theme = "city" | "peaks" | "void" | "grid"
+local theme: Theme = "city"
+
+-- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
+-- lazily built on first activation, non-owners never pay for the parts.
+local voidMotes: { Part } = {}
+local voidSeeded = false
+local gridWires: { Part } = {} -- cross wires (one per GridRows)
+local gridRays: { Part } = {} -- longitudinal rays (one per GridCols)
+local gridFrontZ = 0 -- nearest cross-wire z; recycles march it forward
+local gridSeeded = false
 
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
+local WHITE = Color3.fromRGB(245, 238, 255) -- star glints in the void theme
 -- Parked parts sit far below at +z, past the recycle gate: reactivating a
 -- theme re-seeds it and every dormant part earns a fresh lay in one pass.
 local PARK = CFrame.new(0, -10000, 5000)
@@ -263,6 +278,79 @@ local function layTile(tile: PeakTile, anchor: Vector3)
 	tile.slab.Color = FACE_COLOR
 end
 
+--============================ STAR WELL (void) ============================--
+-- Neon motes on a shell around the descent axis: azimuth + shell radius are
+-- fixed per mote, only z recycles forward — so the field holds structure
+-- while the drop sells depth. Half the shell sits below the deck plane;
+-- that's what makes it a well and not a skybox.
+
+local function ensureVoid()
+	if #voidMotes > 0 then
+		return
+	end
+	for _ = 1, Art.VoidStars do
+		local mote = Instance.new("Part")
+		mote.Anchored = true
+		mote.CanCollide = false
+		mote.CanQuery = false
+		mote.CastShadow = false
+		mote.Material = Enum.Material.Neon
+		mote.Shape = Enum.PartType.Ball
+		mote.Size = Vector3.new(Art.VoidSize, Art.VoidSize, Art.VoidSize) * rng:NextNumber(0.5, 1.9)
+		mote.CFrame = PARK
+		mote.Parent = root
+		table.insert(voidMotes, mote)
+	end
+end
+
+local function layVoidMote(mote: Part, anchor: Vector3)
+	local az = rng:NextNumber(0, math.pi * 2)
+	local r = Art.VoidRadius * rng:NextNumber(0.75, 1.15)
+	local z = anchor.Z - rng:NextNumber(0, Art.VoidZSpan)
+	mote.Position = Vector3.new(anchor.X + math.cos(az) * r, anchor.Y + math.sin(az) * r, z)
+	-- Mostly palette hue, a quarter pure white — the star glint.
+	mote.Color = if rng:NextNumber() < 0.25
+		then WHITE
+		else Palette.dimAt(-z * 0.3 + rng:NextNumber(0, 200), Art.VoidValue)
+end
+
+--=========================== GRID PLANE (grid) ===========================--
+-- The wireframe floor riding the descent below the deck. Cross wires
+-- recycle on a frontier like the tower rows; the long rays stride their
+-- own window length — both pitch to the grade so the plane stays parallel
+-- to the slope instead of drifting through it.
+
+local function ensureGrid()
+	if #gridWires > 0 then
+		return
+	end
+	for _ = 1, Art.GridFloorRows do
+		local wire = makePeakPart(root, true)
+		table.insert(gridWires, wire)
+	end
+	for _ = 1, Art.GridFloorCols do
+		table.insert(gridRays, makePeakPart(root, true))
+	end
+end
+
+local function layGridWire(wire: Part, anchor: Vector3, z: number, laneX: number)
+	local y = deckEst(anchor, z) - Art.GridFloorDrop
+	local x0, x1 = laneX - Art.GridFloorHalfX, laneX + Art.GridFloorHalfX
+	wire.Size = Vector3.new(x1 - x0, Art.GridFloorLine, Art.GridFloorLine)
+	wire.Position = Vector3.new(laneX, y, z)
+	wire.Color = Palette.dimAt(-z, Art.GridFloorValue)
+end
+
+local function layGridRay(ray: Part, anchor: Vector3, z0: number, x: number)
+	local len = Art.GridFloorRows * Art.GridFloorCellZ
+	local zA, zB = z0, z0 - len
+	local a = Vector3.new(x, deckEst(anchor, zA) - Art.GridFloorDrop, zA)
+	local b = Vector3.new(x, deckEst(anchor, zB) - Art.GridFloorDrop, zB)
+	ray.Size = Vector3.new(Art.GridFloorLine, Art.GridFloorLine, (b - a).Magnitude)
+	ray.CFrame = CFrame.lookAt(a, b) * CFrame.new(0, 0, -(b - a).Magnitude / 2)
+	ray.Color = Palette.dimAt(-zA, Art.GridFloorValue)
+end
+
 -- The synthwave sun is built once as a stack of horizontal strips:
 -- chord width follows the disk's circle, color slides orange -> magenta
 -- top to bottom, and the gaps between strips widen downward (the classic
@@ -364,32 +452,63 @@ end
 
 -- Theme swap (§18 world slot): the outgoing system's parts park below the
 -- void (and past the recycle gate), the incoming one re-seeds so its whole
--- window re-lays on the next update.
+-- window re-lays on the next update. One park pass per system keeps the
+-- branch honest when the catalog grows.
+local function parkTowers()
+	for _, tower in ipairs(towers) do
+		for _, seg in ipairs(tower.segs) do
+			parkPart(seg.part)
+		end
+	end
+	seeded = false
+end
+
+local function parkPeaks()
+	for _, tile in ipairs(peakTiles) do
+		for _, p in ipairs(tile.lines) do
+			parkPart(p)
+		end
+		for _, p in ipairs(tile.plates) do
+			parkPart(p)
+		end
+		parkPart(tile.slab)
+	end
+	peaksSeeded = false
+end
+
+local function parkVoid()
+	for _, mote in ipairs(voidMotes) do
+		parkPart(mote)
+	end
+	voidSeeded = false
+end
+
+local function parkGrid()
+	for _, p in ipairs(gridWires) do
+		parkPart(p)
+	end
+	for _, p in ipairs(gridRays) do
+		parkPart(p)
+	end
+	gridSeeded = false
+end
+
 function Backdrop.setTheme(t: string)
-	local nt: "city" | "peaks" = if t == "peaks" then "peaks" else "city"
+	local nt: Theme = if t == "peaks" or t == "void" or t == "grid" then t else "city"
 	if nt == theme then
 		return
 	end
-	theme = nt
-	if theme == "peaks" then
-		for _, tower in ipairs(towers) do
-			for _, seg in ipairs(tower.segs) do
-				parkPart(seg.part)
-			end
-		end
-		peaksSeeded = false
+	-- Park whatever was showing — the incoming theme lazily builds.
+	if theme == "city" then
+		parkTowers()
+	elseif theme == "peaks" then
+		parkPeaks()
+	elseif theme == "void" then
+		parkVoid()
 	else
-		for _, tile in ipairs(peakTiles) do
-			for _, p in ipairs(tile.lines) do
-				parkPart(p)
-			end
-			for _, p in ipairs(tile.plates) do
-				parkPart(p)
-			end
-			parkPart(tile.slab)
-		end
-		seeded = false
+		parkGrid()
 	end
+	theme = nt
 end
 
 function Backdrop.update(anchor: Vector3)
@@ -440,6 +559,55 @@ function Backdrop.update(anchor: Vector3)
 			if tile.z0 > anchor.Z + BACK_MARGIN then
 				tile.z0 -= span
 				layTile(tile, anchor)
+			end
+		end
+		return
+	end
+
+	-- STAR WELL (§18 "void"): motes hold their azimuth/radius, only z
+	-- recycles — the field streams past while the shell stays coherent.
+	if theme == "void" then
+		ensureVoid()
+		for _, mote in ipairs(voidMotes) do
+			if not voidSeeded or mote.Position.Z > anchor.Z + BACK_MARGIN then
+				layVoidMote(mote, anchor)
+			end
+		end
+		voidSeeded = true
+		return
+	end
+
+	-- GRID PLANE (§18 "grid"): cross wires recycle on a frontier; the long
+	-- rays stride by their own window length when their back edge passes.
+	if theme == "grid" then
+		ensureGrid()
+		local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+		local len = Art.GridFloorRows * Art.GridFloorCellZ
+		if not gridSeeded then
+			gridSeeded = true
+			gridFrontZ = math.ceil((anchor.Z + BACK_MARGIN) / Art.GridFloorCellZ) * Art.GridFloorCellZ
+			for i, wire in ipairs(gridWires) do
+				layGridWire(wire, anchor, gridFrontZ - i * Art.GridFloorCellZ, laneX)
+			end
+			local zMid = gridFrontZ - len / 2
+			for i, ray in ipairs(gridRays) do
+				local x = laneX - Art.GridFloorHalfX + (i - 0.5) * (2 * Art.GridFloorHalfX / Art.GridFloorCols)
+				layGridRay(ray, anchor, zMid + len / 2, x)
+			end
+			return
+		end
+		for _, wire in ipairs(gridWires) do
+			if wire.Position.Z > anchor.Z + BACK_MARGIN then
+				gridFrontZ -= Art.GridFloorCellZ
+				layGridWire(wire, anchor, gridFrontZ, laneX)
+			end
+		end
+		for _, ray in ipairs(gridRays) do
+			-- Trailing (+z) end: once it passes the keep margin the whole
+			-- window slid behind — stride it forward by its own length.
+			local back = ray.CFrame.Position - ray.CFrame.LookVector * (ray.Size.Z / 2)
+			if back.Z > anchor.Z + BACK_MARGIN then
+				layGridRay(ray, anchor, back.Z - len, ray.Position.X)
 			end
 		end
 		return

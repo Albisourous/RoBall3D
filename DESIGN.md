@@ -535,7 +535,15 @@ deferred.
   (innerX 55 clears the deck's worst lateral reach ~39) and a slow
   along-z envelope lets ranges arrive in passes. Same client-local,
   palette-driven rules — edges sample `Palette.dimAt` per stroke with an
-  outer-column dim for depth.
+  outer-column dim for depth. Two more worlds round out the slot:
+  **STAR WELL** (`void`) replaces the flanks with a shell of neon motes
+  ringing the descent axis — azimuth and shell radius are fixed per
+  mote, only z recycles forward, and half the shell sits below the deck
+  plane so the drop reads as a fall through open space; **GRID PLANE**
+  (`grid`) is the retro wireframe floor riding the descent `GridDrop`
+  studs below the deck — cross wires recycle on a frontier like the
+  tower rows, longitudinal rays stride by their own window length, and
+  both pitch to the grade so the floor stays parallel to the slope.
 - **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe
   rings (3 cyan axial + 2 magenta diagonal) — a clean neon cage that rolls
   with the ball's spin. Slim magenta Trail. No PointLight — self-glow
@@ -882,10 +890,12 @@ rides the same plumbing: `RoBallEq_world` lands on the client and
 `Backdrop.setTheme` re-seeds whichever scenery system takes over — the
 NEON PEAKS vista is visible in the menu the moment the pass equips.
 `world_peaks` sells as its own bundle pass (`Passes.peaks`) or à-la-carte
-for ◊800 — the flagship grind target. Later sets fill the palette families
-the launch bundles left open: **AURORA** (green-polar: teal-green rings,
-borealis nova) and **PHANTOM** (ghost-mono: white/amethyst rings, static
-shatter). Both stay inside color law — nothing near `LethalColor`.
+for ◊800 — the flagship grind target. **DEEP SPACE** (`Passes.deepspace`)
+packs both new world themes — `world_void` (STAR WELL) and `world_grid`
+(GRID PLANE), each also ◊800 à-la-carte. Later sets fill the palette
+families the launch bundles left open: **AURORA** (green-polar: teal-green
+rings, borealis nova) and **PHANTOM** (ghost-mono: white/amethyst rings,
+static shatter). All stay inside color law — nothing near `LethalColor`.
 
 **Score integrity contract**: the leaderboard meta row carries
 `assisted = false` today. Any future advantage item (bounded power-ups sit

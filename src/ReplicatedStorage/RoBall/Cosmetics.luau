@@ -215,6 +215,8 @@ Cosmetics.Items = {
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
 	world_peaks = { slot = "world", name = "NEON PEAKS", gemPrice = 800, theme = "peaks" },
+	world_void = { slot = "world", name = "STAR WELL", gemPrice = 800, theme = "void" },
+	world_grid = { slot = "world", name = "GRID PLANE", gemPrice = 800, theme = "grid" },
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -258,7 +260,7 @@ Cosmetics.Order = {
 		"deathfx_borealis",
 		"deathfx_static",
 	},
-	world = { "world_city", "world_peaks" },
+	world = { "world_city", "world_peaks", "world_void", "world_grid" },
 } :: { [string]: { string } }
 
 Cosmetics.Defaults = {
@@ -313,6 +315,12 @@ Cosmetics.Bundles = {
 		name = "PHANTOM",
 		desc = "ghost-mono set · static death",
 		items = { "skin_phantom", "trail_spectre", "gemfx_spectre", "deathfx_static" },
+	},
+	{
+		id = "deepspace",
+		name = "DEEP SPACE",
+		desc = "star well + grid plane worlds",
+		items = { "world_void", "world_grid" },
 	},
 }
 

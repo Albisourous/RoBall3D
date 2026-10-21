@@ -766,6 +766,24 @@ Config.Art = {
 	PeaksLine = 0.45, -- wireframe edge thickness (Neon parts)
 	PeaksValue = 0.85, -- palette value scale for edges
 	PeaksFaceTint = 0.09, -- facet drift toward palette (DeckTint cousin)
+	-- Starfield well (§18 world "void"): a shell of neon motes ringing the
+	-- descent axis — half the shell sits below the deck plane, so the drop
+	-- reads as a fall through open space. Motes recycle like towers.
+	VoidStars = 150, -- motes on the shell
+	VoidRadius = 480, -- shell radius out from the lane
+	VoidZSpan = 900, -- z window the motes cover around the ball
+	VoidSize = 1.4, -- base mote diameter (jittered ±)
+	VoidValue = 0.9, -- palette value for mote neon
+	-- Retro grid floor (§18 world "grid"): a wireframe plane riding the
+	-- descent GridFloorDrop studs below the deck — cross wires +
+	-- longitudinal rays, recycling forward like the tower rows.
+	GridFloorDrop = 70,
+	GridFloorHalfX = 320, -- floor half-width
+	GridFloorCellZ = 55, -- cross-wire spacing along z
+	GridFloorRows = 22, -- cross wires covering the window
+	GridFloorCols = 14, -- longitudinal rays
+	GridFloorLine = 0.4, -- wire thickness
+	GridFloorValue = 0.75, -- palette value for the floor neon
 	-- Synthwave sun: a striped neon disk parked far down the slope, riding
 	-- the descent so it always hangs on the horizon. Built from horizontal
 	-- strips (orange -> magenta) with gaps that widen toward the bottom.
@@ -842,6 +860,7 @@ Config.Monetization = {
 		peaks = 0, -- NEON PEAKS — wireframe ridge world theme (~149)
 		aurora = 0, -- AURORA — green-polar set + borealis death (~149)
 		phantom = 0, -- PHANTOM — ghost-mono set + static death (~199)
+		deepspace = 0, -- DEEP SPACE — star well + grid plane worlds (~149)
 	},
 	Price = {
 		starter = 49,
@@ -852,6 +871,7 @@ Config.Monetization = {
 		peaks = 149,
 		aurora = 149,
 		phantom = 199,
+		deepspace = 149,
 	},
 	-- Gem bank (§18 P2): each pickup banks this many gems, credited live.
 	BankPerGem = 1,

@@ -527,14 +527,14 @@ function Ui.new(): Ui
 		end)
 	end
 	for i, b in ipairs(Cosmetics.Bundles) do
-		packRow(b.id, b.name, b.desc, 266 + (i - 1) * 42)
+		packRow(b.id, b.name, b.desc, 264 + (i - 1) * 38)
 	end
 
 	--=========== BANK (§18 P2) ===========--
 	-- Gem economy surface: balance line, three gem-pack dev products, and
 	-- the 2X BANK pass row. Everything degrades to SOON until the ids are
 	-- created on the dashboard — the buttons only arm via setGarage.
-	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 568)
+	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 576)
 	local bal = Instance.new("TextLabel")
 	bal.BackgroundTransparency = 1
 	bal.Font = F_DATA
@@ -542,7 +542,7 @@ function Ui.new(): Ui
 	bal.TextColor3 = C_GOLD
 	bal.TextXAlignment = Enum.TextXAlignment.Right
 	bal.Text = "◊ 0"
-	bal.Position = UDim2.fromOffset(150, 566)
+	bal.Position = UDim2.fromOffset(150, 574)
 	bal.Size = UDim2.fromOffset(166, 20)
 	bal.Parent = garage
 	self.bankLabel = bal
@@ -561,7 +561,7 @@ function Ui.new(): Ui
 		b.TextSize = 13
 		b.TextColor3 = C_GOLD
 		b.Text = "◊?\nSOON"
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 592)
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 600)
 		b.Size = UDim2.fromOffset(96, 44)
 		b.Parent = garage
 		local corner = Instance.new("UICorner")
@@ -593,19 +593,20 @@ function Ui.new(): Ui
 
 	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
 	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow("bank2x", "2X BANK", "every gem banks double", 648)
+	packRow("bank2x", "2X BANK", "every gem banks double", 654)
 
 	local hint = label(garage, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 694)
+	hint.Position = UDim2.fromOffset(0, 698)
 	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
-	-- Top-left cluster: the score leaves the center cone clear for the
-	-- track read at speed; subline carries distance/speed/seed beneath.
+	-- Top-right cluster (§12): the score leaves the center cone clear for
+	-- the track read at speed. Right side, not left — Roblox's native
+	-- chrome (menu/chat/audio icons) overlays the top-left corner.
 	local hud = Instance.new("Frame")
 	hud.Name = "Hud"
-	hud.AnchorPoint = Vector2.new(0, 0)
-	hud.Position = UDim2.fromOffset(18, 12)
+	hud.AnchorPoint = Vector2.new(1, 0)
+	hud.Position = UDim2.new(1, -18, 0, 12)
 	hud.Size = UDim2.fromOffset(360, 118)
 	hud.BackgroundTransparency = 1
 	hud.Visible = false
@@ -617,7 +618,7 @@ function Ui.new(): Ui
 	scoreText.Font = F_DATA
 	scoreText.TextSize = 52
 	scoreText.TextColor3 = C_PINK
-	scoreText.TextXAlignment = Enum.TextXAlignment.Left
+	scoreText.TextXAlignment = Enum.TextXAlignment.Right
 	scoreText.Size = UDim2.new(1, 0, 0, 58)
 	scoreText.Parent = hud
 	self.scoreText = scoreText
@@ -627,8 +628,8 @@ function Ui.new(): Ui
 	subText.Font = F_DATA
 	subText.TextSize = 15
 	subText.TextColor3 = C_DIM
-	subText.TextXAlignment = Enum.TextXAlignment.Left
-	subText.Position = UDim2.fromOffset(2, 60)
+	subText.TextXAlignment = Enum.TextXAlignment.Right
+	subText.Position = UDim2.fromOffset(0, 60)
 	subText.Size = UDim2.new(1, 0, 0, 20)
 	subText.Parent = hud
 	self.subText = subText
@@ -641,8 +642,8 @@ function Ui.new(): Ui
 	comboText.TextSize = 16
 	comboText.TextColor3 = C_CYAN
 	comboText.TextStrokeTransparency = 0.5
-	comboText.TextXAlignment = Enum.TextXAlignment.Left
-	comboText.Position = UDim2.fromOffset(2, 80)
+	comboText.TextXAlignment = Enum.TextXAlignment.Right
+	comboText.Position = UDim2.fromOffset(0, 80)
 	comboText.Size = UDim2.new(1, 0, 0, 18)
 	comboText.Text = ""
 	comboText.Visible = false
@@ -657,8 +658,8 @@ function Ui.new(): Ui
 	bestFlash.TextSize = 16
 	bestFlash.TextColor3 = C_GOLD
 	bestFlash.TextStrokeTransparency = 0.5
-	bestFlash.TextXAlignment = Enum.TextXAlignment.Left
-	bestFlash.Position = UDim2.fromOffset(2, 98)
+	bestFlash.TextXAlignment = Enum.TextXAlignment.Right
+	bestFlash.Position = UDim2.fromOffset(0, 98)
 	bestFlash.Size = UDim2.new(1, 0, 0, 18)
 	bestFlash.Text = "★ NEW BEST"
 	bestFlash.Visible = false
