@@ -121,6 +121,8 @@ Config.Radar = {
 Config.Sectors = {
 	Length = 250, -- studs per boundary
 	FlashSeconds = 2.2, -- on-screen time of the sector line
+	MarkW = 1.4, -- deck ribbon z-thickness at each boundary
+	MarkTrans = 0.25, -- brighter than grid lines, under the edge neon
 }
 
 -- Speed blur (DESIGN.md §12): the world smears as the ball gets faster —

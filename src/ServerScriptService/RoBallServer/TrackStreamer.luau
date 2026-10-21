@@ -700,6 +700,57 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		end
 	end
 
+	-- Sector ribbons (§14): a brighter transverse mark at each
+	-- Config.Sectors.Length boundary — the pace pulse the HUD counts is
+	-- visible on the deck itself, on the same cadence as the SEC flashes.
+	-- Cutout chunks paint per rail so no line floats over the void.
+	local secL = Config.Sectors.Length
+	local endZ = spec.startZ - spec.length
+	for sec = math.max(1, math.ceil(-spec.startZ / secL)), math.ceil(-endZ / secL) - 1 do
+		local z = -sec * secL
+		local t = (spec.startZ - z) / spec.length
+		local mid = spec.section(t)
+		if mid.width > 0.5 then
+			local tA = math.max(t - 0.02, 0)
+			local tB = math.min(t + 0.02, 1)
+			local sA = spec.section(tA)
+			local sB = spec.section(tB)
+			local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
+			local roll = math.rad(mid.rollDeg)
+			local cX = self.laneX + mid.centerX
+			local markColor = Palette.neonAt(-z)
+			local function mark(cx: number, w: number)
+				local m = Instance.new("Part")
+				m.Name = "SectorMark"
+				m.Anchored = true
+				m.CanCollide = false
+				m.CanQuery = false
+				m.CanTouch = false
+				m.CastShadow = false
+				m.Size = Vector3.new(math.max(w - 1, 0.5), GRID_H, Config.Sectors.MarkW)
+				m.CFrame = CFrame.new(cx, mid.y + GRID_H / 2 + 0.03, z) * CFrame.Angles(pitch, 0, roll)
+				m.Color = markColor
+				m.Transparency = Config.Sectors.MarkTrans
+				m.Material = Enum.Material.Neon
+				m:SetAttribute("ChunkType", spec.type)
+				m.Parent = holder
+			end
+			if mid.cutout and mid.cutout > 1 then
+				local cutMid = mid.cutoutOff or 0
+				local railLW = cutMid - mid.cutout / 2 + mid.width / 2
+				local railRW = mid.width / 2 - (cutMid + mid.cutout / 2)
+				if railLW > 0.5 then
+					mark(cX - mid.width / 2 + railLW / 2, railLW)
+				end
+				if railRW > 0.5 then
+					mark(cX + mid.width / 2 - railRW / 2, railRW)
+				end
+			else
+				mark(cX, mid.width)
+			end
+		end
+	end
+
 	if spec.obstacles then
 		-- This chunk's lethal planes, collected beside the build and merged
 		-- in z-descending order — obstacle lists aren't guaranteed sorted.

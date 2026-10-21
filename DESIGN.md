@@ -841,6 +841,9 @@ Full spec: `AUDIO.md`. Binding decisions:
 - **Split-time sectors**: every `Config.Sectors.Length` studs the HUD
   flashes `SEC n · T.Ts` plus a `±S.Ss` delta per live replay — the
   replay's interpolated crossing time minus yours, positive = ahead.
+  Each boundary also paints a `SectorMark` ribbon across the deck
+  (`Sectors.MarkW`/`MarkTrans`, per-rail on cutouts) — the pace pulse
+  the HUD counts is visible on the track itself.
   Each segment takes its entity color when you're ahead of it, pink
   when behind; a replay that never reached the depth omits its segment.
 - Server-side validation lite: reject submitted scores above
