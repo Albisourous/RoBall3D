@@ -1306,6 +1306,24 @@ function Ui.new(): Ui
 	end
 	self.radar = radar
 
+	-- Threat name (§12): the nearest lethal bar's chunk label under the
+	-- strip — names the thing coming, not just its distance.
+	local threatName = Instance.new("TextLabel")
+	threatName.Name = "ThreatName"
+	threatName.BackgroundTransparency = 1
+	threatName.Font = F_DATA
+	threatName.TextSize = 13
+	threatName.TextColor3 = C_PINK
+	threatName.TextStrokeTransparency = 0.5
+	threatName.TextXAlignment = Enum.TextXAlignment.Right
+	threatName.AnchorPoint = Vector2.new(1, 0)
+	threatName.Position = UDim2.new(1, 0, 0, 328)
+	threatName.Size = UDim2.fromOffset(240, 16)
+	threatName.Text = ""
+	threatName.Visible = false
+	threatName.Parent = hud
+	self.threatName = threatName
+
 	-- Achievement toast (§14): top-center gold ribbon on unlock —
 	-- toast() writes the line, it never idles.
 	local achToast = Instance.new("TextLabel")
@@ -2083,6 +2101,12 @@ end
 function Ui:setEdgeWarn(left: boolean, right: boolean)
 	self.edgeL.Visible = left
 	self.edgeR.Visible = right
+end
+
+-- Threat name (§12): the nearest radar bar's chunk label, "" hides.
+function Ui:setThreat(text: string)
+	self.threatName.Text = text
+	self.threatName.Visible = text ~= ""
 end
 
 -- Danger vignette (§12): intensity 0..1 of nearest corridor threat —

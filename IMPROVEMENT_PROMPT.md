@@ -285,6 +285,10 @@ runs the loop below and does not stop until you say **stop**.
     gate; parked 30 studs out held `vis=true T=0.76` = 0.4·MaxAlpha
     exactly; card clears it. Live screenshot not captured — runs kept
     dying inside the warning window)*
+42. **Threat name on radar** — the nearest in-range `RoBallLethal`
+    carries its `ChunkType` attribute to the client; the radar labels it
+    via `Features.Label` so the player learns each hazard's name every
+    run, not just at its debut. Client-only, no new geometry.
 
 ## Standing rules for new work
 

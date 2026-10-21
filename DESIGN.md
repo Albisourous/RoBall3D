@@ -700,6 +700,9 @@ leaves the line off.
   at the ball, x = block offset vs the ball — re-read from the tagged
   `RoBallLethal` set every `ScanSeconds` so movers track for free;
   nearest `MaxBars` threats win the pooled frames.
+  Under the strip the **threat name** labels the nearest bar's chunk
+  type via `Features.Label` — the player learns each hazard's name on
+  every encounter, not only at its debut.
   Flanking the track view a pair of pink **edge-warning chevrons**
   (`Config.EdgeWarn`) light when a short probe beside the ball finds no
   ground — over a cutout or one step from the rail; anything hit

@@ -98,6 +98,7 @@ local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
 local landingRing: Part? = nil -- pooled blob shadow, made once on first use
 local dangerDz: number? = nil -- nearest corridor threat ahead, set by the radar scan
+local threatCache: string? = nil -- threat label currently on the radar
 
 --============================ garage ==============================--
 -- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids,
@@ -699,6 +700,8 @@ evRunEnded.OnClientEvent:Connect(
 		ui:setEdgeWarn(false, false)
 		ui:setDanger(0)
 		dangerDz = nil
+		threatCache = nil :: string?
+		ui:setThreat("")
 		if landingRing then
 			landingRing.Transparency = 1
 		end
@@ -970,11 +973,15 @@ RunService.Heartbeat:Connect(function(dt)
 		radarT = 0
 		local R = Config.Radar
 		local scan = {}
+		local nearest: Instance? = nil
 		for _, p in ipairs(CollectionService:GetTagged("RoBallLethal")) do
 			local dz = b.Position.Z - p.Position.Z
 			local dx = p.Position.X - b.Position.X
 			if dz > -2 and dz < R.Range and math.abs(dx) - p.Size.X / 2 < R.HalfWidth then
 				table.insert(scan, { dx = dx, dz = math.max(dz, 0), w = p.Size.X })
+				if not nearest or dz < (b.Position.Z - (nearest :: BasePart).Position.Z) then
+					nearest = p
+				end
 			end
 		end
 		-- Danger vignette (§12): nearest threat overlapping the ball's line
@@ -996,6 +1003,14 @@ RunService.Heartbeat:Connect(function(dt)
 			scan = keep
 		end
 		ui:setRadar(scan)
+		-- Threat name (§12): the nearest bar's chunk label, cached so the
+		-- line doesn't thrash as distances jitter between scans.
+		local ct = nearest and (nearest :: BasePart):GetAttribute("ChunkType")
+		local threat = if type(ct) == "string" then (Config.Features.Label[ct] or string.upper(ct)) else ""
+		if threat ~= threatCache then
+			threatCache = threat
+			ui:setThreat(threat)
+		end
 	end
 
 	-- Deck-edge warning (§12): two short probes beside the ball — a side
