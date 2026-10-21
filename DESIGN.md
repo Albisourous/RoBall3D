@@ -240,6 +240,7 @@ narrow. Then the seeded generator takes over.
 | `Flat` | Full-width ribbon | Breather, gem lines | 1+ |
 | `Slalom` | Ribbon, centerline sways via sine | Steering warmup | 1+ |
 | `Narrow` | Width lerps down over the chunk | Precision | 2+ |
+| `Widen` | Deck opens to the tier window's upper half in ~35%, then holds; twin edge-margin gem lines | Relief + lateral reach (dash's job) | 5+ |
 | `Tilt` | Ribbon rolls around its long axis ±(8–20°) | Momentum management | 3+ |
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
 | `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
@@ -412,6 +413,16 @@ Tier table is in `Config.Tiers`. Crossing a tier threshold:
 - target speed steps up (40 → 106 by 2000m), eased at `6 studs/s²`
 - new chunk types join the RNG pool
 - allowed width range tightens (24 → 4 min)
+
+Within a tier the deck width isn't monotonic: `Narrow` ratchets down
+toward `widthMin`, `Flat` re-rolls the width anywhere in the window
+(tiers 1–3 and back from tier 5 — it converges an over-wide deck down
+into the window too), and from tier 5 `Widen` opens back toward
+`widthMax` — so the deep game sawtooths between cramped precision
+stretches and reopened fields instead of parking in one extreme.
+`canRun` gates `Widen` to ≥4 studs of headroom under the tier ceiling,
+and its edge-margin gems make the lateral reach (Q/E dash, §4) pay off
+while the field is wide.
 
 **Endless mode** — there is no speed cap. Past the last listed tier
 (2000m), `Tiers.forDistance` extrapolates: speed rises by

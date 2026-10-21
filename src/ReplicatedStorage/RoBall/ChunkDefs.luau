@@ -326,8 +326,10 @@ function ChunkDefs.Flat(rng: Random, st: GenState, tier): ChunkSpec
 	local clusters = rng:NextInteger(Config.Gems.ClustersPerChunkMin, Config.Gems.ClustersPerChunkMax)
 	for _ = 1, clusters do
 		local edge = rng:NextNumber() < 0.5
-		local halfW = math.max(st.width, target) / 2
-		local xOff = if edge then (rng:NextInteger(0, 1) * 2 - 1) * (halfW - 2) else 0
+		-- Edge lines anchor to the lerp's NARROWER end so a shrinking
+		-- drift never leaves gems hanging over void mid-chunk.
+		local halfW = math.min(st.width, target) / 2
+		local xOff = if edge then (rng:NextInteger(0, 1) * 2 - 1) * math.max(0, halfW - 2) else 0
 		appendAll(
 			gems,
 			gemRhythmLine(
@@ -398,6 +400,42 @@ function ChunkDefs.Narrow(rng: Random, st: GenState, tier): ChunkSpec
 	)
 	return spec("Narrow", st, length, function(t)
 		return { width = lerp(st.width, target, t), centerX = st.centerX, y = st.y, rollDeg = 0 }
+	end, { centerX = st.centerX, width = target, y = st.y }, nil, gems)
+end
+
+-- Widen: the mirror of Narrow — the deck OPENS back toward the tier
+-- ceiling. Late tiers otherwise ratchet width toward widthMin and camp
+-- there; alternating Narrow/Widen makes the deep deck sawtooth inside
+-- the tier's [widthMin, widthMax] window. It opens fast (first ~35%)
+-- then holds, so twin edge-margin gem lines park on real deck — reaching
+-- both rails is a full-width lateral commitment, the job Q/E dash is for.
+function ChunkDefs.Widen(rng: Random, st: GenState, tier): ChunkSpec
+	local length = rng:NextInteger(45, 70)
+	-- Land clearly wider than entry, biased to the window's upper half —
+	-- a vista opening, not a nudge. canRun guarantees ≥4 studs of headroom.
+	local lo = math.max(st.width + 4, (tier.widthMin + tier.widthMax) / 2)
+	local target = rng:NextNumber(math.min(lo, tier.widthMax), tier.widthMax)
+	local gems = {}
+	local speed = Tiers.speedAt(st.dist)
+	for _, side in ipairs({ -1, 1 }) do
+		appendAll(
+			gems,
+			gemRhythmLine(
+				rng,
+				speed,
+				length,
+				0.45,
+				0.8,
+				side * (target / 2 - 2),
+				Config.Gems.ValueEdge,
+				nil,
+				energyOf(st),
+				bpmOf(st)
+			)
+		)
+	end
+	return spec("Widen", st, length, function(t)
+		return { width = lerp(st.width, target, math.min(t / 0.35, 1)), centerX = st.centerX, y = st.y, rollDeg = 0 }
 	end, { centerX = st.centerX, width = target, y = st.y }, nil, gems)
 end
 
@@ -735,11 +773,14 @@ end
 -- Eligibility gate for pool + debut picks (§8.6): features that need a
 -- songform context or a minimum deck width decline here instead of
 -- emitting a degenerate chunk.
-function ChunkDefs.canRun(name: string, st: GenState, _tier): boolean
+function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 	if name == "DropGate" then
 		-- needs an accent downbeat inside the chunk, at drop energy
 		local zAcc = studsToAccent(st)
 		return zAcc ~= nil and zAcc >= 15 and zAcc <= 45 and energyOf(st) >= 0.8
+	elseif name == "Widen" then
+		-- only a real opening when there's headroom under the tier ceiling
+		return st.width <= tier.widthMax - 4
 	elseif name == "Blackout" then
 		-- darkness only during break sections — lights out, not lights off-beat
 		return st.section ~= nil and st.section.kind == "break"

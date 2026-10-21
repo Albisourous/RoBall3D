@@ -307,7 +307,9 @@ Config.Tiers = {
 		dist = 1400,
 		speed = 92,
 		chunkPool = {
+			"Flat",
 			"Narrow",
+			"Widen",
 			"Tilt",
 			"Pinch",
 			"SplitGap",
@@ -332,7 +334,9 @@ Config.Tiers = {
 		dist = 2000,
 		speed = 106,
 		chunkPool = {
+			"Flat",
 			"Narrow",
+			"Widen",
 			"Tilt",
 			"Pinch",
 			"SplitGap",
@@ -581,6 +585,7 @@ Config.MusicSync = {
 		Terrace = "technical",
 		Slalom = "technical",
 		Narrow = "technical",
+		Widen = "technical",
 		Tilt = "technical",
 		Pinch = "technical",
 		SplitGap = "technical",
