@@ -227,6 +227,15 @@ runs the loop below and does not stop until you say **stop**.
     quests moved off bare text lines into a `MISSIONS` card matching
     RUN SETUP's bordered chrome. Verified live: chips centered,
     DAILY lit on `daily`, audio page holds 5 sliders)*
+35. **Press-thread bonus** *(done — b22e35e: `dropY` press plates join the
+    ordered hazard list carrying the live plate + baseY/amp; a crossing
+    inside the plate's span while `drop >= Press.ThreadMinDrop` pays
+    `Press.ThreadBonus` on its own `RoBallThread` counter and flashes
+    `THREAD +N` (Ui `flashMiss` gained a word param; same FOV kick).
+    Corridor crossings and raised-plate passes pay nil; a paid thread
+    suppresses the graze-chain block — no double award. Verified live:
+    record fields match spec (z=-2691, cx, halfW, amp), drop tracks the
+    plate 0..1, attr → `THREAD +6` flash screenshotted)*
 
 ## Standing rules for new work
 
