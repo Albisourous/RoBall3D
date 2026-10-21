@@ -231,6 +231,26 @@ Config.Features = {
 	-- are designed but flag-off — they change core physics/controls.
 	GravityFlip = false,
 	JumpOrbs = false,
+	-- Debut banner (§8.6): crossing a showcase chunk names the mechanic.
+	-- Label maps the type to its HUD callout; missing names fall back to
+	-- the uppercased type.
+	Label = {
+		Terrace = "TERRACES",
+		SnakeField = "SNAKE FIELD",
+		Blackout = "BLACKOUT",
+		Chicane = "CHICANE",
+		Fork = "FORK",
+		PadHop = "PAD HOP",
+		PadVoid = "PAD VOID",
+		TunnelSlot = "TUNNEL",
+		DropGate = "DROP GATE",
+		PressRow = "PRESS ROW",
+		Pacer = "PACERS",
+		Rotor = "ROTOR",
+		OrbHop = "ORB HOP",
+		FlipRide = "FLIP RIDE",
+	},
+	BannerSeconds = 2.5,
 }
 
 Config.Pads = {

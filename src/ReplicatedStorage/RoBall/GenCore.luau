@@ -135,6 +135,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				self.debuted[fname] = true
 				name = fname
 				spec = ChunkDefs[name](self.rng, snap, tier, true)
+				spec.debut = true -- marks the showcase so the HUD can name it
 				break
 			end
 		end

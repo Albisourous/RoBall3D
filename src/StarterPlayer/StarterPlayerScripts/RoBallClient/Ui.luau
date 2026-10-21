@@ -1201,6 +1201,24 @@ function Ui.new(): Ui
 	sectorFlash.Parent = hud
 	self.sectorFlash = sectorFlash
 
+	-- Debut banner (§8.6): the first spawn of each feature type is the
+	-- scripted gentle showcase — crossing into it flashes "NEW ▸ NAME"
+	-- in gold so the mechanic is named at the moment it's introduced.
+	local debutFlash = Instance.new("TextLabel")
+	debutFlash.Name = "DebutFlash"
+	debutFlash.BackgroundTransparency = 1
+	debutFlash.Font = F_DATA
+	debutFlash.TextSize = 14
+	debutFlash.TextColor3 = C_GOLD
+	debutFlash.TextStrokeTransparency = 0.5
+	debutFlash.TextXAlignment = Enum.TextXAlignment.Left
+	debutFlash.Position = UDim2.fromOffset(0, 190)
+	debutFlash.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 16)
+	debutFlash.Text = ""
+	debutFlash.Visible = false
+	debutFlash.Parent = hud
+	self.debutFlash = debutFlash
+
 	-- Look-ahead radar (§12): a vertical strip under the stack — top is
 	-- Radar.Range studs out, bottom is the ball; bars are lethal blocks
 	-- in ball-relative studs with the cyan line as "you". Pooled bars —
@@ -1978,6 +1996,18 @@ function Ui:flashSector(idx: number, elapsed: number, pbDelta: number?, rvDelta:
 	self.sectorFlash.Visible = true
 	local flash = self.sectorFlash
 	task.delay(Config.Sectors.FlashSeconds, function()
+		flash.Visible = false
+	end)
+end
+
+-- Debut banner (§8.6): "NEW ▸ PRESS ROW" — names a mechanic at its
+-- scripted gentle showcase. Fires once per type per run.
+function Ui:flashDebut(typeName: string)
+	local name = Config.Features.Label[typeName] or string.upper(typeName)
+	self.debutFlash.Text = "NEW ▸ " .. name
+	self.debutFlash.Visible = true
+	local flash = self.debutFlash
+	task.delay(Config.Features.BannerSeconds, function()
 		flash.Visible = false
 	end)
 end

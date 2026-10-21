@@ -59,6 +59,7 @@ local evReportFatal = remotes:WaitForChild("ReportFatal") :: RemoteEvent
 local evSaveGhost = remotes:WaitForChild("SaveGhost") :: RemoteEvent
 local fnGetGhost = remotes:WaitForChild("GetGhost") :: RemoteFunction
 local evCrown = remotes:WaitForChild("Crown") :: RemoteEvent
+local evDebut = remotes:WaitForChild("Debut") :: RemoteEvent
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
@@ -735,6 +736,14 @@ evCrown.OnClientEvent:Connect(function(name: string)
 		ui:toast(string.format("♛ CROWN TAKEN from %s", name))
 	else
 		ui:toast("♛ SEED CROWN CLAIMED")
+	end
+end)
+
+-- Debut banner (§8.6): the server fires this as the ball crosses into a
+-- feature's showcase chunk — the mechanic is named at its introduction.
+evDebut.OnClientEvent:Connect(function(typeName: string)
+	if mode == "running" then
+		ui:flashDebut(typeName)
 	end
 end)
 

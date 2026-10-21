@@ -404,6 +404,13 @@ until its debut has run (`GenCore.debuted`), so players always meet the
 easy form first. Debuts are deterministic like everything else — same
 seed, same ramp.
 
+The showcase is also *named*: `GenCore` stamps the debut spec, the
+streamer queues `{startZ, type}`, and the server fires `Debut` as the
+ball crosses into it — the HUD flashes gold `NEW ▸ LABEL`
+(`Config.Features.Label`/`BannerSeconds`) once per type per run, so the
+mechanic's name lands at the moment it's introduced. Presentation only;
+no score or generation semantics ride on it.
+
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
 Blackout 900m · Chicane 1300m · Fork 1500m · PadHop 1700m · PadVoid 2100m
 · TunnelSlot 2200m · DropGate 2300m · PressRow 2600m · Pacer 2700m ·

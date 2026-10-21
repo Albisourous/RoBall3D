@@ -64,6 +64,7 @@ export type ChunkSpec = {
 	orbs: { Orb }?, -- OrbHop (flag: Features.JumpOrbs)
 	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
+	debut: boolean?, -- set by GenCore when this chunk is the feature's gentle showcase
 	tierGate: { dist: number, t: number }?, -- arch marker where dist crosses a tier boundary
 }
 
