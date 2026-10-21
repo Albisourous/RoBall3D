@@ -145,11 +145,14 @@ everything below:
 AudioPlayer[stem] ──► AudioFader[stem] ─┐
 AudioPlayer[stem] ──► AudioFader[stem] ─┤   (players stay sample-locked:
 ...  4–6 stems ──►  ...               ──┤    same length, Play() same frame)
+AudioPlayer[sting] ─────────────────────┤
+AudioPlayer[wind] ─► AudioFilter ─► AudioFader
                                         ▼
-                              AudioChannelMixer? / straight wiring ──► AudioPitchShifter ──► AudioDeviceOutput
-                                        │                                    ▲
-                                        └──► AudioAnalyzer (client-only:     └─ Pitch = ps^(−k)
-                                             RmsLevel/PeakLevel/GetSpectrum)      optional pitch-lock
+                      AudioFilter[lowpass] ─► AudioPitchShifter ─► AudioFader[duck] ─► AudioDeviceOutput
+                                              ▲                              │
+                                              └─ Pitch = ps^(−k)             └─► AudioAnalyzer (post-duck tap:
+AudioPlayer[chime] ─► AudioFader[sfx] ──► output — after the duck: the pickup      hears the dips too)
+                                          ducks the music, never itself
 ```
 
 Concrete nodes (all client-local, parented under a client-owned container,
@@ -183,10 +186,18 @@ e.g. a `RoBallAudio` Folder in `PlayerGui`):
   menu + death (§7).
 - **`AudioAnalyzer` tap on the bus** — `SpectrumEnabled`, bands → visuals
   (§8). Client-only by design (server reads zero); visuals are decorative,
-  so that's fine.
+  so that's fine. The tap sits *post-duck* (`AudioFader[duck]` → analyzer):
+  the world pulses on the same sidechain dips the ear hears.
 - **SFX players** — one `AudioPlayer` per stinger; a shared SFX asset with
   `PlaybackRegion` slices is an option if we pack multiple stingers in one
   file (GD's SFX-library trick).
+- **One-shot SFX tap (post-duck)** — gem chimes are `AudioPlayer` voices
+  on a dedicated `AudioFader` wired straight to the output, *after* the
+  duck fader: the pickup ducks the music, never itself (true sidechain),
+  and the voice stays clear of the menu lowpass and the pitch shifter, so
+  the combo ladder's semitones can't detune. `Music.playOneShot` spawns
+  and self-destroys each voice; `Music.preloadSfx` warms the decode at
+  boot so the first pickup isn't late.
 
 **Stem drift watchdog**: players that start together on equal-length
 streams should hold sync, but we verify — on the lead stem's `Looped`
@@ -304,7 +315,11 @@ Anything that *sounds* musical lands on the grid:
   sweet. From the second pickup of a combo, a quiet perfect fifth rides
   under the melody at `HarmonyVolume` — consonant against any chord tone —
   and combo volume swells by `ComboVolGain` (capped). Same jitter on both
-  voices so the dyad stays in tune.
+  voices so the dyad stays in tune. Each pickup also sidechain-ducks the
+  music bus `DuckDepth` with a ~15ms attack (a hard gain step would click)
+  and blooms back over `DuckRelease`; re-dips cancel the in-flight
+  release. The chime voices ride the post-duck SFX tap (§4) — they punch
+  *through* the dip instead of stacking on the mix.
 
 ## 7. Scene scoring — menu, death, wind
 
@@ -317,8 +332,10 @@ Anything that *sounds* musical lands on the grid:
   Restart resets both instantly (instant restart stays sacred — no fade-in
   tax).
 - **Wind** — looped noise `AudioPlayer` through its own fader +
-  `AudioFilter`; volume `∝ speedNorm²`, cutoff `2k → 8kHz` with speed.
-  The speed you hear is wind + tempo — two channels of the same signal.
+  `AudioFilter`; volume `∝ speedNorm²`, cutoff `2k → 8kHz` with speed,
+  exponentially smoothed (~140ms approach) so the per-heartbeat tracking
+  doesn't zipper the filter. The speed you hear is wind + tempo — two
+  channels of the same signal.
 
 ## 8. Audio-reactive visuals (analyzer)
 

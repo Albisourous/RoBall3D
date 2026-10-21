@@ -19,21 +19,31 @@ local lastGems = 0
 local lastAt = 0
 local combo = 0
 
--- One physical Sound per voice; shares a PlaybackSpeed ratio so a dyad
--- stays consonant.
+-- Resolve once: AssetId may be numeric (rbxassetid) or a full ContentId
+-- URI — rbxasset:// entries resolve Studio's bundled content dir for dev.
+local function assetUri(cfg): string
+	if cfg.AssetId == 0 then
+		return cfg.FallbackId
+	elseif type(cfg.AssetId) == "string" then
+		return cfg.AssetId
+	else
+		return "rbxassetid://" .. tostring(cfg.AssetId)
+	end
+end
+
+-- One physical voice per chime; shares a PlaybackSpeed ratio so a dyad
+-- stays consonant. Rides the post-duck SFX tap when the graph is up —
+-- true sidechain: the pickup ducks the music, not itself. Falls back to
+-- a plain Sound if the bus isn't built yet.
 local function spawnChime(cfg, semi: number, volume: number, jitter: number)
+	local ratio = 2 ^ (semi / 12) * jitter
+	if Music.playOneShot(assetUri(cfg), ratio, volume) then
+		return
+	end
 	local s = Instance.new("Sound")
 	s.Name = "GemPickup"
-	-- AssetId may be numeric (rbxassetid) or a full ContentId URI —
-	-- rbxasset:// entries resolve Studio's bundled content dir for dev.
-	if cfg.AssetId == 0 then
-		s.SoundId = cfg.FallbackId
-	elseif type(cfg.AssetId) == "string" then
-		s.SoundId = cfg.AssetId
-	else
-		s.SoundId = "rbxassetid://" .. tostring(cfg.AssetId)
-	end
-	s.PlaybackSpeed = 2 ^ (semi / 12) * jitter
+	s.SoundId = assetUri(cfg)
+	s.PlaybackSpeed = ratio
 	s.Volume = volume
 	s.Parent = SoundService
 	s:Play()
@@ -90,6 +100,7 @@ local function chime()
 end
 
 function Sfx.init()
+	Music.preloadSfx(assetUri(Config.GemSfx)) -- warm the decode so the first pickup isn't late
 	lastGems = player:GetAttribute("RoBallGems") or 0
 	player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 		local n = player:GetAttribute("RoBallGems") or 0

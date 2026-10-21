@@ -43,6 +43,8 @@ local lead: any = nil -- beat-clock + watchdog reference player
 local lowpass: any = nil
 local shifter: any = nil
 local duckFader: any = nil
+local sfxFader: any = nil -- post-duck tap for one-shot voices (gem chimes)
+local duckGen = 0 -- duck() generation: a newer dip cancels an older release
 local analyzer: any = nil
 local windPlayer: any = nil
 local windFilter: any = nil
@@ -86,6 +88,9 @@ local function ps(): number
 end
 
 local lastPs: number = 0 -- last applied step; steps glide, holds are free
+local windSmV = 0 -- smoothed wind fader level
+local windSmHz = m.WindCutMin -- smoothed wind cutoff
+local windLastT = tick()
 
 local function applySpeed()
 	local speed = ps()
@@ -111,10 +116,16 @@ local function applySpeed()
 		lastPs = speed
 	end
 	if windFader then
-		windFader.Volume = m.WindVolume * norm * norm
-	end
-	if windFilter then
-		windFilter.Frequency = m.WindCutMin + (m.WindCutMax - m.WindCutMin) * norm
+		-- Exponential smoothing (~140ms approach): the wind bed tracks
+		-- speed every heartbeat — hard sets would zipper-noise the filter
+		-- and step the loudness. dt-based so it's frame-rate independent.
+		local now = tick()
+		local k = math.min(1, (now - windLastT) * 7)
+		windLastT = now
+		windSmV += (m.WindVolume * norm * norm - windSmV) * k
+		windSmHz += (m.WindCutMin + (m.WindCutMax - m.WindCutMin) * norm - windSmHz) * k
+		windFader.Volume = windSmV
+		windFilter.Frequency = windSmHz
 	end
 end
 
@@ -276,10 +287,16 @@ local function selectTrack(id: string)
 	if id == curTrack then
 		return
 	end
+	-- Splice dip (AUDIO.md §3): swapping the player set is a hard cut —
+	-- a ~50ms duck masks the teardown click without costing a fade-in.
+	local wasLive = lead ~= nil and lead.IsPlaying
 	curTrack = id
 	curMap = SongMap.forTrack(id)
 	curAssets = (m.TrackAssets :: any)[id] or { AssetId = 0 }
 	teardownPlayers()
+	if wasLive then
+		Music.duck(0.45, 0.35)
+	end
 	buildPlayers(curAssets)
 end
 
@@ -319,10 +336,21 @@ function Music.init()
 	end
 	wire(duckFader, output)
 
+	-- SFX voices (gem chimes) tap the bus AFTER the duck fader — a pickup
+	-- ducks the music, never itself (true sidechain) — and stay clear of
+	-- the lowpass + shifter: the payout reads bright even under the menu
+	-- muffle, and the shifter can't detune the combo ladder's semitones.
+	sfxFader = Instance.new("AudioFader")
+	sfxFader.Volume = 1
+	sfxFader.Parent = folder
+	wire(sfxFader, output)
+
 	analyzer = Instance.new("AudioAnalyzer")
 	analyzer.SpectrumEnabled = true
 	analyzer.Parent = folder
-	wire(lowpass, analyzer) -- hears what you hear (post-filter)
+	-- Post-duck tap: visuals follow the heard level — the world dims on
+	-- the same sidechain dip the ear hears.
+	wire(duckFader, analyzer)
 
 	-- Menu boots on tracklist[1]; runs re-pick per seed in onStart.
 	selectTrack(m.Tracklist[1])
@@ -456,19 +484,72 @@ end
 
 -- Sidechain-style duck (AUDIO.md §6): knock the bus down `depth` and let
 -- it bloom back over `release` seconds. Gem pickups call this so a chime
--- punches through the track instead of stacking on it.
+-- punches through the track instead of stacking on it. The dip itself is
+-- a ~15ms tween — a hard gain step is an audible click; fast-but-smooth
+-- keeps the punch. Generation-guarded: a rapid second pickup cancels the
+-- previous release so dips re-trigger cleanly instead of fighting.
 function Music.duck(depth: number, release: number?)
 	if not duckFader then
 		return
 	end
-	duckFader.Volume = 1 - depth
-	TweenService
-		:Create(
-			duckFader,
-			TweenInfo.new(release or 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Volume = 1 }
-		)
-		:Play()
+	duckGen += 1
+	local gen = duckGen
+	local dip = TweenService:Create(duckFader, TweenInfo.new(0.015), { Volume = 1 - depth })
+	dip:Play()
+	dip.Completed:Once(function()
+		if gen == duckGen then
+			TweenService:Create(
+				duckFader,
+				TweenInfo.new(release or 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Volume = 1 }
+			):Play()
+		end
+	end)
+end
+
+-- One-shot voice on the post-duck SFX tap (see init): takes a resolved
+-- ContentId string, plays at `speedRatio`, self-destroys. Returns false
+-- when the bus isn't built so callers can fall back to a plain Sound.
+function Music.playOneShot(asset: string, speedRatio: number, volume: number): boolean
+	if not sfxFader or not root then
+		return false
+	end
+	local p = Instance.new("AudioPlayer")
+	p.Asset = asset
+	p.Looping = false
+	p.AutoLoad = true
+	p.PlaybackSpeed = speedRatio
+	p.Volume = volume
+	p.Parent = root
+	wire(p, sfxFader)
+	p:Play()
+	-- AudioPlayer.Ended is unreliable for clean-up; the gem file is 0.75s
+	-- and the slowest ladder step plays it back at ~0.25x — 4s covers all.
+	task.delay(4, function()
+		if p.Parent then
+			p:Destroy()
+		end
+	end)
+	return true
+end
+
+-- Warm a one-shot's decode at boot so its first real play isn't late:
+-- AutoLoad pulls the asset into memory without ever pressing Play.
+function Music.preloadSfx(asset: string)
+	if not root then
+		return
+	end
+	local p = Instance.new("AudioPlayer")
+	p.Asset = asset
+	p.AutoLoad = true
+	p.Parent = root
+	task.spawn(function()
+		local deadline = os.clock() + 10
+		while not p.IsReady and os.clock() < deadline and p.Parent do
+			task.wait(0.25)
+		end
+		p:Destroy()
+	end)
 end
 
 -- Seconds until the next `subdiv`-of-a-beat boundary on the HEARD grid —
