@@ -380,7 +380,7 @@ Config.GemSfx = {
 	-- built-in Roblox ping — always resolvable if the asset fails to load.
 	-- Numeric id for production OR an rbxasset:// ContentId URI resolving
 	-- Studio's bundled content dir for local dev (the vaporwave-bell render).
-	AssetId = "rbxasset://roball3d/gem_pickup.ogg", -- was rbxassetid 125591495745947
+	AssetId = 88208694516408, -- uploaded rb3_gem_pickup (vaporwave bell cascade)
 	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
 	Volume = 0.25, -- half of the original — the chime was drowning the mix
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
@@ -447,36 +447,36 @@ Config.Music = {
 	-- oggs and paste numeric ids for production.
 	TrackAssets = {
 		vaporwave_loop = {
-			AssetId = 139067975647102, -- uploaded master mix
+			AssetId = 136262831381200, -- uploaded rb3_vaporwave_loop master mix
 			Stems = {
-				pad = "rbxasset://roball3d/vaporwave_loop/stems/stem_pad.ogg",
-				bass = "rbxasset://roball3d/vaporwave_loop/stems/stem_bass.ogg",
-				drums = "rbxasset://roball3d/vaporwave_loop/stems/stem_drums.ogg",
-				lead = "rbxasset://roball3d/vaporwave_loop/stems/stem_lead.ogg",
-				arp = "rbxasset://roball3d/vaporwave_loop/stems/stem_arp.ogg",
-				air = "rbxasset://roball3d/vaporwave_loop/stems/stem_air.ogg",
+				pad = 118520566152626,
+				bass = 102804260133040,
+				drums = 132587284358057,
+				lead = 132021034108931,
+				arp = 101051387972789,
+				air = 111219469183234,
 			},
 		},
 		neon_descent = {
-			AssetId = "rbxasset://roball3d/neon_descent/neon_descent.ogg",
+			AssetId = 127402293202751,
 			Stems = {
-				pad = "rbxasset://roball3d/neon_descent/stems/stem_pad.ogg",
-				bass = "rbxasset://roball3d/neon_descent/stems/stem_bass.ogg",
-				drums = "rbxasset://roball3d/neon_descent/stems/stem_drums.ogg",
-				lead = "rbxasset://roball3d/neon_descent/stems/stem_lead.ogg",
-				arp = "rbxasset://roball3d/neon_descent/stems/stem_arp.ogg",
-				air = "rbxasset://roball3d/neon_descent/stems/stem_air.ogg",
+				pad = 78035449894734,
+				bass = 91799845866937,
+				drums = 107672990378953,
+				lead = 96130309464152,
+				arp = 140482450562711,
+				air = 91780468186207,
 			},
 		},
 		retro_wave = {
-			AssetId = "rbxasset://roball3d/retro_wave/retro_wave.ogg",
+			AssetId = 75972822769617,
 			Stems = {
-				pad = "rbxasset://roball3d/retro_wave/stems/stem_pad.ogg",
-				bass = "rbxasset://roball3d/retro_wave/stems/stem_bass.ogg",
-				drums = "rbxasset://roball3d/retro_wave/stems/stem_drums.ogg",
-				lead = "rbxasset://roball3d/retro_wave/stems/stem_lead.ogg",
-				arp = "rbxasset://roball3d/retro_wave/stems/stem_arp.ogg",
-				air = "rbxasset://roball3d/retro_wave/stems/stem_air.ogg",
+				pad = 135018068369330,
+				bass = 73515253694480,
+				drums = 81406148991075,
+				lead = 106969072375083,
+				arp = 93498334151618,
+				air = 111078014754337,
 			},
 		},
 	},
@@ -528,12 +528,12 @@ Config.Music = {
 	-- Beat-quantized stings (AUDIO.md §6) — same id-or-URI rule as Stems;
 	-- these dev paths resolve in Studio, upload for production.
 	Stings = {
-		tierUp = "rbxasset://roball3d/tier_up.ogg",
-		deathFall = "rbxasset://roball3d/death_fall.ogg",
-		menuStart = "rbxasset://roball3d/menu_start.ogg",
+		tierUp = 94736885697655,
+		deathFall = 88260413971234,
+		menuStart = 135814836741193,
 	},
 	-- Speed wind bed (AUDIO.md §7): looped noise faded/filtered by speed.
-	WindAssetId = "rbxasset://roball3d/wind_loop.ogg",
+	WindAssetId = 89232863140759,
 	WindVolume = 0.4,
 	WindCutMin = 500,
 	WindCutMax = 4200,
