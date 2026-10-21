@@ -424,17 +424,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
--- TEMP test hook (removed before commit): MCP can't inject keys and _G
--- isn't shared across VMs — drive the real tryDash through an attribute.
-player:GetAttributeChangedSignal("RoBallDashTest"):Connect(function()
-	local v = player:GetAttribute("RoBallDashTest")
-	if typeof(v) == "number" and v ~= 0 then
-		player:SetAttribute("RoBallDashTest", 0)
-		player:SetAttribute("RoBallDashResult", tryDash(v))
-		player:SetAttribute("RoBallCharge", boostCharge)
-	end
-end)
-
 --============================== drive ===============================--
 
 local hudCache = ""
