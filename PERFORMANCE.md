@@ -187,13 +187,15 @@ allocs were small but now strictly value-type). Before-baseline built
 from a `git worktree` of the pre-perf commit; note it predates the
 near-miss-FX removal so client "before" is slightly heavy.
 
-- **GenVerify: one pre-existing fairness violation.** 8 seeds × 600
-  chunks: `identicalMaps: true`, 1 violation —
+- **GenVerify: one pre-existing fairness violation — RESOLVED.**
+  8 seeds × 600 chunks: `identicalMaps: true`, 1 violation —
   `[s8 c439 PressRow] no reachable line through deck at t=0.50`.
-  GenCore/ChunkDefs were untouched by this pass, so this predates it —
-  a seeded PressRow layout whose middle sample leaves no safe line.
-  Needs a generation-side fix (out of scope here); deterministic, so
-  it reproduces on every seed-8 run at c439.
+  Root cause: PressRow pinned its guaranteed lane to a random rail
+  with no lead budget, so a far-rail entry owed `2·halfW − gapW` of
+  transit the first-row lead couldn't afford on wide/fast decks.
+  Fixed the Rotor way — the builder now grows the chunk until the
+  lead affords the transit, and `canRun` declines decks where the
+  runway would be degenerate.
 - **`Enum.PartType.Torus` does not exist.** The TierGate-ring refactor
   briefly set `ring.Shape = Enum.PartType.Torus`, which threw in
   `makeTierGate` and killed `ensureAhead` (no ball spawns). Fixed in

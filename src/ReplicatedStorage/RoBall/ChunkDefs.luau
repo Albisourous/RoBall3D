@@ -916,6 +916,19 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 			Tiers.speedAt(st.dist + 100)
 		) / 0.45
 		return lead <= 2 * Config.Generation.ChunkMaxLength
+	elseif name == "PressRow" then
+		-- Rail-pinned side lane: a far-rail entry owes 2*halfW - gapW of
+		-- transit before the first plate — the builder end-anchors the row
+		-- group so the lead affords it. The gate caps that LEAD only
+		-- (Rotor's standard): row spacing + tail are the chain's own
+		-- length, which feature chunks may legitimately exceed.
+		local halfW = st.width / 2
+		local gapW = math.min(Config.Obstacles.CorridorMin * 1.15, st.width - Config.Press.MinSpan)
+		if gapW < Config.Obstacles.CorridorMin then
+			return true -- plates can't spawn: the roof-only run is all lane
+		end
+		local lead = latTravel(2 * halfW - gapW, Tiers.speedAt(st.dist + 150))
+		return lead <= 2 * Config.Generation.ChunkMaxLength
 	end
 	return true
 end
@@ -1354,9 +1367,17 @@ function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): C
 		if flip then
 			gapW = math.max(gapW, gapForFlip)
 		end
+		-- Reach-honest lead (§8.6): the guaranteed lane is pinned to a
+		-- rail, so a worst-case entry on the far rail owes 2*halfW - gapW
+		-- of transit before the first plate. End-anchor the row group and
+		-- grow the chunk until the lead affords it — canRun declines
+		-- decks where the runway would be degenerate.
+		local need = latTravel(2 * halfW - gapW, speed)
+		length = math.max(length, math.ceil(need + (rows - 1) * spacingZ + math.max(spacingZ * 0.6, 20)))
+		local t0 = math.max(0.5 - (rows - 1) / 2 * (spacingZ / length), need / length)
 		local side = rng:NextInteger(0, 1) * 2 - 1
 		for i = 1, rows do
-			local t = 0.5 + (i - (rows + 1) / 2) * (spacingZ / length)
+			local t = t0 + (i - 1) * (spacingZ / length)
 			local pw = 2 * halfW - gapW
 			table.insert(obstacles, {
 				t = t,

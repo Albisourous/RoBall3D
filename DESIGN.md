@@ -334,7 +334,7 @@ narrow. Then the seeded generator takes over.
 | `TunnelSlot` | Roof ribbon + hanging slabs leaving one corridor + decor teeth | Enclosed corridor | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
-| `PressRow` | Low roof + ceiling presses slamming on a trapezoid wave; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut | Vertical timing | 6+ |
+| `PressRow` | Low roof + ceiling presses slamming on a trapezoid wave; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut; the lane is rail-pinned, so the lead grows until a worst-case far-rail entry can afford the `2·halfW − gapW` transit — `canRun` declines decks where that runway would be degenerate | Vertical timing | 6+ |
 | `Rotor` | Near-center post + neon spinning blade; swept disc can't reach either rim — both rails are always-clear lanes, and a translucent danger disc tints the swept zone | Timing + bait gems | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
