@@ -359,6 +359,49 @@ ui.onBoardTab = function(board)
 	refreshBoard(board)
 end
 
+-- Friends filter (§14): the board rows already carry userId — the client
+-- just needs its own friend set, loaded lazily on first toggle and cached
+-- for the session (friends' board positions are session-stale anyway).
+-- Roblox caps the page walk at ~200 ids; GetFriendsAsync failing or a
+-- Studio environment without it degrades to the unavailable state.
+local friendIds: { [number]: boolean }? = nil
+local friendLoading = false
+ui.onFriendsReady = function()
+	if friendIds or friendLoading then
+		return
+	end
+	friendLoading = true
+	task.spawn(function()
+		local ok, pages = pcall(function()
+			return Players:GetFriendsAsync(player.UserId)
+		end)
+		local set: { [number]: boolean } = {}
+		if ok and pages then
+			local cap = 200
+			while cap > 0 do
+				for _, f in ipairs(pages:GetCurrentPage()) do
+					set[f.Id] = true
+					cap -= 1
+				end
+				if pages.IsFinished then
+					break
+				end
+				local okNext = pcall(function()
+					pages:AdvanceToNextPageAsync()
+				end)
+				if not okNext then
+					break
+				end
+			end
+			ui.friendSet = set
+		else
+			ui.friendsErr = true
+		end
+		friendLoading = false
+		ui:drawBoard()
+	end)
+end
+
 -- Death screen -> menu: the garage lives on the menu (§18), so this is
 -- also how players reach the shop between runs.
 ui.onMenu = function()

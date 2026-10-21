@@ -163,7 +163,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     today's shared UTC seed, `weekly` for the cup (§14)
   - Leaderboard panel — TOP / DAILY / WEEKLY tabs (`name / score / seed`);
     daily shows the shared seed + time to reset, weekly shows the cup
-    seed + days to reset
+    seed + days to reset. A `◈ friends` toggle filters whichever board is
+    open to your Roblox friends — rows keep their real rank numbers; the
+    id set lazy-loads once per session via `GetFriendsAsync`
   - Audio console — a collapsed `audio ▸` toggle under the controls hint
     unfolds five channel sliders in three paired rows (`MUSIC + GEMS /
     DASH + WIND / CUES`, 0–100%) riding the mixer taps in AUDIO.md §7,
@@ -172,7 +174,8 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.
-- **Death**: pitch drop on music, camera pulls back, death screen shows
+- **Death**: pitch drop on music, death-cam orbit (§11), then the death
+  screen shows
   `SCORE / DISTANCE / BEST / SEED`, `[R]` or button = instant restart (new
   random seed unless one was entered — same seed if entered manually).
   A gold `★ NEW BEST!` line appears under the title when the run beat the

@@ -416,6 +416,37 @@ function Ui.new(): Ui
 	self.dailyInfo.Size = UDim2.new(1, -28, 0, 18)
 	self.dailyInfo.Visible = false
 	self.dailyInfo.Parent = board
+
+	-- Friends filter (§14): rides every board — the fetched top-N rows
+	-- shrink to your friends, keeping their REAL rank numbers. The id set
+	-- arrives via onFriendsReady (Main lazy-loads GetFriendsAsync).
+	self.friendsOnly = false
+	self.friendSet = nil :: { [number]: boolean }?
+	self.friendsErr = false -- set when the friends list itself failed
+	self.onFriendsReady = nil :: (() -> ())?
+	local friendsBtn = Instance.new("TextButton")
+	friendsBtn.Name = "FriendsBtn"
+	friendsBtn.BackgroundTransparency = 1
+	friendsBtn.AutoButtonColor = false
+	friendsBtn.Font = F_DATA
+	friendsBtn.TextSize = 12
+	friendsBtn.Text = "◈ friends"
+	friendsBtn.TextColor3 = C_DIM
+	friendsBtn.TextXAlignment = Enum.TextXAlignment.Right
+	friendsBtn.AnchorPoint = Vector2.new(1, 0)
+	friendsBtn.Position = UDim2.new(1, -14, 0, 38)
+	friendsBtn.Size = UDim2.fromOffset(96, 18)
+	friendsBtn.Parent = board
+	self.friendsBtn = friendsBtn
+	friendsBtn.MouseButton1Click:Connect(function()
+		self.friendsOnly = not self.friendsOnly
+		friendsBtn.TextColor3 = if self.friendsOnly then C_PINK else C_DIM
+		if self.friendsOnly and self.friendSet == nil and self.onFriendsReady then
+			self.onFriendsReady() -- async fill; redraws when it lands
+		else
+			self:drawBoard()
+		end
+	end)
 	-- Slow ticker keeps the countdown honest while the menu sits open —
 	-- 15s granularity, gated on Visible so it costs nothing during runs.
 	task.spawn(function()
@@ -1377,17 +1408,47 @@ function Ui:setBoard(mode: string)
 end
 
 -- nil rows = stores unreachable (offline), {} = real but empty board.
-function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)
+-- Rows are cached so the friends filter can re-render without a refetch.
+function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number, userId: number? } }?)
+	self.lastRows = rows
+	self:drawBoard()
+end
+
+function Ui:drawBoard()
 	local mode = self.boardMode
+	local rows = self.lastRows
+	-- Friends filter (§14): row.userId carries the rank owner's id; the
+	-- real rank stays on the line so "12. friend" still reads as #12.
+	if self.friendsOnly and rows then
+		if self.friendsErr then
+			for _, row in ipairs(self.boardRows) do
+				row.Text = ""
+			end
+			self.boardRows[1].Text = "  friends list unavailable"
+			return
+		end
+		if self.friendSet then
+			local f: { { name: string, score: number, seed: number, userId: number?, rank: number? } } = {}
+			for i, r in ipairs(rows) do
+				if r.userId and self.friendSet[r.userId] then
+					r.rank = i
+					table.insert(f, r)
+				end
+			end
+			rows = f
+		end
+		-- Set still loading — full rows show until it lands.
+	end
 	for i, row in ipairs(self.boardRows) do
 		local r = rows and rows[i]
-		row.Text = r and string.format("%2d. %-12s %7d  #%d", i, r.name, r.score, r.seed) or ""
+		row.Text = r and string.format("%2d. %-12s %7d  #%d", r.rank or i, r.name, r.score, r.seed) or ""
 	end
 	if rows == nil then
 		self.boardRows[1].Text = if mode == "top" then "  leaderboard offline" else "  board offline"
 	elseif #rows == 0 then
-		self.boardRows[1].Text = if mode == "daily"
-			then "  no daily runs yet — type 'daily' and set one."
+		self.boardRows[1].Text = if self.friendsOnly
+			then "  no friends ranked on this board yet"
+			elseif mode == "daily" then "  no daily runs yet — type 'daily' and set one."
 			elseif mode == "weekly" then "  no cup runs yet — type 'weekly' and set one."
 			else "  no saved runs yet — set one."
 	end

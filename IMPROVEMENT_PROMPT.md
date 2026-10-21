@@ -106,9 +106,14 @@ runs the loop below and does not stop until you say **stop**.
     server sends hazards+closest on RunEnded, client owns top/boost/dash)*
 11. **Death-cam** — on death, 1.5s orbit of the kill spot before the
     RUN OVER card. Presentation only.
+    *(done — 1a569df: ease-out yaw arc + pull-back + FOV settle, card
+    delayed via deathSeq guard, R skips; verified live)*
 12. **Friends board** — third leaderboard tab filtered to Roblox friends
     (GetFriendsAsync ids ∩ top-store meta). Only if the store count stays
     manageable.
+    *(done — client-side `◈ friends` filter chip riding all three tabs;
+    lazy `GetFriendsAsync` set (no 4th store), real ranks preserved,
+    offline/empty/err states verified live vs running module)*
 13. **Music packs** — `SongMap_*.luau` stems pattern exists; add one more
     track as a bundleable. Needs real audio assets — flag as human-blocked
     if none available.
