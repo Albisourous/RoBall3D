@@ -566,6 +566,9 @@ Config.Ghost = {
 	TrailGap = 1.1, -- attachment half-span (studs) — ribbon thickness
 	TrailFade = 0.35, -- extra transparency added over the echo's own
 	OvertakeArm = 2, -- studs behind a replay before catching it counts as a pass
+	-- Duel tag (§14): a pace line within this many studs either way earns
+	-- the "· DUEL" suffix — close-race tension the number alone misses.
+	DuelRange = 8,
 	DeathTrans = 0.78, -- death-replay echo: airier than the racing ghosts
 }
 

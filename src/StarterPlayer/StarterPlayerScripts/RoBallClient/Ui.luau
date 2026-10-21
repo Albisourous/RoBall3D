@@ -1248,19 +1248,20 @@ function Ui.new(): Ui
 	missFlash.Parent = hud
 	self.missFlash = missFlash
 
-	-- Chain meter (§10): while a graze chain is alive, "×N" holds under
-	-- the ping with a thin bar draining across ChainWindow — the "keep it
-	-- alive" pressure the per-graze flash can't carry. Drain restarts on
-	-- every pulse; empty = the window lapsed, next graze reads ×1.
+	-- Chain meter (§10): while a graze chain is alive, "×N" holds in the
+	-- left column with a thin bar draining across ChainWindow — the
+	-- "keep it alive" pressure the per-graze flash can't carry. Drain
+	-- restarts on every pulse; empty = the window lapsed, next graze
+	-- reads ×1.
 	local chainRow = Instance.new("TextLabel")
 	chainRow.BackgroundTransparency = 1
 	chainRow.Font = F_DATA
 	chainRow.TextSize = 13
 	chainRow.TextColor3 = C_GOLD
 	chainRow.TextStrokeTransparency = 0.5
-	chainRow.TextXAlignment = Enum.TextXAlignment.Right
-	chainRow.Position = UDim2.fromOffset(0, 134)
-	chainRow.Size = UDim2.new(1, 0, 0, 16)
+	chainRow.TextXAlignment = Enum.TextXAlignment.Left
+	chainRow.Position = UDim2.fromOffset(0, 188)
+	chainRow.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 16)
 	chainRow.Text = ""
 	chainRow.Visible = false
 	chainRow.Parent = hud
@@ -1269,8 +1270,7 @@ function Ui.new(): Ui
 	chainBar.BorderSizePixel = 0
 	chainBar.BackgroundColor3 = C_GOLD
 	chainBar.BackgroundTransparency = 0.35
-	chainBar.AnchorPoint = Vector2.new(1, 0)
-	chainBar.Position = UDim2.new(1, 0, 0, 152)
+	chainBar.Position = UDim2.fromOffset(0, 206)
 	chainBar.Size = UDim2.fromOffset(90, 2)
 	chainBar.Visible = false
 	chainBar.Parent = hud
@@ -2219,7 +2219,9 @@ function Ui:setPace(delta: number?)
 		self.paceText.Visible = false
 		return
 	end
-	self.paceText.Text = string.format("%+d vs PB", delta)
+	-- Duel tag (§14): inside DuelRange either way the race is nose-to-nose.
+	local duel = math.abs(delta) <= Config.Ghost.DuelRange and " · DUEL" or ""
+	self.paceText.Text = string.format("%+d vs PB%s", delta, duel)
 	self.paceText.TextColor3 = delta >= 0 and C_CYAN or C_PINK
 	self.paceText.Visible = true
 end
@@ -2231,7 +2233,8 @@ function Ui:setRivalPace(delta: number?, name: string?)
 		self.rivalText.Visible = false
 		return
 	end
-	self.rivalText.Text = string.format("%+d vs %s", delta, name)
+	local duel = math.abs(delta) <= Config.Ghost.DuelRange and " · DUEL" or ""
+	self.rivalText.Text = string.format("%+d vs %s%s", delta, name, duel)
 	self.rivalText.TextColor3 = if delta >= 0 then Config.Ghost.RivalColor else C_PINK
 	self.rivalText.Visible = true
 end

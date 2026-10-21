@@ -224,7 +224,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   read at speed. While the PB echo replays (same-seed runs, §14) a
   `±N vs PB` line under the cluster shows the live meter delta against
   the ghost's position at the same elapsed time — cyan ahead, pink
-  behind, hidden when no echo exists.
+  behind, hidden when no echo exists. Inside `Ghost.DuelRange` studs
+  either way a `· DUEL` suffix joins the line — nose-to-nose reads as a
+  race, not a number (the rival `±N vs <name>` line tags the same way).
 
 ## 7. Seed system
 
@@ -580,9 +582,9 @@ run's chain resets on the first quiet stretch. `RoBallNmAward`/`RoBallNmChain`
 mirror the last award for the flash, which shows `CLOSE +N ×M` from chain
 two up (the suffix is the capped multiplier — the label never promises
 more than it pays). From chain two the HUD also holds a `chain ×N` row
-with a thin bar draining across `ChainWindow` — the "keep it alive"
-pressure gauge; an empty bar is the dropped chain, and the next graze
-restarts at ×1 exactly like the server's reset.
+in the left column with a thin bar draining across `ChainWindow` — the
+"keep it alive" pressure gauge; an empty bar is the dropped chain, and
+the next graze restarts at ×1 exactly like the server's reset.
 
 ## 11. Death
 

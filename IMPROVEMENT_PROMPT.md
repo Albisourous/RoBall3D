@@ -308,6 +308,12 @@ runs the loop below and does not stop until you say **stop**.
     Hidden on run start/end. Verified live: attr bump mid-run rendered
     `CLOSE +12 ×4` + `chain ×4` + drain bar — screenshotted)*
 
+45. **Duel indicator** — when the ball is within `Ghost.DuelRange`
+    studs of a live ghost's interpolated position (either direction), a
+    `DUEL` chip lights under the pace line; exits when the gap grows.
+    Close-race tension the pace number doesn't carry; client-only, rides
+    the existing pace-gap values.
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
