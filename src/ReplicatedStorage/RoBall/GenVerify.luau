@@ -300,16 +300,39 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 			end
 		end
 
-		-- LaunchPad kick satisfies the clearance closed form.
+		-- LaunchPad kick: the strip must sit INSIDE the intersection of
+		-- above-h windows across the survivable entry-speed range
+		-- [SlowCrossFrac, Boost.Mult]*speed — a braked or boosted entry
+		-- otherwise meets an arc it cannot clear.
 		if spec.pads and spec.type == "PadHop" then
 			local speed = Tiers.speedAt(dist + spec.pads[1].t * spec.length)
 			local strip = spec.obstacles and spec.obstacles[1]
+			local pad = spec.pads[1]
 			if strip then
-				local wSec = (strip.d + Config.Pads.Length + 2) / speed
-				local h = strip.h + Config.Pads.ArcMargin
-				local need = math.sqrt(2 * GRAV * (h + GRAV * wSec * wSec / 8))
-				if spec.pads[1].kickY < need * 0.95 then
-					bad(string.format("kickY %.1f < needed %.1f", spec.pads[1].kickY, need), spec, i)
+				local tApex = pad.kickY / GRAV
+				local wSec = 2
+					* math.sqrt(
+						math.max(
+							pad.kickY * pad.kickY / (GRAV * GRAV) - 2 * (strip.h + Config.Pads.ArcMargin) / GRAV,
+							0
+						)
+					)
+				local zLo = Config.Boost.Mult * speed * (tApex - wSec / 2)
+				local zHi = Config.Pads.SlowCrossFrac * speed * (tApex + wSec / 2)
+				local stripZ = strip.t * spec.length - pad.t * spec.length
+				if stripZ - strip.d / 2 < zLo - 0.5 or stripZ + strip.d / 2 > zHi + 0.5 then
+					bad(
+						string.format(
+							"strip [%.1f..%.1f] escapes clearance window [%.1f..%.1f] (kickY %.1f)",
+							stripZ - strip.d / 2,
+							stripZ + strip.d / 2,
+							zLo,
+							zHi,
+							pad.kickY
+						),
+						spec,
+						i
+					)
 				end
 			end
 		end

@@ -110,7 +110,9 @@ explainable.
 - Keyboard only in MVP; touch later.
 
 Ball: 3-stud `Ball`-shape Part, unanchored, `CustomPhysicalProperties`
-(density 0.7, friction 0.6, elasticity 0). Server drives
+(density 0.7, friction 0.6, elasticity 0, **elasticity weight 100** — the
+ball's zero restitution dominates every contact, so high pad-arc landings
+come down dead: no rebound hop). Server drives
 `AssemblyLinearVelocity` each `Heartbeat`: `Vector3(lateral, naturalY, forward)`.
 Y velocity is untouched — gravity handles falls, slopes, ramp arcs.
 
@@ -340,10 +342,15 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
    window — the read is learned from the first row. Chained chunks size
    their *length* around the spacing instead of cramming rows into 90
    studs — this is why feature chunks may exceed ChunkMaxLength.
-3. Ballistics are guaranteed by construction: `PadVoid` gap ≤ `v × tAir ×
-   VoidAirFrac` from the computed kick; `PadHop` kickY satisfies
-   `kickY ≥ √(2g(H + gW²/8))` where H = strip height + ArcMargin and W is
-   the crossing window at tier speed. Miss the pad → death is earned.
+3. Ballistics are guaranteed by construction **across the survivable
+   entry-speed range**, not just at nominal tier speed: `PadVoid` gap ≤
+   `v × tAir × VoidAirFrac` with VoidAirFrac sized below the 0.67×
+   full-brake floor, so a braked crossing still lands. `PadHop` holds
+   y ≥ H for a window wSec centered on the apex; the strip is placed
+   inside the *intersection* of those windows for every u in
+   `[SlowCrossFrac, Boost.Mult]×speed` — braked entries cross late in
+   the arc, boosted entries early on the rising limb, and both clear.
+   Miss the pad → death is earned.
 4. Context gating (`ChunkDefs.canRun`): DropGate only on accent downbeats
    at energy ≥ 0.8; Blackout only in `break` sections; movers/rails only
    above honest width floors. Ineligible types never roll.

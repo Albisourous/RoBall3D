@@ -10,6 +10,10 @@ Config.Ball = {
 	Density = 0.7,
 	Friction = 0.6,
 	Elasticity = 0, -- we drive velocity directly; bounce comes from physics, not material
+	-- Restitution is WEIGHTED between both contacting parts: without max
+	-- weight the deck's default material (~0.5 elasticity) keeps landings
+	-- springy. 100/101 ≈ zero — high pad arcs land dead, no rebound hop.
+	ElasticityWeight = 100,
 }
 
 -- Forward speed is tier-driven: the generator moves the target up at each
@@ -181,7 +185,13 @@ Config.Pads = {
 	StripMin = 5,
 	StripMax = 10,
 	ArcMargin = 1.6, -- studs of clearance above the strip the arc must keep
-	VoidAirFrac = 0.72, -- PadVoid gap = this fraction of pad airtime * speed
+	-- Entry-speed honesty: pad chunks must be clearable at the SLOWEST
+	-- survivable entry, not the nominal tier speed. Full-brake sets the
+	-- sustained floor at 1/Boost.Mult ≈ 0.67x nominal — size a notch below
+	-- it so a braked (or mid-flight braking) ball never meets an
+	-- impossible arc. PadHop's upper bound is Boost.Mult itself.
+	SlowCrossFrac = 0.55, -- PadHop's strip clearance covers entries down to this fraction of tier speed
+	VoidAirFrac = 0.55, -- PadVoid gap = this fraction of pad airtime * speed (< brake floor)
 	Color = Color3.fromRGB(0, 230, 255),
 }
 

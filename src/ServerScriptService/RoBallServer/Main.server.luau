@@ -160,8 +160,13 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	ball.Name = player.Name .. "_Ball"
 	ball.Shape = Enum.PartType.Ball
 	ball.Size = Vector3.new(d, d, d)
-	ball.CustomPhysicalProperties =
-		PhysicalProperties.new(Config.Ball.Density, Config.Ball.Friction, Config.Ball.Elasticity, 1, 1)
+	ball.CustomPhysicalProperties = PhysicalProperties.new(
+		Config.Ball.Density,
+		Config.Ball.Friction,
+		Config.Ball.Elasticity,
+		1,
+		Config.Ball.ElasticityWeight
+	)
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.Position = Vector3.new(x, deckY + d / 2 + 0.3, 2)
 
