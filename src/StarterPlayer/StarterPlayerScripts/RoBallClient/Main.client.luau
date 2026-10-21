@@ -527,6 +527,9 @@ local paceCache: number? = nil
 -- Rival pace (§14): same deal vs the champion echo; name rides the line.
 local rivalPaceCache: number? = nil
 local rivalName: string? = nil
+-- Sector splits (§14): run clock + deepest boundary already flashed.
+local runT0 = 0
+local sectorCursor = 0
 -- Hazard radar (§12): scan clock for the look-ahead strip.
 local radarT = 0
 -- Death-cam (§11): each death bumps the sequence so a pending card lands
@@ -581,6 +584,8 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	rivalPaceCache = nil :: number?
 	rivalName = nil :: string?
 	ui:setRivalPace(nil, nil)
+	runT0 = os.clock()
+	sectorCursor = 0
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0
@@ -839,6 +844,17 @@ RunService.Heartbeat:Connect(function(dt)
 	if rpaceR ~= rivalPaceCache then
 		rivalPaceCache = rpaceR
 		ui:setRivalPace(rpaceR, rivalName)
+	end
+	-- Sector splits (§14): a flash per Config.Sectors.Length crossed —
+	-- elapsed time plus the split vs each replay that reached this depth.
+	local sec = math.floor(-b.Position.Z / Config.Sectors.Length)
+	if sec > sectorCursor then
+		sectorCursor = sec
+		local el = os.clock() - runT0
+		local z = -sec * Config.Sectors.Length
+		local pbT = Ghost.sectorSplit("pb", z)
+		local rvT = Ghost.sectorSplit("rival", z)
+		ui:flashSector(sec, el, pbT and (pbT - el), rvT and (rvT - el), rivalName)
 	end
 	-- Hazard radar (§12): re-read the tagged lethal set at ScanSeconds —
 	-- movers/spinners track for free. Ball-relative: dz ahead, dx off

@@ -215,4 +215,27 @@ function GhostController.rivalPace(ballPos: Vector3): number?
 	return nil
 end
 
+-- Sector split (§14): the replay's elapsed time when it crossed z,
+-- linearly interpolated between frames. nil when the echo isn't playing
+-- or its replay never reached that depth (replay shorter than the run).
+function GhostController.sectorSplit(kind: string, z: number): number?
+	local e = if kind == "rival" then rivalEcho else pbEcho
+	if not (playing and e) then
+		return nil
+	end
+	local f = e.frames
+	for j = 0, (#f // 4) - 2 do
+		local i = j * 4
+		local z1, z2 = f[i + 4], f[i + 8]
+		if z1 >= z and z >= z2 then
+			if z1 == z2 then
+				return f[i + 5]
+			end
+			local a = (z1 - z) / (z1 - z2)
+			return f[i + 1] + (f[i + 5] - f[i + 1]) * a
+		end
+	end
+	return nil
+end
+
 return GhostController

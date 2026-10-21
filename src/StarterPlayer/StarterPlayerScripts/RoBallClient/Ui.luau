@@ -1059,6 +1059,25 @@ function Ui.new(): Ui
 	rivalText.Parent = hud
 	self.rivalText = rivalText
 
+	-- Sector splits (§14): on each Config.Sectors.Length boundary a
+	-- left-aligned line flashes "SEC n · t" plus a colored delta per
+	-- live replay — positive reads ahead of that ghost.
+	local sectorFlash = Instance.new("TextLabel")
+	sectorFlash.Name = "SectorFlash"
+	sectorFlash.BackgroundTransparency = 1
+	sectorFlash.Font = F_DATA
+	sectorFlash.TextSize = 14
+	sectorFlash.TextColor3 = C_CYAN
+	sectorFlash.TextStrokeTransparency = 0.5
+	sectorFlash.TextXAlignment = Enum.TextXAlignment.Left
+	sectorFlash.RichText = true
+	sectorFlash.Position = UDim2.fromOffset(0, 170)
+	sectorFlash.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 16)
+	sectorFlash.Text = ""
+	sectorFlash.Visible = false
+	sectorFlash.Parent = hud
+	self.sectorFlash = sectorFlash
+
 	-- Look-ahead radar (§12): a vertical strip under the stack — top is
 	-- Radar.Range studs out, bottom is the ball; bars are lethal blocks
 	-- in ball-relative studs with the cyan line as "you". Pooled bars —
@@ -1785,6 +1804,33 @@ function Ui:setRivalPace(delta: number?, name: string?)
 	self.rivalText.Text = string.format("%+d vs %s", delta, name)
 	self.rivalText.TextColor3 = if delta >= 0 then Config.Ghost.RivalColor else C_PINK
 	self.rivalText.Visible = true
+end
+
+-- Sector split (§14): "SEC n · 8.2s   PB +0.4s   champion42 -1.1s" —
+-- positive delta = ahead of that replay's clock at the same depth.
+function Ui:flashSector(idx: number, elapsed: number, pbDelta: number?, rvDelta: number?, rvName: string?)
+	local seg = function(name: string, delta: number?, aheadColor: Color3): string?
+		if not delta then
+			return nil
+		end
+		local col = if delta >= 0 then aheadColor else C_PINK
+		return string.format('<font color="#%s">%s %+.1fs</font>', col:ToHex(), name, delta)
+	end
+	local text = string.format("SEC %d · %.1fs", idx, elapsed)
+	local pb = seg("PB", pbDelta, C_CYAN)
+	local rv = seg(rvName or "CHAMP", rvDelta, Config.Ghost.RivalColor)
+	if pb then
+		text ..= "   " .. pb
+	end
+	if rv then
+		text ..= "   " .. rv
+	end
+	self.sectorFlash.Text = text
+	self.sectorFlash.Visible = true
+	local flash = self.sectorFlash
+	task.delay(Config.Sectors.FlashSeconds, function()
+		flash.Visible = false
+	end)
 end
 
 function Ui:setSeedText(text: string)

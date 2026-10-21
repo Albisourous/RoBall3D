@@ -115,6 +115,14 @@ Config.Radar = {
 	BarH = 3, -- bar px
 }
 
+-- Split-time sectors (§14): every Length studs down-track the HUD
+-- flashes the sector index, run-elapsed time, and a delta vs each live
+-- replay (PB and champion) — long runs get a heartbeat of micro-goals.
+Config.Sectors = {
+	Length = 250, -- studs per boundary
+	FlashSeconds = 2.2, -- on-screen time of the sector line
+}
+
 -- Speed blur (DESIGN.md §12): the world smears as the ball gets faster —
 -- a BlurEffect plus the DepthOfField's far-field intensity, both driven
 -- by forward speed. Power curve, not linear: Size = MaxBlur * t^Exponent

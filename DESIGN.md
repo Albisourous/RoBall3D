@@ -826,6 +826,11 @@ Full spec: `AUDIO.md`. Binding decisions:
   billboard. While it replays, a second pace line under `±N vs PB` shows
   `±N vs <name>` — the live gap to the seed's record, gold when you're
   ahead of it. Same cosmetic-only contract; `pace()` stays yours-vs-you.
+- **Split-time sectors**: every `Config.Sectors.Length` studs the HUD
+  flashes `SEC n · T.Ts` plus a `±S.Ss` delta per live replay — the
+  replay's interpolated crossing time minus yours, positive = ahead.
+  Each segment takes its entity color when you're ahead of it, pink
+  when behind; a replay that never reached the depth omits its segment.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`
