@@ -123,17 +123,38 @@ return {
 
 ### 3.2 Track canon — implemented
 
-`Config.Music.Tracklist = { "vaporwave_loop", "neon_descent", "retro_wave" }`
-— the run's seed picks the track via `SongMap.trackIdFor`: **same seed →
-same track + same map + same musical pacing** — the leaderboard row becomes
-a replayable "level" exactly like a GD ID. All three tracks carry full stem
-sets (`TrackAssets[id].Stems`) so tier-layering works on any; the seed also
-rotates the opening accent (§6). `retro_wave` is the outrun-flavored entry
-(100 BPM, Am9 → Gadd9 → Fmaj7 → Em9 arc landing Gadd9 → E7b9 in the drop,
-tape-dragged master) modeled on the Envato "Retro Wave" reference. Grow the
-canon by adding a `TRACKS` spec in `generate_audio.py`, rendering, and
-appending the id + `TrackAssets` entry. `SaveService` records `trackId`
-next to the seed.
+`Config.Music.Tracklist` is the full catalog — the three synthesized
+tracks (`vaporwave_loop`, `neon_descent`, `retro_wave`) plus ten
+FlowMusic renders imported by `import_flowmusic.py` (the script detects
+BPM by onset autocorrelation, picks the best 16-bar window by
+contrast/seam score, circular-folds the cut, emits `SongMap_<id>.luau`,
+and encodes `rb3_<id>.ogg`). The run's seed picks from
+`Config.Music.ActiveTracklist` — Tracklist order minus ids whose
+`TrackAssets.AssetId` is still 0, so an unuploaded track can never be
+seeded — via `SongMap.trackIdFor`: **same seed → same track + same map +
+same musical pacing** — the leaderboard row becomes a replayable
+"level" exactly like a GD ID. The synthesized three carry full stem
+sets (`TrackAssets[id].Stems`) so tier-layering works on them; FlowMusic
+tracks are master-only and play a single player (the stem watchdog path
+already tolerates that). `retro_wave` is the outrun-flavored entry
+(100 BPM, Am9 → Gadd9 → Fmaj7 → Em9 arc landing Gadd9 → E7b9 in the
+drop, tape-dragged master) modeled on the Envato "Retro Wave"
+reference. Grow the canon by adding a `TRACKS` spec in
+`generate_audio.py`, or dropping a wav in `flowmusic/` and running
+`import_flowmusic.py`; then upload the ogg and paste the `AssetId`.
+`SaveService` records `trackId` next to the seed.
+
+**TRACK cycler (garage):** the `TRACK` row under the equip slots lets
+the player pick a song like an equip — `SEEDED` (default) keeps the
+seeded pick; a named track sends a seed in that track's residue class
+(`idx-1 mod #ActiveTracklist`) so `trackIdFor(seed)` lands on it and the
+gen charts the song the player hears. Seed-box text / `daily` wins over
+the pick.
+
+**Menu bed:** `Config.Music.MenuTrack = "palm_screens"` plays while
+parked instead of the seeded pick (still under `MenuCutoffHz`/`Volume`);
+falls back to `Tracklist[1]` while its asset id is 0. `Music.onMenu`
+reselects it after runs.
 
 ## 4. Runtime: migrate to the audio graph
 

@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
+local SongMap = require(ReplicatedStorage.RoBall.SongMap)
 
 local SaveService = {}
 
@@ -210,7 +211,12 @@ function SaveService.submitTop(userId: number, score: number, seed: number)
 			-- unconditionally would pair a best with a later run's
 			-- seed. `assisted` (§18): advantage items submit to a
 			-- separate board so clean/assisted never mix.
-			(metaStore :: DataStore):SetAsync("u" .. userId, { seed = seed, score = score, assisted = false })
+			(metaStore :: DataStore):SetAsync("u" .. userId, {
+				seed = seed,
+				score = score,
+				trackId = SongMap.trackIdFor(seed, Config.Music.ActiveTracklist),
+				assisted = false,
+			})
 		end)
 	end
 end
@@ -316,8 +322,13 @@ function SaveService.submitDaily(userId: number, score: number)
 	end
 	dailyCache = nil
 	if meta then
+		local seed = Daily.seed()
 		retry("submitDaily meta", function()
-			(meta :: DataStore):SetAsync("u" .. userId, { seed = Daily.seed(), score = score })
+			(meta :: DataStore):SetAsync("u" .. userId, {
+				seed = seed,
+				score = score,
+				trackId = SongMap.trackIdFor(seed, Config.Music.ActiveTracklist),
+			})
 		end)
 	end
 end

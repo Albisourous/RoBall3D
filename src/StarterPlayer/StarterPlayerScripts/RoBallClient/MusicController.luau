@@ -352,8 +352,10 @@ function Music.init()
 	-- the same sidechain dip the ear hears.
 	wire(duckFader, analyzer)
 
-	-- Menu boots on tracklist[1]; runs re-pick per seed in onStart.
-	selectTrack(m.Tracklist[1])
+	-- Menu boots on the dedicated menu bed (Config.Music.menuTrackId
+	-- resolves MenuTrack when uploaded, else the seeded default); runs
+	-- re-pick per seed in onStart.
+	selectTrack(m.menuTrackId())
 
 	-- Speed-wind bed (optional until the asset is uploaded)
 	if m.WindAssetId ~= 0 then
@@ -393,7 +395,7 @@ function Music.onStart(seed: number?)
 	-- the track AND rotates the opening accent across downbeats
 	-- (AUDIO.md §3/§6); GenCore picks and seeds its clock identically.
 	if seed then
-		selectTrack(SongMap.trackIdFor(seed, m.Tracklist))
+		selectTrack(SongMap.trackIdFor(seed, m.ActiveTracklist))
 	end
 	local startBeat = 0
 	if seed and Config.MusicSync.SeededStartOffset then
@@ -438,6 +440,7 @@ end
 -- Back to the menu (§18: the garage lives there): reverse the tape-stop —
 -- playback speed and the lowpass ease back to the muffled menu bed.
 function Music.onMenu()
+	selectTrack(m.menuTrackId()) -- parked bed, not the run's seeded pick
 	norm = 0
 	local speed = ps()
 	for _, p in ipairs(players) do

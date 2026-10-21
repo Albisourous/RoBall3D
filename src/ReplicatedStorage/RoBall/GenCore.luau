@@ -32,7 +32,7 @@ function GenCore.new(seed: number): Gen
 	-- track is the seeded pick the runtime shares (AUDIO.md §3), and it
 	-- opens on a seed-rotated accent (§6) — start the clock there so
 	-- stamped sections match what the player hears from beat one.
-	self.map = SongMap.forTrack(SongMap.trackIdFor(seed, Config.Music.Tracklist))
+	self.map = SongMap.forTrack(SongMap.trackIdFor(seed, Config.Music.ActiveTracklist))
 	self.beatPos = Config.MusicSync.SeededStartOffset and self.map.startBeatFor(seed) or 0
 	self.introIndex = 0
 	-- Feature ramp (DESIGN.md §8.6): name -> true once its gentle debut

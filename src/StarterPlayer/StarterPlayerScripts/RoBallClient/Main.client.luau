@@ -239,8 +239,29 @@ end
 
 --============================== wiring ==============================--
 
+-- TRACK cycler (AUDIO.md §3): item 1 = SEEDED — the run seed picks the
+-- song; items 2+ = ActiveTracklist entries. A pick sends a seed in that
+-- track's residue class so trackIdFor(seed) lands on it and the gen
+-- charts the song the player hears. Explicit seed text / "daily" still
+-- wins over the pick — the seed box is the stronger intent.
+local trackItems = { "SEEDED" }
+for _, id in ipairs(Config.Music.ActiveTracklist) do
+	table.insert(trackItems, (id:gsub("_", " "):upper()))
+end
+local trackPickIdx = 1
+ui.onTrackCycle = function(dir)
+	trackPickIdx = ((trackPickIdx - 1 + dir) % #trackItems) + 1
+	ui:setTrackRow(trackItems[trackPickIdx])
+end
+ui:setTrackRow(trackItems[trackPickIdx])
+
 local function requestStart()
-	evStart:FireServer(ui:seedText())
+	local s = ui:seedText()
+	if s == "" and trackPickIdx > 1 then
+		local n = #Config.Music.ActiveTracklist
+		s = tostring(trackPickIdx - 2 + n * math.random(0, 9999))
+	end
+	evStart:FireServer(s)
 end
 ui.onPlay = requestStart
 ui.onRetry = requestStart

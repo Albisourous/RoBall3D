@@ -390,11 +390,52 @@ function Ui.new(): Ui
 		end)
 	end
 
+	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip.
+	-- SEEDED lets the run seed choose; a named track makes Main send a
+	-- seed in that track's residue class so the gen charts the song the
+	-- player actually hears (seed box text still wins over the pick).
+	local trkLabel = Instance.new("TextLabel")
+	trkLabel.BackgroundTransparency = 1
+	trkLabel.Font = F_DATA
+	trkLabel.TextSize = 12
+	trkLabel.TextColor3 = C_DIM
+	trkLabel.TextXAlignment = Enum.TextXAlignment.Left
+	trkLabel.Text = "TRACK"
+	trkLabel.Position = UDim2.fromOffset(14, 196)
+	trkLabel.Size = UDim2.fromOffset(56, 28)
+	trkLabel.Parent = garage
+
+	local trkName = Instance.new("TextButton")
+	trkName.BackgroundTransparency = 1
+	trkName.AutoButtonColor = false
+	trkName.Font = F_DATA
+	trkName.TextSize = 15
+	trkName.TextColor3 = C_WHITE
+	trkName.Text = "SEEDED"
+	trkName.Position = UDim2.fromOffset(102, 196)
+	trkName.Size = UDim2.fromOffset(182, 28)
+	trkName.TextXAlignment = Enum.TextXAlignment.Center
+	trkName.Parent = garage
+	self.trackName = trkName
+
+	local trkLeft = arrowButton(garage, "<", 72, 196)
+	trkLeft.MouseButton1Click:Connect(function()
+		if self.onTrackCycle then
+			self.onTrackCycle(-1)
+		end
+	end)
+	local trkRight = arrowButton(garage, ">", 288, 196)
+	trkRight.MouseButton1Click:Connect(function()
+		if self.onTrackCycle then
+			self.onTrackCycle(1)
+		end
+	end)
+
 	local browseHint = label(garage, "cycle equips owned · click a ◊ price to buy", 10, F_DATA, C_DIM, 0)
-	browseHint.Position = UDim2.fromOffset(0, 218)
+	browseHint.Position = UDim2.fromOffset(0, 230)
 	browseHint.TextTransparency = 0.35
 
-	label(garage, "PACKS", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 238)
+	label(garage, "PACKS", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 248)
 
 	-- Pack rows: name + contents left, price button right. Button state
 	-- comes from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
@@ -464,14 +505,14 @@ function Ui.new(): Ui
 		end)
 	end
 	for i, b in ipairs(Cosmetics.Bundles) do
-		packRow(b.id, b.name, b.desc, 256 + (i - 1) * 42)
+		packRow(b.id, b.name, b.desc, 266 + (i - 1) * 42)
 	end
 
 	--=========== BANK (§18 P2) ===========--
 	-- Gem economy surface: balance line, three gem-pack dev products, and
 	-- the 2X BANK pass row. Everything degrades to SOON until the ids are
 	-- created on the dashboard — the buttons only arm via setGarage.
-	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 558)
+	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 568)
 	local bal = Instance.new("TextLabel")
 	bal.BackgroundTransparency = 1
 	bal.Font = F_DATA
@@ -479,7 +520,7 @@ function Ui.new(): Ui
 	bal.TextColor3 = C_GOLD
 	bal.TextXAlignment = Enum.TextXAlignment.Right
 	bal.Text = "◊ 0"
-	bal.Position = UDim2.fromOffset(150, 556)
+	bal.Position = UDim2.fromOffset(150, 566)
 	bal.Size = UDim2.fromOffset(166, 20)
 	bal.Parent = garage
 	self.bankLabel = bal
@@ -498,7 +539,7 @@ function Ui.new(): Ui
 		b.TextSize = 13
 		b.TextColor3 = C_GOLD
 		b.Text = "◊?\nSOON"
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 582)
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 592)
 		b.Size = UDim2.fromOffset(96, 44)
 		b.Parent = garage
 		local corner = Instance.new("UICorner")
@@ -530,10 +571,10 @@ function Ui.new(): Ui
 
 	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
 	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow("bank2x", "2X BANK", "every gem banks double", 638)
+	packRow("bank2x", "2X BANK", "every gem banks double", 648)
 
 	local hint = label(garage, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 684)
+	hint.Position = UDim2.fromOffset(0, 694)
 	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
@@ -1097,6 +1138,10 @@ end
 
 function Ui:seedText(): string
 	return self.seedBox.Text
+end
+
+function Ui:setTrackRow(text: string)
+	self.trackName.Text = text
 end
 
 return Ui

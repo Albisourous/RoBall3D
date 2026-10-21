@@ -467,10 +467,33 @@ Config.GemFx = {
 
 Config.Music = {
 	-- Seeded track rotation (AUDIO.md §3): each run picks
-	-- SongMap.trackIdFor(seed, Tracklist); GenCore and MusicController share
-	-- the pick so stamped sections match the heard track. Per-track charts
-	-- live in SongMap_<id>.luau.
-	Tracklist = { "vaporwave_loop", "neon_descent", "retro_wave" },
+	-- SongMap.trackIdFor(seed, ActiveTracklist); GenCore and MusicController
+	-- share the pick so stamped sections match the heard track. Per-track
+	-- charts live in SongMap_<id>.luau. Tracklist is the FULL catalog —
+	-- ActiveTracklist (built below) drops ids whose AssetId isn't wired
+	-- yet, so unuploaded tracks can't be seeded. The garage TRACK cycler
+	-- picks from the same list; picking a track just sends a seed in its
+	-- residue class so the gen charts the song the player hears.
+	Tracklist = {
+		"vaporwave_loop",
+		"neon_descent",
+		"retro_wave",
+		-- FlowMusic batch (roball3d-audio/flowmusic/, IMPORT_REPORT.md)
+		"midnight_overdrive", -- 109.72 bpm
+		"void_runner", -- 136.06
+		"tape_drift", -- 126.12
+		"smoothride", -- 126.12
+		"retro_wave_sunset", -- 109.72
+		"neon_nostalgia", -- 82.56
+		"oldtimes", -- 82.56
+		"underwater", -- 93.25
+		"velvet_loader", -- 172.27 (double-time read of a ~129 pulse)
+		"palm_screens", -- 105.38 — also the menu bed
+	},
+	-- Menu music: plays instead of the seeded pick while parked (still
+	-- under the menu lowpass). Falls back to Tracklist[1] when unset or
+	-- the asset isn't uploaded yet.
+	MenuTrack = "palm_screens",
 	-- Per-track assets. AssetId = the full mix; numeric rbxassetid for
 	-- production or an rbxasset:// ContentId URI resolving to Studio's
 	-- bundled content dir for local dev. Stems: when EVERY entry resolves,
@@ -512,6 +535,19 @@ Config.Music = {
 				air = 111078014754337,
 			},
 		},
+		-- FlowMusic batch — master mix only (no stems, plays the AssetId
+		-- player directly). AssetId = 0 keeps the id out of ActiveTracklist
+		-- until the ogg is uploaded and the id pasted here.
+		midnight_overdrive = { AssetId = 0 }, -- rb3_midnight_overdrive.ogg
+		void_runner = { AssetId = 0 }, -- rb3_void_runner.ogg
+		tape_drift = { AssetId = 0 }, -- rb3_tape_drift.ogg
+		smoothride = { AssetId = 0 }, -- rb3_smoothride.ogg
+		retro_wave_sunset = { AssetId = 0 }, -- rb3_retro_wave_sunset.ogg
+		neon_nostalgia = { AssetId = 0 }, -- rb3_neon_nostalgia.ogg
+		oldtimes = { AssetId = 0 }, -- rb3_oldtimes.ogg
+		underwater = { AssetId = 0 }, -- rb3_underwater.ogg
+		velvet_loader = { AssetId = 0 }, -- rb3_velvet_loader.ogg
+		palm_screens = { AssetId = 0 }, -- rb3_palm_screens.ogg
 	},
 	Volume = 0.5,
 	-- Default track tempo — the fallback beat grid for code paths without a
@@ -571,6 +607,27 @@ Config.Music = {
 	WindCutMin = 500,
 	WindCutMax = 4200,
 }
+
+-- The seeded/garage pool: Tracklist order, minus ids whose AssetId is
+-- still 0 (unuploaded) — a track that can't play can't be seeded or
+-- picked. GenCore and MusicController both consume THIS list so the
+-- gen's stamped SongMap always matches the heard audio.
+Config.Music.ActiveTracklist = {}
+for _, id in ipairs(Config.Music.Tracklist) do
+	local ta = Config.Music.TrackAssets[id]
+	if ta and ta.AssetId ~= 0 then
+		table.insert(Config.Music.ActiveTracklist, id)
+	end
+end
+
+-- The menu bed, when its asset exists — else the seeded default.
+function Config.Music.menuTrackId(): string
+	local ta = Config.Music.TrackAssets[Config.Music.MenuTrack]
+	if ta and ta.AssetId ~= 0 then
+		return Config.Music.MenuTrack
+	end
+	return Config.Music.ActiveTracklist[1]
+end
 
 -- Songform sync (AUDIO.md §5.2): the generator weights chunk families by
 -- the music section under the ball. Selection bias ONLY — every legality

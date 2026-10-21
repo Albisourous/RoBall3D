@@ -808,6 +808,14 @@ for the profile, grants `ProductGems`, and saves immediately before
 returning `PurchaseGranted`; unknown ids or an unready profile return
 `NotProcessedYet` so Roblox retries instead of eating a payment.
 
+**TRACK row (music packs, early P3)**: a sixth cycler under the equip
+slots picks the run's song — `SEEDED` keeps the seeded pick; a named
+track sends a seed in its residue class so `SongMap.trackIdFor` lands on
+it and the gen stamps that track's map (seed-box text / `daily` still
+wins). The row browses `Config.Music.ActiveTracklist` — every uploaded
+track, not just owned ones; songs aren't purchases, they're the level
+picker.
+
 **Garage (P2)**: arrows browse the WHOLE catalog, not just owned items —
 owned items equip as they pass, unowned ones park showing their ◊price and
 buy on name-click. The BANK block shows the balance, three gem-pack
