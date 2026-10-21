@@ -521,6 +521,9 @@ local statMaxFwd = 0
 local statBoostDist = 0
 local statDashes = 0
 local statPrevZ = 0
+-- Pace delta (§12): last whole-meter delta shown; nil when no ghost
+-- echoes (different seed / no PB yet) so the HUD line stays hidden.
+local paceCache: number? = nil
 -- Death-cam (§11): each death bumps the sequence so a pending card lands
 -- only if no restart/menu happened mid-orbit.
 local deathSeq = 0
@@ -561,6 +564,8 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	statBoostDist = 0
 	statDashes = 0
 	statPrevZ = 2
+	paceCache = nil :: number? -- pace line re-renders on whole-meter change
+	ui:setPace(nil)
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0
@@ -797,6 +802,14 @@ RunService.Heartbeat:Connect(function(dt)
 	ui:setSpeedo(fwdSpeed, Music.bpm(), powerCharge, boosting, powerSpent, braking, dashing, dashDeniedAt)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 	Ghost.tick(dt, b.Position) -- record this run + advance the PB echo
+	-- Pace delta (§12): live "±N vs PB" — ghost position IS the PB's
+	-- position at this elapsed time on this same map.
+	local pace = Ghost.pace(b.Position)
+	local paceR = pace and math.floor(pace + 0.5) or nil
+	if paceR ~= paceCache then
+		paceCache = paceR
+		ui:setPace(paceR)
+	end
 
 	local v = b.AssemblyLinearVelocity
 	-- Unstick hop (§11): the -Z write below means a freeze is physics

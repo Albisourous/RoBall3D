@@ -210,8 +210,12 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   occupant; crossing the line flashes a gold `★ NEW BEST` under the HUD
   score for `PbFlashSeconds`. Record `dist`/`seed` only overwrite on a true
   new record, so the gate always marks the real best, never a later run.
-  The HUD score cluster lives top-left — the center cone stays clear for
-  the track read at speed.
+  The HUD score cluster lives top-right — Roblox's native menu overlays
+  the top-left corner, and the center cone stays clear for the track
+  read at speed. While the PB echo replays (same-seed runs, §14) a
+  `±N vs PB` line under the cluster shows the live meter delta against
+  the ghost's position at the same elapsed time — cyan ahead, pink
+  behind, hidden when no echo exists.
 
 ## 7. Seed system
 
@@ -635,9 +639,11 @@ explicitly deferred.
 - **Obstacles**: near-black bodies with red `SelectionBox` edge outlines —
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
-- **HUD**: one big pink score top-left (the center cone stays clear for
-  the track read at speed); distance/gems on a dim lavender subline, the
-  combo pip under that, and the gold pass-moment flash below.
+- **HUD**: one big pink score top-right (top-left sits under Roblox's
+  native menu; the center cone stays clear for the track read at
+  speed); distance/gems on a dim lavender subline, the combo pip under
+  that, then the gold pass-moment flash, the cyan near-miss ping, and
+  the `±N vs PB` pace line when a PB echo replays.
   Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music

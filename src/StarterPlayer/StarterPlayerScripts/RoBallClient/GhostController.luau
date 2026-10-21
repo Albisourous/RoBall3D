@@ -143,4 +143,15 @@ function GhostController.stop()
 	end
 end
 
+-- Pace delta (§12): meters ahead of the PB echo at this instant —
+-- positive when the live ball is further down-track than the ghost
+-- (both roll -Z, so the lead is ghostZ - ballZ). nil when no echo is
+-- replaying; the HUD hides the line then.
+function GhostController.pace(ballPos: Vector3): number?
+	if playing and part then
+		return part.Position.Z - ballPos.Z
+	end
+	return nil
+end
+
 return GhostController

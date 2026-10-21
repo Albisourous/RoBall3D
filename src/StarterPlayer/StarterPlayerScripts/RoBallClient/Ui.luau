@@ -1016,6 +1016,22 @@ function Ui.new(): Ui
 	missFlash.Parent = hud
 	self.missFlash = missFlash
 
+	-- Pace delta (§12): while the PB echo replays (same-seed runs), a
+	-- persistent "+N vs PB" / "-N vs PB" line — cyan ahead, pink behind.
+	local paceText = Instance.new("TextLabel")
+	paceText.BackgroundTransparency = 1
+	paceText.Font = F_DATA
+	paceText.TextSize = 14
+	paceText.TextColor3 = C_CYAN
+	paceText.TextStrokeTransparency = 0.5
+	paceText.TextXAlignment = Enum.TextXAlignment.Right
+	paceText.Position = UDim2.fromOffset(0, 134)
+	paceText.Size = UDim2.new(1, 0, 0, 16)
+	paceText.Text = ""
+	paceText.Visible = false
+	paceText.Parent = hud
+	self.paceText = paceText
+
 	-- Achievement toast (§14): top-center gold ribbon on unlock —
 	-- toast() writes the line, it never idles.
 	local achToast = Instance.new("TextLabel")
@@ -1655,6 +1671,18 @@ end
 
 function Ui:seedText(): string
 	return self.seedBox.Text
+end
+
+-- Pace delta (§12): signed meters vs the PB echo; nil hides the line
+-- (no ghost, menu, death). Whole ints only — the caller rounds.
+function Ui:setPace(delta: number?)
+	if delta == nil then
+		self.paceText.Visible = false
+		return
+	end
+	self.paceText.Text = string.format("%+d vs PB", delta)
+	self.paceText.TextColor3 = delta >= 0 and C_CYAN or C_PINK
+	self.paceText.Visible = true
 end
 
 function Ui:setSeedText(text: string)
