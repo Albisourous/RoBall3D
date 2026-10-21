@@ -446,6 +446,50 @@ local function startRun(player: Player)
 		gate.Parent = streamer.folder
 	end
 
+	-- Last-fall marker (DESIGN.md §11): the bloodstain — a dim gate where
+	-- the most recent run on this seed ended, from the RoBallHistory
+	-- attr (newest first). Skipped beside the PB gate — BEST already
+	-- marks that spot; same min-distance rule keeps stub deaths unmarked.
+	local lastD, lastS = 0, 0
+	local hist = player:GetAttribute("RoBallHistory")
+	if typeof(hist) == "string" then
+		for entry in string.gmatch(hist, "[^;]+") do
+			local s, d, z = string.match(entry, "([^,]+),([^,]+),([^,]+)")
+			if tonumber(z) == seed then
+				lastD, lastS = tonumber(d) or 0, tonumber(s) or 0
+				break
+			end
+		end
+	end
+	if lastD >= Config.Score.PbMarkerMinDist and math.abs(lastD - pbDist) >= 8 then
+		local z = -lastD
+		local gate = Instance.new("Part")
+		gate.Name = "LastMarker"
+		gate.Anchored = true
+		gate.CanCollide = false
+		gate.CanQuery = false
+		gate.CastShadow = false
+		gate.Transparency = 0.6
+		gate.Material = Enum.Material.Neon
+		gate.Color = Color3.fromRGB(150, 45, 62)
+		gate.Size = Vector3.new(math.max(4, Tiers.forDistance(lastD).widthMin), 0.4, 0.4)
+		gate.CFrame = CFrame.new(laneIndex * Config.Generation.RowSpacing, streamer:yAt(z) + 0.3, z)
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(160, 24)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
+		bb.MaxDistance = Config.Score.PbMarkerViewDist
+		bb.Parent = gate
+		local tl = Instance.new("TextLabel")
+		tl.BackgroundTransparency = 1
+		tl.Size = UDim2.fromScale(1, 1)
+		tl.Font = Enum.Font.Code
+		tl.TextSize = 14
+		tl.TextColor3 = Color3.fromRGB(150, 45, 62)
+		tl.Text = "LAST " .. tostring(math.floor(lastS))
+		tl.Parent = bb
+		gate.Parent = streamer.folder
+	end
+
 	run.ball = spawnBall(player, laneIndex, streamer:yAt(2))
 	player:SetAttribute("RoBallSeed", seed)
 	player:SetAttribute("RoBallScore", 0)

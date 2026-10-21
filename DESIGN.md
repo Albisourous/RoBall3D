@@ -238,6 +238,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   behind, hidden when no echo exists. Inside `Ghost.DuelRange` studs
   either way a `· DUEL` suffix joins the line — nose-to-nose reads as a
   race, not a number (the rival `±N vs <name>` line tags the same way).
+- **Last-fall marker**: a dim red `LAST n` gate marks where the most
+  recent clean run on this seed ended — the bloodstain for an R-rerun.
+  Read from the `RoBallHistory` attribute (newest first), same 150m
+  minimum and view-distance rules as BEST; suppressed within 8 studs of
+  the PB gate so a last run that *was* the record doesn't double-mark.
 
 ## 7. Seed system
 
