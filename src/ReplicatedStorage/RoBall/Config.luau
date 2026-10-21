@@ -822,6 +822,15 @@ Config.Monetization = {
 	-- min(streak, cap) * bonus banked gems — retention reward, never score.
 	DailyStreakBonus = 10,
 	DailyStreakCap = 10,
+	-- Daily quests (§14): three seeded missions per UTC day — the day's
+	-- seed picks one target per pool. Rewards pay banked gems, never
+	-- score; progress counts on any run, not just daily-seeded ones.
+	Quests = {
+		ReachTargets = { 1200, 1500, 1800, 2200, 2600 }, -- reach N m in one run
+		ScoreTargets = { 1600, 2000, 2600, 3200 }, -- score N in one run
+		BankTargets = { 60, 100, 140, 200 }, -- bank N gems today (all runs)
+		Rewards = { reach = 40, score = 60, bank = 50 },
+	},
 	BankDoubleMult = 2, -- bank2x pass multiplier
 	-- Gem pack dev products: id 0 = not created yet -> SOON. ProductGems is
 	-- the grant the server applies in ProcessReceipt; ProductPrice is only

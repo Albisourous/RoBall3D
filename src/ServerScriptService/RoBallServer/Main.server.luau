@@ -249,10 +249,16 @@ local function killRun(player: Player, run: Run)
 	end
 	-- Daily streak counts BEFORE the event so the death screen can show it;
 	-- implausible runs don't count the day (a cheaty run earns nothing).
+	-- Quests evaluate on every clean run — they're day missions, not tied
+	-- to the daily seed.
 	local cleanRun = plausible(run, score)
 	local streak, streakBonus = 0, 0
 	if cleanRun and run.seed == Daily.seed() then
 		streak, streakBonus = ShopService.recordDailyRun(player)
+	end
+	local questBonus, questHits = 0, 0
+	if cleanRun then
+		questBonus, questHits = ShopService.onRunEnd(player, dist, score, run.banked + streakBonus)
 	end
 	-- newBest rides the event: attribute replication order vs the remote
 	-- isn't guaranteed, so the client can't derive this reliably.
@@ -266,7 +272,9 @@ local function killRun(player: Player, run: Run)
 		score > oldBest,
 		run.banked,
 		streak,
-		streakBonus
+		streakBonus,
+		questBonus,
+		questHits
 	)
 
 	if cleanRun then
@@ -416,7 +424,13 @@ local function retintEquipped(player: Player)
 	end
 end
 
+local joinedOnce: { [Player]: boolean } = {} -- PlayerAdded + catch-up loop can both fire
+
 local function onPlayerAdded(player: Player)
+	if joinedOnce[player] then
+		return
+	end
+	joinedOnce[player] = true
 	if not laneOf[player] then
 		laneOf[player] = nextLane
 		nextLane += 1
@@ -534,6 +548,7 @@ Players.PlayerRemoving:Connect(function(player)
 	seedPref[player] = nil
 	bestOf[player] = nil
 	dailyBestOf[player] = nil
+	joinedOnce[player] = nil
 	lbCooldown[player] = nil
 	statsOf[player] = nil
 end)

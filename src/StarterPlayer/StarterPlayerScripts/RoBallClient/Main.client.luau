@@ -374,6 +374,14 @@ player:GetAttributeChangedSignal("RoBallBest"):Connect(function()
 	end
 end)
 
+-- Daily quests (§14): server pushes "1,0,0,<bankedToday>" CSV on every
+-- run end; the menu lines track it live.
+local function refreshQuests()
+	ui:setQuests(player:GetAttribute("RoBallQuests") or "")
+end
+player:GetAttributeChangedSignal("RoBallQuests"):Connect(refreshQuests)
+refreshQuests()
+
 -- Gem combo pip: RoBallGems ticks up per pickup; a pickup inside
 -- ComboWindow of the last extends the streak — the same window
 -- SfxController's pitch ladder uses, so the "xN" matches the chime run.
@@ -423,7 +431,9 @@ evRunEnded.OnClientEvent:Connect(
 		newBest: boolean?,
 		banked: number?,
 		streak: number?,
-		streakBonus: number?
+		streakBonus: number?,
+		questBonus: number?,
+		questHits: number?
 	)
 		mode = "dead"
 		combo = 0
@@ -432,7 +442,7 @@ evRunEnded.OnClientEvent:Connect(
 		DeathFx.burst(lastBallPos)
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
-		ui:showDeath(score, dist, gems, best, seed, newBest, banked, streak, streakBonus)
+		ui:showDeath(score, dist, gems, best, seed, newBest, banked, streak, streakBonus, questBonus, questHits)
 		Music.onDeath()
 	end
 )

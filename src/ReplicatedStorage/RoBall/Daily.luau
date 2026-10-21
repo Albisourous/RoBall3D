@@ -38,4 +38,42 @@ function Daily.isKeyword(s: string): boolean
 	return l == "daily" or l == "today"
 end
 
+-- Daily quests (§14): three seeded missions per UTC day. The day's seed
+-- picks one target per pool — every player gets the same quests, so the
+-- list is pure and identical on client and server (menu lines are drawn
+-- client-side, progress arrives via the RoBallQuests attribute).
+export type Quest = { id: string, kind: string, target: number, reward: number, text: string }
+
+function Daily.quests(t: number?): { Quest }
+	local Config = require(script.Parent.Config)
+	local rng = Random.new(Daily.seed(t))
+	local pools = Config.Monetization.Quests
+	local r = pools.ReachTargets[rng:NextInteger(1, #pools.ReachTargets)]
+	local s = pools.ScoreTargets[rng:NextInteger(1, #pools.ScoreTargets)]
+	local b = pools.BankTargets[rng:NextInteger(1, #pools.BankTargets)]
+	return {
+		{
+			id = "reach",
+			kind = "reach",
+			target = r,
+			reward = pools.Rewards.reach,
+			text = string.format("reach %dm in one run", r),
+		},
+		{
+			id = "score",
+			kind = "score",
+			target = s,
+			reward = pools.Rewards.score,
+			text = string.format("score %d in one run", s),
+		},
+		{
+			id = "bank",
+			kind = "bank",
+			target = b,
+			reward = pools.Rewards.bank,
+			text = string.format("bank %d gems today", b),
+		},
+	}
+end
+
 return Daily

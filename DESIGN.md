@@ -658,6 +658,16 @@ Full spec: `AUDIO.md`. Binding decisions:
   `dailyDay`/`dailyStreak`; runs that end before the profile lands queue
   on `pendingDaily` so a slow load can't clobber the stored streak. The
   death screen shows the payoff line and the daily tab shows the streak.
+- **Daily quests**: three missions seeded by the day's seed
+  (`Daily.quests()` — pure, same list on client and server): one target
+  drawn per pool (`Config.Monetization.Quests` — reach/score in one run,
+  gems banked across the day). Any clean run's end evaluates them;
+  rewards pay banked gems via `awardGems`, never score. Progress persists
+  in the profile (`questDay`/`questDone`/`questBanked`) and restores only
+  when the stored tag IS today — yesterday's missions die with the day.
+  The client reads the `RoBallQuests` CSV attribute
+  (`done flags + bankedToday`) to draw the menu lines and the death
+  screen's `N quests done · ◊ +N banked` line.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`

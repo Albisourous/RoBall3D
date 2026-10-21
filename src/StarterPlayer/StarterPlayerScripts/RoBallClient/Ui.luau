@@ -177,7 +177,7 @@ function Ui.new(): Ui
 
 	local menuCol = Instance.new("Frame")
 	menuCol.BackgroundTransparency = 1
-	menuCol.Size = UDim2.fromOffset(520, 420)
+	menuCol.Size = UDim2.fromOffset(520, 500) -- taller: the mission rows pushed the controls line off
 	menuCol.Position = UDim2.fromScale(0.5, 0.5)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
@@ -221,7 +221,15 @@ function Ui.new(): Ui
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 8)
 	label(menuCol, "", 8, F_DATA, C_DIM, 9)
-	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 10)
+	-- Daily quests (§14): today's three seeded missions — ✓ gold when done,
+	-- ◇ dim while open; the bank quest shows today's running total.
+	label(menuCol, "today's missions", 12, F_DATA, C_DIM, 10)
+	self.questLines = {}
+	for i = 1, 3 do
+		self.questLines[i] = label(menuCol, "", 14, F_DATA, C_DIM, 10 + i)
+	end
+	label(menuCol, "", 6, F_DATA, C_DIM, 14)
+	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 15)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -869,16 +877,19 @@ function Ui.new(): Ui
 	-- the day — "day-3 streak · ◊+30 banked", gold like NEW BEST.
 	self.dStreak = label(dCol, "", 15, F_DATA, C_GOLD, 6)
 	self.dStreak.Visible = false
-	local retry = outlineButton(dCol, "RETRY", 30, 7)
+	-- Daily quests completed this run (§14): "2 quests done · ◊ +90 banked".
+	self.dQuest = label(dCol, "", 15, F_DATA, C_GOLD, 7)
+	self.dQuest.Visible = false
+	local retry = outlineButton(dCol, "RETRY", 30, 8)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 8).TextTransparency = 0.25
+	label(dCol, "or press R", 13, F_DATA, C_DIM, 9).TextTransparency = 0.25
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 9)
+	local toMenu = ghostButton(dCol, "menu", 15, 10)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
@@ -1031,6 +1042,26 @@ function Ui:flashBest()
 	end)
 end
 
+-- Daily quests (§14): csv "1,0,0,<bankedToday>" from RoBallQuests — quest
+-- defs are recomputed here from Daily.quests() so client and server can
+-- never disagree about what today's missions are.
+function Ui:setQuests(csv: string)
+	local parts = string.split(csv, ",")
+	local banked = tonumber(parts[#parts]) or 0
+	for i, q in ipairs(Daily.quests()) do
+		local line = self.questLines[i]
+		if line then
+			local done = parts[i] == "1"
+			local prog = ""
+			if q.kind == "bank" and not done then
+				prog = string.format(" — %d/%d", math.min(banked, q.target), q.target)
+			end
+			line.Text = string.format("%s %s%s  ·  +%d ◊", done and "✓" or "◇", q.text, prog, q.reward)
+			line.TextColor3 = done and C_GOLD or C_DIM
+		end
+	end
+end
+
 function Ui:showDeath(
 	score: number,
 	dist: number,
@@ -1040,7 +1071,9 @@ function Ui:showDeath(
 	newBest: boolean?,
 	banked: number?,
 	streak: number?,
-	streakBonus: number?
+	streakBonus: number?,
+	questBonus: number?,
+	questHits: number?
 )
 	self.menu.Visible = false
 	self.hud.Visible = false
@@ -1061,6 +1094,10 @@ function Ui:showDeath(
 		then string.format("day-%d streak · ◊ +%d banked", n, bonus)
 		else string.format("day-%d streak", n)
 	self.dStreak.Visible = n > 0
+	local qb = questBonus or 0
+	local hits = questHits or 0
+	self.dQuest.Text = string.format("%s done · ◊ +%d banked", hits == 1 and "quest" or hits .. " quests", qb)
+	self.dQuest.Visible = hits > 0
 end
 
 -- Garage state push (§18): one table per refresh — slot row text/afford,

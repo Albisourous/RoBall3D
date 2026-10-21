@@ -33,6 +33,9 @@ local dirty: { [Player]: boolean } = {} -- bank/items changed since last save
 local dailyDay: { [Player]: string } = {} -- last counted daily-run day tag (§14)
 local dailyStreak: { [Player]: number } = {}
 local pendingDaily: { [Player]: boolean } = {} -- daily run ended before the profile landed
+local questDayTag: { [Player]: string } = {} -- day the quest slots belong to (§14)
+local questDone: { [Player]: { [string]: boolean } } = {} -- quest id -> true (today)
+local questBanked: { [Player]: number } = {} -- gems banked toward today's bank quest
 
 function ShopService.ownsPass(player: Player, key: string): boolean
 	local set = owned[player]
@@ -84,6 +87,14 @@ local function pushAttrs(player: Player)
 	player:SetAttribute("RoBallOwned", table.concat(list, ","))
 	player:SetAttribute("RoBallBank", bank[player] or 0)
 	player:SetAttribute("RoBallDailyStreak", dailyStreak[player] or 0)
+	-- Daily quests (§14): "done flag per quest, banked today" CSV — the
+	-- client recomputes the quest list from Daily.quests() itself.
+	local flags = {}
+	for i, q in ipairs(Daily.quests()) do
+		flags[i] = ((questDone[player] or {})[q.id] and questDayTag[player] == Daily.dayTag()) and "1" or "0"
+	end
+	table.insert(flags, tostring(questBanked[player] or 0))
+	player:SetAttribute("RoBallQuests", table.concat(flags, ","))
 end
 
 local function itemArray(player: Player): { string }
@@ -108,6 +119,12 @@ local function saveNow(player: Player)
 	local itemsSnapshot = itemArray(player)
 	local daySnapshot = dailyDay[player] or ""
 	local streakSnapshot = dailyStreak[player] or 0
+	local questDaySnapshot = questDayTag[player] or ""
+	local questBankedSnapshot = questBanked[player] or 0
+	local questDoneSnapshot = {}
+	for id in pairs(questDone[player] or {}) do
+		table.insert(questDoneSnapshot, id)
+	end
 	task.spawn(function()
 		SaveService.saveProfile(player.UserId, {
 			equipped = eqSnapshot,
@@ -115,6 +132,9 @@ local function saveNow(player: Player)
 			items = itemsSnapshot,
 			dailyDay = daySnapshot,
 			dailyStreak = streakSnapshot,
+			questDay = questDaySnapshot,
+			questDone = questDoneSnapshot,
+			questBanked = questBankedSnapshot,
 		})
 	end)
 end
@@ -164,6 +184,43 @@ function ShopService.recordDailyRun(player: Player): (number, number)
 	end
 	saveNow(player)
 	return streak, bonus
+end
+
+-- Daily quests (§14): evaluate today's three missions at run end.
+-- `bankedDelta` = gems this run banked (pickups + streak bonus); the bank
+-- quest tracks today's total. Rewards pay banked gems — never score.
+-- Returns (bonusGems, completedCount).
+function ShopService.onRunEnd(player: Player, dist: number, score: number, bankedDelta: number): (number, number)
+	if not profileReady[player] then
+		return 0, 0
+	end
+	local today = Daily.dayTag()
+	if questDayTag[player] ~= today then
+		questDayTag[player] = today
+		questDone[player] = {}
+		questBanked[player] = 0
+	end
+	questBanked[player] = (questBanked[player] or 0) + bankedDelta
+	local bonus = 0
+	local hits = 0
+	for _, q in ipairs(Daily.quests()) do
+		if not questDone[player][q.id] then
+			local done = (q.kind == "reach" and dist >= q.target)
+				or (q.kind == "score" and score >= q.target)
+				or (q.kind == "bank" and (questBanked[player] or 0) >= q.target)
+			if done then
+				questDone[player][q.id] = true
+				bonus += q.reward
+				hits += 1
+			end
+		end
+	end
+	pushAttrs(player)
+	if bonus > 0 then
+		ShopService.awardGems(player, bonus)
+	end
+	saveNow(player)
+	return bonus, hits
 end
 
 -- Dev-product grant (ProcessReceipt): credits gems and saves IMMEDIATELY —
@@ -302,6 +359,9 @@ function ShopService.onPlayerAdded(player: Player)
 	dailyDay[player] = ""
 	dailyStreak[player] = 0
 	pendingDaily[player] = false
+	questDayTag[player] = ""
+	questDone[player] = {}
+	questBanked[player] = 0
 	profileReady[player] = false
 	task.spawn(function()
 		local eq = equipped[player]
@@ -338,6 +398,19 @@ function ShopService.onPlayerAdded(player: Player)
 			if typeof(prof.dailyStreak) == "number" then
 				dailyStreak[player] = prof.dailyStreak
 			end
+			-- Quest slots only restore if the stored day IS today — a stale
+			-- tag means yesterday's missions expired with the day.
+			if prof.questDay == Daily.dayTag() then
+				questDayTag[player] = prof.questDay
+				if typeof(prof.questDone) == "table" then
+					for _, id in ipairs(prof.questDone) do
+						questDone[player][id] = true
+					end
+				end
+				if typeof(prof.questBanked) == "number" then
+					questBanked[player] = prof.questBanked
+				end
+			end
 		end
 		queryPasses(player)
 		if equipped[player] == nil then
@@ -371,6 +444,9 @@ function ShopService.onPlayerRemoving(player: Player)
 	dailyDay[player] = nil
 	dailyStreak[player] = nil
 	pendingDaily[player] = nil
+	questDayTag[player] = nil
+	questDone[player] = nil
+	questBanked[player] = nil
 end
 
 function ShopService.init()

@@ -132,6 +132,11 @@ export type Profile = {
 	-- the consecutive-day total. Updated only by ShopService.recordDailyRun.
 	dailyDay: string?,
 	dailyStreak: number?,
+	-- Daily quests (§14): the day-tag the quest slots belong to, the done
+	-- set (quest ids), and gems banked toward today's bank-quest.
+	questDay: string?,
+	questDone: { string }?,
+	questBanked: number?,
 }
 
 function SaveService.loadProfile(userId: number): Profile?

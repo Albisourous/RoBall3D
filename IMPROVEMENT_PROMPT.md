@@ -66,7 +66,9 @@ runs the loop below and does not stop until you say **stop**.
    *(done — see git log)*
 3. **Daily streak** — consecutive-day runs on the daily seed shown on the
    daily tab + a small streak bonus of banked gems. Server tracks last
-   daily-played day in the profile store.
+   daily-played day in the profile store. *(done — see git log)*
+3b. **HUD placement** (user fix, unnumbered) — score top-left, PB gate
+   label near-field only + NEW BEST flash on crossing. *(done — see git log)*
 4. **Daily quests** — 3 seeded missions per day (e.g. "pass 5 Rotors",
    "bank 150 gems", "reach 2200m"), gem rewards, progress in the HUD menu.
    Reuse the `Daily` module's seed for quest selection.
