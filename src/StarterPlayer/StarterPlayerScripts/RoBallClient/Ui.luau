@@ -22,10 +22,17 @@ local C_DIM = Color3.fromRGB(150, 120, 185)
 local C_WHITE = Color3.fromRGB(245, 238, 255)
 local C_GATE_DIM = C_GOLD:Lerp(C_PANEL, 0.78) -- unlit lock-zone cells: faint warm wash
 
--- Daily-tab status line (§14): today's shared seed + UTC reset countdown.
+-- Daily-tab status line (§14): today's shared seed + UTC reset countdown
+-- + the player's consecutive-day streak when one is alive.
 local function dailyText(): string
 	local s = Daily.resetIn()
-	return string.format("seed #%d · resets in %02d:%02d", Daily.seed(), s // 3600, (s % 3600) // 60)
+	local text = string.format("seed #%d · resets in %02d:%02d", Daily.seed(), s // 3600, (s % 3600) // 60)
+	local lp = Players.LocalPlayer
+	local streak = (lp and lp:GetAttribute("RoBallDailyStreak")) or 0
+	if streak > 0 then
+		text ..= string.format(" · day-%d streak", streak)
+	end
+	return text
 end
 
 -- Vaporwave type system (DESIGN.md §12): three voices, one job each.
@@ -817,6 +824,10 @@ function Ui.new(): Ui
 	self.dBreakdown = label(dCol, "", 16, F_DATA, C_DIM, 4)
 	self.dBreakdown.RichText = true
 	self.dBest = label(dCol, "", 14, F_DATA, C_DIM, 5)
+	-- Daily-streak payoff line (§14): only when a daily-seeded run counted
+	-- the day — "day-3 streak · ◊+30 banked", gold like NEW BEST.
+	self.dStreak = label(dCol, "", 15, F_DATA, C_GOLD, 6)
+	self.dStreak.Visible = false
 	local retry = outlineButton(dCol, "RETRY", 30, 7)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
@@ -986,7 +997,9 @@ function Ui:showDeath(
 	best: number,
 	seed: number,
 	newBest: boolean?,
-	banked: number?
+	banked: number?,
+	streak: number?,
+	streakBonus: number?
 )
 	self.menu.Visible = false
 	self.hud.Visible = false
@@ -1000,6 +1013,13 @@ function Ui:showDeath(
 		string.format('%d m  ·  +%d gem pts    <font color="#FFD440">◊ +%d BANKED</font>', dist, gems, banked or 0)
 	self.dBest.Text = string.format("BEST %d   ·   seed %d", best, seed)
 	self.dNewBest.Visible = newBest == true
+	local n = streak or 0
+	local bonus = streakBonus or 0
+	-- Same-day replays show the streak without a re-paid bonus.
+	self.dStreak.Text = if bonus > 0
+		then string.format("day-%d streak · ◊ +%d banked", n, bonus)
+		else string.format("day-%d streak", n)
+	self.dStreak.Visible = n > 0
 end
 
 -- Garage state push (§18): one table per refresh — slot row text/afford,

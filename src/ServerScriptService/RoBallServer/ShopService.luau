@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
+local Daily = require(ReplicatedStorage.RoBall.Daily)
 local SaveService = require(script.Parent.SaveService)
 
 local ShopService = {}
@@ -29,6 +30,9 @@ local equipped: { [Player]: { [string]: string } } = {} -- slot -> itemId
 local bank: { [Player]: number } = {}
 local profileReady: { [Player]: boolean } = {}
 local dirty: { [Player]: boolean } = {} -- bank/items changed since last save
+local dailyDay: { [Player]: string } = {} -- last counted daily-run day tag (§14)
+local dailyStreak: { [Player]: number } = {}
+local pendingDaily: { [Player]: boolean } = {} -- daily run ended before the profile landed
 
 function ShopService.ownsPass(player: Player, key: string): boolean
 	local set = owned[player]
@@ -79,6 +83,7 @@ local function pushAttrs(player: Player)
 	table.sort(list)
 	player:SetAttribute("RoBallOwned", table.concat(list, ","))
 	player:SetAttribute("RoBallBank", bank[player] or 0)
+	player:SetAttribute("RoBallDailyStreak", dailyStreak[player] or 0)
 end
 
 local function itemArray(player: Player): { string }
@@ -101,11 +106,15 @@ local function saveNow(player: Player)
 	local eqSnapshot = table.clone(eq)
 	local bankSnapshot = bank[player] or 0
 	local itemsSnapshot = itemArray(player)
+	local daySnapshot = dailyDay[player] or ""
+	local streakSnapshot = dailyStreak[player] or 0
 	task.spawn(function()
 		SaveService.saveProfile(player.UserId, {
 			equipped = eqSnapshot,
 			bank = bankSnapshot,
 			items = itemsSnapshot,
+			dailyDay = daySnapshot,
+			dailyStreak = streakSnapshot,
 		})
 	end)
 end
@@ -129,6 +138,32 @@ function ShopService.awardGems(player: Player, n: number): number
 	dirty[player] = true
 	player:SetAttribute("RoBallBank", bank[player])
 	return credited
+end
+
+-- Daily streak (§14): finishing a daily-seeded run counts the day. Same
+-- day again -> no-op; yesterday -> streak+1; a gap -> back to 1. Each
+-- counted day pays min(streak, cap) * DailyStreakBonus banked gems (never
+-- score). Runs ending before the profile lands queue on pendingDaily so
+-- the stored streak can't be clobbered by an unloaded profile.
+function ShopService.recordDailyRun(player: Player): (number, number)
+	if not profileReady[player] then
+		pendingDaily[player] = true
+		return dailyStreak[player] or 0, 0
+	end
+	local today = Daily.dayTag()
+	if dailyDay[player] == today then
+		return dailyStreak[player] or 0, 0
+	end
+	local streak = if dailyDay[player] == Daily.dayTag(os.time() - 86400) then (dailyStreak[player] or 0) + 1 else 1
+	dailyDay[player] = today
+	dailyStreak[player] = streak
+	player:SetAttribute("RoBallDailyStreak", streak)
+	local bonus = math.min(streak, Config.Monetization.DailyStreakCap) * Config.Monetization.DailyStreakBonus
+	if bonus > 0 then
+		ShopService.awardGems(player, bonus)
+	end
+	saveNow(player)
+	return streak, bonus
 end
 
 -- Dev-product grant (ProcessReceipt): credits gems and saves IMMEDIATELY —
@@ -264,6 +299,9 @@ function ShopService.onPlayerAdded(player: Player)
 	items[player] = {}
 	equipped[player] = Cosmetics.defaults()
 	bank[player] = 0
+	dailyDay[player] = ""
+	dailyStreak[player] = 0
+	pendingDaily[player] = false
 	profileReady[player] = false
 	task.spawn(function()
 		local eq = equipped[player]
@@ -294,6 +332,12 @@ function ShopService.onPlayerAdded(player: Player)
 					end
 				end
 			end
+			if typeof(prof.dailyDay) == "string" then
+				dailyDay[player] = prof.dailyDay
+			end
+			if typeof(prof.dailyStreak) == "number" then
+				dailyStreak[player] = prof.dailyStreak
+			end
 		end
 		queryPasses(player)
 		if equipped[player] == nil then
@@ -307,6 +351,12 @@ function ShopService.onPlayerAdded(player: Player)
 		end
 		profileReady[player] = true
 		pushAttrs(player)
+		-- A daily run that finished during the async load counts now — the
+		-- stored streak is live, so the day can't be lost or clobbered.
+		if pendingDaily[player] then
+			pendingDaily[player] = nil
+			ShopService.recordDailyRun(player)
+		end
 	end)
 end
 
@@ -318,6 +368,9 @@ function ShopService.onPlayerRemoving(player: Player)
 	bank[player] = nil
 	profileReady[player] = nil
 	dirty[player] = nil
+	dailyDay[player] = nil
+	dailyStreak[player] = nil
+	pendingDaily[player] = nil
 end
 
 function ShopService.init()

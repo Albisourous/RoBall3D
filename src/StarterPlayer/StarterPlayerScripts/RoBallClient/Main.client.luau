@@ -393,7 +393,17 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 end)
 
 evRunEnded.OnClientEvent:Connect(
-	function(score: number, dist: number, gems: number, best: number, seed: number, newBest: boolean?, banked: number?)
+	function(
+		score: number,
+		dist: number,
+		gems: number,
+		best: number,
+		seed: number,
+		newBest: boolean?,
+		banked: number?,
+		streak: number?,
+		streakBonus: number?
+	)
 		mode = "dead"
 		combo = 0
 		ui:setCombo(0)
@@ -401,7 +411,7 @@ evRunEnded.OnClientEvent:Connect(
 		DeathFx.burst(lastBallPos)
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
-		ui:showDeath(score, dist, gems, best, seed, newBest, banked)
+		ui:showDeath(score, dist, gems, best, seed, newBest, banked, streak, streakBonus)
 		Music.onDeath()
 	end
 )

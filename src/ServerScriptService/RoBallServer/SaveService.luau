@@ -127,6 +127,10 @@ export type Profile = {
 	equipped: { [string]: string }?,
 	bank: number?,
 	items: { string }?,
+	-- Daily streak (§14): last UTC day-tag a daily-seeded run counted, and
+	-- the consecutive-day total. Updated only by ShopService.recordDailyRun.
+	dailyDay: string?,
+	dailyStreak: number?,
 }
 
 function SaveService.loadProfile(userId: number): Profile?

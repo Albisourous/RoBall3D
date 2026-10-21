@@ -761,6 +761,10 @@ Config.Monetization = {
 	},
 	-- Gem bank (§18 P2): each pickup banks this many gems, credited live.
 	BankPerGem = 1,
+	-- Daily streak (§14): finishing a daily-seeded run pays
+	-- min(streak, cap) * bonus banked gems — retention reward, never score.
+	DailyStreakBonus = 10,
+	DailyStreakCap = 10,
 	BankDoubleMult = 2, -- bank2x pass multiplier
 	-- Gem pack dev products: id 0 = not created yet -> SOON. ProductGems is
 	-- the grant the server applies in ProcessReceipt; ProductPrice is only

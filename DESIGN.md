@@ -651,6 +651,13 @@ Full spec: `AUDIO.md`. Binding decisions:
   write thrift as the all-time board). The menu panel gains ALL-TIME/DAILY
   tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
   stores are simply never read — no cleanup needed.
+- **Daily streak**: finishing a daily-seeded run counts the UTC day —
+  same day again is a no-op, yesterday continues the streak, a gap resets
+  to 1. Each counted day pays `min(streak, DailyStreakCap) *
+  DailyStreakBonus` banked gems (never score). The profile store carries
+  `dailyDay`/`dailyStreak`; runs that end before the profile lands queue
+  on `pendingDaily` so a slow load can't clobber the stored streak. The
+  death screen shows the payoff line and the daily tab shows the streak.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`

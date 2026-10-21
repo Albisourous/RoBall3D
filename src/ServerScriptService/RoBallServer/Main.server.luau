@@ -247,11 +247,29 @@ local function killRun(player: Player, run: Run)
 		ls.best.Value = best
 		ls.score.Value = score
 	end
+	-- Daily streak counts BEFORE the event so the death screen can show it;
+	-- implausible runs don't count the day (a cheaty run earns nothing).
+	local cleanRun = plausible(run, score)
+	local streak, streakBonus = 0, 0
+	if cleanRun and run.seed == Daily.seed() then
+		streak, streakBonus = ShopService.recordDailyRun(player)
+	end
 	-- newBest rides the event: attribute replication order vs the remote
 	-- isn't guaranteed, so the client can't derive this reliably.
-	evRunEnded:FireClient(player, score, dist, run.gemPts, best, run.seed, score > oldBest, run.banked)
+	evRunEnded:FireClient(
+		player,
+		score,
+		dist,
+		run.gemPts,
+		best,
+		run.seed,
+		score > oldBest,
+		run.banked,
+		streak,
+		streakBonus
+	)
 
-	if plausible(run, score) then
+	if cleanRun then
 		-- Only overwrite the record when this run IS the record — storing
 		-- `dist`/`seed` from a later, worse run would misplace the PB
 		-- marker and tag the saved best with the wrong seed.
@@ -269,7 +287,8 @@ local function killRun(player: Player, run: Run)
 			end
 		end)
 		-- Daily board (§14): a run on today's seed competes on today's store.
-		-- Session-best thrift mirrors the all-time write policy.
+		-- Session-best thrift mirrors the all-time write policy. (The streak
+		-- side already ran above, before RunEnded fired.)
 		if run.seed == Daily.seed() and score > (dailyBestOf[player] or 0) then
 			dailyBestOf[player] = score
 			task.spawn(function()
