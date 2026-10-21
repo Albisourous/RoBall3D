@@ -115,6 +115,16 @@ Config.Radar = {
 	BarH = 3, -- bar px
 }
 
+-- Deck-edge warning (§12): client raycasts beside the ball warn when the
+-- far side hangs off the deck — over a cutout or one step from the rail.
+-- A hit on anything (deck, wall, block face) counts as supported.
+Config.EdgeWarn = {
+	ProbeSide = 2.2, -- lateral studs from ball center — past the ball's edge
+	ProbeDown = 30, -- reach: pad arcs must still see the deck below
+	Px = 42, -- chevron inset from the side screen edge
+	Y = 0.62, -- screen-height fraction of the chevrons
+}
+
 -- Split-time sectors (§14): every Length studs down-track the HUD
 -- flashes the sector index, run-elapsed time, and a delta vs each live
 -- replay (PB and champion) — long runs get a heartbeat of micro-goals.

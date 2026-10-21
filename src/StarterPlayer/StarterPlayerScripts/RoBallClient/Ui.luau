@@ -1219,6 +1219,33 @@ function Ui.new(): Ui
 	debutFlash.Parent = hud
 	self.debutFlash = debutFlash
 
+	-- Deck-edge warning (§12): pink chevrons at the screen edges when the
+	-- ball's far side hangs over a cutout or the rail. gui-rooted — they
+	-- flank the track view, not the HUD cluster; the driver hides them
+	-- the moment the ball is supported.
+	local E = Config.EdgeWarn
+	local edgeL = Instance.new("TextLabel")
+	edgeL.Name = "EdgeL"
+	edgeL.BackgroundTransparency = 1
+	edgeL.Font = F_DATA
+	edgeL.TextSize = 26
+	edgeL.TextColor3 = C_PINK
+	edgeL.TextStrokeTransparency = 0.4
+	edgeL.AnchorPoint = Vector2.new(0, 0.5)
+	edgeL.Position = UDim2.new(0, E.Px, E.Y, 0)
+	edgeL.Size = UDim2.fromOffset(28, 28)
+	edgeL.Text = "◄"
+	edgeL.Visible = false
+	edgeL.Parent = gui
+	self.edgeL = edgeL
+	local edgeR = edgeL:Clone()
+	edgeR.Name = "EdgeR"
+	edgeR.AnchorPoint = Vector2.new(1, 0.5)
+	edgeR.Position = UDim2.new(1, -E.Px, E.Y, 0)
+	edgeR.Text = "►"
+	edgeR.Parent = gui
+	self.edgeR = edgeR
+
 	-- Look-ahead radar (§12): a vertical strip under the stack — top is
 	-- Radar.Range studs out, bottom is the ball; bars are lethal blocks
 	-- in ball-relative studs with the cyan line as "you". Pooled bars —
@@ -2028,6 +2055,13 @@ function Ui:flashDebut(typeName: string)
 	task.delay(Config.Features.BannerSeconds, function()
 		flash.Visible = false
 	end)
+end
+
+-- Deck-edge warning (§12): one chevron per unsupported side. Called from
+-- the heartbeat probe; both args are "side has ground under it" negated.
+function Ui:setEdgeWarn(left: boolean, right: boolean)
+	self.edgeL.Visible = left
+	self.edgeR.Visible = right
 end
 
 function Ui:setSeedText(text: string)

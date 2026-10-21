@@ -700,6 +700,10 @@ leaves the line off.
   at the ball, x = block offset vs the ball — re-read from the tagged
   `RoBallLethal` set every `ScanSeconds` so movers track for free;
   nearest `MaxBars` threats win the pooled frames.
+  Flanking the track view a pair of pink **edge-warning chevrons**
+  (`Config.EdgeWarn`) light when a short probe beside the ball finds no
+  ground — over a cutout or one step from the rail; anything hit
+  (deck, wall, face) counts as supported.
   Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music
