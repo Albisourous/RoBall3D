@@ -134,6 +134,28 @@ local function spawnEcho(f: Frames, name: string, color: Color3, transparency: n
 	ball.CastShadow = false
 	ball.Name = name
 	ball.Position = Vector3.new(f[2], f[3], f[4])
+	-- Split trail (§14): a short ribbon between two y-offset attachments
+	-- — it draws the echo's line through bends so the diverging route
+	-- reads, not just the two points' distance.
+	local gap = Config.Ghost.TrailGap
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, gap, 0)
+	a0.Parent = ball
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -gap, 0)
+	a1.Parent = ball
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, math.min(transparency + Config.Ghost.TrailFade, 1)),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.Lifetime = Config.Ghost.TrailLife
+	trail.FaceCamera = true
+	trail.LightEmission = 1
+	trail.Parent = ball
 	if label then
 		-- Diegetic announce: the champion's name rides its echo, no HUD space.
 		local bb = Instance.new("BillboardGui")

@@ -492,6 +492,12 @@ Config.Ghost = {
 	Transparency = 0.55, -- the echo ball's translucency
 	RivalColor = Color3.fromRGB(255, 196, 56), -- champion echo: gold vs own cyan
 	RivalTransparency = 0.35, -- reads "ahead of you" vs the airier PB echo
+	-- Split trails (§14): each echo drags a short ribbon so the diverging
+	-- lines read in peripheral vision, not just the two balls. Lifetime is
+	-- seconds of path; the alpha ramp starts at the echo's translucency.
+	TrailLife = 1.1,
+	TrailGap = 1.1, -- attachment half-span (studs) — ribbon thickness
+	TrailFade = 0.35, -- extra transparency added over the echo's own
 }
 
 Config.GemSfx = {

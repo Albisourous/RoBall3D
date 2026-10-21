@@ -810,7 +810,10 @@ Full spec: `AUDIO.md`. Binding decisions:
   always traces the identical lane, which is what makes it honest.
   Playback is a translucent neon ball lerping between time-stamped
   frames; it's cosmetic — CanCollide/Query/Touch all off, no physics,
-  no scoring effect, dies with the run.
+  no scoring effect, dies with the run. Each echo also drags a short
+  ribbon (`Config.Ghost.TrailLife`/`TrailGap`/`TrailFade`) between two
+  y-offset attachments — the *line* each replay took reads through
+  bends, not just the two balls' current distance.
 - **Champion ghost**: the same credentialed upload also offers the run to
   `RoBall3D_GhostChamp_v1`, keyed `s<seed>` → `{n, s, u, f}` — the
   seed's record holder and their replay. `crownChampion` compares inside
