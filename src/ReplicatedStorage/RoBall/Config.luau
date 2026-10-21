@@ -125,6 +125,13 @@ Config.EdgeWarn = {
 	Y = 0.62, -- screen-height fraction of the chevrons
 }
 
+-- Landing shadow (§12): a cyan ring projected on the ground under the
+-- ball — a blob shadow that doubles as the landing spot on pad arcs.
+Config.Landing = {
+	MaxDrop = 40, -- studs below the ball the shadow can still find ground
+	Radius = 2.0, -- ring radius in studs
+}
+
 -- Split-time sectors (§14): every Length studs down-track the HUD
 -- flashes the sector index, run-elapsed time, and a delta vs each live
 -- replay (PB and champion) — long runs get a heartbeat of micro-goals.

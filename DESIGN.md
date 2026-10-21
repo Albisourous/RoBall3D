@@ -704,6 +704,10 @@ leaves the line off.
   (`Config.EdgeWarn`) light when a short probe beside the ball finds no
   ground — over a cutout or one step from the rail; anything hit
   (deck, wall, face) counts as supported.
+  A cyan **landing shadow** ring (`Config.Landing`) sits on the ground
+  directly under the ball — the same lane-only probe straight down —
+  so a pad arc's landing spot reads on the descending deck; over void
+  it hides and the chevrons speak.
   Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music

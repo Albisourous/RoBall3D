@@ -96,6 +96,7 @@ edgeParams.FilterType = Enum.RaycastFilterType.Include
 local EDGE_DOWN = Vector3.new(0, -1, 0)
 local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
+local landingRing: Part? = nil -- pooled blob shadow, made once on first use
 
 --============================ garage ==============================--
 -- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids,
@@ -691,6 +692,9 @@ evRunEnded.OnClientEvent:Connect(
 		combo = 0
 		ui:setCombo(0)
 		ui:setEdgeWarn(false, false)
+		if landingRing then
+			landingRing.Transparency = 1
+		end
 		CosmeticFx.onMode("dead")
 		DeathFx.burst(lastBallPos)
 		-- Ghost echo (§14): this run's frames become the stored ghost only
@@ -970,6 +974,33 @@ RunService.Heartbeat:Connect(function(dt)
 	local lp = workspace:Raycast(bp + Vector3.new(-E.ProbeSide, 0, 0), EDGE_DOWN * E.ProbeDown, edgeParams)
 	local rp = workspace:Raycast(bp + Vector3.new(E.ProbeSide, 0, 0), EDGE_DOWN * E.ProbeDown, edgeParams)
 	ui:setEdgeWarn(lp == nil, rp == nil)
+
+	-- Landing shadow (§12): the same lane-only probe straight down marks
+	-- where the ball comes back to ground — most useful mid pad-arc.
+	local ring = landingRing
+	if not ring then
+		ring = Instance.new("Part")
+		ring.Name = "LandingShadow"
+		ring.Shape = Enum.PartType.Cylinder
+		ring.Size = Vector3.new(0.12, Config.Landing.Radius * 2, Config.Landing.Radius * 2)
+		ring.Orientation = Vector3.new(0, 0, 90) -- cylinder axis upright
+		ring.Anchored = true
+		ring.CanCollide = false
+		ring.CanQuery = false
+		ring.CanTouch = false
+		ring.CastShadow = false
+		ring.Material = Enum.Material.Neon
+		ring.Color = Color3.fromRGB(80, 225, 235)
+		ring.Parent = workspace
+		landingRing = ring
+	end
+	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
+	if drop then
+		ring.Position = drop.Position + Vector3.new(0, 0.1, 0)
+		ring.Transparency = 0.35
+	else
+		ring.Transparency = 1 -- over the void the chevrons speak instead
+	end
 
 	local v = b.AssemblyLinearVelocity
 	-- Unstick hop (§11): the -Z write below means a freeze is physics
