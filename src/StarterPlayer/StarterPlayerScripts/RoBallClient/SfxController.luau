@@ -149,6 +149,30 @@ function Sfx.dashDenied()
 	end)
 end
 
+-- Graze whoosh (§10): the bell inhale-swept up through the pass — air
+-- rushing past the face the ball just missed. Mirror of the dash's
+-- falling zip; rides the `wind` mixer channel like the speed bed.
+function Sfx.grazeWhoosh()
+	local cfg = Config.Score.Graze
+	local s = Instance.new("Sound")
+	s.Name = "GrazeWhoosh"
+	s.SoundId = assetUri(Config.DashSfx)
+	s.Volume = cfg.WhooshVol * AudioMix.gain("wind")
+	local ps = Instance.new("PitchShiftSoundEffect")
+	ps.Octave = cfg.WhooshStartOct
+	ps.Parent = s
+	s.Parent = SoundService
+	s:Play()
+	TweenService:Create(
+		ps,
+		TweenInfo.new(cfg.WhooshTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Octave = cfg.WhooshEndOct }
+	):Play()
+	task.delay(2, function()
+		s:Destroy()
+	end)
+end
+
 -- Proximity ping (§12): one flattened blip of the same bell — pitched
 -- down PingOctave so it can't read as a pickup, lifting PingLift at
 -- contact distance. The cadence itself is scheduled by the caller.

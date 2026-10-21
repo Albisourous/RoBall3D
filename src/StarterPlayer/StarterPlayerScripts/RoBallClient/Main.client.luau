@@ -634,6 +634,7 @@ player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
 		if grazeEmitter then
 			grazeEmitter:Emit(Config.Score.Graze.Sparks)
 		end
+		Sfx.grazeWhoosh()
 		missFovKick = Config.Camera.MissFovKick
 	end
 end)
@@ -646,6 +647,7 @@ player:GetAttributeChangedSignal("RoBallThread"):Connect(function()
 		if grazeEmitter then
 			grazeEmitter:Emit(Config.Score.Graze.Sparks)
 		end
+		Sfx.grazeWhoosh()
 		missFovKick = Config.Camera.MissFovKick
 	end
 end)

@@ -575,9 +575,10 @@ plate pays nothing, and a crossing that kills can't award. The server walks
 the streamer's ordered hazard-plane list with a cursor — zero per-frame
 scans — and `plausible()` carries a loose `ceil(dist/30) × 8 × Points ×
 ChainMax` ceiling. Each graze bumps `RoBallNearMiss`; the HUD flashes a
-short cyan `CLOSE +N`, and a pooled `Graze` particle burst fires at the
-ball — the dodge reads physically at the moment of risk, not only as
-HUD text (threads spark the same burst).
+short cyan `CLOSE +N`, a pooled `Graze` particle burst fires at the
+ball, and an inhale-swept whoosh rides the `wind` channel — the dodge
+reads physically at the moment of risk, not only as HUD text (threads
+get the same spark + whoosh).
 
 **Chains**: a graze within `NearMiss.ChainWindow` seconds of the last one
 multiplies the award — `Points × min(chain, ChainMax)` — so threading a

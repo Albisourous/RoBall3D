@@ -560,6 +560,12 @@ Config.Score = {
 		Size = 0.35, -- particle studs
 		Drag = 4,
 		Color = Color3.fromRGB(160, 240, 255), -- icy cyan: scraped and lived
+		-- Whoosh (§10): the bell inhale-swept up — air rushing past the
+		-- face. Rides the `wind` mixer channel like the speed bed.
+		WhooshVol = 0.32,
+		WhooshStartOct = 0.4, -- starts flattened…
+		WhooshEndOct = 1.15, -- …lifts through the pass — inhale, not dash-zip
+		WhooshTime = 0.22, -- sweep seconds
 	},
 }
 
