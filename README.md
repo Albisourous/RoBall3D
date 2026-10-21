@@ -24,8 +24,9 @@ world narrows and speeds up at distance milestones, and one fall ends the run.
 - **Global leaderboard** — personal best + top 20 runs, each tagged with its
   seed so great runs are replayable
 
-Controls: `A`/`D` or `←`/`→` steer (momentum, no brake), hold `W`/`↑` to
-boost on a recharging meter, `R` restart.
+Controls: `A`/`D` or `←`/`→` steer (momentum), `W`/`↑` boost + `S`/`↓`
+brake + `Q`/`E` dash — all spending the shared recharging power meter,
+`R` restart.
 
 ## Status
 

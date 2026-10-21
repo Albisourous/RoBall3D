@@ -302,7 +302,7 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 
 		-- LaunchPad kick: the strip must sit INSIDE the intersection of
 		-- above-h windows across the survivable entry-speed range
-		-- [SlowCrossFrac, Boost.Mult]*speed — a braked or boosted entry
+		-- [SlowCrossFrac, Power.Mult]*speed — a braked or boosted entry
 		-- otherwise meets an arc it cannot clear.
 		if spec.pads and spec.type == "PadHop" then
 			local speed = Tiers.speedAt(dist + spec.pads[1].t * spec.length)
@@ -317,7 +317,7 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 							0
 						)
 					)
-				local zLo = Config.Boost.Mult * speed * (tApex - wSec / 2)
+				local zLo = Config.Power.Mult * speed * (tApex - wSec / 2)
 				local zHi = Config.Pads.SlowCrossFrac * speed * (tApex + wSec / 2)
 				local stripZ = strip.t * spec.length - pad.t * spec.length
 				if stripZ - strip.d / 2 < zLo - 0.5 or stripZ + strip.d / 2 > zHi + 0.5 then

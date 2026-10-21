@@ -41,11 +41,11 @@ local function spaced(s: string): string
 	return table.concat(out, "  ")
 end
 
--- Boost strip geometry: LED-cell count + the segment strip's inset
+-- Power meter strip geometry: LED-cell count + the segment strip's inset
 -- inside the capsule (tip/gate math derives the inner width from it).
-local BOOST_W = 220
-local BOOST_SEGS = 14
-local BOOST_PAD = 9
+local METER_W = 220
+local METER_SEGS = 14
+local METER_PAD = 9
 
 local function label(parent, text, size, font, color, order)
 	local l = Instance.new("TextLabel")
@@ -524,7 +524,7 @@ function Ui.new(): Ui
 	comboText.Parent = hud
 	self.comboText = comboText
 
-	--=========== SPEED + BOOST (bottom corners) ===========--
+	--=========== SPEED + POWER METER (bottom corners) ===========--
 	-- Vaporwave BPM readout (DESIGN.md §12): the digit is the heard tempo
 	-- (track bpm x snapped PlaybackSpeed — it steps in semitones with the
 	-- music), chromed like retro lettering and slanted outrun-style. Twin
@@ -609,24 +609,24 @@ function Ui.new(): Ui
 	unitGrad.Color = ColorSequence.new(C_DIM, C_PINK:Lerp(C_DIM, 0.35))
 	unitGrad.Parent = spdUnit
 
-	-- Boost bar: a vaporwave nitro strip — a tilted pill of LED segments
+	-- Power meter: a vaporwave nitro strip — a tilted pill of LED segments
 	-- ramping cyan->magenta like a tape-deck VU meter. A diamond bead
 	-- rides the lit edge; the boundary cell glows partial so charge reads
 	-- analog-smooth between cells. RechargeGate is a gold notch slotted
 	-- between cells, its lock zone tinted warm; the strip still flares
 	-- (pink boost, orange brake, gold ready-ping).
 	local bWrap = Instance.new("Frame")
-	bWrap.Name = "BoostBar"
+	bWrap.Name = "PowerMeter"
 	bWrap.AnchorPoint = Vector2.new(0.5, 0.5)
-	bWrap.Position = UDim2.new(0.18, BOOST_W / 2, 1, -38)
-	bWrap.Size = UDim2.fromOffset(BOOST_W, 18)
+	bWrap.Position = UDim2.new(0.18, METER_W / 2, 1, -38)
+	bWrap.Size = UDim2.fromOffset(METER_W, 18)
 	bWrap.Rotation = -4
 	bWrap.BackgroundColor3 = C_BG
 	bWrap.BackgroundTransparency = 0.25
 	bWrap.BorderSizePixel = 0
 	bWrap.Visible = false
 	bWrap.Parent = gui
-	self.boostBar = bWrap
+	self.powerBar = bWrap
 	local bCorner = Instance.new("UICorner")
 	bCorner.CornerRadius = UDim.new(1, 0)
 	bCorner.Parent = bWrap
@@ -641,16 +641,16 @@ function Ui.new(): Ui
 	-- meter must refill past them before W fires again.
 	local bInner = Instance.new("Frame")
 	bInner.BackgroundTransparency = 1
-	bInner.Position = UDim2.fromOffset(BOOST_PAD, 4)
-	bInner.Size = UDim2.new(1, -BOOST_PAD * 2, 1, -8)
+	bInner.Position = UDim2.fromOffset(METER_PAD, 4)
+	bInner.Size = UDim2.new(1, -METER_PAD * 2, 1, -8)
 	bInner.Parent = bWrap
-	local innerW = BOOST_W - BOOST_PAD * 2
+	local innerW = METER_W - METER_PAD * 2
 	local gap = 3
-	local cellW = (innerW - gap * (BOOST_SEGS - 1)) / BOOST_SEGS
-	local gateCells = math.floor(Config.Boost.RechargeGate * BOOST_SEGS + 1e-4)
+	local cellW = (innerW - gap * (METER_SEGS - 1)) / METER_SEGS
+	local gateCells = math.floor(Config.Power.RechargeGate * METER_SEGS + 1e-4)
 	self._gateCells = gateCells
-	self.boostSegs = {}
-	for i = 1, BOOST_SEGS do
+	self.powerSegs = {}
+	for i = 1, METER_SEGS do
 		local s = Instance.new("Frame")
 		s.Position = UDim2.fromOffset((i - 1) * (cellW + gap), 0)
 		s.Size = UDim2.new(0, cellW, 1, 0)
@@ -661,7 +661,7 @@ function Ui.new(): Ui
 		sc.CornerRadius = UDim.new(0, 3)
 		sc.Parent = s
 		s.Parent = bInner
-		self.boostSegs[i] = s
+		self.powerSegs[i] = s
 	end
 	-- The recharge gate is a notch IN the strip, not a floating tick: a
 	-- slim gold divider slotted into the gap right after the lock zone.
@@ -673,29 +673,29 @@ function Ui.new(): Ui
 	bGate.BackgroundTransparency = 0.25
 	bGate.BorderSizePixel = 0
 	bGate.Parent = bInner
-	self.boostGate = bGate
+	self.powerGate = bGate
 	-- Diamond bead riding the lit edge — in wrap space so its x tracks
 	-- the smoothed fill fraction every frame.
 	local bTip = Instance.new("Frame")
 	bTip.AnchorPoint = Vector2.new(0.5, 0.5)
-	bTip.Position = UDim2.new(0, BOOST_PAD, 0.5, 0)
+	bTip.Position = UDim2.new(0, METER_PAD, 0.5, 0)
 	bTip.Size = UDim2.fromOffset(12, 12)
 	bTip.Rotation = 45
 	bTip.BackgroundColor3 = C_CYAN
 	bTip.BorderSizePixel = 0
 	bTip.Visible = false
 	bTip.Parent = bWrap
-	self.boostTip = bTip
+	self.powerTip = bTip
 	local bLab = Instance.new("TextLabel")
 	bLab.AnchorPoint = Vector2.new(0, 1)
 	bLab.Position = UDim2.fromOffset(0, -3)
-	bLab.Size = UDim2.fromOffset(BOOST_W, 13)
+	bLab.Size = UDim2.fromOffset(METER_W, 13)
 	bLab.BackgroundTransparency = 1
 	bLab.Font = F_DATA
 	bLab.TextSize = 11
 	bLab.TextColor3 = C_DIM
 	bLab.TextXAlignment = Enum.TextXAlignment.Left
-	bLab.Text = "BOOST"
+	bLab.Text = "POWER METER"
 	bLab.Parent = bWrap
 
 	-- Seed tag pinned to the true bottom-right corner — replantable info,
@@ -771,7 +771,7 @@ function Ui:showMenu(best: number)
 	self.hud.Visible = false
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
-	self.boostBar.Visible = false
+	self.powerBar.Visible = false
 	self.seedTag.Visible = false
 	self:setBest(best)
 end
@@ -782,7 +782,7 @@ function Ui:showHud()
 	self.hud.Visible = true
 	self.spdNum.Visible = true
 	self.spdUnit.Visible = true
-	self.boostBar.Visible = true
+	self.powerBar.Visible = true
 	self.seedTag.Visible = true
 end
 
@@ -799,17 +799,17 @@ function Ui:setPulse(v: number)
 	self.pulse = v
 end
 
--- BPM number + boost bar, called every heartbeat during a run. `bpm` is
+-- BPM number + power meter, called every heartbeat during a run. `bpm` is
 -- the heard tempo (Music.bpm()); the digit's hue still keys off s/s:
--- cyan 0 -> magenta 100 -> hot red pegged past it. The boost bar pulses
+-- cyan 0 -> magenta 100 -> hot red pegged past it. The meter bar pulses
 -- pink while W is held and blinks while the meter is latched out below
 -- RechargeGate.
 function Ui:setSpeedo(
 	speed: number,
 	bpm: number,
-	boostFrac: number,
+	powerFrac: number,
 	boosting: boolean,
-	boostSpent: boolean,
+	powerSpent: boolean,
 	braking: boolean?,
 	dashing: boolean?,
 	dashDeniedAt: number?
@@ -843,42 +843,42 @@ function Ui:setSpeedo(
 	-- Analog-smooth across the discrete cells: the shown charge eases to
 	-- the real value (~70ms) and the leading cell only glows partial, so
 	-- the strip breathes instead of stepping.
-	local frac = math.clamp(boostFrac, 0, 1)
+	local frac = math.clamp(powerFrac, 0, 1)
 	local now = tick()
-	local disp = self._boostDisp or frac
-	disp += (frac - disp) * math.min(1, math.max(0, now - (self._boostT or now)) * 14)
-	self._boostT = now
-	self._boostDisp = disp
+	local disp = self._powerDisp or frac
+	disp += (frac - disp) * math.min(1, math.max(0, now - (self._powerT or now)) * 14)
+	self._powerT = now
+	self._powerDisp = disp
 	-- Ready flash: when charge crosses the gate upward, the bar pings gold
 	-- for a moment — you feel W come back without watching it.
 	local gate = self.gateFrac or 1
-	local ready = boostFrac >= gate
-	if ready and self._boostReady == false then
+	local ready = powerFrac >= gate
+	if ready and self._powerReady == false then
 		self._readyFlash = tick()
 	end
-	self._boostReady = ready
-	local blink = boostSpent and math.sin(tick() * 10) > 0
+	self._powerReady = ready
+	local blink = powerSpent and math.sin(tick() * 10) > 0
 	local flash = self._readyFlash ~= nil and tick() - self._readyFlash < 0.45
 	-- Forced state color overrides the cyan->magenta ramp: gold ready-ping,
 	-- white dash flash, dim flicker on a denied press (§4: broke/latched),
-	-- hot orange while braking (S spends the same meter), pink boost flare.
+	-- hot orange while braking (S spends the same power meter), pink boost flare.
 	local denied = dashDeniedAt ~= nil and (now - dashDeniedAt) < 0.3
 	local forced = flash and C_GOLD
 		or dashing and C_WHITE
 		or (denied and (math.sin(now * 18) > 0 and C_DIM or C_PANEL))
 		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or nil))
-	local lit = disp * BOOST_SEGS
-	for i, s in ipairs(self.boostSegs) do
+	local lit = disp * METER_SEGS
+	for i, s in ipairs(self.powerSegs) do
 		local edge = lit - (i - 1)
 		if edge > 0 then
-			s.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / BOOST_SEGS)
+			s.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / METER_SEGS)
 			s.BackgroundTransparency = math.clamp((1 - edge) * 0.85, 0, 0.85)
 		elseif i <= (self._gateCells or 0) then
 			-- Lock-zone slot: permanent warm tint, gently pulsing while
 			-- latched out — "recharging through the gate" reads without
 			-- needing a floating tick.
 			s.BackgroundColor3 = C_GATE_DIM
-			s.BackgroundTransparency = boostSpent and (0.35 + 0.3 * math.sin(now * 6)) or 0.4
+			s.BackgroundTransparency = powerSpent and (0.35 + 0.3 * math.sin(now * 6)) or 0.4
 		else
 			s.BackgroundColor3 = C_PANEL
 			s.BackgroundTransparency = 0.4
@@ -886,9 +886,9 @@ function Ui:setSpeedo(
 	end
 	-- The bead tip rides the smoothed lit edge, wearing the same color;
 	-- hidden when the meter is empty so it doesn't dangle off the left end.
-	self.boostTip.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, disp)
-	self.boostTip.Position = UDim2.new(0, BOOST_PAD + disp * (BOOST_W - BOOST_PAD * 2), 0.5, 0)
-	self.boostTip.Visible = disp > 0.04
+	self.powerTip.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, disp)
+	self.powerTip.Position = UDim2.new(0, METER_PAD + disp * (METER_W - METER_PAD * 2), 0.5, 0)
+	self.powerTip.Visible = disp > 0.04
 end
 
 -- Gem combo pip under the subline (n>=2 shows "xN").
@@ -910,7 +910,7 @@ function Ui:showDeath(
 	self.hud.Visible = false
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
-	self.boostBar.Visible = false
+	self.powerBar.Visible = false
 	self.seedTag.Visible = false
 	self.death.Visible = true
 	self.dScore.Text = tostring(score)

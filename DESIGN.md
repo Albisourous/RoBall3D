@@ -96,13 +96,16 @@ explainable.
 
 - **Steering**: `A`/`D` or `Left`/`Right` apply lateral acceleration
   (momentum — the ball keeps drifting when released, damped slightly when idle).
-- **Boost & brake** (`Config.Boost`): hold `W`/`↑` = ×`Mult` (1.5) speed;
-  hold `S`/`↓` = ÷`Mult` — the **same meter**, same drain/latch rules,
-  mirrored effect. The ~1.2s charge drains while either is held, refills
-  on release (~4.4s to full), emptying latches until ~35% refilled.
-  Boosting and braking both ease at 4× normal accel so the HUD tempo
-  visibly jumps; the bar flares pink on boost, orange on brake.
-  Charge lives on the bottom-left boost dial (§12).
+- **Power meter** (`Config.Power`): one shared resource bar driving all
+  three verbs — hold `W`/`↑` = ×`Mult` (1.5) boost, hold `S`/`↓` = ÷`Mult`
+  brake, tap `Q`/`E` = dash (below). The ~1.2s charge drains while a held
+  verb runs, refills on release (~4.4s to full), and emptying latches
+  **every** verb out until ~35% refilled. Boost/brake both ease at 4×
+  normal accel so the HUD tempo visibly jumps; the bar flares pink on
+  boost, orange on brake. The gold `RechargeGate` notch in the strip is
+  the universal **armed** marker — a meter past the notch means all
+  three verbs are live, so "can I act?" is read off the bar, not felt
+  out. Charge lives on the bottom-left meter bar (§12).
 - **Dash** (`Config.Dash`): tap `Q`/`E` = lateral burst left/right —
   the same steer-ease math drives lateral velocity toward `Speed`
   (60 s/s ≈ 2.3× max steer) at burst accel (~50ms to full, so the
@@ -110,11 +113,12 @@ explainable.
   (0.2s): a ~12-stud sidestep that clamps back into steer range on
   release. Steering is ignored mid-burst — the dodge is a commitment.
   Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
-  of the **same** meter boost/brake drain — offense, defense and dodge
-  all bid on one resource, so a spent dodge is a boost you don't have.
-  A burnt meter locks all three verbs: dash needs its `Cost` slice AND
-  a meter past the `RechargeGate` (a denied press flickers the bar
-  dim). `Cooldown` (0.45s) paces repeat bursts — the meter is the real
+  of the **same** power meter boost/brake drain — offense, defense and
+  dodge all bid on one resource, so a spent dodge is a boost you don't
+  have. Dash arms on the **marker**, not its own threshold: the gold
+  `RechargeGate` notch is the readiness read for every verb — below it
+  a press is denied (the bar flickers dim), past it the dodge is live.
+  `Cooldown` (0.45s) paces repeat bursts — the meter is the real
   limiter. Airborne is legal physics: a bad Terrace bounce or ramp arc
   can be bought sideways at meter cost, and a dash can even carry a
   narrow cutout laterally — voids still kill (Y stays gravity's), so
@@ -367,7 +371,7 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
    full-brake floor, so a braked crossing still lands. `PadHop` holds
    y ≥ H for a window wSec centered on the apex; the strip is placed
    inside the *intersection* of those windows for every u in
-   `[SlowCrossFrac, Boost.Mult]×speed` — braked entries cross late in
+   `[SlowCrossFrac, Power.Mult]×speed` — braked entries cross late in
    the arc, boosted entries early on the rising limb, and both clear.
    Miss the pad → death is earned.
 4. Context gating (`ChunkDefs.canRun`): DropGate only on accent downbeats
@@ -500,12 +504,13 @@ deferred.
   outrun slant, and twin cyan/pink VHS-fringe ghosts that spread and
   flare with the audio pulse — the digit thumps on the heard beat.
   Bottom-left
-  is a glanceable **boost bar**: a tilted capsule of LED segments ramping
+  is a glanceable **power meter**: a tilted capsule of LED segments ramping
   cyan→magenta like a VU meter, diamond bead riding the lit edge,
-  `RechargeGate` shown as a gold notch between cells with the lock zone
+  `RechargeGate` shown as a gold notch between cells — the armed marker
+  for boost, brake AND dash (§4) — with the lock zone
   tinted warm, pink flare while boosting, hot orange
   while braking, white flash for a dash burst, a dim flicker on a
-  denied press (same meter — §4), blink while latched out —
+  denied press (same power meter — §4), blink while latched out —
   and a gold ping the moment charge crosses the gate upward, so W coming
   back is felt, not watched. Under the subline a small `xN` **combo pip**
   tracks gem streaks (same `GemSfx.ComboWindow` the chime ladder uses, so

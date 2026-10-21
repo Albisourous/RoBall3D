@@ -35,22 +35,22 @@ Config.Speed = {
 	EndlessWidthMaxFloor = 18,
 }
 
--- Boost (DESIGN.md §6): hold W/Up to push speed by Mult while a meter
--- drains; release to recharge. Emptying latches it out until the meter
--- refills past RechargeGate. Short meter = pick your moment. No brake —
--- momentum flow is the identity.
-Config.Boost = {
+-- Power meter (DESIGN.md §4): one resource bar for all three verbs —
+-- W/Up boost (×Mult speed), S/Down brake (÷Mult), Q/E dash (flat slice
+-- per burst). Held verbs drain it; release to recharge; emptying latches
+-- ALL verbs out until the meter refills past RechargeGate — the gold
+-- notch on the bar is the universal "armed" read.
+Config.Power = {
 	Mult = 1.5, -- forward speed multiplier while boosting — a real kick
 	AccelMult = 4, -- ease rate x Accel while boosting: the BPM HUD visibly JUMPS
-	Capacity = 1.2, -- seconds of boost on a full meter — spend it deliberately
+	Capacity = 1.2, -- seconds of held-verb drain on a full meter — spend it deliberately
 	RegenPerSec = 0.225, -- meter fraction refilled per second off (~4.4s to full)
-	RechargeGate = 0.35, -- emptied meter must refill this far to boost again
+	RechargeGate = 0.35, -- emptied meter must refill this far to act again — the marker
 }
 
 -- Dash (DESIGN.md §4): tap Q/E for a lateral burst — a flat slice of the
--- SAME meter boost/brake drain (offense/defense/dodge bid on one
--- resource). Discrete spend, not a held drain — but a burnt meter still
--- locks it, same latch as the held verbs.
+-- power meter (offense/defense/dodge bid on one resource). Discrete
+-- spend, not a held drain, but it still needs a meter past the marker.
 Config.Dash = {
 	Speed = 60, -- studs/s lateral target during the burst (~2.3x max steer)
 	Time = 0.2, -- burst window — ~12 studs of sidestep before hand-back
@@ -199,9 +199,9 @@ Config.Pads = {
 	ArcMargin = 1.6, -- studs of clearance above the strip the arc must keep
 	-- Entry-speed honesty: pad chunks must be clearable at the SLOWEST
 	-- survivable entry, not the nominal tier speed. Full-brake sets the
-	-- sustained floor at 1/Boost.Mult ≈ 0.67x nominal — size a notch below
+	-- sustained floor at 1/Power.Mult ≈ 0.67x nominal — size a notch below
 	-- it so a braked (or mid-flight braking) ball never meets an
-	-- impossible arc. PadHop's upper bound is Boost.Mult itself.
+	-- impossible arc. PadHop's upper bound is Power.Mult itself.
 	SlowCrossFrac = 0.55, -- PadHop's strip clearance covers entries down to this fraction of tier speed
 	VoidAirFrac = 0.55, -- PadVoid gap = this fraction of pad airtime * speed (< brake floor)
 	Color = Color3.fromRGB(0, 230, 255),

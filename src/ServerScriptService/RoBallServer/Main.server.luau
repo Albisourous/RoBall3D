@@ -199,7 +199,7 @@ end
 local function maxPossibleDist(elapsed: number): number
 	local d, fwd, t, step = 0, Config.Speed.Start, 0, 0.25
 	while t < elapsed do
-		local target = Tiers.speedAt(d) * Config.Boost.Mult
+		local target = Tiers.speedAt(d) * Config.Power.Mult
 		fwd += math.clamp(target - fwd, -Config.Speed.Accel * step, Config.Speed.Accel * step)
 		d += fwd * step
 		t += step

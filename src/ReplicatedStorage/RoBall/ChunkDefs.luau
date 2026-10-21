@@ -923,7 +923,7 @@ end
 -- entry-speed range: the arc holds y >= H for wSec centered on the apex
 -- for ANY speed — in studs that's u*[tApex ± wSec/2] — so the strip must
 -- sit inside the INTERSECTION of those windows across u in
--- [SlowCrossFrac, Boost.Mult]*speed, or some entry (braked, still
+-- [SlowCrossFrac, Power.Mult]*speed, or some entry (braked, still
 -- accelerating, boosted) meets an impossible arc. wSec solves that
 -- intersection fixed-point (tApex depends on kick). Miss the pad, eat
 -- the strip — the pad line is the solve.
@@ -939,7 +939,7 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	local h = stripH + Config.Pads.ArcMargin
 	local span = stripD + Config.Pads.Length + 2
 	local rLo = Config.Pads.SlowCrossFrac
-	local rHi = Config.Boost.Mult
+	local rHi = Config.Power.Mult
 	-- Intersection width = v*[rLo*(tA+wSec/2) - rHi*(tA-wSec/2)] must hold
 	-- the whole span; iterate wSec since tA grows with the kick it forces.
 	local wSec = span / speed

@@ -59,7 +59,7 @@ local fnBuyGems = remotes:WaitForChild("BuyGems") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
-ui.gateFrac = Config.Boost.RechargeGate
+ui.gateFrac = Config.Power.RechargeGate
 
 local mode: "menu" | "running" | "dead" = "menu"
 local ball: BasePart? = nil
@@ -68,8 +68,8 @@ local fwdSpeed = Config.Speed.Start
 local currentSeed = 0
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
-local boostCharge = 1 -- 0..1 boost meter (DESIGN.md §6)
-local boostSpent = false -- emptied latch until RechargeGate refills
+local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
+local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
 local dashUntil = 0
 local lastDashAt = 0
@@ -200,8 +200,8 @@ local function bindBall(b: Instance)
 		ball = b :: BasePart
 		lateralVel = 0
 		fwdSpeed = Config.Speed.Start
-		boostCharge = 1
-		boostSpent = false
+		powerCharge = 1
+		powerSpent = false
 		dashDir = 0
 		dashUntil = 0
 		lastDashAt = 0
@@ -383,9 +383,10 @@ evRunEnded.OnClientEvent:Connect(
 	end
 )
 
--- Dash (§4): Q/E spend a flat Cost slice of the boost meter for a
--- ~12-stud sidestep. Needs the charge AND a non-burnt meter — the
--- latch gates all three verbs; a denied press just flickers the bar.
+-- Dash (§4): Q/E spend a flat Cost slice of the power meter for a
+-- ~12-stud sidestep. The gold RechargeGate notch is the readiness read:
+-- a meter past the marker = all verbs armed (the latch can't outlive
+-- it); a denied press just flickers the bar dim.
 local function tryDash(dir: number): string
 	local now = tick()
 	if mode ~= "running" or now < controlAt then
@@ -394,11 +395,11 @@ local function tryDash(dir: number): string
 	if now < dashUntil or now - lastDashAt < Config.Dash.Cooldown then
 		return "cooldown"
 	end
-	if boostSpent or boostCharge < Config.Dash.Cost then
+	if powerCharge < math.max(Config.Power.RechargeGate, Config.Dash.Cost) then
 		dashDeniedAt = now
 		return "denied"
 	end
-	boostCharge = math.max(0, boostCharge - Config.Dash.Cost)
+	powerCharge = math.max(0, powerCharge - Config.Dash.Cost)
 	dashDir = dir
 	dashUntil = now + Config.Dash.Time
 	lastDashAt = now
@@ -474,35 +475,36 @@ RunService.Heartbeat:Connect(function(dt)
 	wasDashing = dashing
 
 	-- Tier-paced forward speed, eased (DESIGN.md §9). Hold W to boost, S to
-	-- brake — same meter, same Mult, opposite direction; it only refills
-	-- once released, and an emptied meter latches out past RechargeGate.
+	-- brake — same power meter, same Mult, opposite direction; it only
+	-- refills once released, and an emptied meter latches out past
+	-- RechargeGate.
 	local dist = math.max(0, -b.Position.Z)
 	local wantBoost = UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up)
 	local wantBrake = UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down)
-	local boosting = wantBoost and not boostSpent
-	local braking = wantBrake and not boosting and not boostSpent
+	local boosting = wantBoost and not powerSpent
+	local braking = wantBrake and not boosting and not powerSpent
 	if boosting or braking then
-		boostCharge = math.max(0, boostCharge - dt / Config.Boost.Capacity)
-		if boostCharge == 0 then
-			boostSpent = true
+		powerCharge = math.max(0, powerCharge - dt / Config.Power.Capacity)
+		if powerCharge == 0 then
+			powerSpent = true
 			boosting = false
 			braking = false
 		end
 	elseif not wantBoost and not wantBrake then
-		boostCharge = math.min(1, boostCharge + Config.Boost.RegenPerSec * dt)
-		if boostSpent and boostCharge >= Config.Boost.RechargeGate then
-			boostSpent = false
+		powerCharge = math.min(1, powerCharge + Config.Power.RegenPerSec * dt)
+		if powerSpent and powerCharge >= Config.Power.RechargeGate then
+			powerSpent = false
 		end
 	end
-	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Boost.Mult or 1) / (braking and Config.Boost.Mult or 1)
+	local targetFwd = Tiers.speedAt(dist) * (boosting and Config.Power.Mult or 1) / (braking and Config.Power.Mult or 1)
 	-- Both directions ease faster so the HUD tempo visibly jumps — the
 	-- boost/brake has to FEEL like a kick, not a suggestion.
-	local fwdAccel = Config.Speed.Accel * ((boosting or braking) and Config.Boost.AccelMult or 1)
+	local fwdAccel = Config.Speed.Accel * ((boosting or braking) and Config.Power.AccelMult or 1)
 	fwdSpeed += math.clamp(targetFwd - fwdSpeed, -fwdAccel * dt, fwdAccel * dt)
 	-- norm lands before the speedo so Music.bpm() reads this frame's
 	-- tempo, not last frame's.
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
-	ui:setSpeedo(fwdSpeed, Music.bpm(), boostCharge, boosting, boostSpent, braking, dashing, dashDeniedAt)
+	ui:setSpeedo(fwdSpeed, Music.bpm(), powerCharge, boosting, powerSpent, braking, dashing, dashDeniedAt)
 	Music.setTier(Tiers.forDistance(dist).index) -- layer mix + sting on tier-ups
 
 	local v = b.AssemblyLinearVelocity
