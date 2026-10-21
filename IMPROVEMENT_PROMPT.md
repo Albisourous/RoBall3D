@@ -363,6 +363,14 @@ runs the loop below and does not stop until you say **stop**.
     echoes at -60/-140 gave exactly `PB +269 · champion42 +189` at a
     -329 fall and `PB +957 · champion42 +877` at -1017)*
 
+52. **Last-fall marker** *(done — 73ab192: a dim red `LAST n` gate on
+    the deck where the most recent clean run on this seed ended — the
+    bloodstain for an R-rerun, read from `RoBallHistory` (newest
+    first). Same 150m minimum + view-distance rules as BEST, suppressed
+    within 8 studs of the PB gate. Verified live: history `900,300,777`
+    spawned the marker at exactly z=-300 labeled `LAST 900` at 0.6
+    transparency (off-seed entries ignored); an 80m fall spawned none)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
