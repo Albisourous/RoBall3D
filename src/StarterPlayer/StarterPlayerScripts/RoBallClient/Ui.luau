@@ -243,7 +243,7 @@ function Ui.new(): Ui
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 6)
 
 	-- RUN SETUP (§6): everything that shapes THIS run lives next to PLAY —
-	-- one-tap RANDOM/DAILY/WEEKLY chips write the seed box, or type a
+	-- one-tap RANDOM/DAILY chips write the seed box, or type a
 	-- custom seed, and the TRACK cycler picks the song. The old cryptic
 	-- "blank = random · 'daily' = today" explainer is gone: the chips are
 	-- self-describing.
@@ -274,7 +274,7 @@ function Ui.new(): Ui
 	seedBox.TextColor3 = C_PINK
 	seedBox.PlaceholderText = "or type a seed"
 	seedBox.PlaceholderColor3 = C_DIM
-	seedBox.Text = ""
+	seedBox.Text = "daily" -- default: race today's shared board, not a throwaway
 	seedBox.Position = UDim2.fromOffset(18, 46)
 	seedBox.Size = UDim2.fromOffset(356, 30)
 	seedBox.ClearTextOnFocus = false
@@ -285,16 +285,12 @@ function Ui.new(): Ui
 	seedBox.Parent = setup
 	self.seedBox = seedBox
 
-	-- Seed chips: segmented quick-pick for the three run variants. Lit chip
+	-- Seed chips: segmented quick-pick — RANDOM or DAILY. Lit chip
 	-- = what PLAY will run; a typed seed unlatches them all (custom read).
 	local chipBtns: { [string]: TextButton } = {}
 	local function paintChips()
 		local t = string.lower(seedBox.Text)
-		local lit = if t == ""
-			then "random"
-			elseif Daily.isKeyword(t) then "daily"
-			elseif Daily.isWeekKeyword(t) then "weekly"
-			else ""
+		local lit = if t == "" then "random" elseif Daily.isKeyword(t) then "daily" else ""
 		for key, b in pairs(chipBtns) do
 			local on = key == lit
 			b.TextColor3 = on and C_PINK or C_DIM
@@ -304,7 +300,7 @@ function Ui.new(): Ui
 			end
 		end
 	end
-	for i, key in ipairs({ "random", "daily", "weekly" }) do
+	for i, key in ipairs({ "random", "daily" }) do
 		local b = Instance.new("TextButton")
 		b.Name = "Chip" .. key
 		b.BackgroundColor3 = C_BG
@@ -314,8 +310,8 @@ function Ui.new(): Ui
 		b.TextSize = 13
 		b.TextColor3 = C_DIM
 		b.Text = string.upper(key)
-		b.Position = UDim2.fromOffset(18 + (i - 1) * 121, 12)
-		b.Size = UDim2.fromOffset(114, 26)
+		b.Position = UDim2.fromOffset(18 + (i - 1) * 185, 12)
+		b.Size = UDim2.fromOffset(171, 26)
 		b.Parent = setup
 		local bc = Instance.new("UICorner")
 		bc.CornerRadius = UDim.new(0, 6)

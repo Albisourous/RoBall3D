@@ -161,10 +161,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - **PLAY** — the only filled element on the screen (solid pink slab,
     cyan rim on hover); `ENTER`/`R` also start. Everything else is chrome.
   - **RUN SETUP** panel — a bordered cluster under PLAY holding whatever
-    shapes the run: `RANDOM | DAILY | WEEKLY` seed chips (one tap writes
+    shapes the run: `RANDOM | DAILY` seed chips (one tap writes
     the seed box; the lit chip is what PLAY runs; typing a custom seed
-    unlatches them all), the seed `TextBox` (`daily`/`weekly` keywords
-    still work — §14), and the `TRACK` cycler (AUDIO.md §3).
+    unlatches them all), the seed `TextBox` (defaults to `daily` — race
+    today's shared board; `weekly` etc. still resolve — §14), and the
+    `TRACK` cycler (AUDIO.md §3).
   - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK`: equip cyclers,
     bundle passes, and the gem bank each get their own page so the shop
     can't flood the menu (§18). The preview ball still dresses live.
@@ -307,6 +308,7 @@ narrow. Then the seeded generator takes over.
 | `TunnelSlot` | Roof ribbon + hanging slabs leaving one corridor + decor teeth | Enclosed corridor | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
+| `PressRow` | Low roof + ceiling presses slamming on a trapezoid wave; one side lane stays permanently clear per row, under-plate is the timed shortcut | Vertical timing | 6+ |
 | `Rotor` | Near-center post + neon spinning blade; swept disc can't reach either rim — both rails are always-clear lanes, and a translucent danger disc tints the swept zone | Timing + bait gems | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
@@ -328,9 +330,10 @@ narrow. Then the seeded generator takes over.
 - `Section.cutoutOff` shifts a cutout's center off the deck axis (Fork).
 - `Section.roofH` emits a dark ceiling ribbon + neon ribs (TunnelSlot).
 - `Obstacle.hang` anchors a slab's top to `roofH` — hanging gate columns.
-- `Obstacle.motion` (`slideX`/`spin` + periodSec/phase) — beat-locked
-  movers; periods are whole-note counts of the heard tempo so the hazard
-  cycle IS the music.
+- `Obstacle.motion` (`slideX`/`spin`/`dropY` + periodSec/phase) —
+  beat-locked movers; periods are whole-note counts of the heard tempo
+  so the hazard cycle IS the music. `dropY` runs a trapezoid pulse —
+  raised, fast slam, hold, rise — driven by `Config.Movers.Press*Frac`.
 - `ChunkSpec.pads` — LaunchPad strips (cyan, tagged `RoBallPad`,
   `KickY` attribute). The client applies the kick (it owns the ball's
   velocity): GD pads as terrain, not a jump button.
@@ -399,7 +402,8 @@ seed, same ramp.
 
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
 Blackout 900m · Chicane 1300m · Fork 1500m · PadHop 1700m · PadVoid 2100m
-· TunnelSlot 2200m · DropGate 2300m · Pacer 2700m · Rotor 2900m · OrbHop
+· TunnelSlot 2200m · DropGate 2300m · PressRow 2600m · Pacer 2700m ·
+Rotor 2900m · OrbHop
 3300m\* · FlipRide 3500m\* (\*flag-off stretches). Early
 game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
 
