@@ -137,6 +137,9 @@ export type Profile = {
 	questDay: string?,
 	questDone: { string }?,
 	questBanked: number?,
+	-- Weekly cup (§14): last week-tag whose run bonus + lazy podium payout
+	-- were granted — write gates both to once per week.
+	weeklyTag: string?,
 }
 
 function SaveService.loadProfile(userId: number): Profile?
@@ -161,7 +164,7 @@ function SaveService.saveProfile(userId: number, profile: Profile)
 	end)
 end
 
-type TopRow = { name: string, score: number, seed: number }
+type TopRow = { name: string, score: number, seed: number, userId: number? }
 local topCache: { rows: { TopRow }, count: number, at: number }? = nil
 local dailyCache: { tag: string, rows: { TopRow }, count: number, at: number }? = nil
 local fetchBusy = false
@@ -186,6 +189,32 @@ local function dailyStore(tag: string): (OrderedDataStore?, DataStore?)
 		end
 		dailyStores[tag] = store
 		dailyMetaStores[tag] = meta
+	end
+	return store, meta
+end
+
+-- Weekly-cup handles for a week tag ("W<n>") — same lazy pair pattern.
+local weeklyStores: { [string]: OrderedDataStore } = {}
+local weeklyMetaStores: { [string]: DataStore } = {}
+local weeklyCache: { tag: string, rows: { TopRow }, count: number, at: number }? = nil
+local weeklyFetchBusy = false
+
+local function weeklyStore(tag: string): (OrderedDataStore?, DataStore?)
+	if not ensureStores() then
+		return nil, nil
+	end
+	local store = weeklyStores[tag]
+	local meta = weeklyMetaStores[tag]
+	if not store or not meta then
+		local ok = pcall(function()
+			store = DataStoreService:GetOrderedDataStore(Config.Leaderboard.WeeklyStorePrefix .. tag)
+			meta = DataStoreService:GetDataStore(Config.Leaderboard.WeeklyStorePrefix .. tag .. "_Meta")
+		end)
+		if not ok or not store or not meta then
+			return nil, nil
+		end
+		weeklyStores[tag] = store
+		weeklyMetaStores[tag] = meta
 	end
 	return store, meta
 end
@@ -254,7 +283,9 @@ local function rowsFromPages(entries: { { key: string, value: any } }, meta: Dat
 					end
 				end)
 			end
-			rows[i] = { name = name, score = entry.value, seed = seed }
+			-- userId rides along for the weekly payout's rank lookup — the
+			-- leaderboard UI ignores it and shows name/score/seed.
+			rows[i] = { name = name, score = entry.value, seed = seed, userId = userId }
 			remaining -= 1
 		end)
 	end
@@ -374,6 +405,79 @@ function SaveService.getDailyTop(count: number, staleOnly: boolean?): { TopRow }
 	end
 	local done = rowsFromPages((pages :: DataStorePages):GetCurrentPage(), meta)
 	dailyCache = { tag = tag, rows = done, count = count, at = os.clock() }
+	return done
+end
+
+-- Weekly cup (§14): submitDaily equivalent against this week's store.
+-- Main only calls it when the run's seed is this week's weekly seed.
+function SaveService.submitWeekly(userId: number, score: number)
+	local store, meta = weeklyStore(Daily.weekTag())
+	if not store then
+		return
+	end
+	local won = false
+	local ok = retry("submitWeekly", function()
+		(store :: OrderedDataStore):UpdateAsync("u" .. userId, function(old)
+			won = typeof(old) ~= "number" or score > old
+			return if won then score else nil
+		end)
+	end)
+	if not ok or not won then
+		return
+	end
+	weeklyCache = nil
+	if meta then
+		local seed = Daily.weekSeed()
+		retry("submitWeekly meta", function()
+			(meta :: DataStore):SetAsync("u" .. userId, {
+				seed = seed,
+				score = score,
+				trackId = SongMap.trackIdFor(seed, Config.Music.ActiveTracklist),
+			})
+		end)
+	end
+end
+
+-- Weekly rows. `tag` defaults to this week; the rollover payout passes
+-- Daily.prevWeekTag() to read last week's final board. The cache only
+-- serves the CURRENT week — a historical read never poisons the tab.
+function SaveService.getWeeklyTop(count: number, tag: string?, staleOnly: boolean?): { TopRow }?
+	local resolved = tag or Daily.weekTag()
+	local store, meta = weeklyStore(resolved)
+	if not store then
+		return nil
+	end
+	count = math.clamp(count, 1, 100)
+	local cache = weeklyCache
+	if
+		resolved == Daily.weekTag()
+		and cache
+		and cache.tag == resolved
+		and count <= cache.count
+		and (staleOnly or os.clock() - cache.at < Config.Leaderboard.CacheSeconds)
+	then
+		local rows: { TopRow } = {}
+		for i = 1, math.min(count, #cache.rows) do
+			rows[i] = cache.rows[i]
+		end
+		return rows
+	end
+	if staleOnly or weeklyFetchBusy then
+		return nil
+	end
+	weeklyFetchBusy = true
+	local pages: DataStorePages? = nil
+	retry("getWeeklyTop", function()
+		pages = (store :: OrderedDataStore):GetSortedAsync(false, count)
+	end)
+	weeklyFetchBusy = false
+	if not pages then
+		return nil
+	end
+	local done = rowsFromPages((pages :: DataStorePages):GetCurrentPage(), meta)
+	if resolved == Daily.weekTag() then
+		weeklyCache = { tag = resolved, rows = done, count = count, at = os.clock() }
+	end
 	return done
 end
 

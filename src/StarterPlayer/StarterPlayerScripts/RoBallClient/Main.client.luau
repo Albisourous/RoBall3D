@@ -433,7 +433,8 @@ evRunEnded.OnClientEvent:Connect(
 		streak: number?,
 		streakBonus: number?,
 		questBonus: number?,
-		questHits: number?
+		questHits: number?,
+		weeklyBonus: number?
 	)
 		mode = "dead"
 		combo = 0
@@ -442,7 +443,20 @@ evRunEnded.OnClientEvent:Connect(
 		DeathFx.burst(lastBallPos)
 		-- newBest is computed server-side: attribute replication races make a
 		-- client-side "score > stored best" comparison unreliable.
-		ui:showDeath(score, dist, gems, best, seed, newBest, banked, streak, streakBonus, questBonus, questHits)
+		ui:showDeath(
+			score,
+			dist,
+			gems,
+			best,
+			seed,
+			newBest,
+			banked,
+			streak,
+			streakBonus,
+			questBonus,
+			questHits,
+			weeklyBonus
+		)
 		Music.onDeath()
 	end
 )

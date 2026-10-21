@@ -35,6 +35,12 @@ local function dailyText(): string
 	return text
 end
 
+-- Weekly-cup status line (§14): this week's shared seed + reset countdown.
+local function weeklyText(): string
+	local s = Daily.weekResetIn()
+	return string.format("cup seed #%d · resets in %dd %02dh", Daily.weekSeed(), s // 86400, (s % 86400) // 3600)
+end
+
 -- Vaporwave type system (DESIGN.md §12): three voices, one job each.
 --   F_HERO    — Garamond spaced caps: the Floral Shoppe serif for
 --               "A E S T H E T I C" titles — menu name + RUN OVER only.
@@ -197,7 +203,8 @@ function Ui.new(): Ui
 
 	label(menuCol, "or press R", 13, F_DATA, C_DIM, 5).TextTransparency = 0.25
 
-	local seedLabel = label(menuCol, "seed — blank = random · 'daily' = today's map", 14, F_DATA, C_DIM, 6)
+	local seedLabel =
+		label(menuCol, "seed — blank = random · 'daily' = today · 'weekly' = the cup", 14, F_DATA, C_DIM, 6)
 	seedLabel.TextTransparency = 0.2
 
 	local seedBox = Instance.new("TextBox")
@@ -265,17 +272,21 @@ function Ui.new(): Ui
 		b.TextSize = 15
 		b.Text = text
 		b.Position = UDim2.fromOffset(x, 10)
-		b.Size = UDim2.fromOffset(140, 26)
+		b.Size = UDim2.fromOffset(96, 26)
 		b.Parent = board
 		return b
 	end
-	self.tabTop = boardTab("ALL-TIME", 14)
-	self.tabDaily = boardTab("DAILY", 158)
+	self.tabTop = boardTab("TOP", 14)
+	self.tabDaily = boardTab("DAILY", 114)
+	self.tabWeekly = boardTab("WEEKLY", 214)
 	self.tabTop.MouseButton1Click:Connect(function()
 		self:setBoard("top")
 	end)
 	self.tabDaily.MouseButton1Click:Connect(function()
 		self:setBoard("daily")
+	end)
+	self.tabWeekly.MouseButton1Click:Connect(function()
+		self:setBoard("weekly")
 	end)
 
 	-- Daily status line: today's shared seed + reset countdown (UTC).
@@ -295,7 +306,7 @@ function Ui.new(): Ui
 		while true do
 			task.wait(15)
 			if self.dailyInfo.Visible then
-				self.dailyInfo.Text = dailyText()
+				self.dailyInfo.Text = if self.boardMode == "weekly" then weeklyText() else dailyText()
 			end
 		end
 	end)
@@ -880,16 +891,20 @@ function Ui.new(): Ui
 	-- Daily quests completed this run (§14): "2 quests done · ◊ +90 banked".
 	self.dQuest = label(dCol, "", 15, F_DATA, C_GOLD, 7)
 	self.dQuest.Visible = false
-	local retry = outlineButton(dCol, "RETRY", 30, 8)
+	-- Weekly cup payout (§14): run bonus + any lazy podium pay —
+	-- "weekly cup · ◊ +225 banked", same gold accent.
+	self.dWeekly = label(dCol, "", 15, F_DATA, C_GOLD, 8)
+	self.dWeekly.Visible = false
+	local retry = outlineButton(dCol, "RETRY", 30, 9)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "or press R", 13, F_DATA, C_DIM, 9).TextTransparency = 0.25
+	label(dCol, "or press R", 13, F_DATA, C_DIM, 10).TextTransparency = 0.25
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 10)
+	local toMenu = ghostButton(dCol, "menu", 15, 11)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
@@ -1073,7 +1088,8 @@ function Ui:showDeath(
 	streak: number?,
 	streakBonus: number?,
 	questBonus: number?,
-	questHits: number?
+	questHits: number?,
+	weeklyBonus: number?
 )
 	self.menu.Visible = false
 	self.hud.Visible = false
@@ -1098,6 +1114,9 @@ function Ui:showDeath(
 	local hits = questHits or 0
 	self.dQuest.Text = string.format("%s done · ◊ +%d banked", hits == 1 and "quest" or hits .. " quests", qb)
 	self.dQuest.Visible = hits > 0
+	local wb = weeklyBonus or 0
+	self.dWeekly.Text = string.format("weekly cup · ◊ +%d banked", wb)
+	self.dWeekly.Visible = wb > 0
 end
 
 -- Garage state push (§18): one table per refresh — slot row text/afford,
@@ -1142,15 +1161,18 @@ end
 -- Board tab switch (§14): recolors tabs, shows/hides the daily info line,
 -- then asks Main to fetch — rows arrive via setLeaderboard.
 function Ui:setBoard(mode: string)
-	if mode ~= "top" and mode ~= "daily" then
+	if mode ~= "top" and mode ~= "daily" and mode ~= "weekly" then
 		return
 	end
 	self.boardMode = mode
 	self.tabTop.TextColor3 = if mode == "top" then C_PINK else C_DIM
 	self.tabDaily.TextColor3 = if mode == "daily" then C_PINK else C_DIM
-	self.dailyInfo.Visible = mode == "daily"
+	self.tabWeekly.TextColor3 = if mode == "weekly" then C_PINK else C_DIM
+	self.dailyInfo.Visible = mode ~= "top"
 	if mode == "daily" then
 		self.dailyInfo.Text = dailyText()
+	elseif mode == "weekly" then
+		self.dailyInfo.Text = weeklyText()
 	end
 	if self.onBoardTab then
 		self.onBoardTab(mode)
@@ -1159,16 +1181,17 @@ end
 
 -- nil rows = stores unreachable (offline), {} = real but empty board.
 function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)
-	local daily = self.boardMode == "daily"
+	local mode = self.boardMode
 	for i, row in ipairs(self.boardRows) do
 		local r = rows and rows[i]
 		row.Text = r and string.format("%2d. %-12s %7d  #%d", i, r.name, r.score, r.seed) or ""
 	end
 	if rows == nil then
-		self.boardRows[1].Text = if daily then "  daily board offline" else "  leaderboard offline"
+		self.boardRows[1].Text = if mode == "top" then "  leaderboard offline" else "  board offline"
 	elseif #rows == 0 then
-		self.boardRows[1].Text = if daily
+		self.boardRows[1].Text = if mode == "daily"
 			then "  no daily runs yet — type 'daily' and set one."
+			elseif mode == "weekly" then "  no cup runs yet — type 'weekly' and set one."
 			else "  no saved runs yet — set one."
 	end
 end

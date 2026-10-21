@@ -159,10 +159,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 - **Menu** (built in code, `StarterGui` from Luau — everything stays in git):
   - Title `ROBALL3D`, vaporwave-styled
   - **PLAY** button — starts a run on a random seed
-  - Seed `TextBox` — paste/type a seed for an identical map, or `daily`
-    for today's shared UTC seed (§14)
-  - Leaderboard panel — ALL-TIME / DAILY tabs (`name / score / seed`);
-    daily shows the shared seed + time to reset
+  - Seed `TextBox` — paste/type a seed for an identical map, `daily` for
+    today's shared UTC seed, `weekly` for the cup (§14)
+  - Leaderboard panel — TOP / DAILY / WEEKLY tabs (`name / score / seed`);
+    daily shows the shared seed + time to reset, weekly shows the cup
+    seed + days to reset
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.
@@ -650,8 +651,8 @@ Full spec: `AUDIO.md`. Binding decisions:
   map that day, so the board is a same-seed race. Typing `daily`/`today` in
   the seed box resolves to it; a run whose seed equals today's seed submits
   to the day's board on death (same keep-max `UpdateAsync` + session-best
-  write thrift as the all-time board). The menu panel gains ALL-TIME/DAILY
-  tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
+  write thrift as the all-time board). The menu panel gains TOP/DAILY/
+  WEEKLY tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
   stores are simply never read — no cleanup needed.
 - **Daily streak**: finishing a daily-seeded run counts the UTC day —
   same day again is a no-op, yesterday continues the streak, a gap resets
@@ -670,6 +671,15 @@ Full spec: `AUDIO.md`. Binding decisions:
   The client reads the `RoBallQuests` CSV attribute
   (`done flags + bankedToday`) to draw the menu lines and the death
   screen's `N quests done · ◊ +N banked` line.
+- **Weekly cup**: `RoBall3D_Weekly_v1_W<n>` (+ `_Meta`) — the same per-week
+  OrderedDataStore pair, keyed on Sunday-start week index
+  (`floor((daysSinceEpoch + 4) / 7)` — pure arithmetic, no strftime gamble).
+  The cup seed is `djb2("weekly:" .. W<n>)`; typing `weekly`/`week`/`cup`
+  resolves to it. A third board tab shows the cup seed + reset countdown.
+  Economy: the first weekly-seeded run of a week pays `WeeklyRunBonus`
+  banked gems, and at the same moment lazily reads LAST week's final board
+  once — a top-3 finish pays `WeeklyTopGems[rank]` (200/100/50). Both
+  writes gate on profile `weeklyTag` so they fire exactly once per week.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`
