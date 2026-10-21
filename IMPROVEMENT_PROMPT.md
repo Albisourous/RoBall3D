@@ -73,8 +73,9 @@ runs the loop below and does not stop until you say **stop**.
    "bank 150 gems", "reach 2200m"), gem rewards, progress in the HUD menu.
    Reuse the `Daily` module's seed for quest selection. *(done — e74df54)*
 5. **Weekly seed cup** — same machinery as the daily board keyed on ISO week;
-   bigger gem payout, own tab. *(done — 15b7811: Sunday-week tag, W<n> store
-   pair, third tab, +25 first-run bonus, lazy top-3 payout 200/100/50)*
+   bigger gem payout, own tab. *(done — 15b7811; **later removed** — the cup
+   board, seed keywords, run bonus, and podium payouts were cut when the
+   menu dropped to DAILY|RANDOM only)*
 5b. **Music canon + TRACK cycler** — FlowMusic batch (10 charts), menu bed,
    seeded-pool gating via ActiveTracklist. *(done — bcdf769, synced from the
    audio pipeline)*
@@ -142,8 +143,9 @@ runs the loop below and does not stop until you say **stop**.
     RoBallLethal parts, Touched + swept Spherecast on the ball's owner,
     ReportFatal latch; server keeps fall/stall backstops. Kills the
     "random death" class from server-interpolated ball copies)*
-19. **Menu RunSetup** *(done — 11fd79d: RANDOM/DAILY/WEEKLY chips + type-a-
-    seed box in one setup card; PLAY is the single solid slab)*
+19. **Menu RunSetup** *(done — 11fd79d: DAILY/RANDOM chips + type-a-
+    seed box in one setup card; PLAY is the single solid slab; weekly cut
+    later — daily is the default)*
 20. **Pace delta** *(done — 245b5b8: `±N vs PB` HUD line off the echo
     part's interpolated position; cyan/pink, hidden without a ghost;
     verified live via stubbed GetGhost)*
@@ -176,14 +178,30 @@ runs the loop below and does not stop until you say **stop**.
     live via stubbed ghosts: SEC1 PB/champ -0.2s mid-run)*
 27. **Hazard variety: low ceiling** — a `HeadBlock` spec that sweeps the
     lane at ball-height+; crossing under it demands a hop *not* taken.
-    ChunkDefs + canRun contract + GenVerify blocker as per standing rule;
-    client leans camera down inside the clearance window.
+    *(superseded by PressRow — the slam plate IS the ceiling hazard)*
+27b. **PressRow** *(done — 5eee397: low roof + hanging plates on a new
+    `dropY` mover — trapezoid pulse beat-locked to tempo; one permanent
+    side lane per row (zigzags only when a beat-gap affords the lateral
+    crossing via `latReach`, else the lane widens or holds), under-plate
+    is the timed shortcut. Debut 2600m, tier 6+ pool. GenVerify treats
+    motioned hang plates as blockers — teeth stay decorative only when
+    motionless — and dropY audits the reach band since the plate's
+    x-span never moves. 8 seeds × 70 chunks: 0 violations; press travel
+    verified 0 … −3.2 live)*
 28. **Ghost split trails** — faint translucent trail ribbons behind each
     echo so you can see *where* the PB/champ lines diverged, not just how
     far. Cosmetic-only, attachments+trail pooled per echo.
 29. **Crowd ghost on daily runs** — when the run seed is the daily seed
     and the day's board has >1 player, replay the #2 finisher's ghost as
     a second (silver) echo. Extends the champ pipeline by one store read.
+30. **Weekly cup removed** *(external — the cup board, seed keywords,
+    run bonus, and podium payouts were cut when the menu went
+    DAILY|RANDOM; see item 5's note)*
+31. **Wave-2 cosmetics + COLOR LAB** *(external — five skin families,
+    animated strobe/wave skins, matching trail/gemfx pairs, six death-fx
+    styles, aurora/reef/meteor world themes, `customA/B/C` hue params on
+    the LAB items resolved through RoBallHue* attrs; hue band
+    pre-sanitized off LethalColor)*
 
 ## Standing rules for new work
 

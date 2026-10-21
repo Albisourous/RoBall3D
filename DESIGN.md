@@ -161,17 +161,17 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - **PLAY** — the only filled element on the screen (solid pink slab,
     cyan rim on hover); `ENTER`/`R` also start. Everything else is chrome.
   - **RUN SETUP** panel — a bordered cluster under PLAY holding whatever
-    shapes the run: `RANDOM | DAILY` seed chips (one tap writes
+    shapes the run: `DAILY | RANDOM` seed chips (one tap writes
     the seed box; the lit chip is what PLAY runs; typing a custom seed
     unlatches them all), the seed `TextBox` (defaults to `daily` — race
-    today's shared board; `weekly` etc. still resolve — §14), and the
+    today's shared board; `daily`/`today` resolve — §14), and the
     `TRACK` cycler (AUDIO.md §3).
   - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK`: equip cyclers,
     bundle passes, and the gem bank each get their own page so the shop
     can't flood the menu (§18). The preview ball still dresses live.
-  - Leaderboard panel — TOP / DAILY / WEEKLY tabs (`name / score / seed`);
-    daily shows the shared seed + time to reset, weekly shows the cup
-    seed + days to reset. A `◈ friends` toggle filters whichever board is
+  - Leaderboard panel — TOP / DAILY tabs (`name / score / seed`);
+    the daily tab shows the shared seed + UTC reset countdown.
+    A `◈ friends` toggle filters whichever board is
     open to your Roblox friends — rows keep their real rank numbers; the
     id set lazy-loads once per session via `GetFriendsAsync`. A `RECENT`
     strip pinned under the rows lists the newest
@@ -764,8 +764,8 @@ Full spec: `AUDIO.md`. Binding decisions:
   map that day, so the board is a same-seed race. Typing `daily`/`today` in
   the seed box resolves to it; a run whose seed equals today's seed submits
   to the day's board on death (same keep-max `UpdateAsync` + session-best
-  write thrift as the all-time board). The menu panel gains TOP/DAILY/
-  WEEKLY tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
+  write thrift as the all-time board). The menu panel has TOP/DAILY
+  tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
   stores are simply never read — no cleanup needed.
 - **Daily streak**: finishing a daily-seeded run counts the UTC day —
   same day again is a no-op, yesterday continues the streak, a gap resets
@@ -784,15 +784,6 @@ Full spec: `AUDIO.md`. Binding decisions:
   The client reads the `RoBallQuests` CSV attribute
   (`done flags + bankedToday`) to draw the menu lines and the death
   screen's `N quests done · ◊ +N banked` line.
-- **Weekly cup**: `RoBall3D_Weekly_v1_W<n>` (+ `_Meta`) — the same per-week
-  OrderedDataStore pair, keyed on Sunday-start week index
-  (`floor((daysSinceEpoch + 4) / 7)` — pure arithmetic, no strftime gamble).
-  The cup seed is `djb2("weekly:" .. W<n>)`; typing `weekly`/`week`/`cup`
-  resolves to it. A third board tab shows the cup seed + reset countdown.
-  Economy: the first weekly-seeded run of a week pays `WeeklyRunBonus`
-  banked gems, and at the same moment lazily reads LAST week's final board
-  once — a top-3 finish pays `WeeklyTopGems[rank]` (200/100/50). Both
-  writes gate on profile `weeklyTag` so they fire exactly once per week.
 - **Achievements**: `Config.Monetization.Achievements` — milestone badges
   evaluated server-side at every clean run end (`ShopService.onRunEnd`,
   after streak + quest eval so those counts are fresh). Kinds:
@@ -1019,6 +1010,20 @@ packs both new world themes — `world_void` (STAR WELL) and `world_grid`
 families the launch bundles left open: **AURORA** (green-polar: teal-green
 rings, borealis nova) and **PHANTOM** (ghost-mono: white/amethyst rings,
 static shatter). All stay inside color law — nothing near `LethalColor`.
+
+The wave-2 drop widens every slot à-la-carte: five more skin families
+(lagoon/acid/candy/ember/chrome), animated `strobe`/`wave` skins
+(chroma, iris), matching trail/gemfx pairs (volt, peach, mint, ghost,
+inferno), six death-fx styles, and three new world themes —
+`world_aurora` (BOREALIS SKY), `world_reef` (NEON REEF), `world_meteor`
+(METEOR SHOWER) at ◊800–900; `world_aurora` also joins the AURORA bundle.
+
+**COLOR LAB**: `skin_custom`/`trail_custom`/`gemfx_custom` take the
+string params `customA`/`customB`/`customC`, resolved client-side through
+the `RoBallHueA/B/C` attributes — a player-tinted set. `Config.CustomHue`
+pre-sanitizes the picker's reachable band (hue 0.055–0.945) so no slider
+position can mix a `LethalColor` red — the color law is enforced by
+construction, not by auditing picks.
 
 **Seasonal slot**: `Config.Monetization.Seasonal` holds one bundle id plus
 a yearly UTC `[Start, End]` month/day window (wrap-around legal, e.g.
