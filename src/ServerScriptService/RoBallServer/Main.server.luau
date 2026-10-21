@@ -148,6 +148,7 @@ type Run = {
 	closest: number, -- tightest crossing gap seen, studs (inf = never close)
 	banked: number, -- gems credited to the bank this run (§18 P2 — never score)
 	t0: number, -- os.clock() at start; feeds the plausibility cap
+	lastFloorDist: number, -- last whole meter written to score attributes
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
 	stillT: number, -- seconds the ball has been frozen in place
 }
@@ -365,6 +366,10 @@ local function killRun(player: Player, run: Run, cause: string?)
 	end
 end
 
+-- Forward-declared: startRun's pre-build task calls into launch once the
+-- ahead window stands (defined below).
+local launch: (player: Player, run: Run, streamer: TrackStreamer.Streamer, seed: number) -> ()
+
 local function startRun(player: Player)
 	local laneIndex = laneOf[player] or 0
 	local seed = resolveSeed(player)
@@ -387,6 +392,7 @@ local function startRun(player: Player)
 		closest = math.huge,
 		banked = 0,
 		t0 = os.clock(),
+		lastFloorDist = 0,
 		lastPos = nil,
 		stillT = 0,
 	}
@@ -407,8 +413,33 @@ local function startRun(player: Player)
 		return false
 	end
 
-	streamer:ensureAhead(0) -- build the full window before the ball drops
+	-- Build the ahead window one chunk per frame instead of bursting the
+	-- whole 400 studs inside startRun (PERFORMANCE.md §2): ~10 chunks of
+	-- Instance.news in one call was a run-start spike that stacks when
+	-- several players press PLAY together. The 0.8s client settle covers
+	-- the catch-up; markers and the ball wait for the full window so
+	-- their yAt reads stay honest. A restart/leave mid-build orphans the
+	-- task — it sees runs[player] has moved on and exits.
+	task.spawn(function()
+		while streamer.gen.state.zEnd > -Config.Generation.AheadDistance do
+			if runs[player] ~= run then
+				return
+			end
+			streamer:ensureAhead(0)
+			task.wait()
+		end
+		if runs[player] ~= run then
+			return
+		end
+		launch(player, run, streamer, seed)
+	end)
+end
 
+-- The run goes live once the ahead window stands: distance gates, then
+-- the ball + RunStarted. Extracted from startRun so the pre-build can
+-- spread across frames (see the task above).
+function launch(player: Player, run: Run, streamer: TrackStreamer.Streamer, seed: number)
+	local laneIndex = run.laneIndex
 	-- PB ghost (DESIGN.md §11): a translucent "BEST n" gate floats at your
 	-- record's end distance — you race your own shadow. Parented to the
 	-- lane folder so it dies with the run. The label only renders in the
@@ -813,10 +844,18 @@ RunService.Heartbeat:Connect(function(dt)
 			run.streamer:cleanup(z)
 
 			-- Distance is authoritative server-side: spawn z=2, travel is -Z.
+			-- writeScore only when the whole meter ticks over — the
+			-- attributes (and leaderstats) only change per meter anyway,
+			-- so per-frame writes were pure replication churn
+			-- (PERFORMANCE.md §2). Gem/near-miss bumps write directly.
 			local d = 2 - z
 			if d > run.dist then
 				run.dist = d
-				writeScore(player, run)
+				local m = math.floor(d)
+				if m ~= run.lastFloorDist then
+					run.lastFloorDist = m
+					writeScore(player, run)
+				end
 			end
 
 			-- Stall watchdog: the client force-sets ball velocity every frame,

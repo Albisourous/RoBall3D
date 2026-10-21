@@ -199,6 +199,12 @@ Config.Generation = {
 	ChunkMaxLength = 90,
 	AheadDistance = 400, -- keep this much track generated ahead of the ball
 	BehindDistance = 250, -- destroy chunks further than this behind the ball
+	-- Instance.new bursts are the cost, not generation: a chunk is
+	-- ~30-90 parts. One per frame tops up the window invisibly; the
+	-- run-start pre-build spreads over the settle instead of spiking
+	-- one heartbeat with ~10 chunks (worse when several runs start
+	-- together).
+	ChunkBuildsPerFrame = 1,
 	BaseWidth = 48, -- widest deck — Slope-style broad slope face (~16 ball widths)
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs
@@ -344,6 +350,14 @@ Config.Movers = {
 	PressDownFrac = 0.12, -- cycle share spent slamming down
 	PressHoldFrac = 0.28, -- cycle share held on the deck (lethal window)
 	PressUpFrac = 0.22, -- cycle share rising back
+	-- Replication thrift (PERFORMANCE.md §2): every Position/CFrame write
+	-- goes to every client — stepping movers at frame rate was the
+	-- game's largest steady-state send cost. The phase math still reads
+	-- the absolute beat clock, so motion is identical, just written
+	-- less often; movers this far behind the ball are off-camera and
+	-- freeze until cleanup claims them.
+	StepHz = 25,
+	CullBehind = 60, -- studs behind the ball where movers stop updating
 }
 
 -- PressRow (DESIGN.md §8.6): a low roof over the deck and ceiling

@@ -54,6 +54,13 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 		{} :: { { part: BasePart, base: Vector3, kind: string, amp: number, periodSec: number, phase: number } }
 	self.moverConn = nil :: RBXScriptConnection?
 	self.moverT0 = 0
+	self.moverAcc = 0
+	-- Ball's current z, fed by ensureAhead/cleanup — the mover step uses
+	-- it to freeze hazards that fell CullBehind studs off-camera.
+	self.ballZ = 0
+	-- Deck-height cursor for yAt: queries walk deeper monotonically, so
+	-- the containing chunk is found by advancing, never rescanning.
+	self.yCursor = 1
 	-- Near-miss records (§10): one row per lethal plane — {z, cx, halfW,
 	-- spin} — appended in descending-z order so the run loop scans them
 	-- with a bare cursor. spin entries key off the sweep-disc radius;
@@ -861,30 +868,40 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	return record
 end
 
--- Keep generated track AheadDistance studs in front of the ball.
-function TrackStreamer:ensureAhead(ballZ: number)
+-- Keep generated track AheadDistance studs in front of the ball. The
+-- per-frame call builds at most ChunkBuildsPerFrame chunks — the window
+-- tops up a chunk at a time instead of bursting ~90 Instance.news in
+-- one heartbeat when several chunks come due together.
+function TrackStreamer:ensureAhead(ballZ: number, maxBuilds: number?)
+	self.ballZ = ballZ
 	local target = ballZ - Config.Generation.AheadDistance
-	while self.gen.state.zEnd > target do
+	local budget = maxBuilds or Config.Generation.ChunkBuildsPerFrame
+	while self.gen.state.zEnd > target and budget > 0 do
 		self:buildChunk(self.gen:nextChunk())
+		budget -= 1
 	end
 end
 
 -- Destroy chunks fully behind the ball.
 function TrackStreamer:cleanup(ballZ: number)
+	self.ballZ = ballZ
 	local cutoff = ballZ + Config.Generation.BehindDistance
 	local i = 1
-	local culled = false
+	local removed = 0
 	while i <= #self.chunks do
 		local c = self.chunks[i]
 		if c.endZ > cutoff then
 			c.holder:Destroy()
 			table.remove(self.chunks, i)
-			culled = true
+			removed += 1
 		else
 			i += 1
 		end
 	end
-	if culled then
+	if removed > 0 then
+		-- Culled rows came off the front — the yAt cursor's chunk index
+		-- shifts by however many left.
+		self.yCursor = math.max(1, self.yCursor - removed)
 		-- Mover parts died with their chunk folders — drop the dead rows so
 		-- the list stays bounded.
 		local j = 1
@@ -923,10 +940,23 @@ function TrackStreamer:startMovers()
 		return
 	end
 	self.moverT0 = os.clock()
-	self.moverConn = RunService.Heartbeat:Connect(function()
+	local stepDt = 1 / Config.Movers.StepHz
+	self.moverConn = RunService.Heartbeat:Connect(function(dt)
+		-- Position writes replicate to every client — dt-accumulate down
+		-- to StepHz (PERFORMANCE.md §2). The phase still reads the
+		-- absolute beat clock, so the motion itself is unchanged, just
+		-- written less often.
+		self.moverAcc += dt
+		if self.moverAcc < stepDt then
+			return
+		end
+		self.moverAcc %= stepDt
 		local t = os.clock() - self.moverT0
+		local cullZ = self.ballZ + Config.Movers.CullBehind
 		for _, m in ipairs(self.movers) do
-			if m.part.Parent then
+			-- Movers CullBehind studs behind the ball are off-camera —
+			-- freeze them until cleanup claims the chunk.
+			if m.part.Parent and m.base.Z <= cullZ then
 				local ang = t / m.periodSec * math.pi * 2 + m.phase
 				if m.kind == "slideX" then
 					m.part.Position = m.base + Vector3.new(m.amp * math.sin(ang), 0, 0)
@@ -942,12 +972,25 @@ function TrackStreamer:startMovers()
 end
 
 -- Deck-top height at world z (for the kill plane). Exact via section fns.
+-- Queries during a run only move deeper (the ball rolls -Z), so a cursor
+-- into the z-ordered chunk list walks forward instead of rescanning it
+-- every frame; a probe behind the cursor (run-start PB/last markers)
+-- rescans once and re-seats the cursor on the hit.
 function TrackStreamer:yAt(z: number): number
-	for _, c in ipairs(self.chunks) do
-		if z <= c.startZ and z > c.endZ then
-			local t = (c.startZ - z) / c.spec.length
-			return c.spec.section(t).y
+	local i = self.yCursor
+	while i < #self.chunks and z <= self.chunks[i + 1].startZ do
+		i += 1
+	end
+	if i > 1 and z > self.chunks[i].startZ then
+		i = 1
+		while i < #self.chunks and z <= self.chunks[i + 1].startZ do
+			i += 1
 		end
+	end
+	self.yCursor = i
+	local c = self.chunks[i]
+	if c and z <= c.startZ and z > c.endZ then
+		return c.spec.section((c.startZ - z) / c.spec.length).y
 	end
 	local last = self.chunks[#self.chunks]
 	if last then
