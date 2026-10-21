@@ -1320,6 +1320,8 @@ function Ui.new(): Ui
 	-- in-run progress — reach/score read the live run counters, bank adds
 	-- the run's banked delta to the stored today-tally. Dim open, gold
 	-- in-the-bag; the whole block hides once nothing is left to chase.
+	-- Right-aligned against the radar strip so it parks with the HUD
+	-- cluster and leaves the track read clear.
 	self.missionCsv = ""
 	self.missionBank0 = 0
 	self.missionLines = {}
@@ -1331,7 +1333,7 @@ function Ui.new(): Ui
 		ml.TextSize = 12
 		ml.TextColor3 = C_DIM
 		ml.TextStrokeTransparency = 0.5
-		ml.TextXAlignment = Enum.TextXAlignment.Left
+		ml.TextXAlignment = Enum.TextXAlignment.Right
 		ml.Position = UDim2.fromOffset(0, 208 + (i - 1) * 15)
 		ml.Size = UDim2.new(1, -Config.Radar.Width - 6, 0, 14)
 		ml.Text = ""
