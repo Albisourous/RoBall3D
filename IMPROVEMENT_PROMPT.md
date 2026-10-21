@@ -356,6 +356,13 @@ runs the loop below and does not stop until you say **stop**.
     Verified live: pinned +30 for 4s of a 4.5s run → `air 95% · felled
     by the VOID`; natural grounded runs → `air 0%`)*
 
+51. **Ghost margins on the death card** *(done — 137cac4: a dim trailer
+    under the stats line — `at the fall: PB +38 · champion42 -142` —
+    the last pace deltas vs each echo, signed by your lead, so the race
+    result survives the run that ended it. Verified live: parked stub
+    echoes at -60/-140 gave exactly `PB +269 · champion42 +189` at a
+    -329 fall and `PB +957 · champion42 +877` at -1017)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
