@@ -340,6 +340,15 @@ runs the loop below and does not stop until you say **stop**.
     `GrazeWhoosh` voice spawned on the attr bump with oct0=0.40,
     vol=0.32 — exact config math)*
 
+49. **LOST TO mirror + PB tag** *(done — dfec54e: falling back past
+    `OvertakeArm` after an earned PASSED toasts `▸ LOST TO PB` /
+    `▸ LOST TO <name>` — each direction change narrates, a wire-to-wire
+    trail stays quiet like a wire-to-wire lead. The PB echo also carries
+    a `PB` billboard now — every ghost is named. Verified live: stub
+    champ parked at -60 then diving gave PASSED at t=1.85, LOST TO at
+    t=2.38; the mistimed first stub dove before the catch and correctly
+    fired neither)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
