@@ -95,6 +95,11 @@ runs the loop below and does not stop until you say **stop**.
 9. **Near-miss bonus** — close passes within N studs of lethal geometry add
    trickle score. Audit impact on `plausible()` anti-cheat cap first; it
    changes score math so it needs a DESIGN.md note.
+   *(done — 7b92eae: ordered hazard-plane records in the streamer, cursor
+   scan at crossing-x, static-face/rotor-disc rules, cap headroom, CLOSE +3
+   HUD flash; verified 3 natural awards live. The commit also carries the
+   audio pipeline's menu AUDIO mixer — AudioMix + SetAudio remote +
+   RoBallVol_ attrs + profile.audio — complete and verified wiring.)*
 10. **Run stats panel** — death screen adds: top speed reached, obstacles
     passed, distance under boost, closest-call. Cheap, big feel win.
 11. **Death-cam** — on death, 1.5s orbit of the kill spot before the
