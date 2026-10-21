@@ -391,13 +391,19 @@ runs the loop below and does not stop until you say **stop**.
     Gates green; live visual check still owed — Studio was closed at
     commit time)*
 
-55. **Seed flavor mutators** *(new — invented when the backlog ran dry.
-    Each seed derives one bias record (`Config.Mutators` — STEADY /
-    PRESSURE / AIRSHOW / WEAVE / ROTOR FIELD / PRESS GANG / standard×2)
-    on a salted rng stream and `GenCore` multiplies it into the
-    songform pick weights — selection bias only, contracts/debuts/
-    intro untouched. The daily gets a daily-changing personality;
-    label on the HUD seed tag, daily status line, and death card)*
+55. **Seed flavor mutators** *(done — 786ceec: each seed derives one
+    bias record (`Config.Mutators` — STEADY / PRESSURE / AIRSHOW /
+    WEAVE / ROTOR FIELD / PRESS GANG / standard×2) on a salted rng
+    stream via `Mutator.forSeed`; `GenCore` folds it into the songform
+    pick weights — selection bias only, contracts/debuts/intro
+    untouched, daily stays a same-map race. Label on the HUD seed tag,
+    daily status line, and death card. Verified live: `seed 32 · PRESS
+    GANG` on HUD + card, 33 PressRows vs 4 baseline on a pressgang
+    seed, GenVerify 8×400 = 0 violations. Same commit's parent
+    817d3bd fixed the latent PressRow contract gap the new
+    distribution surfaced: rail-pinned lane now grows an end-anchored
+    reach-honest lead, `canRun` declines degenerate runways — the
+    documented s8 c439 violation is gone)*
 
 ## Standing rules for new work
 
