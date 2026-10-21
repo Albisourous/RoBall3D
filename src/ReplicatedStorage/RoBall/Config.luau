@@ -283,6 +283,10 @@ Config.Press = {
 	LiftClear = 3.6, -- raised bottom edge: the 3-stud ball rolls under
 	SlamGap = 0.4, -- slammed bottom edge — always a touch
 	MinSpan = 8, -- narrowest press plate that still reads as a press
+	-- Thread bonus (§10): crossing under the plate inside its span while
+	-- it's dropped into the under-route — a timed dodge, not a lane take.
+	ThreadBonus = 6,
+	ThreadMinDrop = 0.2, -- plate must be ≥20% into its travel to count
 }
 
 Config.Tunnel = {

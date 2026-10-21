@@ -551,11 +551,16 @@ seals the score.
 crossing-x within `NearMiss.Range` (4 studs, ball-surface to face) of a static
 block's edge, or anywhere inside a rotor's translucent sweep disc (the disc
 already marks risk honestly). One award per obstacle; hanging roof slabs never
-count (a lateral graze under a ceiling isn't a dodge). The server walks the
-streamer's ordered hazard-plane list with a cursor — zero per-frame scans —
-and `plausible()` carries a loose `ceil(dist/30) × 8 × Points × ChainMax`
-ceiling. Each award bumps `RoBallNearMiss`; the HUD flashes a short cyan
-`CLOSE +N`.
+count (a lateral graze under a ceiling isn't a dodge) — except PressRow's
+`dropY` plates, where the dodge is vertical: crossing the plane *inside the
+plate's span* (the guaranteed lane sits outside it) while the plate is
+≥`Press.ThreadMinDrop` into its travel pays `Press.ThreadBonus` and flashes
+`THREAD +N` on its own `RoBallThread` counter — a free pass under a raised
+plate pays nothing, and a crossing that kills can't award. The server walks
+the streamer's ordered hazard-plane list with a cursor — zero per-frame
+scans — and `plausible()` carries a loose `ceil(dist/30) × 8 × Points ×
+ChainMax` ceiling. Each graze bumps `RoBallNearMiss`; the HUD flashes a
+short cyan `CLOSE +N`.
 
 **Chains**: a graze within `NearMiss.ChainWindow` seconds of the last one
 multiplies the award — `Points × min(chain, ChainMax)` — so threading a

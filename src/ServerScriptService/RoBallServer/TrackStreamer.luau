@@ -56,8 +56,21 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.moverT0 = 0
 	-- Near-miss records (§10): one row per lethal plane — {z, cx, halfW,
 	-- spin} — appended in descending-z order so the run loop scans them
-	-- with a bare cursor. spin entries key off the sweep-disc radius.
-	self.hazards = {} :: { { z: number, cx: number, halfW: number, spin: boolean } }
+	-- with a bare cursor. spin entries key off the sweep-disc radius;
+	-- press rows carry the live plate so the run loop can read how far
+	-- into its drop the plate was at the crossing (§10 thread bonus).
+	self.hazards = {} :: {
+		{
+			z: number,
+			cx: number,
+			halfW: number,
+			spin: boolean,
+			press: boolean?,
+			part: BasePart?,
+			baseY: number,
+			amp: number,
+		}
+	}
 	return self
 end
 
@@ -755,17 +768,24 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		-- This chunk's lethal planes, collected beside the build and merged
 		-- in z-descending order — obstacle lists aren't guaranteed sorted.
 		-- Hanging slabs are roof geometry: a lateral "near-miss" under them
-		-- would be dishonest, so they earn no record.
+		-- would be dishonest, so they earn no record — except dropY press
+		-- plates, where the dodge is vertical and the crossing IS the
+		-- thread (§10).
 		local hzSeg = {}
 		for _, ob in ipairs(spec.obstacles) do
 			local block = makeBlock(holder, self.laneX, spec, ob)
-			if not ob.hang then
+			local isPress = ob.hang and ob.motion ~= nil and ob.motion.kind == "dropY"
+			if not ob.hang or isPress then
 				local mid = spec.section(ob.t)
 				table.insert(hzSeg, {
 					z = spec.startZ - ob.t * spec.length,
 					cx = self.laneX + mid.centerX + ob.xOff,
 					halfW = ob.w / 2,
 					spin = ob.motion ~= nil and ob.motion.kind == "spin",
+					press = isPress or nil,
+					part = if isPress then block else nil,
+					baseY = if isPress then block.Position.Y else 0,
+					amp = if isPress and ob.motion then ob.motion.amp or 0 else 0,
 				})
 			end
 			if ob.motion then

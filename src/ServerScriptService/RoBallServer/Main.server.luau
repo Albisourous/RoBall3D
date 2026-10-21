@@ -135,6 +135,7 @@ type Run = {
 	gemPts: number, -- gem pickups this run
 	nmPts: number, -- near-miss bonus points this run (§10)
 	nmCount: number, -- near-misses awarded (drives the HUD flash counter)
+	threadCount: number, -- press threads awarded (drives the THREAD flash)
 	nmChain: number, -- consecutive grazes inside ChainWindow (§10)
 	nmChainAt: number, -- run-elapsed seconds at the last award
 	nmCursor: number, -- scan cursor into streamer.hazards
@@ -365,6 +366,7 @@ local function startRun(player: Player)
 		gemPts = 0,
 		nmPts = 0,
 		nmCount = 0,
+		threadCount = 0,
 		nmChain = 0,
 		nmChainAt = -math.huge,
 		nmCursor = 1,
@@ -789,6 +791,26 @@ RunService.Heartbeat:Connect(function(dt)
 					local gap = math.abs(bx - h.cx) - h.halfW
 					close = gap <= nm.Range
 					run.closest = math.min(run.closest, gap)
+				elseif h.press then
+					-- Press thread (§10): the ball crossed inside the
+					-- plate's span — the guaranteed lane sits outside it,
+					-- so this only counts the timed under-route — while
+					-- the plate was dropped into it. A crossing that killed
+					-- never reaches here; a free pass (plate raised) pays nil.
+					local part = h.part
+					local drop = 0
+					if part then
+						drop = (h.baseY - part.Position.Y) / math.max(h.amp, 0.001)
+					end
+					close = math.abs(bx - h.cx) <= h.halfW and drop >= Config.Press.ThreadMinDrop
+					if close then
+						run.nmPts += Config.Press.ThreadBonus
+						run.threadCount += 1
+						player:SetAttribute("RoBallNmAward", Config.Press.ThreadBonus)
+						player:SetAttribute("RoBallThread", run.threadCount)
+						writeScore(player, run)
+						close = false -- paid as a thread; skips the graze-chain block
+					end
 				else
 					local gap = math.abs(bx - h.cx) - h.halfW - ballR
 					close = gap <= nm.Range

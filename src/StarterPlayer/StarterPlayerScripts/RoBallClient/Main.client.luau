@@ -597,6 +597,15 @@ player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
 	end
 end)
 
+-- Press thread (§10): same ping, different word — crossing under a
+-- dropped plate is a timed dodge, so it rides its own counter.
+player:GetAttributeChangedSignal("RoBallThread"):Connect(function()
+	if mode == "running" then
+		ui:flashMiss((player:GetAttribute("RoBallNmAward") :: number?) or Config.Press.ThreadBonus, nil, "THREAD")
+		missFovKick = Config.Camera.MissFovKick
+	end
+end)
+
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed

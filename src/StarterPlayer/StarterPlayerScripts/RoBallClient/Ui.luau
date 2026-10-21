@@ -1665,8 +1665,9 @@ end
 
 -- Near-miss ping (§10): "CLOSE +N" per graze, "+N ×M" while a chain is
 -- running — the multiplier suffix only earns its space from chain two.
-function Ui:flashMiss(points: number, chain: number?)
-	local text = "CLOSE +" .. tostring(points)
+-- `word` swaps the label ("THREAD" for press threads).
+function Ui:flashMiss(points: number, chain: number?, word: string?)
+	local text = (word or "CLOSE") .. " +" .. tostring(points)
 	if chain and chain > 1 then
 		text ..= " ×" .. tostring(chain)
 	end
