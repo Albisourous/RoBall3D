@@ -244,6 +244,14 @@ runs the loop below and does not stop until you say **stop**.
     Verified live: 10 records milestone-correct in z-desc order, cursor
     fired Terrace at -426 and Chicane at -1294 — `NEW ▸ CHICANE`
     screenshotted mid-run beside `SEC 5`)*
+37. **Death cause on the card** *(done — d7c6850: `FatalController`
+    reports the lethal part it simulated (touch or spherecast), the
+    server validates the `RoBallLethal` tag and reads its `ChunkType`
+    stamp, `RunEnded` carries the cause, and the stats line ends
+    `felled by NAME` in pink via `Features.Label` (map grew to cover
+    the pool types). Falls read `the VOID`, wedges `wedged geometry`,
+    untrusted parts leave it off. Verified live: `felled by BLOCK
+    GATE` screenshotted on the card)*
 
 ## Standing rules for new work
 
