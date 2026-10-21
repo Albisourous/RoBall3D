@@ -368,6 +368,16 @@ Anything that *sounds* musical lands on the grid:
   exponentially smoothed (~140ms approach) so the per-heartbeat tracking
   doesn't zipper the filter. The speed you hear is wind + tempo — two
   channels of the same signal.
+- **Menu mixer** (`Config.Audio`, `AudioMix`) — an AUDIO panel on the
+  menu mirrors the leaderboard column: five sliders, `MUSIC / GEMS /
+  DASH / WIND / CUES`, each 0–100%, live-dragged (apply on every move,
+  persist on release). Gains land on dedicated taps: `musicFader`
+  post-duck, `sfxFader` for pickup voices, `stingFader` inserted
+  pre-lowpass for the cues, `windFader`'s per-frame target scaled, and
+  dash one-shots multiplied at spawn. State round-trips through
+  `RoBallVol_<ch>` attributes + `profile.audio` — the `RoBallEq_*`
+  equip pattern — so a mix survives sessions; the attribute echo never
+  re-invokes the remote.
 
 ## 8. Audio-reactive visuals (analyzer)
 

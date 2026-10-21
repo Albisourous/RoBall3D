@@ -44,6 +44,9 @@ local lowpass: any = nil
 local shifter: any = nil
 local duckFader: any = nil
 local sfxFader: any = nil -- post-duck tap for one-shot voices (gem chimes)
+local musicFader: any = nil -- user MUSIC gain (AudioMix): post-duck, pre-output
+local stingFader: any = nil -- user CUES gain (AudioMix): stings tap into the music bus
+local windGain = 1 -- user WIND gain (AudioMix): scales the per-frame target
 local duckGen = 0 -- duck() generation: a newer dip cancels an older release
 local analyzer: any = nil
 local windPlayer: any = nil
@@ -122,7 +125,7 @@ local function applySpeed()
 		local now = tick()
 		local k = math.min(1, (now - windLastT) * 7)
 		windLastT = now
-		windSmV += (m.WindVolume * norm * norm - windSmV) * k
+		windSmV += (m.WindVolume * windGain * norm * norm - windSmV) * k
 		windSmHz += (m.WindCutMin + (m.WindCutMax - m.WindCutMin) * norm - windSmHz) * k
 		windFader.Volume = windSmV
 		windFilter.Frequency = windSmHz
@@ -165,7 +168,7 @@ local function playStingNowOrQueued(name: string)
 	local p = stingPlayers[name]
 	if not p then
 		p = newPlayer(contentId(id), false)
-		wire(p, lowpass)
+		wire(p, stingFader or lowpass) -- mixer tap when the graph is up
 		stingPlayers[name] = p
 	end
 	p:Play()
@@ -334,7 +337,22 @@ function Music.init()
 	if shifter then
 		wire(shifter, duckFader)
 	end
-	wire(duckFader, output)
+	-- User mixer tap (AUDIO.md §7): masterFader sits post-duck so the
+	-- sidechain still shapes the heard level RELATIVE to the user's gain —
+	-- sliding MUSIC down doesn't flatten the pickup duck.
+	musicFader = Instance.new("AudioFader")
+	musicFader.Volume = 1
+	musicFader.Parent = folder
+	wire(duckFader, musicFader)
+	wire(musicFader, output)
+
+	-- Cue tap (same mixer): stings keep entering the music bus through the
+	-- lowpass (menu muffle / death tape-stop still apply) but get their
+	-- own fader first — nested under the MUSIC gain by design.
+	stingFader = Instance.new("AudioFader")
+	stingFader.Volume = 1
+	stingFader.Parent = folder
+	wire(stingFader, lowpass)
 
 	-- SFX voices (gem chimes) tap the bus AFTER the duck fader — a pickup
 	-- ducks the music, never itself (true sidechain) — and stay clear of
@@ -348,9 +366,10 @@ function Music.init()
 	analyzer = Instance.new("AudioAnalyzer")
 	analyzer.SpectrumEnabled = true
 	analyzer.Parent = folder
-	-- Post-duck tap: visuals follow the heard level — the world dims on
-	-- the same sidechain dip the ear hears.
-	wire(duckFader, analyzer)
+	-- Post-duck + post-user-gain tap: visuals follow the heard level —
+	-- the world dims on the sidechain dip AND goes quiet when the
+	-- player slides MUSIC to zero.
+	wire(musicFader, analyzer)
 
 	-- Menu boots on the dedicated menu bed (Config.Music.menuTrackId
 	-- resolves MenuTrack when uploaded, else the seeded default); runs
@@ -367,9 +386,12 @@ function Music.init()
 		windFader = Instance.new("AudioFader")
 		windFader.Volume = 0
 		windFader.Parent = folder
+		-- Wind taps straight to output (not through the music bus): the
+		-- menu mixer's WIND channel is independent of MUSIC — and wind is
+		-- ~silent in the menu anyway since its level rides speedNorm.
 		wire(windPlayer, windFilter)
 		wire(windFilter, windFader)
-		wire(windFader, lowpass)
+		wire(windFader, output)
 		task.defer(function()
 			windPlayer:Play()
 		end)
@@ -498,6 +520,23 @@ end
 -- a ~15ms tween — a hard gain step is an audible click; fast-but-smooth
 -- keeps the punch. Generation-guarded: a rapid second pickup cancels the
 -- previous release so dips re-trigger cleanly instead of fighting.
+-- User mixer gain (AudioMix, AUDIO.md §7): each channel lands on its own
+-- tap — music on the post-duck masterFader, gems on the SFX one-shot tap,
+-- stings on the cue fader (nested inside the music bus on purpose — cues
+-- ARE scored music events), wind folded into its per-frame target.
+-- "dash" has no graph node: its plain Sounds scale at spawn in Sfx.
+function Music.setGain(ch: string, v: number)
+	if ch == "music" and musicFader then
+		musicFader.Volume = v
+	elseif ch == "gems" and sfxFader then
+		sfxFader.Volume = v
+	elseif ch == "stings" and stingFader then
+		stingFader.Volume = v
+	elseif ch == "wind" then
+		windGain = v
+	end
+end
+
 function Music.duck(depth: number, release: number?)
 	if not duckFader then
 		return

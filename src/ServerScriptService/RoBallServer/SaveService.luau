@@ -148,6 +148,9 @@ export type Profile = {
 	statsGems: number?,
 	statsRuns: number?,
 	statsBestDist: number?,
+	-- Audio mixer (AUDIO.md §7): per-channel gains 0..1 keyed by
+	-- Config.Audio.Channels — the menu AUDIO panel's saved state.
+	audio: { [string]: number }?,
 }
 
 function SaveService.loadProfile(userId: number): Profile?

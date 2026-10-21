@@ -97,6 +97,9 @@ fnGetLeaderboard.Parent = remotes
 local fnEquipItem = Instance.new("RemoteFunction")
 fnEquipItem.Name = "EquipItem"
 fnEquipItem.Parent = remotes
+local fnSetAudio = Instance.new("RemoteFunction")
+fnSetAudio.Name = "SetAudio"
+fnSetAudio.Parent = remotes
 local fnBuyItem = Instance.new("RemoteFunction")
 fnBuyItem.Name = "BuyItem"
 fnBuyItem.Parent = remotes
@@ -121,6 +124,9 @@ type Run = {
 	seed: number,
 	dist: number, -- studs traveled (-Z), drives score
 	gemPts: number, -- gem pickups this run
+	nmPts: number, -- near-miss bonus points this run (§10)
+	nmCount: number, -- near-misses awarded (drives the HUD flash counter)
+	nmCursor: number, -- scan cursor into streamer.hazards
 	banked: number, -- gems credited to the bank this run (§18 P2 — never score)
 	t0: number, -- os.clock() at start; feeds the plausibility cap
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
@@ -209,7 +215,7 @@ end
 local function writeScore(player: Player, run: Run)
 	-- Score = whole meters + gem points (DESIGN.md §10). Attributes drive the
 	-- HUD and later feed the leaderboard save (P5).
-	local score = math.floor(run.dist) + run.gemPts
+	local score = math.floor(run.dist) + run.gemPts + run.nmPts
 	player:SetAttribute("RoBallScore", score)
 	player:SetAttribute("RoBallDist", math.floor(run.dist))
 	player:SetAttribute("RoBallGems", run.gemPts)
@@ -240,13 +246,17 @@ local function plausible(run: Run, score: number): boolean
 		* Config.Gems.ClustersPerChunkMax
 		* Config.Gems.ClusterSizes[1]
 		* Config.Gems.ValueGapArc
-	return score <= maxDist + math.max(gemCap, 100)
+	-- Near-miss headroom: ~8 lethal planes per 30-stud chunk slice is
+	-- already impossible (rows are ReactionTime-spaced), so this stays a
+	-- loose ceiling, not a knob cheaters could reach.
+	local nearCap = math.ceil(run.dist / 30) * 8 * Config.Score.NearMiss.Points
+	return score <= maxDist + math.max(gemCap, 100) + nearCap
 end
 
 -- Death is instant (DESIGN.md §11): fall below the deck OR touch lethal
 -- geometry. Seal the score, report to the client, wait for the next request.
 local function killRun(player: Player, run: Run)
-	local score = math.floor(run.dist) + run.gemPts
+	local score = math.floor(run.dist) + run.gemPts + run.nmPts
 	local dist = math.floor(run.dist)
 	local oldBest = player:GetAttribute("RoBallBest") or 0
 	local best = math.max(oldBest, score)
@@ -351,6 +361,9 @@ local function startRun(player: Player)
 		seed = seed,
 		dist = 0,
 		gemPts = 0,
+		nmPts = 0,
+		nmCount = 0,
+		nmCursor = 1,
 		banked = 0,
 		t0 = os.clock(),
 		lastPos = nil,
@@ -533,6 +546,15 @@ fnEquipItem.OnServerInvoke = function(player, itemId)
 	return ShopService.equip(player, itemId)
 end
 
+-- Mixer writes (AUDIO.md §7): pure preference state — validate the
+-- channel + range, then store/mirror like an equip.
+fnSetAudio.OnServerInvoke = function(player, ch, v)
+	if typeof(ch) ~= "string" or typeof(v) ~= "number" or v ~= v then
+		return false
+	end
+	return ShopService.setAudio(player, ch, v)
+end
+
 fnBuyItem.OnServerInvoke = function(player, itemId)
 	if typeof(itemId) ~= "string" then
 		return false, "bad arg"
@@ -681,6 +703,38 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 			else
 				run.stillT = 0
+			end
+
+			-- Near-miss trickle (§10): each lethal plane the ball crosses
+			-- without dying pays a small bonus if the pass hugged the face
+			-- — or sat inside a rotor's marked sweep disc. Evaluated once
+			-- per plane from the interpolated crossing x; a crossing that
+			-- also killed can't double-award (killRun already sealed the
+			-- run and removed it from `runs`).
+			local nm = Config.Score.NearMiss
+			local ballR = Config.Ball.Diameter / 2
+			while true do
+				local h = run.streamer.hazards[run.nmCursor]
+				if not h or pos.Z >= h.z then
+					break
+				end
+				run.nmCursor += 1
+				local px = run.lastPos and run.lastPos.X or pos.X
+				local pz = run.lastPos and run.lastPos.Z or pos.Z
+				local t = math.clamp((pz - h.z) / math.max(pz - pos.Z, 0.001), 0, 1)
+				local bx = px + (pos.X - px) * t
+				local close
+				if h.spin then
+					close = math.abs(bx - h.cx) <= h.halfW + nm.Range
+				else
+					close = math.abs(bx - h.cx) - h.halfW - ballR <= nm.Range
+				end
+				if close then
+					run.nmPts += nm.Points
+					run.nmCount += 1
+					player:SetAttribute("RoBallNearMiss", run.nmCount)
+					writeScore(player, run)
+				end
 			end
 			run.lastPos = pos
 

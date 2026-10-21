@@ -9,6 +9,7 @@
 --   RoBallEq_<slot>  -> equipped item id ("skin"/"trail"/"gemFx"/"deathFx")
 --   RoBallOwned      -> CSV of owned bundle keys + purchased item ids
 --   RoBallBank       -> banked gem balance (banked currency is never score)
+--   RoBallVol_<ch>   -> mixer channel gain 0..1 (AUDIO.md §7)
 -- Studio: pass/product ids are 0 until created on the dashboard, so nothing
 -- robux-priced exists and free items still equip — the system degrades
 -- cleanly. DataStores off in Studio = volatile session bank, still playable.
@@ -43,6 +44,9 @@ local achNew: { [Player]: { string } } = {} -- ids unlocked by the latest eval (
 local statsGems: { [Player]: number } = {} -- lifetime gems banked through play
 local statsRuns: { [Player]: number } = {} -- lifetime clean runs finished
 local statsBestDist: { [Player]: number } = {} -- lifetime best single-run distance
+-- Menu mixer (AUDIO.md §7): per-channel gains mirrored as
+-- RoBallVol_<ch> attributes; missing entries mean 1 (full).
+local audioVol: { [Player]: { [string]: number } } = {}
 
 function ShopService.ownsPass(player: Player, key: string): boolean
 	local set = owned[player]
@@ -113,6 +117,10 @@ local function pushAttrs(player: Player)
 	player:SetAttribute("RoBallAch", table.concat(ach, ","))
 	player:SetAttribute("RoBallAchNew", table.concat(achNew[player] or {}, ","))
 	achNew[player] = {}
+	-- Mixer (AUDIO.md §7): RoBallVol_<ch> per channel, default 1.
+	for _, ch in ipairs(Config.Audio.Channels) do
+		player:SetAttribute(Config.Audio.AttrPrefix .. ch, (audioVol[player] or {})[ch] or 1)
+	end
 end
 
 local function itemArray(player: Player): { string }
@@ -147,6 +155,7 @@ local function saveNow(player: Player)
 	for id in pairs(achDone[player] or {}) do
 		table.insert(achSnapshot, id)
 	end
+	local audioSnapshot = table.clone(audioVol[player] or {})
 	task.spawn(function()
 		SaveService.saveProfile(player.UserId, {
 			equipped = eqSnapshot,
@@ -162,6 +171,7 @@ local function saveNow(player: Player)
 			statsGems = statsGems[player] or 0,
 			statsRuns = statsRuns[player] or 0,
 			statsBestDist = statsBestDist[player] or 0,
+			audio = audioSnapshot,
 		})
 	end)
 end
@@ -395,6 +405,22 @@ local function equipBundle(player: Player, bundleId: string)
 	end
 end
 
+-- Mixer write (AUDIO.md §7): a slider release lands here. Cosmetic
+-- state — no gameplay effect — so it follows the equip/save path.
+function ShopService.setAudio(player: Player, ch: string, v: number): boolean
+	if not table.find(Config.Audio.Channels, ch) then
+		return false
+	end
+	v = math.clamp(v, 0, 1)
+	if not audioVol[player] then
+		audioVol[player] = {}
+	end
+	audioVol[player][ch] = v
+	pushAttrs(player)
+	saveNow(player)
+	return true
+end
+
 function ShopService.equip(player: Player, itemId: string): boolean
 	local item = Cosmetics.Items[itemId]
 	if not item or not ShopService.ownsItem(player, itemId) then
@@ -466,6 +492,7 @@ function ShopService.onPlayerAdded(player: Player)
 	statsGems[player] = 0
 	statsRuns[player] = 0
 	statsBestDist[player] = 0
+	audioVol[player] = {}
 	profileReady[player] = false
 	task.spawn(function()
 		local eq = equipped[player]
@@ -517,6 +544,14 @@ function ShopService.onPlayerAdded(player: Player)
 			end
 			if typeof(prof.weeklyTag) == "string" then
 				weeklyTag[player] = prof.weeklyTag
+			end
+			-- Mixer gains restore unconditionally; unknown channels die here.
+			if typeof(prof.audio) == "table" then
+				for ch, v in pairs(prof.audio) do
+					if table.find(Config.Audio.Channels, ch) and typeof(v) == "number" then
+						audioVol[player][ch] = math.clamp(v, 0, 1)
+					end
+				end
 			end
 			-- Achievements restore unconditionally — unlocks are permanent,
 			-- stats are lifetime counters. Unknown ids are ignored.
@@ -580,6 +615,7 @@ function ShopService.onPlayerRemoving(player: Player)
 	statsGems[player] = nil
 	statsRuns[player] = nil
 	statsBestDist[player] = nil
+	audioVol[player] = nil
 end
 
 function ShopService.init()

@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Music = require(script.Parent.MusicController)
+local AudioMix = require(script.Parent.AudioMix)
 
 local Sfx = {}
 
@@ -45,7 +46,7 @@ local function spawnChime(cfg, semi: number, volume: number, jitter: number)
 	s.Name = "GemPickup"
 	s.SoundId = assetUri(cfg)
 	s.PlaybackSpeed = ratio
-	s.Volume = volume
+	s.Volume = volume * AudioMix.gain("gems") -- graph path scales via sfxFader; the fallback folds it in here
 	s.Parent = SoundService
 	s:Play()
 	s.Ended:Connect(function()
@@ -110,7 +111,7 @@ function Sfx.dash(dir: number)
 	local s = Instance.new("Sound")
 	s.Name = "Dash"
 	s.SoundId = assetUri(cfg)
-	s.Volume = cfg.Volume
+	s.Volume = cfg.Volume * AudioMix.gain("dash")
 	local ps = Instance.new("PitchShiftSoundEffect")
 	ps.Octave = cfg.StartOctave * (1 + cfg.DirTilt * dir)
 	ps.Parent = s
@@ -134,7 +135,7 @@ function Sfx.dashDenied()
 	local s = Instance.new("Sound")
 	s.Name = "DashDenied"
 	s.SoundId = assetUri(cfg)
-	s.Volume = cfg.DenyVolume
+	s.Volume = cfg.DenyVolume * AudioMix.gain("dash")
 	local ps = Instance.new("PitchShiftSoundEffect")
 	ps.Octave = cfg.DenyOctave
 	ps.Parent = s

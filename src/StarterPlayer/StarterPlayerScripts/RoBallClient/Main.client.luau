@@ -19,6 +19,7 @@ local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
 local Sfx = require(script.Parent.SfxController)
+local AudioMix = require(script.Parent.AudioMix)
 local GemFx = require(script.Parent.GemFx)
 local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
@@ -439,6 +440,15 @@ player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 	lastGemPts = n
 end)
 
+-- Near-miss ping (§10): the server's count attribute is the signal — each
+-- increment flashes CLOSE +N under the score. No reset needed: the count
+-- is per-run and the flash is momentary.
+player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
+	if mode == "running" then
+		ui:flashMiss(Config.Score.NearMiss.Points)
+	end
+end)
+
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
@@ -731,6 +741,7 @@ end
 
 Backdrop.init()
 Music.init()
+AudioMix.init()
 Sfx.init()
 GemFx.init()
 CosmeticFx.init()

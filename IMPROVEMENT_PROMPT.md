@@ -90,6 +90,8 @@ runs the loop below and does not stop until you say **stop**.
 8. **New world themes** — `Backdrop.luau` supports `theme` strings; add
    `void` (starfield well) and `grid` (retro horizon) themes + world items,
    then a bundle. Verify with screenshots — do not blind-place geometry.
+   *(done — b0032d7: 150 star motes + 21w/14r grid plane, both screenshot-
+   verified live; DEEP SPACE bundle carries both)*
 9. **Near-miss bonus** — close passes within N studs of lethal geometry add
    trickle score. Audit impact on `plausible()` anti-cheat cap first; it
    changes score math so it needs a DESIGN.md note.

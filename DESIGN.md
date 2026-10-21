@@ -164,6 +164,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - Leaderboard panel — TOP / DAILY / WEEKLY tabs (`name / score / seed`);
     daily shows the shared seed + time to reset, weekly shows the cup
     seed + days to reset
+  - AUDIO panel — left-side mirror of the leaderboard column: five live
+    sliders (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
+    mixer taps in AUDIO.md §7, persisted via `profile.audio` →
+    `RoBallVol_<ch>` attributes so a mix survives sessions
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.
@@ -486,8 +490,19 @@ tunnels landed via `Obstacle.motion` and `Section.roofH` (§8.6).
 
 ## 10. Scoring
 
-`score = floor(distance_m) + gem_points`. Distance is authoritative server-side
-(ball's traveled `-Z`). Gem values per 8.4. Death seals the score.
+`score = floor(distance_m) + gem_points + near_miss_points`. Distance is
+authoritative server-side (ball's traveled `-Z`). Gem values per 8.4. Death
+seals the score.
+
+**Near-miss trickle**: every lethal plane the ball crosses without dying pays
+`Score.NearMiss.Points` (3) if the pass hugged the geometry — interpolated
+crossing-x within `NearMiss.Range` (4 studs, ball-surface to face) of a static
+block's edge, or anywhere inside a rotor's translucent sweep disc (the disc
+already marks risk honestly). One award per obstacle; hanging roof slabs never
+count (a lateral graze under a ceiling isn't a dodge). The server walks the
+streamer's ordered hazard-plane list with a cursor — zero per-frame scans —
+and `plausible()` carries a loose `ceil(dist/30) × 8 × Points` ceiling. Each
+award bumps `RoBallNearMiss`; the HUD flashes a short cyan `CLOSE +N`.
 
 ## 11. Death
 

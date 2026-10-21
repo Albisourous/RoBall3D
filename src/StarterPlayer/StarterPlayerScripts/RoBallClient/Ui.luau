@@ -5,10 +5,12 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
+local AudioMix = require(script.Parent.AudioMix)
 
 local Ui = {}
 Ui.__index = Ui
@@ -183,7 +185,7 @@ function Ui.new(): Ui
 
 	local menuCol = Instance.new("Frame")
 	menuCol.BackgroundTransparency = 1
-	menuCol.Size = UDim2.fromOffset(520, 500) -- taller: the mission rows pushed the controls line off
+	menuCol.Size = UDim2.fromOffset(520, 680) -- taller: missions + the mixer rows
 	menuCol.Position = UDim2.fromScale(0.5, 0.5)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
@@ -240,6 +242,101 @@ function Ui.new(): Ui
 	self.achLine = label(menuCol, "", 12, F_DATA, C_GOLD, 14)
 	label(menuCol, "", 6, F_DATA, C_DIM, 15)
 	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 16)
+
+	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): five live sliders riding
+	-- the mixer's channel taps. Drag applies instantly; release persists
+	-- through RoBallVol_<ch> -> profile.audio.
+	label(menuCol, "audio", 11, F_DATA, C_DIM, 17)
+	for i, ch in ipairs(Config.Audio.Channels) do
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, 19)
+		row.LayoutOrder = 17 + i
+		row.Parent = menuCol
+
+		local name = label(row, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.Size = UDim2.fromOffset(90, 19)
+
+		local track = Instance.new("Frame")
+		track.BackgroundColor3 = C_BG
+		track.BorderSizePixel = 0
+		track.AnchorPoint = Vector2.new(0, 0.5)
+		track.Position = UDim2.new(0, 104, 0.5, 0)
+		track.Size = UDim2.fromOffset(320, 7)
+		track.Parent = row
+		local trackCorner = Instance.new("UICorner")
+		trackCorner.CornerRadius = UDim.new(0, 4)
+		trackCorner.Parent = track
+
+		local fill = Instance.new("Frame")
+		fill.BackgroundColor3 = C_CYAN
+		fill.BorderSizePixel = 0
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.Parent = track
+		local fillCorner = Instance.new("UICorner")
+		fillCorner.CornerRadius = UDim.new(0, 4)
+		fillCorner.Parent = fill
+
+		local pct = label(row, "", 10, F_DATA, C_WHITE)
+		pct.Position = UDim2.fromOffset(436, 0)
+		pct.Size = UDim2.fromOffset(60, 19)
+		pct.TextXAlignment = Enum.TextXAlignment.Left
+
+		local function applyRow(v: number)
+			fill.Size = UDim2.fromScale(v, 1)
+			pct.Text = string.format("%d%%", math.floor(v * 100 + 0.5))
+		end
+		applyRow(AudioMix.gain(ch))
+		AudioMix.onChange(ch, applyRow)
+
+		-- Drag: click-to-set + hold-drag; release saves once via the
+		-- SetAudio remote (the attribute echo repaints through onChange).
+		local hit = Instance.new("TextButton")
+		hit.BackgroundTransparency = 1
+		hit.AutoButtonColor = false
+		hit.Text = ""
+		hit.Position = UDim2.fromOffset(96, 0)
+		hit.Size = UDim2.new(0, 340, 1, 0)
+		hit.Parent = row
+
+		local dragging = false
+		local function write(x: number)
+			AudioMix.set(ch, math.clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1))
+		end
+		hit.InputBegan:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = true
+				write(input.Position.X)
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				write(input.Position.X)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				dragging = false
+				AudioMix.save(ch)
+			end
+		end)
+	end
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -666,6 +763,22 @@ function Ui.new(): Ui
 	bestFlash.Parent = hud
 	self.bestFlash = bestFlash
 
+	-- Near-miss ping (§10): a quick cyan "CLOSE +N" under the score when
+	-- a lethal-plane crossing grazes the face — the trickle made visible.
+	local missFlash = Instance.new("TextLabel")
+	missFlash.BackgroundTransparency = 1
+	missFlash.Font = F_DATA
+	missFlash.TextSize = 14
+	missFlash.TextColor3 = C_CYAN
+	missFlash.TextStrokeTransparency = 0.5
+	missFlash.TextXAlignment = Enum.TextXAlignment.Right
+	missFlash.Position = UDim2.fromOffset(0, 116)
+	missFlash.Size = UDim2.new(1, 0, 0, 18)
+	missFlash.Text = ""
+	missFlash.Visible = false
+	missFlash.Parent = hud
+	self.missFlash = missFlash
+
 	-- Achievement toast (§14): top-center gold ribbon on unlock —
 	-- toast() writes the line, it never idles.
 	local achToast = Instance.new("TextLabel")
@@ -1072,6 +1185,16 @@ function Ui:flashBest()
 	self.bestFlash.Visible = true
 	local flash = self.bestFlash
 	task.delay(Config.Score.PbFlashSeconds, function()
+		flash.Visible = false
+	end)
+end
+
+-- Near-miss ping (§10): "CLOSE +N" — one short cyan flash per graze.
+function Ui:flashMiss(points: number)
+	self.missFlash.Text = "CLOSE +" .. tostring(points)
+	self.missFlash.Visible = true
+	local flash = self.missFlash
+	task.delay(Config.Score.NearMiss.FlashSeconds, function()
 		flash.Visible = false
 	end)
 end

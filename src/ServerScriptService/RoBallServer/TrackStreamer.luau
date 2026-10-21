@@ -56,6 +56,10 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 		{} :: { { part: BasePart, base: Vector3, kind: string, amp: number, periodSec: number, phase: number } }
 	self.moverConn = nil :: RBXScriptConnection?
 	self.moverT0 = 0
+	-- Near-miss records (§10): one row per lethal plane — {z, cx, halfW,
+	-- spin} — appended in descending-z order so the run loop scans them
+	-- with a bare cursor. spin entries key off the sweep-disc radius.
+	self.hazards = {} :: { { z: number, cx: number, halfW: number, spin: boolean } }
 	return self
 end
 
@@ -695,6 +699,11 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	end
 
 	if spec.obstacles then
+		-- This chunk's lethal planes, collected beside the build and merged
+		-- in z-descending order — obstacle lists aren't guaranteed sorted.
+		-- Hanging slabs are roof geometry: a lateral "near-miss" under them
+		-- would be dishonest, so they earn no record.
+		local hzSeg = {}
 		for _, ob in ipairs(spec.obstacles) do
 			local block = makeBlock(holder, self.laneX, spec, ob)
 			block.Touched:Connect(function(hit)
@@ -702,6 +711,15 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 					self.onFatalTouch(hit)
 				end
 			end)
+			if not ob.hang then
+				local mid = spec.section(ob.t)
+				table.insert(hzSeg, {
+					z = spec.startZ - ob.t * spec.length,
+					cx = self.laneX + mid.centerX + ob.xOff,
+					halfW = ob.w / 2,
+					spin = ob.motion ~= nil and ob.motion.kind == "spin",
+				})
+			end
 			if ob.motion then
 				table.insert(self.movers, {
 					part = block,
@@ -712,6 +730,12 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 					phase = ob.motion.phase,
 				})
 			end
+		end
+		table.sort(hzSeg, function(a, b)
+			return a.z > b.z
+		end)
+		for _, h in ipairs(hzSeg) do
+			table.insert(self.hazards, h)
 		end
 		self:startMovers()
 	end

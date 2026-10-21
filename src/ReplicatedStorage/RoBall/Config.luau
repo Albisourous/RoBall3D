@@ -405,6 +405,11 @@ Config.Score = {
 	PbMarkerViewDist = 140,
 	-- Crossing the line flashes "★ NEW BEST" under the HUD score.
 	PbFlashSeconds = 3,
+	-- Near-miss trickle (§10): crossing a hazard's plane within Range
+	-- studs of its lethal face — or anywhere inside a rotor's marked
+	-- sweep disc — without dying pays Points of score. Per-obstacle,
+	-- once each; small on purpose, it's seasoning not a farm.
+	NearMiss = { Range = 4, Points = 3, FlashSeconds = 1.2 },
 }
 
 -- PB ghost replay (DESIGN.md §14): your record run leaves a translucent
@@ -428,7 +433,7 @@ Config.GemSfx = {
 	-- Studio's bundled content dir for local dev (the vaporwave-bell render).
 	AssetId = 88208694516408, -- uploaded rb3_gem_pickup (vaporwave bell cascade)
 	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.25, -- half of the original — the chime was drowning the mix
+	Volume = 0.18, -- baseline sits under the mix; the menu mixer's GEMS slider rides on top
 	ComboWindow = 0.9, -- seconds between pickups that still count as a run
 	ComboScale = { 0, 2, 4, 7, 9, 12, 14, 16 }, -- A-minor pentatonic semitones
 	PitchJitter = 0.03, -- +-3% so repeats never sound identical
@@ -479,6 +484,17 @@ Config.DashSfx = {
 	-- Light sidechain punch on a fired dash (same duck() the chime uses).
 	DuckDepth = 0.18,
 	DuckRelease = 0.28,
+}
+
+Config.Audio = {
+	-- Menu mixer (AUDIO.md §7): the AUDIO panel's slider channels. Keys
+	-- are the attribute/profile/remote namespace (RoBallVol_<ch>); the
+	-- panel labels are player-facing. All sliders are attenuation-only
+	-- (0..1, default 1) — the mix is tuned at the sources.
+	Channels = { "music", "gems", "dash", "wind", "stings" },
+	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH", wind = "WIND", stings = "CUES" },
+	RemoteName = "SetAudio", -- RemoteFunction: SetAudio(ch, 0..1) -> bool
+	AttrPrefix = "RoBallVol_", -- per-channel attribute mirror
 }
 
 Config.GemFx = {
