@@ -572,16 +572,16 @@ Config.Music = {
 		-- FlowMusic batch — master mix only (no stems, plays the AssetId
 		-- player directly). AssetId = 0 keeps the id out of ActiveTracklist
 		-- until the ogg is uploaded and the id pasted here.
-		midnight_overdrive = { AssetId = 0 }, -- rb3_midnight_overdrive.ogg
-		void_runner = { AssetId = 0 }, -- rb3_void_runner.ogg
-		tape_drift = { AssetId = 0 }, -- rb3_tape_drift.ogg
-		smoothride = { AssetId = 0 }, -- rb3_smoothride.ogg
-		retro_wave_sunset = { AssetId = 0 }, -- rb3_retro_wave_sunset.ogg
-		neon_nostalgia = { AssetId = 0 }, -- rb3_neon_nostalgia.ogg
-		oldtimes = { AssetId = 0 }, -- rb3_oldtimes.ogg
-		underwater = { AssetId = 0 }, -- rb3_underwater.ogg
-		velvet_loader = { AssetId = 0 }, -- rb3_velvet_loader.ogg
-		palm_screens = { AssetId = 0 }, -- rb3_palm_screens.ogg
+		midnight_overdrive = { AssetId = 96854802386980 }, -- "MIDNIGHT OVERDRIVE"
+		void_runner = { AssetId = 117637051419784 }, -- "VOID RUNNER"
+		tape_drift = { AssetId = 96839771028670 }, -- "Tape Drift"
+		smoothride = { AssetId = 136320984653411 }, -- "smoothride"
+		retro_wave_sunset = { AssetId = 121485175631351 }, -- "retro wave sunset"
+		neon_nostalgia = { AssetId = 103995967173138 }, -- "Neon Nostalgia"
+		oldtimes = { AssetId = 106814879270965 }, -- "OldTimes"
+		underwater = { AssetId = 114136064521412 }, -- "UnderWater"
+		velvet_loader = { AssetId = 100333018795935 }, -- "VELVET LOADER"
+		palm_screens = { AssetId = 107610795649189 }, -- "PALM SCREENS"
 	},
 	Volume = 0.5,
 	-- Default track tempo — the fallback beat grid for code paths without a
