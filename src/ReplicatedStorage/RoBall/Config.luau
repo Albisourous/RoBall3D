@@ -531,10 +531,7 @@ Config.Music = {
 	-- picks from the same list; picking a track just sends a seed in its
 	-- residue class so the gen charts the song the player hears.
 	Tracklist = {
-		"vaporwave_loop",
-		"neon_descent",
-		"retro_wave",
-		-- FlowMusic batch (roball3d-audio/flowmusic/, IMPORT_REPORT.md)
+		-- FlowMusic catalog (roball3d-audio/flowmusic/, IMPORT_REPORT.md)
 		"midnight_overdrive", -- 109.72 bpm
 		"void_runner", -- 136.06
 		"tape_drift", -- 126.12
@@ -558,44 +555,7 @@ Config.Music = {
 	-- that track's AssetId (watchdog). Upload roball3d-audio/tracks/<id>/
 	-- oggs and paste numeric ids for production.
 	TrackAssets = {
-		vaporwave_loop = {
-			AssetId = 136262831381200, -- uploaded rb3_vaporwave_loop master mix
-			Stems = {
-				pad = 118520566152626,
-				bass = 102804260133040,
-				drums = 132587284358057,
-				lead = 132021034108931,
-				arp = 101051387972789,
-				air = 111219469183234,
-			},
-		},
-		neon_descent = {
-			-- Master 127402293202751 is moderation-blocked ("Asset is not
-			-- approved for the requester"). AssetId = 0 — the track stays
-			-- playable via its stem set, which buildPlayers prefers; only
-			-- the single-mix fallback is dead.
-			AssetId = 0,
-			Stems = {
-				pad = 78035449894734,
-				bass = 91799845866937,
-				drums = 107672990378953,
-				lead = 96130309464152,
-				arp = 140482450562711,
-				air = 91780468186207,
-			},
-		},
-		retro_wave = {
-			AssetId = 75972822769617,
-			Stems = {
-				pad = 135018068369330,
-				bass = 73515253694480,
-				drums = 81406148991075,
-				lead = 106969072375083,
-				arp = 93498334151618,
-				air = 111078014754337,
-			},
-		},
-		-- FlowMusic batch — master mix only (no stems, plays the AssetId
+		-- FlowMusic catalog — master mix only (no stems, plays the AssetId
 		-- player directly). AssetId = 0 keeps the id out of ActiveTracklist
 		-- until the ogg is uploaded and the id pasted here.
 		midnight_overdrive = { AssetId = 96854802386980 }, -- "MIDNIGHT OVERDRIVE"
@@ -612,10 +572,10 @@ Config.Music = {
 	Volume = 0.5,
 	-- Default track tempo — the fallback beat grid for code paths without a
 	-- run map (beat interval = 60 / (bpm * heard PlaybackSpeed)). Must equal
-	-- the default track's SongMap.bpm — vaporwave_loop is 16 bars = 43.6s
-	-- => 88 BPM. Per-run lookups use the run map's own bpm (neon_descent
-	-- is 100 BPM), this is only the non-run default.
-	BaseBpm = 88,
+	-- the parked track's SongMap.bpm — palm_screens (the menu bed) is
+	-- 105.38. Per-run lookups use the run map's own bpm; this is only the
+	-- non-run default.
+	BaseBpm = 105.38,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
 	-- Speed IS the tempo (AUDIO.md §4): heard BPM = map.bpm * PlaybackSpeed
@@ -662,17 +622,17 @@ Config.Music = {
 		menuStart = 135814836741193,
 	},
 	-- Speed wind bed (AUDIO.md §7): looped noise faded/filtered by speed.
+	-- Ceiling is deliberately low — broadband noise fatigues fast, so the
+	-- mixer's WIND slider tops out at a whisper rather than a roar.
 	WindAssetId = 89232863140759,
-	WindVolume = 0.4,
+	WindVolume = 0.12,
 	WindCutMin = 500,
 	WindCutMax = 4200,
 }
 
 -- The seeded/garage pool: Tracklist order, minus ids that can't play —
 -- a track with no master AND no complete stem set can't be seeded or
--- picked. (Stem-driven tracks like neon_descent never touch their
--- master AssetId at runtime, so a moderation-blocked master doesn't
--- kill them.) GenCore and MusicController both consume THIS list so
+-- picked. GenCore and MusicController both consume THIS list so
 -- the gen's stamped SongMap always matches the heard audio.
 local function trackPlayable(ta): boolean
 	if not ta then

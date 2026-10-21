@@ -646,9 +646,11 @@ Full spec: `AUDIO.md`. Binding decisions:
   loop, per-bus stems, stingers, and a `SongMap.luau` beat/section chart
   that GenCore reads. Self-rendered = free stems, free beat maps, zero
   copyright surface.
-- Shipped loop: `vaporwave_loop` (16 bars ≈ 43.6s, **88 BPM**, A minor —
-  `Music.AssetId`). `PlaybackSpeed` maps ball speed `0.9x -> 1.35x`, so
-  the heard tempo runs ~79 → ~119 BPM as the run accelerates. Optional
+- Shipped catalog: ten FlowMusic loops (`Config.Music.Tracklist`,
+  per-track measured BPMs — `palm_screens` doubles as the menu bed).
+  The earlier synthesized set (`vaporwave_loop`, `neon_descent`,
+  `retro_wave`) is retired. `PlaybackSpeed` maps ball speed `0.9x ->
+  1.35x`, so the heard tempo rides the run's acceleration. Optional
   `AudioPitchShifter` (`Music.PitchCompensation`) softens the squeak
   while tempo keeps climbing.
 - Runtime migrates `Sound` → the audio-graph API: one

@@ -43,10 +43,10 @@ level builder can read the song.
 
 ## 2. Where we are (MVP baseline)
 
-- One looped synthwave track (`vaporwave_loop`, 16 bars ≈ 43.6s at
-  **88 BPM**, A minor — rendered by `roball3d-audio/generate_audio.py`,
-  "NEON CASCADE": intro → saw hook → octave-jump break → riser → drop,
-  claps, 16th hats, sidechain pump).
+- A ten-track FlowMusic catalog (`Config.Music.Tracklist`), each loop
+  16 bars at its own measured BPM — `palm_screens` doubles as the menu
+  bed. The earlier synthesized set (`vaporwave_loop`, `neon_descent`,
+  `retro_wave`) is retired.
 - `MusicController` drives `Sound.PlaybackSpeed` `0.9 → 1.35` with ball
   speed (`speedNorm`). **Heard BPM is therefore `BaseBpm × PlaybackSpeed`:
   ~79 BPM cruising to ~119 BPM flat-out** — the track morphs chillwave →
@@ -105,8 +105,8 @@ and MusicController share. Per-track chart sketch:
 
 ```luau
 return {
-    id = "vaporwave_loop",
-    bpm = 88,            -- BaseBpm: matches the rendered grid
+    id = "palm_screens",
+    bpm = 105.38,        -- matches the render's measured grid
     beatsPerBar = 4,
     loopBeats = 64,      -- 16 bars
     -- sections come straight from the renderer's DRUM/BREAK/DROP constants
@@ -123,23 +123,22 @@ return {
 
 ### 3.2 Track canon — implemented
 
-`Config.Music.Tracklist` is the full catalog — the three synthesized
-tracks (`vaporwave_loop`, `neon_descent`, `retro_wave`) plus ten
-FlowMusic renders imported by `import_flowmusic.py` (the script detects
-BPM by onset autocorrelation, picks the best 16-bar window by
-contrast/seam score, circular-folds the cut, emits `SongMap_<id>.luau`,
-and encodes `rb3_<id>.ogg`). The run's seed picks from
-`Config.Music.ActiveTracklist` — Tracklist order minus ids that can't
-play (no master `AssetId` AND no complete `Stems` set), so an
-undecodable track can never be seeded — via `SongMap.trackIdFor`: **same seed → same track + same map +
-same musical pacing** — the leaderboard row becomes a replayable
-"level" exactly like a GD ID. The synthesized three carry full stem
-sets (`TrackAssets[id].Stems`) so tier-layering works on them; FlowMusic
-tracks are master-only and play a single player (the stem watchdog path
-already tolerates that). `retro_wave` is the outrun-flavored entry
-(100 BPM, Am9 → Gadd9 → Fmaj7 → Em9 arc landing Gadd9 → E7b9 in the
-drop, tape-dragged master) modeled on the Envato "Retro Wave"
-reference. Grow the canon by adding a `TRACKS` spec in
+`Config.Music.Tracklist` is the full catalog — ten FlowMusic renders
+imported by `import_flowmusic.py` (the script detects BPM by onset
+autocorrelation, picks the best 16-bar window by contrast/seam score,
+circular-folds the cut, emits `SongMap_<id>.luau`, and encodes
+`rb3_<id>.ogg`). The earlier synthesized set (`vaporwave_loop`,
+`neon_descent`, `retro_wave`) is retired — masters, stem ids, and
+SongMap modules dropped; the stem-layering path stays in
+MusicController for a future multi-stem upload. The run's seed picks
+from `Config.Music.ActiveTracklist` — Tracklist order minus ids that
+can't play (no master `AssetId` AND no complete `Stems` set), so an
+undecodable track can never be seeded — via `SongMap.trackIdFor`:
+**same seed → same track + same map + same musical pacing** — the
+leaderboard row becomes a replayable "level" exactly like a GD ID.
+Every current track is master-only and plays a single player (the stem
+watchdog path already tolerates that). Grow the canon by adding a
+`TRACKS` spec in
 `generate_audio.py`, or dropping a wav in `flowmusic/` and running
 `import_flowmusic.py`; then upload the ogg and paste the `AssetId`.
 `SaveService` records `trackId` next to the seed.
@@ -402,9 +401,9 @@ off = nothing lost.
 
 ```luau
 Config.Music = {
-    Track = "vaporwave_loop",     -- SongMap id; seed can pick from a canon
+    Track = "palm_screens",       -- SongMap id; seed can pick from a canon
     Volume = 0.5,
-    BaseBpm = 88,                 -- must equal SongMap.bpm — grid truth
+    BaseBpm = 105.38,             -- must equal the parked map's bpm — grid truth
     PlaybackSpeedMin = 0.9,
     PlaybackSpeedMax = 1.35,
     PitchCompensation = 0.5,      -- 0 = full chipmunk ramp, 1 = pitch-locked
