@@ -109,7 +109,7 @@ end
 local function rowCorridor(row: { ChunkDefs.Obstacle }, halfW: number): number
 	local spans = {}
 	for _, ob in ipairs(row) do
-		local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
+		local isTooth = ob.hang == true and ob.motion == nil and ob.h <= Config.Tunnel.ToothMax + 0.01
 		local isArm = ob.motion ~= nil and ob.motion.kind == "spin"
 		if not isTooth and not isArm then
 			table.insert(spans, { lo = ob.xOff - ob.w / 2, hi = ob.xOff + ob.w / 2 })
@@ -207,12 +207,14 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		-- threading the arm is bonus skill, not the required read. slideX
 		-- movers and tunnel teeth stay timing/decoration, and pad chunks
 		-- exempt their strip — the crossing is airborne (kick audit owns it).
+		-- dropY press plates DO audit: their x-span never moves, so the
+		-- guaranteed line is the permanent side lane around the plate.
 		local blockers: { { t0: number, t1: number, xOff: number, hw: number } } = {}
 		if spec.obstacles then
 			local stripHMax = Config.Pads.StripH + 0.01
 			for _, ob in ipairs(spec.obstacles) do
-				local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
-				local isMover = ob.motion ~= nil and ob.motion.kind ~= "spin"
+				local isTooth = ob.hang == true and ob.motion == nil and ob.h <= Config.Tunnel.ToothMax + 0.01
+				local isMover = ob.motion ~= nil and ob.motion.kind == "slideX"
 				local isStrip = spec.pads ~= nil and ob.h <= stripHMax
 				if not (isTooth or isMover or isStrip) then
 					-- (depth + ball diameter)/2L: the ball's center collides
@@ -349,7 +351,7 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 				local allTeeth = true
 				local stripRow = true
 				for _, ob in ipairs(row) do
-					local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
+					local isTooth = ob.hang == true and ob.motion == nil and ob.h <= Config.Tunnel.ToothMax + 0.01
 					if not isTooth then
 						allTeeth = false
 					end

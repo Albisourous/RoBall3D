@@ -81,7 +81,7 @@ export type Obstacle = {
 }
 
 export type Motion = {
-	kind: string, -- "slideX" | "spin"
+	kind: string, -- "slideX" | "spin" | "dropY"
 	amp: number?, -- slideX: studs of lateral travel
 	periodSec: number,
 	phase: number,
@@ -863,6 +863,7 @@ local MinEntryWidth = {
 	Rotor = 23, -- center-post windmill needs arm half >= 3 with both rim lanes
 	Fork = 24,
 	TunnelSlot = 18,
+	PressRow = 20, -- MinSpan press + a debut-wide side lane
 }
 
 -- Eligibility gate for pool + debut picks (§8.6): features that need a
@@ -1280,6 +1281,80 @@ function ChunkDefs.DropGate(rng: Random, st: GenState, _tier, debut: boolean?): 
 		obstacles,
 		gems
 	)
+end
+
+-- PressRow: a low roof over the deck and ceiling presses that slam on
+-- the beat (dropY motion). Each press plate spans all but one side
+-- lane — the lane is the guaranteed line; rolling under the plate
+-- during its lift window is the shortcut. The side zigzags per row so
+-- the safe line still costs lateral commitment.
+function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): ChunkSpec
+	local halfW = st.width / 2
+	-- Chained timing rows: each press needs its own reaction window —
+	-- 0.75x on repeated reads, 1x on the debut showcase.
+	local speed = Tiers.speedAt(st.dist + 150)
+	local spacingZ = speed * Config.Obstacles.ReactionTime * (if debut then 1 else 0.75)
+	local length = chainLength(if debut then 1 else rng:NextInteger(2, 3), spacingZ, 55, 130)
+	local rows = chainRows(length, spacingZ, if debut then 1 else 3)
+	local roofH = Config.Press.RoofH
+	local liftClear = Config.Press.LiftClear
+	local map = st.map or SongMap
+	local beatSec = 60 / (map.bpm * MusicGrid.playbackSpeedAt(tier.speed))
+	local period = beatSec * Config.Movers.PressBeats * (if debut then 1.5 else 1)
+	local dropAmp = liftClear - Config.Press.SlamGap
+	-- The side lane honors CorridorMin; the press keeps at least MinSpan
+	-- of plate or it reads as a pillar, not a press.
+	local gapW =
+		math.min(Config.Obstacles.CorridorMin * (if debut then 1.6 else 1.15), 2 * halfW - Config.Press.MinSpan)
+	local obstacles = {}
+	local gems = {}
+	if gapW >= Config.Obstacles.CorridorMin then
+		-- Zigzag affordance: flipping the lane costs 2·halfW − gapW of
+		-- lateral travel. When one beat-gap can't buy that crossing the
+		-- lane widens; past MinSpan it holds its side instead — a held
+		-- lane is a straight read, never a blind seam.
+		local gapForFlip = 2 * halfW - latReach(spacingZ, speed)
+		local flip = rows > 1 and gapForFlip <= 2 * halfW - Config.Press.MinSpan
+		if flip then
+			gapW = math.max(gapW, gapForFlip)
+		end
+		local side = rng:NextInteger(0, 1) * 2 - 1
+		for i = 1, rows do
+			local t = 0.5 + (i - (rows + 1) / 2) * (spacingZ / length)
+			local pw = 2 * halfW - gapW
+			table.insert(obstacles, {
+				t = t,
+				xOff = -side * gapW / 2, -- plate covers everything but the side lane
+				w = pw,
+				h = roofH - liftClear,
+				d = Config.Obstacles.WallDepth,
+				hang = true,
+				motion = {
+					kind = "dropY",
+					amp = dropAmp,
+					periodSec = period,
+					phase = rng:NextNumber(0, math.pi * 2),
+				},
+			})
+			-- Breadcrumbs: safe gems in the guaranteed lane, a beam gem
+			-- under the plate daring the timed shortcut.
+			local gx = side * (halfW - gapW / 2)
+			table.insert(gems, { t = t, xOff = gx, value = Config.Gems.ValueSafe, yOff = 2 })
+			table.insert(gems, {
+				t = math.clamp(t - 0.08, 0.15, 0.85),
+				xOff = -side * gapW / 2,
+				value = Config.Gems.ValueBeam,
+				yOff = 2.2,
+			})
+			if flip then
+				side = -side
+			end
+		end
+	end
+	return spec("PressRow", st, length, function(t)
+		local e = math.min(t / 0.18, (1 - t) / 0.18, 1)
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH * e }
+	end, { centerX = st.centerX, width = st.width, y = st.y }, obstacles, gems)
 end
 
 -- Pacer: a wall PAIR whose fixed-width gap slides side-to-side on a

@@ -820,10 +820,26 @@ function TrackStreamer:cleanup(ballZ: number)
 	end
 end
 
+-- PressRow's dropY wave (§8.6): a trapezoid pulse — the plate spends
+-- most of the cycle raised, drops fast, holds the lethal window, then
+-- rises. The readable hold IS the timing lesson.
+local function pressPulse(x: number): number
+	local D, H, U = Config.Movers.PressDownFrac, Config.Movers.PressHoldFrac, Config.Movers.PressUpFrac
+	if x < D then
+		return x / D
+	elseif x < D + H then
+		return 1
+	elseif x < D + H + U then
+		return 1 - (x - D - H) / U
+	end
+	return 0
+end
+
 -- Beat-locked movers (DESIGN.md §8.6): Pacer slabs slide laterally, Rotor
--- arms spin around their post. Periods are whole-note multiples of the
--- heard tempo — the hazard cycle IS the music. Server-side CFrame
--- animation on anchored parts replicates fine; Touched still kills.
+-- arms spin around their post, PressRow plates slam down on the count.
+-- Periods are whole-note multiples of the heard tempo — the hazard cycle
+-- IS the music. Server-side CFrame animation on anchored parts
+-- replicates fine; Touched still kills.
 function TrackStreamer:startMovers()
 	if self.moverConn or #self.movers == 0 then
 		return
@@ -836,6 +852,9 @@ function TrackStreamer:startMovers()
 				local ang = t / m.periodSec * math.pi * 2 + m.phase
 				if m.kind == "slideX" then
 					m.part.Position = m.base + Vector3.new(m.amp * math.sin(ang), 0, 0)
+				elseif m.kind == "dropY" then
+					local x = (ang / (math.pi * 2)) % 1
+					m.part.Position = m.base + Vector3.new(0, -m.amp * pressPulse(x), 0)
 				else -- spin
 					m.part.CFrame = CFrame.new(m.base) * CFrame.Angles(0, ang, 0)
 				end

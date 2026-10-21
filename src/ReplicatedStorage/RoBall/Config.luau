@@ -202,6 +202,7 @@ Config.Features = {
 		PadVoid = 2100,
 		TunnelSlot = 2200,
 		DropGate = 2300,
+		PressRow = 2600,
 		Pacer = 2700,
 		Rotor = 2900,
 		OrbHop = 3300, -- flag: Features.JumpOrbs
@@ -218,6 +219,7 @@ Config.Features = {
 		"PadVoid",
 		"TunnelSlot",
 		"DropGate",
+		"PressRow",
 		"Pacer",
 		"Rotor",
 		"OrbHop",
@@ -264,6 +266,21 @@ Config.Movers = {
 	RotorPostH = 5,
 	RotorDiscH = 0.12, -- translucent danger-disc slab height under the sweep
 	RotorDiscTrans = 0.8, -- ghost tint marking the swept zone's edge
+	PressBeats = 4, -- slam cycle length in beats (debut runs it 1.5x)
+	PressDownFrac = 0.12, -- cycle share spent slamming down
+	PressHoldFrac = 0.28, -- cycle share held on the deck (lethal window)
+	PressUpFrac = 0.22, -- cycle share rising back
+}
+
+-- PressRow (DESIGN.md §8.6): a low roof over the deck and ceiling
+-- presses that slam on the beat — the threat comes DOWN, not across.
+-- Each press row leaves one permanent side lane; under the plate is a
+-- timed shortcut, not the guaranteed line.
+Config.Press = {
+	RoofH = 7, -- low ceiling — tighter than Tunnel.RoofH
+	LiftClear = 3.6, -- raised bottom edge: the 3-stud ball rolls under
+	SlamGap = 0.4, -- slammed bottom edge — always a touch
+	MinSpan = 8, -- narrowest press plate that still reads as a press
 }
 
 Config.Tunnel = {
@@ -394,6 +411,7 @@ Config.Tiers = {
 			"PadVoid",
 			"TunnelSlot",
 			"DropGate",
+			"PressRow",
 			"Pacer",
 			"Rotor",
 			-- Flag-off stretches (§8.6): canRun drops them unless the
@@ -745,6 +763,7 @@ Config.MusicSync = {
 		Chicane = "lethal",
 		TunnelSlot = "lethal",
 		DropGate = "lethal",
+		PressRow = "lethal",
 		Pacer = "lethal",
 		RampGap = "spectacle",
 		PadHop = "spectacle",
