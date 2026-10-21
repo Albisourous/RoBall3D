@@ -254,6 +254,45 @@ function GhostController.replayTail(span: number): boolean
 	return true
 end
 
+-- Enough recording to be worth replaying (§11): two frames minimum.
+function GhostController.canReplay(): boolean
+	return #rec >= 8
+end
+
+-- Full replay (§11): the run's entire recording rebased to t=0 — the
+-- death card's WATCH REPLAY rides this. `rec` survives so repeat
+-- viewings work; prior echoes clear so only the replay moves. Returns
+-- the replay's duration so the caller can end the mode on cue.
+function GhostController.replayFull(): number?
+	if #rec < 8 then
+		return nil
+	end
+	for _, echo in ipairs(echoes) do
+		echo.part:Destroy()
+	end
+	table.clear(echoes)
+	pbEcho = nil
+	rivalEcho = nil
+	local f: Frames = {}
+	local t0 = rec[1]
+	for i = 1, #rec, 4 do
+		table.insert(f, rec[i] - t0)
+		table.insert(f, rec[i + 1])
+		table.insert(f, rec[i + 2])
+		table.insert(f, rec[i + 3])
+	end
+	table.insert(echoes, spawnEcho(f, "ReplayEcho", Color3.fromRGB(0, 230, 255), Config.Ghost.Transparency))
+	ghostT = 0
+	playing = true
+	return f[#f - 3]
+end
+
+-- Replay position (§11): the chase cam tracks this while mode==replay.
+function GhostController.replayPos(): Vector3?
+	local e = echoes[1]
+	return e and e.part.Position or nil
+end
+
 -- Pace delta (§12): meters ahead of the PB echo at this instant —
 -- positive when the live ball is further down-track than the ghost
 -- (both roll -Z, so the lead is ghostZ - ballZ). nil when no echo is

@@ -71,13 +71,15 @@ local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
 ui.gateFrac = Config.Power.RechargeGate
 
-local mode: "menu" | "running" | "dead" = "menu"
+local mode: "menu" | "running" | "dead" | "replay" = "menu"
 local ball: BasePart? = nil
 local lateralVel = 0
 local fwdSpeed = Config.Speed.Start
 local currentSeed: number? = nil
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
+local replayEndAt = 0 -- replay mode (§11): wall-clock the playback ends
+local cardArgs: { any }? = nil -- last showDeath arg tuple — V returns here
 local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
 local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
@@ -334,6 +336,29 @@ local function requestStart()
 end
 ui.onPlay = requestStart
 ui.onRetry = requestStart
+-- Replay exits (§11): V (or the playback reaching its end) drops back to
+-- the death card — it re-shows from the stored arg tuple.
+local function endReplay()
+	if mode ~= "replay" then
+		return
+	end
+	mode = "dead"
+	ui:showReplay(false)
+	if cardArgs then
+		ui:showDeath(table.unpack(cardArgs))
+	end
+end
+-- WATCH REPLAY (§11): the just-ended run's own recording plays down the
+-- live track as an echo — the deterministic "how did that happen" read.
+ui.onReplay = function()
+	local dur = Ghost.replayFull()
+	if not dur then
+		return
+	end
+	mode = "replay"
+	replayEndAt = os.clock() + dur + 0.5 -- hold a beat on the final frame
+	ui:showReplay(true)
+end
 -- Same-seed rerun (§10): deterministic rematch — identical map, the PB
 -- ghost included. Fires the numeric seed, not the box text, so "daily"
 -- still lands on the day's seed (same-day replay rules apply anyway).
@@ -657,6 +682,8 @@ end)
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
+	cardArgs = nil -- a fresh run can't fall back to a stale card
+	ui:showReplay(false) -- R mid-replay lands here with the card hidden
 	-- Mirror a rolled seed into the box: a blank box ("random" chip or a
 	-- cleared field) launched this run, so write the resolved number back
 	-- and every later start — R included — reloads the same map. A held
@@ -769,33 +796,37 @@ evRunEnded.OnClientEvent:Connect(
 		-- The card waits out the death-cam orbit (§11); R mid-orbit skips it
 		-- via requestStart — the seq guard drops the stale delayed show.
 		local seq = deathSeq
+		-- Stored for the replay exit: V leaves the echo and re-shows this
+		-- exact card — ranks still fill in late via their attr listeners.
+		cardArgs = {
+			score,
+			dist,
+			gems,
+			best,
+			seed,
+			newBest,
+			banked,
+			streak,
+			streakBonus,
+			questBonus,
+			questHits,
+			{
+				top = statMaxFwd,
+				boost = statBoostDist,
+				dashes = statDashes,
+				hazards = hzPassed,
+				closest = closestCall,
+				cause = cause,
+				air = statAirT / math.max(statAirT + statGroundT, 0.01),
+				pbDelta = paceCache,
+				rivalDelta = rivalPaceCache,
+				rivalName = rivalName,
+				canReplay = Ghost.canReplay(),
+			},
+		}
 		task.delay(Config.Camera.DeathOrbitSec, function()
-			if mode == "dead" and deathSeq == seq then
-				ui:showDeath(
-					score,
-					dist,
-					gems,
-					best,
-					seed,
-					newBest,
-					banked,
-					streak,
-					streakBonus,
-					questBonus,
-					questHits,
-					{
-						top = statMaxFwd,
-						boost = statBoostDist,
-						dashes = statDashes,
-						hazards = hzPassed,
-						closest = closestCall,
-						cause = cause,
-						air = statAirT / math.max(statAirT + statGroundT, 0.01),
-						pbDelta = paceCache,
-						rivalDelta = rivalPaceCache,
-						rivalName = rivalName,
-					}
-				)
+			if mode == "dead" and deathSeq == seq and cardArgs then
+				ui:showDeath(table.unpack(cardArgs))
 			end
 		end)
 		Music.onDeath()
@@ -857,9 +888,18 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	-- been mirrored back into the box — so a reload keeps the same map
 	-- unless the menu says otherwise. Enter starts from the menu; T on
 	-- the death screen reruns the dead run's literal seed.
+	if input.KeyCode == Enum.KeyCode.V then
+		if mode == "replay" then
+			endReplay()
+			return
+		elseif mode == "dead" then
+			ui.onReplay() -- the card's watch-replay verb, keyed
+			return
+		end
+	end
 	local wantsRestart = input.KeyCode == Enum.KeyCode.R
 	local wantsPlay = input.KeyCode == Enum.KeyCode.Return and mode == "menu"
-	local wantsRerun = input.KeyCode == Enum.KeyCode.T and mode == "dead"
+	local wantsRerun = input.KeyCode == Enum.KeyCode.T and (mode == "dead" or mode == "replay")
 	if wantsRestart or wantsPlay then
 		requestStart()
 		return
@@ -1215,6 +1255,22 @@ RunService.RenderStepped:Connect(function(dt)
 		camera.FieldOfView = cam.FovMin + (camera.FieldOfView - cam.FovMin) * (1 - ease)
 		camera.CFrame = CFrame.lookAt(lastBallPos + Vector3.new(rx, off.Y, rz), lastBallPos)
 		Backdrop.update(lastBallPos)
+	elseif mode == "replay" then
+		-- Watch replay (§11): the run's recording plays back down the
+		-- still-standing track — the chase cam follows the echo with the
+		-- live run's framing so the fatal line re-reads at speed.
+		Ghost.tick(dt, lastBallPos)
+		local rp = Ghost.replayPos() or lastBallPos
+		local desired = rp + cam.Offset
+		camPos = if camPos then camPos + (desired - camPos) * (1 - math.exp(-dt / cam.SmoothTime)) else desired
+		local target = rp + Config.Generation.TravelAxis * cam.LookAhead
+		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
+		camera.FieldOfView = cam.FovMin
+		camera.CFrame = CFrame.lookAt(camPos :: Vector3, target)
+		Backdrop.update(rp)
+		if os.clock() >= replayEndAt then
+			endReplay()
+		end
 	else
 		-- Menu vista: slow orbit toward the track start
 		local t = tick() * 0.12

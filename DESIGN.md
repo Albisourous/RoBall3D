@@ -649,6 +649,13 @@ explicitly deferred. During the orbit the run's own recording replays
 its last `DeathOrbitSec` as a dim cyan echo (`Ghost.replayTail`) — the
 fatal approach is visible on-screen, ending at the kill spot as the card
 lands. Cosmetic only; it dies with the next run's `Ghost.stop()`. The
+card's `watch replay` button (V) re-runs the run's **entire recording**
+down the still-standing track — `Ghost.replayFull()` rebases the frames
+to t=0 and the chase cam follows the echo with the live run's framing,
+so the fatal line re-reads at speed. V or playback's end returns to the
+same card (re-shown from the stored arg tuple); R skips straight to a
+retry, and any new run's `Ghost.stop()` clears the echo. Runs under
+~2 frames hide the button (`Ghost.canReplay`). The
 card also **names the killer**: `FatalController` reports the lethal
 part it simulated, the server reads the part's `ChunkType` stamp (set
 at build from the spec) and carries the type on `RunEnded` — the stats

@@ -145,6 +145,7 @@ function Ui.new(): Ui
 	self.onRetry = nil :: (() -> ())?
 	self.onMenu = nil :: (() -> ())?
 	self.onRerun = nil :: (() -> ())?
+	self.onReplay = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
 	self.onBuy = nil :: ((bundleId: string) -> ())?
@@ -1717,22 +1718,40 @@ function Ui.new(): Ui
 			self.onRetry()
 		end
 	end)
-	label(dCol, "R retry · T rerun", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
+	label(dCol, "R retry · T rerun · V replay", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
+	-- Watch replay (§11): re-run the just-ended recording down the live
+	-- track — only meaningful when the run lasted long enough to record.
+	self.dReplay = ghostButton(dCol, "watch replay", 15, 12)
+	self.dReplay.Visible = false
+	self.dReplay.MouseButton1Click:Connect(function()
+		if self.onReplay then
+			self.onReplay()
+		end
+	end)
 	-- Same-seed rerun (§10): the deterministic rematch — identical map,
 	-- your ghost included. Label carries the seed so the intent is plain.
-	self.dRerun = ghostButton(dCol, "rerun", 15, 12)
+	self.dRerun = ghostButton(dCol, "rerun", 15, 13)
 	self.dRerun.MouseButton1Click:Connect(function()
 		if self.onRerun then
 			self.onRerun()
 		end
 	end)
 	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 13)
+	local toMenu = ghostButton(dCol, "menu", 15, 14)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
 		end
 	end)
+
+	-- Replay hint (§11): bottom-center while a recording plays back —
+	-- V returns to the card, R skips straight into a retry.
+	local rh = label(gui, "V card · R retry", 13, F_DATA, C_DIM, 0)
+	rh.AnchorPoint = Vector2.new(0.5, 1)
+	rh.Position = UDim2.new(0.5, 0, 1, -14)
+	rh.Size = UDim2.fromOffset(300, 20)
+	rh.Visible = false
+	self.replayHint = rh
 
 	return self
 end
@@ -1991,6 +2010,7 @@ function Ui:showDeath(
 		pbDelta: number?,
 		rivalDelta: number?,
 		rivalName: string?,
+		canReplay: boolean?,
 	}?
 )
 	self.menu.Visible = false
@@ -2019,6 +2039,8 @@ function Ui:showDeath(
 	self.dQuest.Visible = hits > 0
 	self.dRank.Visible = false -- daily rank fills in late via setDailyRank
 	self.tRank.Visible = false -- all-time rank fills in late via setTopRank
+	-- WATCH REPLAY needs a recording — stub deaths under ~2 frames hide it.
+	self.dReplay.Visible = stats ~= nil and stats.canReplay == true
 	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
 	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
 	if stats then
@@ -2066,6 +2088,13 @@ function Ui:showDeath(
 	else
 		self.dStats.Visible = false
 	end
+end
+
+-- Replay mode (§11): the card steps aside while the run's recording
+-- plays back down the live track; the hint carries the exits.
+function Ui:showReplay(on: boolean)
+	self.death.Visible = not on
+	self.replayHint.Visible = on
 end
 
 -- Daily rank (§14): "daily #3" on the death card — the server publishes
