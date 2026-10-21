@@ -318,6 +318,14 @@ runs the loop below and does not stop until you say **stop**.
     chain meter to the free left column under the sector line — its
     first slot overlapped `paceText`)*
 
+46. **Proximity ping** *(done — 226a5a9: a flattened sonar blip on the
+    `dash` mixer channel while the danger vignette is live — interval
+    tightens `PingSlow→PingFast` and pitch lifts `PingLift` as the
+    corridor threat closes; the audible mirror of the closing frame.
+    Verified live: natural run fired a real `DangerPing` at t=6.7 on
+    approach (0.6s before contact); direct calls spawned voices with
+    exact octave math 0.59/0.68 = `0.5×(1+0.35×I)`)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
