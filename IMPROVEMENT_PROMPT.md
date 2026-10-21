@@ -147,6 +147,14 @@ runs the loop below and does not stop until you say **stop**.
 20. **Pace delta** *(done — 245b5b8: `±N vs PB` HUD line off the echo
     part's interpolated position; cyan/pink, hidden without a ghost;
     verified live via stubbed GetGhost)*
+21. **Near-miss FOV pulse** *(done — adc8d41: graze attr kicks
+    `Config.Camera.MissFovKick` degrees, decays at MissFovDecay/s;
+    verified live 72→78→73)*
+22. **Look-ahead radar** *(done — f12b3f0: `Config.Radar` strip beside
+    the top-right HUD maps tagged `RoBallLethal` blocks into pooled red
+    bars, top=far/bottom=ball/x=lateral; heartbeat re-scans at
+    ScanSeconds so movers track; verified live incl. death-card hide.
+    Same commit named the menu controls MCP playtests click by path)*
 
 ## Standing rules for new work
 
