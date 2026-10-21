@@ -37,12 +37,6 @@ local function dailyText(): string
 	return text
 end
 
--- Weekly-cup status line (§14): this week's shared seed + reset countdown.
-local function weeklyText(): string
-	local s = Daily.weekResetIn()
-	return string.format("cup seed #%d · resets in %dd %02dh", Daily.weekSeed(), s // 86400, (s % 86400) // 3600)
-end
-
 -- Vaporwave type system (DESIGN.md §12): three voices, one job each.
 --   F_HERO    — Garamond spaced caps: the Floral Shoppe serif for
 --               "A E S T H E T I C" titles — menu name + RUN OVER only.
@@ -300,7 +294,7 @@ function Ui.new(): Ui
 			end
 		end
 	end
-	for i, key in ipairs({ "random", "daily" }) do
+	for i, key in ipairs({ "daily", "random" }) do
 		local b = Instance.new("TextButton")
 		b.Name = "Chip" .. key
 		b.BackgroundColor3 = C_BG
@@ -555,16 +549,11 @@ function Ui.new(): Ui
 	self.tabTop.Name = "TabTop"
 	self.tabDaily = boardTab("DAILY", 114)
 	self.tabDaily.Name = "TabDaily"
-	self.tabWeekly = boardTab("WEEKLY", 214)
-	self.tabWeekly.Name = "TabWeekly"
 	self.tabTop.MouseButton1Click:Connect(function()
 		self:setBoard("top")
 	end)
 	self.tabDaily.MouseButton1Click:Connect(function()
 		self:setBoard("daily")
-	end)
-	self.tabWeekly.MouseButton1Click:Connect(function()
-		self:setBoard("weekly")
 	end)
 
 	-- Daily status line: today's shared seed + reset countdown (UTC).
@@ -615,7 +604,7 @@ function Ui.new(): Ui
 		while true do
 			task.wait(15)
 			if self.dailyInfo.Visible then
-				self.dailyInfo.Text = if self.boardMode == "weekly" then weeklyText() else dailyText()
+				self.dailyInfo.Text = dailyText()
 			end
 		end
 	end)
@@ -1357,10 +1346,7 @@ function Ui.new(): Ui
 	-- Daily quests completed this run (§14): "2 quests done · ◊ +90 banked".
 	self.dQuest = label(dCol, "", 15, F_DATA, C_GOLD, 7)
 	self.dQuest.Visible = false
-	-- Weekly cup payout (§14): run bonus + any lazy podium pay —
-	-- "weekly cup · ◊ +225 banked", same gold accent.
-	self.dWeekly = label(dCol, "", 15, F_DATA, C_GOLD, 8)
-	self.dWeekly.Visible = false
+
 	-- Run-stats card (§11): one quiet dim line — top speed, gates passed,
 	-- boost share, closest call. Display-only; never score.
 	self.dStats = label(dCol, "", 13, F_DATA, C_DIM, 9)
@@ -1598,7 +1584,6 @@ function Ui:showDeath(
 	streakBonus: number?,
 	questBonus: number?,
 	questHits: number?,
-	weeklyBonus: number?,
 	stats: { top: number, boost: number, dashes: number, hazards: number?, closest: number? }?
 )
 	self.menu.Visible = false
@@ -1625,9 +1610,6 @@ function Ui:showDeath(
 	local hits = questHits or 0
 	self.dQuest.Text = string.format("%s done · ◊ +%d banked", hits == 1 and "quest" or hits .. " quests", qb)
 	self.dQuest.Visible = hits > 0
-	local wb = weeklyBonus or 0
-	self.dWeekly.Text = string.format("weekly cup · ◊ +%d banked", wb)
-	self.dWeekly.Visible = wb > 0
 	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
 	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
 	if stats then
@@ -1690,18 +1672,15 @@ end
 -- Board tab switch (§14): recolors tabs, shows/hides the daily info line,
 -- then asks Main to fetch — rows arrive via setLeaderboard.
 function Ui:setBoard(mode: string)
-	if mode ~= "top" and mode ~= "daily" and mode ~= "weekly" then
+	if mode ~= "top" and mode ~= "daily" then
 		return
 	end
 	self.boardMode = mode
 	self.tabTop.TextColor3 = if mode == "top" then C_PINK else C_DIM
 	self.tabDaily.TextColor3 = if mode == "daily" then C_PINK else C_DIM
-	self.tabWeekly.TextColor3 = if mode == "weekly" then C_PINK else C_DIM
-	self.dailyInfo.Visible = mode ~= "top"
+	self.dailyInfo.Visible = mode == "daily"
 	if mode == "daily" then
 		self.dailyInfo.Text = dailyText()
-	elseif mode == "weekly" then
-		self.dailyInfo.Text = weeklyText()
 	end
 	if self.onBoardTab then
 		self.onBoardTab(mode)
@@ -1750,7 +1729,6 @@ function Ui:drawBoard()
 		self.boardRows[1].Text = if self.friendsOnly
 			then "  no friends ranked on this board yet"
 			elseif mode == "daily" then "  no daily runs yet — type 'daily' and set one."
-			elseif mode == "weekly" then "  no cup runs yet — type 'weekly' and set one."
 			else "  no saved runs yet — set one."
 	end
 end

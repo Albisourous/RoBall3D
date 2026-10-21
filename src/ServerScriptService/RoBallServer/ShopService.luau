@@ -37,8 +37,6 @@ local pendingDaily: { [Player]: boolean } = {} -- daily run ended before the pro
 local questDayTag: { [Player]: string } = {} -- day the quest slots belong to (§14)
 local questDone: { [Player]: { [string]: boolean } } = {} -- quest id -> true (today)
 local questBanked: { [Player]: number } = {} -- gems banked toward today's bank quest
-local weeklyTag: { [Player]: string } = {} -- last counted weekly-cup week tag (§14)
-local pendingWeekly: { [Player]: boolean } = {} -- weekly run ended before the profile landed
 local achDone: { [Player]: { [string]: boolean } } = {} -- achievement id -> true (§14)
 local achNew: { [Player]: { string } } = {} -- ids unlocked by the latest eval (one-push toast batch)
 local statsGems: { [Player]: number } = {} -- lifetime gems banked through play
@@ -181,7 +179,6 @@ local function saveNow(player: Player)
 			questDay = questDaySnapshot,
 			questDone = questDoneSnapshot,
 			questBanked = questBankedSnapshot,
-			weeklyTag = weeklyTag[player] or "",
 			achievements = achSnapshot,
 			statsGems = statsGems[player] or 0,
 			statsRuns = statsRuns[player] or 0,
@@ -331,41 +328,6 @@ function ShopService.onRunEnd(
 	end
 	saveNow(player)
 	return bonus, hits
-end
-
--- Weekly cup (§14): finishing a weekly-seeded run counts the week once —
--- pays WeeklyRunBonus, then lazily resolves LAST week's board: a top-3
--- finish pays WeeklyTopGems[rank]. Same week again -> no-op. Runs ending
--- before the profile lands queue on pendingWeekly like pendingDaily.
--- Returns the total banked bonus (0 when nothing paid).
-function ShopService.recordWeeklyRun(player: Player): number
-	if not profileReady[player] then
-		pendingWeekly[player] = true
-		return 0
-	end
-	local tag = Daily.weekTag()
-	if weeklyTag[player] == tag then
-		return 0
-	end
-	weeklyTag[player] = tag
-	local bonus = Config.Monetization.WeeklyRunBonus
-	-- Lazy podium payout: last week's board is read exactly here (once per
-	-- week per player) — a top-3 row matching this userId pays the rank's
-	-- gems. nil board (offline / fresh week with no rows) just skips.
-	local rows = SaveService.getWeeklyTop(3, Daily.prevWeekTag())
-	if rows then
-		for rank, row in ipairs(rows) do
-			if row.userId == player.UserId and rank <= #Config.Monetization.WeeklyTopGems then
-				bonus += Config.Monetization.WeeklyTopGems[rank]
-				break
-			end
-		end
-	end
-	if bonus > 0 then
-		ShopService.awardGems(player, bonus)
-	end
-	saveNow(player)
-	return bonus
 end
 
 -- Dev-product grant (ProcessReceipt): credits gems and saves IMMEDIATELY —
@@ -536,8 +498,6 @@ function ShopService.onPlayerAdded(player: Player)
 	questDayTag[player] = ""
 	questDone[player] = {}
 	questBanked[player] = 0
-	weeklyTag[player] = ""
-	pendingWeekly[player] = false
 	achDone[player] = {}
 	achNew[player] = {}
 	statsGems[player] = 0
@@ -593,9 +553,6 @@ function ShopService.onPlayerAdded(player: Player)
 				if typeof(prof.questBanked) == "number" then
 					questBanked[player] = prof.questBanked
 				end
-			end
-			if typeof(prof.weeklyTag) == "string" then
-				weeklyTag[player] = prof.weeklyTag
 			end
 			-- Recent runs restore unconditionally — display data, replay
 			-- seeds. Entries are validated shape-only (numbers in place).
@@ -653,10 +610,6 @@ function ShopService.onPlayerAdded(player: Player)
 			pendingDaily[player] = nil
 			ShopService.recordDailyRun(player)
 		end
-		if pendingWeekly[player] then
-			pendingWeekly[player] = nil
-			ShopService.recordWeeklyRun(player)
-		end
 	end)
 end
 
@@ -674,8 +627,6 @@ function ShopService.onPlayerRemoving(player: Player)
 	questDayTag[player] = nil
 	questDone[player] = nil
 	questBanked[player] = nil
-	weeklyTag[player] = nil
-	pendingWeekly[player] = nil
 	achDone[player] = nil
 	achNew[player] = nil
 	statsGems[player] = nil

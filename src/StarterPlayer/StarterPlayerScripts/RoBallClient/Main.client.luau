@@ -629,7 +629,6 @@ evRunEnded.OnClientEvent:Connect(
 		streakBonus: number?,
 		questBonus: number?,
 		questHits: number?,
-		weeklyBonus: number?,
 		hzPassed: number?,
 		closestCall: number?
 	)
@@ -671,7 +670,6 @@ evRunEnded.OnClientEvent:Connect(
 					streakBonus,
 					questBonus,
 					questHits,
-					weeklyBonus,
 					{
 						top = statMaxFwd,
 						boost = statBoostDist,

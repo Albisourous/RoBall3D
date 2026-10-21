@@ -38,37 +38,6 @@ function Daily.isKeyword(s: string): boolean
 	return l == "daily" or l == "today"
 end
 
--- Weekly cup (§14): same one-seed-per-window trick keyed on Sunday-start
--- weeks. Pure arithmetic, no strftime %U gamble: epoch 1970-01-01 was a
--- Thursday, so `days + 4` shifted by 4 aligns week boundaries to Sundays.
-function Daily.weekTag(t: number?): string
-	local days = math.floor((t or os.time()) / DAY_SECONDS)
-	return "W" .. math.floor((days + 4) / 7)
-end
-
--- Previous week's tag — the lazy top-3 payout reads that board.
-function Daily.prevWeekTag(t: number?): string
-	local days = math.floor((t or os.time()) / DAY_SECONDS)
-	return "W" .. (math.floor((days + 4) / 7) - 1)
-end
-
--- Seconds until next Sunday 00:00 UTC — the cup's reset timer.
-function Daily.weekResetIn(t: number?): number
-	local now = t or os.time()
-	local nextStart = (math.floor((math.floor(now / DAY_SECONDS) + 4) / 7) + 1) * 7 - 4
-	return nextStart * DAY_SECONDS - now
-end
-
-function Daily.weekSeed(t: number?): number
-	return hashSeed("weekly:" .. Daily.weekTag(t))
-end
-
--- Seed strings that resolve to this week's cup seed.
-function Daily.isWeekKeyword(s: string): boolean
-	local l = string.lower(s)
-	return l == "weekly" or l == "week" or l == "cup"
-end
-
 -- Seasonal shop slot (§18): a yearly UTC window [Start, End] both days
 -- inclusive — Dec 15 → Jan 8 wraps the year boundary. Returns
 -- (live, days): live → days left in the window; else → days until the

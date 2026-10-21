@@ -148,8 +148,6 @@ local bestOf: { [Player]: { score: number, dist: number, seed: number } } = {}
 -- only a new session record writes. The store's keep-max UpdateAsync stays
 -- correct even if a previous session set a higher score.
 local dailyBestOf: { [Player]: number } = {}
--- Same session-best thrift for the weekly cup board.
-local weeklyBestOf: { [Player]: number } = {}
 -- PB ghost (§14): when a clean run sets the session record, it earns a
 -- one-shot credential — the client may then submit that run's position
 -- frames as the new ghost echo. Consumed on use, never persisted.
@@ -175,13 +173,9 @@ local function resolveSeed(player: Player): number
 	local s = seedPref[player]
 	if s and #s > 0 then
 		-- "daily"/"today" → the shared UTC-day seed (DESIGN.md §14): every
-		-- player who runs it today gets the identical map. "weekly"/"week"/
-		-- "cup" → the shared Sunday-start week seed (the cup board).
+		-- player who runs it today gets the identical map.
 		if Daily.isKeyword(s) then
 			return Daily.seed()
-		end
-		if Daily.isWeekKeyword(s) then
-			return Daily.weekSeed()
 		end
 		local n = tonumber(s)
 		if n then
@@ -285,14 +279,9 @@ local function killRun(player: Player, run: Run)
 	-- Quests evaluate on every clean run — they're day missions, not tied
 	-- to the daily seed.
 	local cleanRun = plausible(run, score)
-	local streak, streakBonus, weeklyBonus = 0, 0, 0
+	local streak, streakBonus = 0, 0
 	if cleanRun and run.seed == Daily.seed() then
 		streak, streakBonus = ShopService.recordDailyRun(player)
-	end
-	if cleanRun and run.seed == Daily.weekSeed() then
-		-- First weekly run of the week also lazily resolves last week's
-		-- podium payout — that read yields, but it's once per week.
-		weeklyBonus = ShopService.recordWeeklyRun(player)
 	end
 	local questBonus, questHits = 0, 0
 	if cleanRun then
@@ -313,7 +302,6 @@ local function killRun(player: Player, run: Run)
 		streakBonus,
 		questBonus,
 		questHits,
-		weeklyBonus,
 		run.hzPassed,
 		if run.closest < math.huge then run.closest else nil
 	)
@@ -345,13 +333,6 @@ local function killRun(player: Player, run: Run)
 			dailyBestOf[player] = score
 			task.spawn(function()
 				SaveService.submitDaily(player.UserId, score)
-			end)
-		end
-		-- Weekly cup (§14): same thrift against this week's store.
-		if run.seed == Daily.weekSeed() and score > (weeklyBestOf[player] or 0) then
-			weeklyBestOf[player] = score
-			task.spawn(function()
-				SaveService.submitWeekly(player.UserId, score)
 			end)
 		end
 	else
@@ -541,21 +522,16 @@ local function onPlayerAdded(player: Player)
 end
 
 fnGetLeaderboard.OnServerInvoke = function(player, board)
-	-- board: "top" (all-time), "daily" (today's shared seed), or "weekly"
-	-- (this week's cup, §14). Per-player cooldown: repeat pulls inside the
-	-- window serve the cached board (staleOnly) instead of forcing a fresh
-	-- DataStore fetch.
-	local kind = board == "daily" and "daily" or board == "weekly" and "weekly" or "top"
+	-- board: "top" (all-time) or "daily" (today's shared seed). Per-player
+	-- cooldown: repeat pulls inside the window serve the cached board
+	-- (staleOnly) instead of forcing a fresh DataStore fetch.
 	local now = os.clock()
 	local cool = now - (lbCooldown[player] or -math.huge) < Config.Leaderboard.FetchCooldown
 	if not cool then
 		lbCooldown[player] = now
 	end
-	if kind == "daily" then
+	if board == "daily" then
 		return SaveService.getDailyTop(Config.Leaderboard.TopCount, cool)
-	end
-	if kind == "weekly" then
-		return SaveService.getWeeklyTop(Config.Leaderboard.TopCount, nil, cool)
 	end
 	return SaveService.getTop(Config.Leaderboard.TopCount, cool)
 end
@@ -689,7 +665,6 @@ Players.PlayerRemoving:Connect(function(player)
 	seedPref[player] = nil
 	bestOf[player] = nil
 	dailyBestOf[player] = nil
-	weeklyBestOf[player] = nil
 	ghostAuth[player] = nil
 	joinedOnce[player] = nil
 	lbCooldown[player] = nil

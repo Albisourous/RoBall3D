@@ -904,9 +904,6 @@ Config.Leaderboard = {
 	-- Daily board (§14): a per-day OrderedDataStore pair — prefix .. YYYYMMDD
 	-- (+ "_Meta" for the seed row). Old days simply go unread; no cleanup.
 	DailyStorePrefix = "RoBall3D_Daily_v1_",
-	-- Weekly cup (§14): same per-week pair — prefix .. "W<n>" (Sunday-start
-	-- week index since epoch). Last week's store feeds the lazy top-3 payout.
-	WeeklyStorePrefix = "RoBall3D_Weekly_v1_",
 	TopCount = 20,
 	SaveRetryCount = 3,
 	CacheSeconds = 45, -- server-side top-board cache: menu fetches share it
@@ -981,12 +978,6 @@ Config.Monetization = {
 		BankTargets = { 60, 100, 140, 200 }, -- bank N gems today (all runs)
 		Rewards = { reach = 40, score = 60, bank = 50 },
 	},
-	-- Weekly cup (§14): first weekly-seeded run of the week pays
-	-- WeeklyRunBonus banked gems; at the same moment last week's board is
-	-- read once and a top-3 finish pays WeeklyTopGems[rank]. One-shot per
-	-- week via profile.weeklyTag — same-day repeats never re-pay.
-	WeeklyRunBonus = 25,
-	WeeklyTopGems = { 200, 100, 50 }, -- 1st / 2nd / 3rd on last week's board
 	-- Achievements (§14): milestone badges, server-evaluated at clean run
 	-- end. kind: runDist (one run), lifetimeGems / runs (profile stats),
 	-- streak (daily streak), questsAll (all 3 day missions done). Rewards
