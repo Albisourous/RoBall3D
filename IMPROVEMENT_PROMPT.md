@@ -308,11 +308,15 @@ runs the loop below and does not stop until you say **stop**.
     Hidden on run start/end. Verified live: attr bump mid-run rendered
     `CLOSE +12 ×4` + `chain ×4` + drain bar — screenshotted)*
 
-45. **Duel indicator** — when the ball is within `Ghost.DuelRange`
-    studs of a live ghost's interpolated position (either direction), a
-    `DUEL` chip lights under the pace line; exits when the gap grows.
-    Close-race tension the pace number doesn't carry; client-only, rides
-    the existing pace-gap values.
+45. **Duel indicator** *(done — 0dedbf8: a pace line inside
+    `Ghost.DuelRange` studs (8, either direction) earns the `· DUEL`
+    suffix on both `±N vs PB` and `±N vs <name>`; client derives it from
+    the same delta that renders the line, no extra plumbing. Verified
+    live: stub champ at ~44 s/s showed `· DUEL` exactly inside ±8
+    (-4,-7,-7,-4,-1,+5) and dropped it at 9+ on both edges — console
+    boundary readings plus mid-run screenshots. Same commit moves the
+    chain meter to the free left column under the sector line — its
+    first slot overlapped `paceText`)*
 
 ## Standing rules for new work
 
