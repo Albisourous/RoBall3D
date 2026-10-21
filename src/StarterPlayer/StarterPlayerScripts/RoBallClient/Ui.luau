@@ -823,12 +823,41 @@ function Ui.new(): Ui
 		end)
 	end
 
-	-- Pack rows: name + contents left, price button right. Button state
-	-- comes from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
+	-- Pack rows: name + pitch left, price button right. The page scrolls
+	-- (14 packs can't fit one panel) and each row is an accordion — tap
+	-- the text area to unfold the pack's REAL contents resolved from
+	-- bundle.items (SLOT · ITEM NAME, tinted to the item's own color when
+	-- it has a concrete one). One pack open at a time. Button state comes
+	-- from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
 	self.packBtn = {}
 	self.packStroke = {}
 	self.packEnabled = {}
-	local function packRow(parent: Frame, id: string, name: string, desc: string, y: number)
+
+	local function itemTint(it: any): Color3
+		local c = it.color or it.ringA or it.colorA
+		return if typeof(c) == "Color3" then c else C_DIM
+	end
+
+	local openPack: Frame? = nil
+	local function packRow(
+		parent: Instance,
+		id: string,
+		name: string,
+		desc: string,
+		y: number?,
+		order: number?,
+		items: { string }?
+	)
+		local row = Instance.new("Frame")
+		row.Name = "Pack_" .. id
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, 36)
+		row.LayoutOrder = order or 0
+		if y then
+			row.Position = UDim2.fromOffset(0, y)
+		end
+		row.Parent = parent
+
 		local nl = Instance.new("TextLabel")
 		nl.BackgroundTransparency = 1
 		nl.Font = F_DATA
@@ -836,9 +865,9 @@ function Ui.new(): Ui
 		nl.TextColor3 = C_WHITE
 		nl.TextXAlignment = Enum.TextXAlignment.Left
 		nl.Text = name
-		nl.Position = UDim2.fromOffset(14, y)
+		nl.Position = UDim2.fromOffset(14, 2)
 		nl.Size = UDim2.fromOffset(210, 18)
-		nl.Parent = parent
+		nl.Parent = row
 
 		local dl = Instance.new("TextLabel")
 		dl.BackgroundTransparency = 1
@@ -848,9 +877,9 @@ function Ui.new(): Ui
 		dl.TextXAlignment = Enum.TextXAlignment.Left
 		dl.TextTruncate = Enum.TextTruncate.AtEnd
 		dl.Text = desc
-		dl.Position = UDim2.fromOffset(14, y + 17)
+		dl.Position = UDim2.fromOffset(14, 19)
 		dl.Size = UDim2.fromOffset(210, 14)
-		dl.Parent = parent
+		dl.Parent = row
 
 		local btn = Instance.new("TextButton")
 		btn.BackgroundColor3 = C_BG
@@ -860,9 +889,9 @@ function Ui.new(): Ui
 		btn.TextSize = 14
 		btn.TextColor3 = C_PINK
 		btn.Text = "R$?"
-		btn.Position = UDim2.fromOffset(232, y + 2)
+		btn.Position = UDim2.fromOffset(232, 2)
 		btn.Size = UDim2.fromOffset(84, 32)
-		btn.Parent = parent
+		btn.Parent = row
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
 		corner.Parent = btn
@@ -890,6 +919,52 @@ function Ui.new(): Ui
 				self.onBuy(id)
 			end
 		end)
+
+		if items then
+			local contents = Instance.new("Frame")
+			contents.Name = "Contents"
+			contents.Visible = false
+			contents.BackgroundTransparency = 1
+			contents.Position = UDim2.fromOffset(0, 37)
+			contents.Size = UDim2.new(1, 0, 0, #items * 15)
+			contents.Parent = row
+			for j, iid in ipairs(items) do
+				local it = Cosmetics.item(iid)
+				if it then
+					local il = label(contents, "", 10, F_DATA, itemTint(it), 0)
+					il.TextXAlignment = Enum.TextXAlignment.Left
+					il.Position = UDim2.fromOffset(24, (j - 1) * 15)
+					il.Size = UDim2.fromOffset(290, 15)
+					il.Text = string.format("%-8s %s", Cosmetics.SlotName[it.slot], it.name)
+				end
+			end
+
+			local hit = Instance.new("TextButton")
+			hit.BackgroundTransparency = 1
+			hit.AutoButtonColor = false
+			hit.Text = ""
+			hit.Position = UDim2.fromOffset(0, 0)
+			hit.Size = UDim2.fromOffset(226, 36)
+			hit.Parent = row
+			hit.MouseButton1Click:Connect(function()
+				if openPack == row then
+					openPack = nil
+					contents.Visible = false
+					row.Size = UDim2.new(1, 0, 0, 36)
+					return
+				end
+				if openPack then
+					local oc = openPack:FindFirstChild("Contents")
+					if oc then
+						oc.Visible = false
+					end
+					openPack.Size = UDim2.new(1, 0, 0, 36)
+				end
+				openPack = row
+				contents.Visible = true
+				row.Size = UDim2.new(1, 0, 0, 40 + #items * 15)
+			end)
+		end
 	end
 	-- Seasonal slot (§18): its desc advertises the yearly window, derived
 	-- from Config.Monetization.Seasonal so the text never lies about dates.
@@ -901,9 +976,27 @@ function Ui.new(): Ui
 		end
 		return string.format("%s · %s–%s", desc, md(S.Start), md(S.End))
 	end
+	local pagePacks = gPages.PACKS
+	local packHint = label(pagePacks, "tap a pack · see what's inside", 10, F_DATA, C_DIM, 0)
+	packHint.Position = UDim2.fromOffset(0, 2)
+	packHint.TextTransparency = 0.35
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "PackScroll"
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Position = UDim2.fromOffset(0, 20)
+	scroll.Size = UDim2.new(1, 0, 1, -20)
+	scroll.CanvasSize = UDim2.new()
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollBarImageColor3 = C_CYAN
+	scroll.ScrollBarImageTransparency = 0.45
+	scroll.Parent = pagePacks
+	vlist(scroll, 2)
 	for i, b in ipairs(Cosmetics.Bundles) do
 		local desc = if b.id == Config.Monetization.Seasonal.Bundle then seasonalDesc(b.desc) else b.desc
-		packRow(gPages.PACKS, b.id, b.name, desc, 6 + (i - 1) * 34)
+		packRow(scroll, b.id, b.name, desc, nil, i, b.items)
 	end
 
 	--=========== BANK (§18 P2) ===========--
@@ -1153,6 +1246,35 @@ function Ui.new(): Ui
 	missFlash.Visible = false
 	missFlash.Parent = hud
 	self.missFlash = missFlash
+
+	-- Chain meter (§10): while a graze chain is alive, "×N" holds under
+	-- the ping with a thin bar draining across ChainWindow — the "keep it
+	-- alive" pressure the per-graze flash can't carry. Drain restarts on
+	-- every pulse; empty = the window lapsed, next graze reads ×1.
+	local chainRow = Instance.new("TextLabel")
+	chainRow.BackgroundTransparency = 1
+	chainRow.Font = F_DATA
+	chainRow.TextSize = 13
+	chainRow.TextColor3 = C_GOLD
+	chainRow.TextStrokeTransparency = 0.5
+	chainRow.TextXAlignment = Enum.TextXAlignment.Right
+	chainRow.Position = UDim2.fromOffset(0, 134)
+	chainRow.Size = UDim2.new(1, 0, 0, 16)
+	chainRow.Text = ""
+	chainRow.Visible = false
+	chainRow.Parent = hud
+	self.chainRow = chainRow
+	local chainBar = Instance.new("Frame")
+	chainBar.BorderSizePixel = 0
+	chainBar.BackgroundColor3 = C_GOLD
+	chainBar.BackgroundTransparency = 0.35
+	chainBar.AnchorPoint = Vector2.new(1, 0)
+	chainBar.Position = UDim2.new(1, 0, 0, 152)
+	chainBar.Size = UDim2.fromOffset(90, 2)
+	chainBar.Visible = false
+	chainBar.Parent = hud
+	self.chainBar = chainBar
+	self.chainGen = 0 -- pulse-generation counter; stale drains die
 
 	-- Pace delta (§12): while the PB echo replays (same-seed runs), a
 	-- persistent "+N vs PB" / "-N vs PB" line — cyan ahead, pink behind.
@@ -1629,6 +1751,7 @@ function Ui:showHud()
 	self.menu.Visible = false
 	self.death.Visible = false
 	self.bestFlash.Visible = false -- reset for the new run's own crossing
+	self:chainHide()
 	self.hud.Visible = true
 	self.spdNum.Visible = true
 	self.spdUnit.Visible = true
@@ -1771,6 +1894,41 @@ function Ui:flashMiss(points: number, chain: number?, word: string?)
 	task.delay(Config.Score.NearMiss.FlashSeconds, function()
 		flash.Visible = false
 	end)
+end
+
+-- Chain meter (§10): every chain bump re-arms the drain — the bar is a
+-- live countdown of the ChainWindow the next graze must land inside.
+-- The server mirrors this: a quiet window drops the next graze to ×1.
+function Ui:chainPulse(mult: number)
+	self.chainRow.Text = string.format("chain ×%d", mult)
+	self.chainRow.Visible = true
+	self.chainBar.Visible = true
+	self.chainGen += 1
+	local gen = self.chainGen
+	local bar = self.chainBar
+	local row = self.chainRow
+	local window = Config.Score.NearMiss.ChainWindow
+	local t0 = os.clock()
+	task.spawn(function()
+		while self.chainGen == gen do
+			local frac = 1 - (os.clock() - t0) / window
+			if frac <= 0 then
+				break
+			end
+			bar.Size = UDim2.fromOffset(math.ceil(90 * frac), 2)
+			task.wait(0.05)
+		end
+		if self.chainGen == gen then -- drain lapsed; the chain dropped
+			row.Visible = false
+			bar.Visible = false
+		end
+	end)
+end
+
+function Ui:chainHide()
+	self.chainGen += 1
+	self.chainRow.Visible = false
+	self.chainBar.Visible = false
 end
 
 -- Achievement toast (§14): "◈ NAME · +N gems" — a ribbon for the unlock

@@ -607,10 +607,11 @@ end)
 -- is per-run and the flash is momentary.
 player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
 	if mode == "running" then
-		ui:flashMiss(
-			(player:GetAttribute("RoBallNmAward") :: number?) or Config.Score.NearMiss.Points,
-			(player:GetAttribute("RoBallNmChain") :: number?) or 1
-		)
+		local chain = (player:GetAttribute("RoBallNmChain") :: number?) or 1
+		ui:flashMiss((player:GetAttribute("RoBallNmAward") :: number?) or Config.Score.NearMiss.Points, chain)
+		if chain > 1 then
+			ui:chainPulse(chain) -- re-arms the drain; ×1 stays flash-only
+		end
 		missFovKick = Config.Camera.MissFovKick
 	end
 end)
@@ -702,6 +703,7 @@ evRunEnded.OnClientEvent:Connect(
 		combo = 0
 		ui:setCombo(0)
 		ui:setEdgeWarn(false, false)
+		ui:chainHide()
 		ui:setDanger(0)
 		dangerDz = nil
 		threatCache = nil :: string?

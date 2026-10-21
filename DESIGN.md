@@ -576,7 +576,10 @@ dense section pays geometrically while isolated scrapes stay flat. The
 run's chain resets on the first quiet stretch. `RoBallNmAward`/`RoBallNmChain`
 mirror the last award for the flash, which shows `CLOSE +N ×M` from chain
 two up (the suffix is the capped multiplier — the label never promises
-more than it pays).
+more than it pays). From chain two the HUD also holds a `chain ×N` row
+with a thin bar draining across `ChainWindow` — the "keep it alive"
+pressure gauge; an empty bar is the dropped chain, and the next graze
+restarts at ×1 exactly like the server's reset.
 
 ## 11. Death
 
