@@ -150,6 +150,9 @@ export type Profile = {
 	-- Audio mixer (AUDIO.md §7): per-channel gains 0..1 keyed by
 	-- Config.Audio.Channels — the menu AUDIO panel's saved state.
 	audio: { [string]: number }?,
+	-- COLOR LAB (§18): custom hue channels a/b/c (0..1, band-clamped) for
+	-- the customA/B/C cosmetic params. Pure vanity — never gameplay.
+	hues: { a: number, b: number, c: number }?,
 	-- Recent runs (§14): newest-first { s=score, d=dist, z=seed } entries,
 	-- capped at Config.Leaderboard.HistoryCount. Display + replay data.
 	history: { { s: number, d: number, z: number } }?,

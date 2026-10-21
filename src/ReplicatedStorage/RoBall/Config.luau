@@ -860,6 +860,54 @@ Config.Art = {
 	GridFloorCols = 14, -- longitudinal rays
 	GridFloorLine = 0.4, -- wire thickness
 	GridFloorValue = 0.75, -- palette value for the floor neon
+	-- Aurora curtains (§18 world "aurora"): tall translucent light sheets
+	-- hanging high beside the lane, swaying + cycling hue between
+	-- AuroraHueA..B (never red — color law). Recycled on a frontier.
+	AuroraCount = 11, -- curtains per side
+	AuroraSpacing = 95, -- z spacing per curtain
+	AuroraMinX = 60, -- inner lateral reach (clears the deck's ~39 max)
+	AuroraMaxX = 190,
+	AuroraAlt = 95, -- center height above the deck plane, ± AltJitter
+	AuroraAltJitter = 60,
+	AuroraMinH = 60, -- sheet height
+	AuroraMaxH = 150,
+	AuroraMinW = 26, -- sheet width across x
+	AuroraMaxW = 54,
+	AuroraThick = 1.1, -- sheet depth
+	AuroraWaveAmp = 16, -- sway amplitude in studs
+	AuroraWaveF = 0.55, -- sway frequency (rad-ish, scaled by tick)
+	AuroraHueA = 0.34, -- polar green end of the cycle
+	AuroraHueB = 0.72, -- violet end
+	AuroraValue = 0.85, -- neon brightness
+	AuroraFade = 0.55, -- base transparency
+	-- Neon reed field (§18 world "reef"): dense thin neon strands rising
+	-- out of the void beside the deck — kelp on a wireframe reef. Static
+	-- parts recycled on a frontier like the towers.
+	ReefCount = 40, -- strands per side
+	ReefSpacing = 34, -- z spacing per strand
+	ReefMinX = 42, -- inner reach (deck max ~39 — hugs the edge)
+	ReefMaxX = 150,
+	ReefMinH = 14, -- strand heights; bases sit below the deck
+	ReefMaxH = 80,
+	ReefW = 0.55, -- strand thickness
+	ReefSink = 26, -- deepest a strand's center may sit below the deck
+	ReefFloat = 14, -- highest it may float above
+	ReefValue = 0.9,
+	-- Meteor shower (§18 world "meteor"): thin neon streaks slanting down
+	-- through the sky on real velocities — the one animated sky.
+	MeteorCount = 16,
+	MeteorSpan = 1100, -- z window ahead of the ball they spawn inside
+	MeteorMinX = 60, -- lateral spawn band around the lane
+	MeteorMaxX = 320,
+	MeteorAltMin = 60, -- spawn height above the deck plane
+	MeteorAltMax = 260,
+	MeteorSpeedMin = 150, -- studs/s along the streak direction
+	MeteorSpeedMax = 300,
+	MeteorLenMin = 11, -- streak tail length
+	MeteorLenMax = 26,
+	MeteorDrop = 160, -- respawn once this far below the deck plane
+	MeteorValue = 1.0,
+	MeteorWhite = 0.45, -- fraction painted pure white (hot heads)
 	-- Synthwave sun: a striped neon disk parked far down the slope, riding
 	-- the descent so it always hangs on the horizon. Built from horizontal
 	-- strips (orange -> magenta) with gaps that widen toward the bottom.
@@ -895,6 +943,20 @@ Config.Art = {
 	-- BloomBase is only the fallback when the place has no BloomEffect.
 	BloomBase = 0.45,
 	BloomPulseGain = 0.2, -- kicks nudge the frame, they don't blow it out
+}
+
+-- COLOR LAB (§18): player-picked hues for the `customA/B/C` item params.
+-- Attributes RoBallHueA (ring set A + deathfx accent A), RoBallHueB
+-- (ring set B + accent B), RoBallHueC (trail + gem fx) hold 0..1 hues.
+-- Min/Max is the legal band — it excludes the red seam around hue 0/1
+-- where LethalColor lives, so sliders can't mix a lethal look (color law
+-- extension: the picker's reachable space is pre-sanitized).
+Config.CustomHue = {
+	Min = 0.055, -- ≈ hue 20°: orange — red is cut out entirely
+	Max = 0.9, -- ≈ hue 324°: rose/magenta — kept a clear step off crimson
+	Sat = 0.92,
+	Value = 1.0,
+	Defaults = { a = 0.52, b = 0.9, c = 0.5 }, -- cyan / magenta / cyan
 }
 
 Config.Leaderboard = {
@@ -935,10 +997,15 @@ Config.Monetization = {
 		vip = 0, -- VOID VIP — violet set + pulse skin (~199)
 		bank2x = 0, -- 2X BANK — every pickup banks double, forever (~99)
 		peaks = 0, -- NEON PEAKS — wireframe ridge world theme (~149)
-		aurora = 0, -- AURORA — green-polar set + borealis death (~149)
+		aurora = 0, -- AURORA — green-polar set + borealis death + sky (~149)
 		phantom = 0, -- PHANTOM — ghost-mono set + static death (~199)
-		deepspace = 0, -- DEEP SPACE — star well + grid plane worlds (~149)
+		deepspace = 0, -- DEEP SPACE — star well + grid + meteor worlds (~149)
 		solstice = 0, -- SOLSTICE — seasonal frost set + avalanche death (~149)
+		acid = 0, -- TOXIC SLUDGE — lime set + meltdown death (~149)
+		reef = 0, -- NEON REEF — lagoon set + reed-field world (~199)
+		inferno = 0, -- INFERNO — ember set + corona death (~149)
+		candy = 0, -- CANDY GLOSS — pink-mono set + pink slip death (~149)
+		colorlab = 0, -- COLOR LAB — custom-hue skin+trail+pop + sliders (~249)
 	},
 	Price = {
 		starter = 49,
@@ -951,6 +1018,11 @@ Config.Monetization = {
 		phantom = 199,
 		deepspace = 149,
 		solstice = 149,
+		acid = 149,
+		reef = 199,
+		inferno = 149,
+		candy = 149,
+		colorlab = 249,
 	},
 	-- Seasonal slot (§18): ONE rotating bundle gated on a yearly UTC
 	-- window so the garage always has something coming or going. The

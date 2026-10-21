@@ -109,6 +109,9 @@ fnBuyPack.Parent = remotes
 local fnBuyGems = Instance.new("RemoteFunction")
 fnBuyGems.Name = "BuyGems"
 fnBuyGems.Parent = remotes
+local fnSetHues = Instance.new("RemoteFunction")
+fnSetHues.Name = "SetHues"
+fnSetHues.Parent = remotes
 local evReportFatal = Instance.new("RemoteEvent")
 evReportFatal.Name = "ReportFatal"
 evReportFatal.Parent = remotes
@@ -206,7 +209,7 @@ local function spawnBall(player: Player, laneIndex: number, deckY: number): Base
 	-- Vaporwave ball (§18): skin item picks the cage/core colors — the same
 	-- BallDress code the client's menu preview uses, so WYSIWYG.
 	local eq = ShopService.equipped(player)
-	BallDress.dress(ball, Cosmetics.item(eq.skin), Cosmetics.item(eq.trail))
+	BallDress.dress(ball, Cosmetics.item(eq.skin), Cosmetics.item(eq.trail), nil, Cosmetics.huesOf(player))
 
 	ball.Parent = workspace
 	ball:SetNetworkOwner(player)
@@ -467,7 +470,7 @@ local function retintEquipped(player: Player)
 	local run = runs[player]
 	if run and run.ball then
 		local eq = ShopService.equipped(player)
-		BallDress.retint(run.ball, Cosmetics.item(eq.skin), Cosmetics.item(eq.trail))
+		BallDress.retint(run.ball, Cosmetics.item(eq.skin), Cosmetics.item(eq.trail), Cosmetics.huesOf(player))
 	end
 end
 
@@ -488,6 +491,12 @@ local function onPlayerAdded(player: Player)
 	player:GetAttributeChangedSignal("RoBallEq_trail"):Connect(function()
 		retintEquipped(player)
 	end)
+	-- COLOR LAB (§18): a hue write mid-run repaints the live ball too.
+	for _, attr in pairs(Cosmetics.HueAttr) do
+		player:GetAttributeChangedSignal(attr):Connect(function()
+			retintEquipped(player)
+		end)
+	end
 	ShopService.onPlayerAdded(player)
 	-- Native playerlist stats: Roblox's built-in leaderboard only reads a
 	-- `leaderstats` folder. Attributes stay the source of truth — these two
@@ -571,6 +580,15 @@ fnBuyGems.OnServerInvoke = function(player, key)
 		return false, "bad arg"
 	end
 	return ShopService.claimGemPack(player, key)
+end
+
+-- COLOR LAB (§18): hue slider releases — the server gates ownership and
+-- clamps the band; the client only suggests.
+fnSetHues.OnServerInvoke = function(player, h)
+	if typeof(h) ~= "table" then
+		return false
+	end
+	return ShopService.setHues(player, h)
 end
 
 -- PB ghost (§14): the client claims the one-shot credential its record

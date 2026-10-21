@@ -63,6 +63,7 @@ local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
 local fnBuyPack = remotes:WaitForChild("BuyPack") :: RemoteFunction
 local fnBuyGems = remotes:WaitForChild("BuyGems") :: RemoteFunction
+local fnSetHues = remotes:WaitForChild("SetHues") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -212,11 +213,22 @@ local function gemPackStates(): { [string]: { label: string, enabled: boolean } 
 end
 
 local function refreshGarage()
+	local owned = ownedSet()
 	ui:setGarage({
 		slots = slotRows(),
 		packs = packStates(),
 		gemPacks = gemPackStates(),
 		bank = player:GetAttribute("RoBallBank") or 0,
+		-- COLOR LAB (§18): owning ANY lab item unlocks the sliders; hues
+		-- mirror the RoBallHue* attributes the server pushes.
+		lab = {
+			visible = Cosmetics.labOwned(owned),
+			hues = {
+				a = player:GetAttribute(Cosmetics.HueAttr.a) :: number?,
+				b = player:GetAttribute(Cosmetics.HueAttr.b) :: number?,
+				c = player:GetAttribute(Cosmetics.HueAttr.c) :: number?,
+			},
+		},
 	})
 end
 
@@ -359,6 +371,15 @@ ui.onGemPack = function(key)
 	if productId > 0 then
 		MarketplaceService:PromptProductPurchase(player, productId)
 	end
+end
+
+-- COLOR LAB (§18): a slider release posts the three hue channels; the
+-- server gates ownership + clamps the band, attributes echo back and
+-- re-render the lab + preview + live ball.
+ui.onHues = function(h)
+	pcall(function()
+		fnSetHues:InvokeServer(h)
+	end)
 end
 
 -- Leaderboard rows: fetched on boot and refreshed every time the menu
@@ -980,6 +1001,10 @@ end)
 -- ownership and bank changes re-render prices and buttons.
 player:GetAttributeChangedSignal("RoBallOwned"):Connect(refreshGarage)
 player:GetAttributeChangedSignal("RoBallBank"):Connect(refreshGarage)
+-- COLOR LAB: hue writes land on attributes — re-seat the sliders.
+for _, attr in pairs(Cosmetics.HueAttr) do
+	player:GetAttributeChangedSignal(attr):Connect(refreshGarage)
+end
 for _, slot in ipairs(Cosmetics.Slots) do
 	player:GetAttributeChangedSignal("RoBallEq_" .. slot):Connect(function()
 		syncBrowse(slot)

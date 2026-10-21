@@ -774,6 +774,137 @@ function Ui.new(): Ui
 	browseHint.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 6)
 	browseHint.TextTransparency = 0.35
 
+	-- COLOR LAB (§18): three hue sliders feeding the customA/B/C item
+	-- params (RING A, RING B, ACCENT = trail + gem fx). The whole block
+	-- hides until the player owns a lab item (setGarage state.lab.visible);
+	-- writes go out on drag release via self.onHues — the server re-gates
+	-- ownership and clamps the legal band, so the UI only ever suggests.
+	local H = Config.CustomHue
+	self.labVals = { a = H.Defaults.a, b = H.Defaults.b, c = H.Defaults.c }
+	self.labRows = {}
+	local lab = Instance.new("Frame")
+	lab.Name = "ColorLab"
+	lab.BackgroundTransparency = 1
+	lab.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 30)
+	lab.Size = UDim2.new(1, 0, 0, 120)
+	lab.Visible = false
+	lab.Parent = pageStyle
+	self.labFrame = lab
+	label(lab, "COLOR LAB", 12, F_DISPLAY, C_GOLD, 0).TextXAlignment = Enum.TextXAlignment.Left
+
+	local function labColor(v: number): Color3
+		return Color3.fromHSV(H.Min + (H.Max - H.Min) * v, H.Sat, H.Value)
+	end
+	-- Spectrum strip for the track: keypoints march through the legal band
+	-- only, so even the picker background can't display the red seam.
+	local gradKeys = {}
+	for i = 0, 8 do
+		gradKeys[i + 1] = ColorSequenceKeypoint.new(i / 8, labColor(i / 8))
+	end
+	for i, ch in ipairs({ { k = "a", name = "RING A" }, { k = "b", name = "RING B" }, { k = "c", name = "ACCENT" } }) do
+		local y = 24 + (i - 1) * 30
+		local nl = label(lab, ch.name, 10, F_DATA, C_DIM)
+		nl.TextXAlignment = Enum.TextXAlignment.Left
+		nl.Position = UDim2.fromOffset(14, y)
+		nl.Size = UDim2.fromOffset(52, 19)
+
+		local track = Instance.new("Frame")
+		track.BackgroundColor3 = C_BG
+		track.BorderSizePixel = 0
+		track.Position = UDim2.fromOffset(70, y + 4)
+		track.Size = UDim2.fromOffset(180, 10)
+		track.Parent = lab
+		local tcorner = Instance.new("UICorner")
+		tcorner.CornerRadius = UDim.new(0, 5)
+		tcorner.Parent = track
+		local trackGrad = Instance.new("UIGradient")
+		trackGrad.Color = ColorSequence.new(gradKeys)
+		trackGrad.Parent = track
+
+		local knob = Instance.new("Frame")
+		knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		knob.BackgroundColor3 = C_WHITE
+		knob.BorderSizePixel = 0
+		knob.Position = UDim2.fromScale(0.5, 0.5)
+		knob.Size = UDim2.fromOffset(6, 16)
+		knob.Parent = track
+		local kcorner = Instance.new("UICorner")
+		kcorner.CornerRadius = UDim.new(0, 3)
+		kcorner.Parent = knob
+
+		local swatch = Instance.new("Frame")
+		swatch.BackgroundColor3 = labColor(0.5)
+		swatch.BorderSizePixel = 0
+		swatch.Position = UDim2.fromOffset(258, y + 2)
+		swatch.Size = UDim2.fromOffset(26, 15)
+		swatch.Parent = lab
+		local scorner = Instance.new("UICorner")
+		scorner.CornerRadius = UDim.new(0, 4)
+		scorner.Parent = swatch
+
+		self.labRows[ch.k] = { track = track, knob = knob, swatch = swatch }
+
+		local hit = Instance.new("TextButton")
+		hit.BackgroundTransparency = 1
+		hit.AutoButtonColor = false
+		hit.Text = ""
+		hit.Position = UDim2.fromOffset(70, y - 3)
+		hit.Size = UDim2.fromOffset(180, 26)
+		hit.Parent = lab
+
+		local dragging = false
+		local k = ch.k
+		local function write(mx: number)
+			local v = math.clamp((mx - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+			self.labVals[k] = v
+			knob.Position = UDim2.fromScale(v, 0.5)
+			swatch.BackgroundColor3 = labColor(v)
+		end
+		hit.InputBegan:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = true
+				write(input.Position.X)
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				write(input.Position.X)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				dragging = false
+				-- Slider fraction -> hue on the legal band; the server
+				-- re-clamps anyway, this just keeps the roundtrip exact.
+				local function hueOf(f: number): number
+					return H.Min + (H.Max - H.Min) * f
+				end
+				if self.onHues then
+					self.onHues({
+						a = hueOf(self.labVals.a),
+						b = hueOf(self.labVals.b),
+						c = hueOf(self.labVals.c),
+					})
+				end
+			end
+		end)
+	end
+
 	-- Pack rows: name + contents left, price button right. Button state
 	-- comes from setGarage: "R$49" enabled / "OWNED" / "SOON" dimmed.
 	self.packBtn = {}
@@ -1638,6 +1769,9 @@ export type GarageState = {
 	packs: { [string]: { label: string, enabled: boolean } },
 	gemPacks: { [string]: { label: string, enabled: boolean } },
 	bank: number,
+	-- COLOR LAB (§18): visible = owns any lab item; hues = server state
+	-- (0..1 slider positions on the legal band).
+	lab: { visible: boolean, hues: { a: number, b: number, c: number }? }?,
 }
 
 function Ui:setGarage(state: GarageState)
@@ -1663,6 +1797,23 @@ function Ui:setGarage(state: GarageState)
 		self.gemPackEnabled[key] = enabled
 	end
 	self.bankLabel.Text = "◊ " .. tostring(state.bank)
+	-- COLOR LAB: visibility comes from ownership; the pushed hues re-seat
+	-- the knobs/swatches (writes only happen on release, so this never
+	-- fights a live drag).
+	local lab = state.lab
+	self.labFrame.Visible = lab ~= nil and lab.visible == true
+	if lab and lab.hues then
+		local H = Config.CustomHue
+		for k, v in pairs(lab.hues) do
+			local row = self.labRows[k]
+			if row and typeof(v) == "number" then
+				local f = math.clamp((v - H.Min) / (H.Max - H.Min), 0, 1)
+				self.labVals[k] = f
+				row.knob.Position = UDim2.fromScale(f, 0.5)
+				row.swatch.BackgroundColor3 = Color3.fromHSV(math.clamp(v, H.Min, H.Max), H.Sat, H.Value)
+			end
+		end
+	end
 end
 
 function Ui:setBest(best: number)

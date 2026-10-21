@@ -26,12 +26,13 @@ export type Dressed = {
 }
 
 -- Dress a bare Ball part. Rings get a RingGroup attribute ("A"/"B") so
--- retint can re-paint without relying on child order.
-function BallDress.dress(ball: BasePart, skin: any?, trailItem: any?, scale: number?): Dressed
+-- retint can re-paint without relying on child order. `hues` carries the
+-- resolved COLOR LAB channel colors for customA/B/C params (§18).
+function BallDress.dress(ball: BasePart, skin: any?, trailItem: any?, scale: number?, hues: Cosmetics.Hues?): Dressed
 	local s = scale or 1
 	local d = Config.Ball.Diameter * s
-	local ringA = (skin and skin.ringA) or Config.Art.RingA
-	local ringB = (skin and skin.ringB) or Config.Art.RingB
+	local ringA = Cosmetics.colorOf(skin and skin.ringA, Config.Art.RingA, hues)
+	local ringB = Cosmetics.colorOf(skin and skin.ringB, Config.Art.RingB, hues)
 	ball.Color = (skin and skin.core) or CORE_DEFAULT
 
 	local rings = {}
@@ -59,7 +60,7 @@ function BallDress.dress(ball: BasePart, skin: any?, trailItem: any?, scale: num
 	trail.Attachment1 = a1
 	trail.Lifetime = Config.Art.TrailLifetime
 	trail.LightEmission = 1
-	trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil))
+	trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil, hues))
 	trail.Transparency = NumberSequence.new(0.5, 1)
 	trail.WidthScale = NumberSequence.new(0.35, 0.05)
 	trail.Parent = ball
@@ -69,9 +70,9 @@ end
 
 -- Re-paint a live ball after an equip change (server-side, replicates).
 -- Ring group comes from the RingGroup attribute, not child order.
-function BallDress.retint(ball: BasePart, skin: any?, trailItem: any?)
-	local ringA = (skin and skin.ringA) or Config.Art.RingA
-	local ringB = (skin and skin.ringB) or Config.Art.RingB
+function BallDress.retint(ball: BasePart, skin: any?, trailItem: any?, hues: Cosmetics.Hues?)
+	local ringA = Cosmetics.colorOf(skin and skin.ringA, Config.Art.RingA, hues)
+	local ringB = Cosmetics.colorOf(skin and skin.ringB, Config.Art.RingB, hues)
 	for _, c in ipairs(ball:GetChildren()) do
 		if c:IsA("CylinderHandleAdornment") then
 			c.Color3 = if c:GetAttribute("RingGroup") == "B" then ringB else ringA
@@ -80,7 +81,7 @@ function BallDress.retint(ball: BasePart, skin: any?, trailItem: any?)
 	ball.Color = (skin and skin.core) or CORE_DEFAULT
 	local trail = ball:FindFirstChildOfClass("Trail")
 	if trail then
-		trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil))
+		trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil, hues))
 	end
 end
 

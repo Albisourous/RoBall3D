@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local BallDress = require(ReplicatedStorage.RoBall.BallDress)
+local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local player = Players.LocalPlayer
 local ballName = player.Name .. "_Ball"
@@ -67,15 +68,17 @@ local function buildPreview()
 	b.CastShadow = false
 	b.Material = Enum.Material.SmoothPlastic
 	b.Position = PREVIEW_POS
-	BallDress.dress(b, skinItem, trailItem, PREVIEW_SCALE)
+	BallDress.dress(b, skinItem, trailItem, PREVIEW_SCALE, Cosmetics.huesOf(player))
 	b.Parent = workspace
 	preview = b
 	collect(b)
 end
 
+local ANIM_FX = { rainbow = true, pulse = true, strobe = true, wave = true }
+
 local function step()
 	local fx = skinItem and skinItem.fx
-	local doRings = fx == "rainbow" or fx == "pulse"
+	local doRings = ANIM_FX[fx] == true
 	local doTrail = trailItem ~= nil and trailItem.color == "rainbow"
 	if not doRings and not doTrail then
 		return
@@ -91,7 +94,16 @@ local function step()
 			for i, r in ipairs(w.rings) do
 				if fx == "rainbow" then
 					r.Color3 = Color3.fromHSV((h + i * 0.13) % 1, 0.9, 1)
-				else
+				elseif fx == "strobe" then
+					-- Hot flicker: fast hue cycle + per-ring bright/dark
+					-- alternation — the CHROMA skin's marquee look.
+					local v = if math.floor(tick() * 7 + i) % 2 == 0 then 1 else 0.28
+					r.Color3 = Color3.fromHSV((h * 2.2 + i * 0.4) % 1, 0.95, v)
+				elseif fx == "wave" then
+					-- The run palette flows across the rings, offset per
+					-- ring — the IRIS skin's gradient-cage look.
+					r.Color3 = Palette.neonAt(tick() * 60 + i * 35)
+				else -- pulse
 					r.Color3 = w.bases[i]:Lerp(Color3.new(0, 0, 0), 0.55 * k)
 				end
 			end
@@ -125,9 +137,14 @@ end
 
 function Fx.init()
 	equipped()
+	-- COLOR LAB (§18): a hue write lands on attributes — re-dress the
+	-- mannequin so the sliders preview live.
+	for _, attr in pairs(Cosmetics.HueAttr) do
+		player:GetAttributeChangedSignal(attr):Connect(Fx.refresh)
+	end
 	RunService.RenderStepped:Connect(function()
 		local fx = skinItem and skinItem.fx
-		local anim = fx == "rainbow" or fx == "pulse" or (trailItem ~= nil and trailItem.color == "rainbow")
+		local anim = ANIM_FX[fx] == true or (trailItem ~= nil and trailItem.color == "rainbow")
 		if anim then
 			-- Lazy-collect the run ball: replication order of parts vs
 			-- adornments isn't guaranteed, so watch until rings show up.

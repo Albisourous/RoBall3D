@@ -20,10 +20,10 @@ local Fx = {}
 local lastGems = 0
 
 -- Equipped gemFx item picks the flourish color (§18); "rainbow" resolves
--- to a per-burst hue inside colorOf.
+-- to a per-burst hue, "customC" to the COLOR LAB accent channel.
 local function gemColor(): Color3
 	local item = Cosmetics.item(player:GetAttribute("RoBallEq_gemFx") :: string?)
-	return Cosmetics.colorOf(item and item.color, Config.Gems.Color)
+	return Cosmetics.colorOf(item and item.color, Config.Gems.Color, Cosmetics.huesOf(player))
 end
 
 local function ballPos(): Vector3?

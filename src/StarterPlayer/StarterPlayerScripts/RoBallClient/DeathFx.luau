@@ -6,7 +6,8 @@
 --
 -- Styles: "pop" (ghost ball pops + ring), "shatter" (shards fly out),
 -- "nova" (staggered expanding rings + flash), "implode" (shards converge
--- into a flash).
+-- into a flash), "geyser" (an upward fountain of shards), "corona" (a
+-- horizontal ring of shards blooming outward).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -136,13 +137,34 @@ local STYLES = {
 			flatRing(pos, 10, cA, 0.35)
 		end)
 	end,
+	-- Upward fountain: shards spray high off the kill spot — reads like a
+	-- geyser of light when the run ends.
+	geyser = function(pos: Vector3, cA: Color3, cB: Color3)
+		for i = 1, 14 do
+			local dir =
+				Vector3.new((math.random() - 0.5) * 0.9, 0.85 + math.random() * 0.6, (math.random() - 0.5) * 0.9).Unit
+			shard(pos, dir, 0.2, 9 + math.random() * 7, if i % 2 == 0 then cA else cB, 0.5 + math.random() * 0.3)
+		end
+		flatRing(pos, 12, cB, 0.4)
+	end,
+	-- Flat bloom: shards placed on a ring around the ball burst outward
+	-- level with the deck — the "corona" read.
+	corona = function(pos: Vector3, cA: Color3, cB: Color3)
+		for i = 1, 10 do
+			local th = (i / 10) * math.pi * 2
+			local dir = Vector3.new(math.cos(th), 0.15, math.sin(th)).Unit
+			shard(pos, dir, 0.3, 7 + math.random() * 4, if i % 2 == 0 then cA else cB, 0.45 + math.random() * 0.2)
+		end
+		flash(pos, 4.5, cB, 0.3)
+	end,
 }
 
 function Fx.burst(pos: Vector3)
 	local item = Cosmetics.item(player:GetAttribute("RoBallEq_deathFx") :: string?)
 	local style = (item and item.style) or "shatter"
-	local cA = Cosmetics.colorOf(item and item.colorA, Color3.fromRGB(0, 230, 255))
-	local cB = Cosmetics.colorOf(item and item.colorB, Color3.fromRGB(255, 64, 190))
+	local hues = Cosmetics.huesOf(player)
+	local cA = Cosmetics.colorOf(item and item.colorA, Color3.fromRGB(0, 230, 255), hues)
+	local cB = Cosmetics.colorOf(item and item.colorB, Color3.fromRGB(255, 64, 190), hues)
 	local fn = STYLES[style] or STYLES.shatter
 	fn(pos, cA, cB)
 end

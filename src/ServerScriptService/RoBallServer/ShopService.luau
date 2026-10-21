@@ -9,6 +9,7 @@
 --   RoBallEq_<slot>  -> equipped item id ("skin"/"trail"/"gemFx"/"deathFx")
 --   RoBallOwned      -> CSV of owned bundle keys + purchased item ids
 --   RoBallBank       -> banked gem balance (banked currency is never score)
+--   RoBallHue_<A|B|C>-> COLOR LAB custom hues 0..1 (§18; band-clamped)
 --   RoBallVol_<ch>   -> mixer channel gain 0..1 (AUDIO.md §7)
 -- Studio: pass/product ids are 0 until created on the dashboard, so nothing
 -- robux-priced exists and free items still equip — the system degrades
@@ -49,6 +50,19 @@ local history: { [Player]: { { s: number, d: number, z: number } } } = {}
 -- Menu mixer (AUDIO.md §7): per-channel gains mirrored as
 -- RoBallVol_<ch> attributes; missing entries mean 1 (full).
 local audioVol: { [Player]: { [string]: number } } = {}
+-- COLOR LAB (§18): custom hue channels a/b/c (0..1, band-clamped by
+-- Config.CustomHue). Mirrored as RoBallHue* attributes; persisted in
+-- profile.hues like the mixer gains.
+local customHues: { [Player]: { a: number, b: number, c: number } } = {}
+
+local function defaultHues(): { a: number, b: number, c: number }
+	local d = Config.CustomHue.Defaults
+	return { a = d.a, b = d.b, c = d.c }
+end
+
+function ShopService.hues(player: Player): { a: number, b: number, c: number }
+	return customHues[player] or defaultHues()
+end
 
 function ShopService.ownsPass(player: Player, key: string): boolean
 	local set = owned[player]
@@ -129,6 +143,12 @@ local function pushAttrs(player: Player)
 	for _, ch in ipairs(Config.Audio.Channels) do
 		player:SetAttribute(Config.Audio.AttrPrefix .. ch, (audioVol[player] or {})[ch] or 1)
 	end
+	-- COLOR LAB (§18): RoBallHue* per channel — always pushed so the
+	-- client preview + dress paths never see a missing attr.
+	local h = customHues[player] or defaultHues()
+	for k, attr in pairs(Cosmetics.HueAttr) do
+		player:SetAttribute(attr, (h :: any)[k])
+	end
 end
 
 local function itemArray(player: Player): { string }
@@ -164,6 +184,7 @@ local function saveNow(player: Player)
 		table.insert(achSnapshot, id)
 	end
 	local audioSnapshot = table.clone(audioVol[player] or {})
+	local huesSnapshot = table.clone(customHues[player] or defaultHues())
 	-- Snapshot entries too — a shallow clone would alias the live history.
 	local histSnapshot = {}
 	for _, r in ipairs(history[player] or {}) do
@@ -184,6 +205,7 @@ local function saveNow(player: Player)
 			statsRuns = statsRuns[player] or 0,
 			statsBestDist = statsBestDist[player] or 0,
 			audio = audioSnapshot,
+			hues = huesSnapshot,
 			history = histSnapshot,
 		})
 	end)
@@ -431,6 +453,38 @@ function ShopService.setAudio(player: Player, ch: string, v: number): boolean
 	return true
 end
 
+-- COLOR LAB write (§18): slider releases land here via SetHues. Gate: the
+-- player must own at least one lab item (bundle grants all three; a
+-- gem-bought single unlocks the lab too — friendlier and harmless).
+-- Values clamp into the legal band server-side, so the red seam can never
+-- be mixed even by a hand-rolled client. Saves immediately like an equip.
+function ShopService.setHues(player: Player, h: any): boolean
+	local allowed = false
+	for _, id in ipairs(Cosmetics.LabItems) do
+		if ShopService.ownsItem(player, id) then
+			allowed = true
+			break
+		end
+	end
+	if not allowed then
+		return false
+	end
+	local H = Config.CustomHue
+	local cur = customHues[player] or defaultHues()
+	if typeof(h) == "table" then
+		for _, k in ipairs({ "a", "b", "c" }) do
+			local v = (h :: any)[k]
+			if typeof(v) == "number" and v == v then
+				(cur :: any)[k] = math.clamp(v, H.Min, H.Max)
+			end
+		end
+	end
+	customHues[player] = cur
+	pushAttrs(player)
+	saveNow(player)
+	return true
+end
+
 function ShopService.equip(player: Player, itemId: string): boolean
 	local item = Cosmetics.Items[itemId]
 	if not item or not ShopService.ownsItem(player, itemId) then
@@ -504,6 +558,7 @@ function ShopService.onPlayerAdded(player: Player)
 	statsRuns[player] = 0
 	statsBestDist[player] = 0
 	audioVol[player] = {}
+	customHues[player] = defaultHues()
 	history[player] = {}
 	profileReady[player] = false
 	task.spawn(function()
@@ -576,6 +631,19 @@ function ShopService.onPlayerAdded(player: Player)
 					end
 				end
 			end
+			-- COLOR LAB hues (§18): restore band-clamped channels only —
+			-- a hand-edited profile still can't smuggle lethal red in.
+			if typeof(prof.hues) == "table" then
+				local H = Config.CustomHue
+				local cur = customHues[player] or defaultHues()
+				for _, k in ipairs({ "a", "b", "c" }) do
+					local v = (prof.hues :: any)[k]
+					if typeof(v) == "number" then
+						(cur :: any)[k] = math.clamp(v, H.Min, H.Max)
+					end
+				end
+				customHues[player] = cur
+			end
 			-- Achievements restore unconditionally — unlocks are permanent,
 			-- stats are lifetime counters. Unknown ids are ignored.
 			if typeof(prof.achievements) == "table" then
@@ -633,6 +701,7 @@ function ShopService.onPlayerRemoving(player: Player)
 	statsRuns[player] = nil
 	statsBestDist[player] = nil
 	audioVol[player] = nil
+	customHues[player] = nil
 	history[player] = nil
 end
 

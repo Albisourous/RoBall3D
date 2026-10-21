@@ -9,6 +9,12 @@
 --             half below the deck plane — the drop reads as open space.
 --   "grid"  — GRID PLANE: the retro wireframe floor riding the descent
 --             below the deck — cross wires + longitudinal rays.
+--   "aurora"— BOREALIS SKY: translucent light curtains hanging high beside
+--             the lane, swaying + cycling green→violet.
+--   "reef"  — NEON REEF: dense thin neon strands rising out of the void —
+--             kelp on a wireframe reef.
+--   "meteor"— METEOR SHOWER: thin neon streaks slanting through the sky
+--             on real velocities, respawning ahead.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -38,7 +44,7 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-type Theme = "city" | "peaks" | "void" | "grid"
+type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor"
 local theme: Theme = "city"
 
 -- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
@@ -49,6 +55,20 @@ local gridWires: { Part } = {} -- cross wires (one per GridRows)
 local gridRays: { Part } = {} -- longitudinal rays (one per GridCols)
 local gridFrontZ = 0 -- nearest cross-wire z; recycles march it forward
 local gridSeeded = false
+
+-- Wave-2 world themes (§18) — same lazy-build / park-on-swap contract.
+type Curtain = { part: Part, side: number, x: number, z: number, alt: number, phase: number, huePhase: number }
+local auroraCurtains: { Curtain } = {}
+local auroraFrontZ: { [number]: number } = {} -- per-side recycle frontier
+local auroraSeeded = false
+type Strand = { part: Part, side: number }
+local reefStrands: { Strand } = {}
+local reefFrontZ: { [number]: number } = {}
+local reefSeeded = false
+type Meteor = { part: Part, vel: Vector3, speed: number }
+local meteors: { Meteor } = {}
+local meteorSeeded = false
+local meteorClock = os.clock() -- dt source for real streak motion
 
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
 local WHITE = Color3.fromRGB(245, 238, 255) -- star glints in the void theme
@@ -351,6 +371,148 @@ local function layGridRay(ray: Part, anchor: Vector3, z0: number, x: number)
 	ray.Color = Palette.dimAt(-zA, Art.GridFloorValue)
 end
 
+--=========================== BOREALIS SKY (aurora) ==========================--
+-- Tall translucent light sheets hanging high beside the lane. Each curtain
+-- keeps its z slot and sways in place (y bob + x drift + slow hue cycle
+-- between AuroraHueA..B — the band never crosses the red seam); z recycles
+-- on a per-side frontier like the towers so the field streams forever.
+
+local function ensureAurora()
+	if #auroraCurtains > 0 then
+		return
+	end
+	for side = -1, 1, 2 do
+		for _ = 1, Art.AuroraCount do
+			local p = Instance.new("Part")
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CastShadow = false
+			p.Material = Enum.Material.Neon
+			p.Transparency = Art.AuroraFade
+			p.CFrame = PARK
+			p.Parent = root
+			table.insert(auroraCurtains, {
+				part = p,
+				side = side,
+				x = 0,
+				z = 0,
+				alt = Art.AuroraAlt,
+				phase = 0,
+				huePhase = 0,
+			})
+		end
+	end
+end
+
+local function layCurtain(c: Curtain, anchor: Vector3, z: number)
+	c.z = z
+	c.x = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+		+ c.side * rng:NextNumber(Art.AuroraMinX, Art.AuroraMaxX)
+	c.alt = Art.AuroraAlt + rng:NextNumber(-Art.AuroraAltJitter, Art.AuroraAltJitter)
+	c.phase = rng:NextNumber(0, math.pi * 2)
+	c.huePhase = rng:NextNumber()
+	local p = c.part
+	p.Size = Vector3.new(
+		rng:NextNumber(Art.AuroraMinW, Art.AuroraMaxW),
+		rng:NextNumber(Art.AuroraMinH, Art.AuroraMaxH),
+		Art.AuroraThick
+	)
+end
+
+-- Per-frame sway + hue cycle: cheap, ~22 parts. The hue never leaves the
+-- green→violet window — color law safe without a palette lookup.
+local function stepAurora(anchor: Vector3, t: number)
+	for _, c in ipairs(auroraCurtains) do
+		if c.z > anchor.Z + BACK_MARGIN then
+			local key = c.side
+			auroraFrontZ[key] = (auroraFrontZ[key] or anchor.Z + Art.AuroraSpacing) - Art.AuroraSpacing
+			layCurtain(c, anchor, auroraFrontZ[key])
+		end
+		local sway = math.sin(t * Art.AuroraWaveF + c.phase)
+		local drift = math.sin(t * 0.31 + c.phase * 1.7)
+		c.part.Position = Vector3.new(c.x + drift * 7, deckEst(anchor, c.z) + c.alt + sway * Art.AuroraWaveAmp, c.z)
+		local h = Art.AuroraHueA
+			+ (Art.AuroraHueB - Art.AuroraHueA) * (0.5 + 0.5 * math.sin(t * 0.23 + c.huePhase * 6.283))
+		c.part.Color = Color3.fromHSV(h, 0.85, Art.AuroraValue)
+	end
+end
+
+--============================ NEON REEF (reef) ============================--
+-- Dense thin strands rising out of the void beside the deck — kelp on a
+-- wireframe reef. Static parts (no per-frame anim): they read alive purely
+-- from the speed of the run. Bases sink below the deck plane, tips may
+-- poke above it — the lane threads a glowing weed-bed.
+
+local function ensureReef()
+	if #reefStrands > 0 then
+		return
+	end
+	for side = -1, 1, 2 do
+		for _ = 1, Art.ReefCount do
+			local p = makePeakPart(root, true)
+			table.insert(reefStrands, { part = p, side = side })
+		end
+	end
+end
+
+local function layStrand(s: Strand, anchor: Vector3, z: number)
+	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+	local h = rng:NextNumber(Art.ReefMinH, Art.ReefMaxH)
+	local x = laneX + s.side * rng:NextNumber(Art.ReefMinX, Art.ReefMaxX)
+	local baseY = deckEst(anchor, z) - rng:NextNumber(0, Art.ReefSink)
+	local p = s.part
+	p.Size = Vector3.new(Art.ReefW, h, Art.ReefW)
+	p.Position = Vector3.new(x, baseY + h / 2 + Art.ReefFloat * 0.4, z)
+	p.Color = Palette.dimAt(-z + rng:NextNumber(0, 120), Art.ReefValue)
+end
+
+--========================== METEOR SHOWER (meteor) =========================--
+-- The one animated sky: thin neon streaks on real velocities, respawning
+-- ahead once they fall below the deck or slip behind. Orientation is fixed
+-- at spawn (a straight streak) — motion does all the selling.
+
+local function ensureMeteors()
+	if #meteors > 0 then
+		return
+	end
+	for _ = 1, Art.MeteorCount do
+		local p = makePeakPart(root, true)
+		table.insert(meteors, { part = p, vel = Vector3.new(0, -1, 0), speed = 0 })
+	end
+end
+
+local function layMeteor(m: Meteor, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(0, Art.MeteorSpan)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local x = anchor.X + side * rng:NextNumber(Art.MeteorMinX, Art.MeteorMaxX)
+	local y = deckEst(anchor, z) + rng:NextNumber(Art.MeteorAltMin, Art.MeteorAltMax)
+	local dir = Vector3.new(rng:NextNumber(-0.45, 0.45), -1, rng:NextNumber(-0.25, 0.15)).Unit
+	m.vel = dir
+	m.speed = rng:NextNumber(Art.MeteorSpeedMin, Art.MeteorSpeedMax)
+	local p = m.part
+	p.Size = Vector3.new(0.55, 0.55, rng:NextNumber(Art.MeteorLenMin, Art.MeteorLenMax))
+	p.CFrame = CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z) + dir)
+	p.Color = if rng:NextNumber() < Art.MeteorWhite then WHITE else Palette.dimAt(-z, Art.MeteorValue)
+end
+
+local function stepMeteors(anchor: Vector3, dt: number)
+	for _, m in ipairs(meteors) do
+		local pos = m.part.Position + m.vel * (m.speed * dt)
+		if
+			not meteorSeeded
+			or pos.Y < deckEst(anchor, pos.Z) - Art.MeteorDrop
+			or pos.Z > anchor.Z + 40
+			or math.abs(pos.X - anchor.X) > 480
+		then
+			layMeteor(m, anchor)
+		else
+			m.part.Position = pos
+		end
+	end
+	meteorSeeded = true
+end
+
 -- The synthwave sun is built once as a stack of horizontal strips:
 -- chord width follows the disk's circle, color slides orange -> magenta
 -- top to bottom, and the gaps between strips widen downward (the classic
@@ -493,21 +655,53 @@ local function parkGrid()
 	gridSeeded = false
 end
 
+local function parkAurora()
+	for _, c in ipairs(auroraCurtains) do
+		parkPart(c.part)
+	end
+	auroraSeeded = false
+end
+
+local function parkReef()
+	for _, s in ipairs(reefStrands) do
+		parkPart(s.part)
+	end
+	reefSeeded = false
+end
+
+local function parkMeteors()
+	for _, m in ipairs(meteors) do
+		parkPart(m.part)
+	end
+	meteorSeeded = false
+end
+
+local parkers: { [Theme]: () -> () } = {
+	city = parkTowers,
+	peaks = parkPeaks,
+	void = parkVoid,
+	grid = parkGrid,
+	aurora = parkAurora,
+	reef = parkReef,
+	meteor = parkMeteors,
+}
+
+local THEMES: { [string]: Theme } = {
+	peaks = "peaks",
+	void = "void",
+	grid = "grid",
+	aurora = "aurora",
+	reef = "reef",
+	meteor = "meteor",
+}
+
 function Backdrop.setTheme(t: string)
-	local nt: Theme = if t == "peaks" or t == "void" or t == "grid" then t else "city"
+	local nt: Theme = THEMES[t] or "city"
 	if nt == theme then
 		return
 	end
 	-- Park whatever was showing — the incoming theme lazily builds.
-	if theme == "city" then
-		parkTowers()
-	elseif theme == "peaks" then
-		parkPeaks()
-	elseif theme == "void" then
-		parkVoid()
-	else
-		parkGrid()
-	end
+	parkers[theme]()
 	theme = nt
 end
 
@@ -610,6 +804,59 @@ function Backdrop.update(anchor: Vector3)
 				layGridRay(ray, anchor, back.Z - len, ray.Position.X)
 			end
 		end
+		return
+	end
+
+	-- BOREALIS SKY (§18 "aurora"): curtains recycle on a per-side frontier,
+	-- then every frame sways + hue-cycles in place.
+	if theme == "aurora" then
+		ensureAurora()
+		if not auroraSeeded then
+			auroraSeeded = true
+			-- Seed the frontier behind the ball: the first pass fills the
+			-- whole window with spaced curtains at once.
+			auroraFrontZ[-1] = anchor.Z + BACK_MARGIN
+			auroraFrontZ[1] = anchor.Z + BACK_MARGIN
+			for _, c in ipairs(auroraCurtains) do
+				auroraFrontZ[c.side] -= Art.AuroraSpacing
+				layCurtain(c, anchor, auroraFrontZ[c.side])
+			end
+		end
+		stepAurora(anchor, os.clock())
+		return
+	end
+
+	-- NEON REEF (§18 "reef"): static strands recycle on a frontier — same
+	-- pattern as the tower rows, just denser and thinner.
+	if theme == "reef" then
+		ensureReef()
+		if not reefSeeded then
+			reefSeeded = true
+			reefFrontZ[-1] = anchor.Z + BACK_MARGIN
+			reefFrontZ[1] = anchor.Z + BACK_MARGIN
+			for _, s in ipairs(reefStrands) do
+				reefFrontZ[s.side] -= Art.ReefSpacing
+				layStrand(s, anchor, reefFrontZ[s.side])
+			end
+			return
+		end
+		for _, s in ipairs(reefStrands) do
+			if s.part.Position.Z > anchor.Z + BACK_MARGIN then
+				reefFrontZ[s.side] -= Art.ReefSpacing
+				layStrand(s, anchor, reefFrontZ[s.side])
+			end
+		end
+		return
+	end
+
+	-- METEOR SHOWER (§18 "meteor"): real velocities — the streaks move
+	-- every frame on wall-clock dt and respawn once spent.
+	if theme == "meteor" then
+		ensureMeteors()
+		local now = os.clock()
+		local dt = math.clamp(now - meteorClock, 0, 0.12)
+		meteorClock = now
+		stepMeteors(anchor, dt)
 		return
 	end
 

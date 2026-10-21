@@ -641,6 +641,17 @@ lands. Cosmetic only; it dies with the next run's `Ghost.stop()`.
   studs below the deck — cross wires recycle on a frontier like the
   tower rows, longitudinal rays stride by their own window length, and
   both pitch to the grade so the floor stays parallel to the slope.
+  Wave 2 added three more: **BOREALIS SKY** (`aurora`) hangs tall
+  translucent light curtains high beside the lane — they sway on a sine,
+  drift in x, and hue-cycle inside a green→violet window (color-law safe
+  by construction, no red seam); **NEON REEF** (`reef`) fields dense thin
+  neon strands rising out of the void beside the deck — bases sink below
+  the plane, tips poke above it, like kelp on a wireframe reef;
+  **METEOR SHOWER** (`meteor`) is the one animated sky — thin neon
+  streaks on real velocities (wall-clock dt), respawning ahead once they
+  fall below the deck or slip behind. All follow the same contract:
+  lazy-built on first equip, client-local, non-collidable, parked below
+  the void on theme swap, recycled on frontiers so they stream forever.
 - **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe
   rings (3 cyan axial + 2 magenta diagonal) — a clean neon cage that rolls
   with the ball's spin. Slim magenta Trail. No PointLight — self-glow
@@ -948,6 +959,10 @@ instead of SOON.
 (255,32,48, hue ~356°). The allowed space is the vaporwave family
 (magenta → violet → blue → cyan), gold, orange sun-tones, and mono. This is
 the same rule the world palette already enforces; the shop obeys it too.
+The **COLOR LAB** extends it to player-picked hues: `Config.CustomHue`
+bands sliders to `[Min, Max]` ≈ hue 20°–324° — the red seam is cut out
+of the reachable space, and the server re-clamps so a hand-rolled client
+can't mix a lethal look either.
 
 **Persistence**: `RoBall3D_Profile_v1` stores `equipped` ids, the `bank`
 balance, and `items` (ids bought with gems). Bundle ownership is derived
@@ -1004,18 +1019,36 @@ every run end.
 are the run itself and the **menu preview ball** — a client-local dressed
 ball parked in the menu vista that rebuilds on every equip change
 (`BallDress` is shared so server spawn and preview draw the same way).
-Animated flags (`fx = "rainbow" | "pulse"` on skins, `"rainbow"` on
-trails/gemfx) are evaluated in the client render loop. The `world` slot
-rides the same plumbing: `RoBallEq_world` lands on the client and
-`Backdrop.setTheme` re-seeds whichever scenery system takes over — the
-NEON PEAKS vista is visible in the menu the moment the pass equips.
+Animated flags (`fx = "rainbow" | "pulse" | "strobe" | "wave"` on skins —
+strobe is a fast hue flicker, wave flows the run palette across the rings;
+`"rainbow"` on trails/gemfx) are evaluated in the client render loop. The
+`world` slot rides the same plumbing: `RoBallEq_world` lands on the client
+and `Backdrop.setTheme` re-seeds whichever scenery system takes over — the
+vista is visible in the menu the moment the pass equips.
 `world_peaks` sells as its own bundle pass (`Passes.peaks`) or à-la-carte
 for ◊800 — the flagship grind target. **DEEP SPACE** (`Passes.deepspace`)
-packs both new world themes — `world_void` (STAR WELL) and `world_grid`
-(GRID PLANE), each also ◊800 à-la-carte. Later sets fill the palette
-families the launch bundles left open: **AURORA** (green-polar: teal-green
-rings, borealis nova) and **PHANTOM** (ghost-mono: white/amethyst rings,
-static shatter). All stay inside color law — nothing near `LethalColor`.
+packs three world themes — `world_void` (STAR WELL), `world_grid`
+(GRID PLANE), `world_meteor` (METEOR SHOWER), each also ◊800–900
+à-la-carte. **AURORA** (`Passes.aurora`) adds `world_aurora` (BOREALIS
+SKY) to its green-polar set; **NEON REEF** (`Passes.reef`) carries
+`world_reef`. Wave 2 also fills the acid/lagoon/ember/candy/chrome
+families, the animated **CHROMA** (strobe) and **IRIS** (wave) prestige
+skins, and the **COLOR LAB** bundle — all inside color law.
+
+**COLOR LAB (custom hues)**: the `colorlab` bundle unlocks
+`skin_custom` / `trail_custom` / `gemfx_custom` — items whose color params
+are the strings `"customA"` / `"customB"` / `"customC"` instead of a fixed
+Color3. They resolve through three replicated hue channels —
+`RoBallHueA` (ring set A + accents), `RoBallHueB` (ring set B),
+`RoBallHueC` (trail + gem pops) — read by `Cosmetics.huesOf` and resolved
+in `Cosmetics.colorOf`, so `BallDress`, `GemFx`, and `DeathFx` paint them
+like any other color. Owning ANY lab item (bundle or à-la-carte gem buy)
+unlocks the garage's three sliders (`Cosmetics.labOwned`); a drag release
+posts all three channels through the `SetHues` RemoteFunction, which
+re-gates ownership and clamps `Config.CustomHue` server-side. Writes land
+on `RoBallHue*` attributes → the menu preview rebuilds, a live ball
+retints mid-run, and the garage sliders re-seat. Persisted in
+`profile.hues` like the mixer gains; the defaults are cyan/magenta/cyan.
 
 The wave-2 drop widens every slot à-la-carte: five more skin families
 (lagoon/acid/candy/ember/chrome), animated `strobe`/`wave` skins
@@ -1027,7 +1060,7 @@ inferno), six death-fx styles, and three new world themes —
 **COLOR LAB**: `skin_custom`/`trail_custom`/`gemfx_custom` take the
 string params `customA`/`customB`/`customC`, resolved client-side through
 the `RoBallHueA/B/C` attributes — a player-tinted set. `Config.CustomHue`
-pre-sanitizes the picker's reachable band (hue 0.055–0.945) so no slider
+pre-sanitizes the picker's reachable band (hue 0.055–0.9) so no slider
 position can mix a `LethalColor` red — the color law is enforced by
 construction, not by auditing picks.
 
