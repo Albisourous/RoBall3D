@@ -542,8 +542,15 @@ award bumps `RoBallNearMiss`; the HUD flashes a short cyan `CLOSE +N`.
 Ball leaves track → Y drops below kill plane (`trackY - Config.Death.KillDrop`,
 15 studs) → run over
 instantly. Ball touches `LethalColor` geometry → same outcome server-side via
-`Touched`. **Stall watchdog**: ball velocity is client-forced every frame, so
-a live ball can never sit still — a ball whose position is frozen for
+`Touched`. **Unstick hop** (client, first line): the heartbeat writes the
+ball's full velocity vector every frame, so a visual freeze means physics is
+canceling the forward push against a perpendicular face — a deck-slab or
+wall-seam lip left where a section profile jogs. When the ball is grounded
+(|vY| small) yet its real forward velocity collapses below 15% of target for
+`Config.Steering.UnstickTime`, the client pops one Y impulse
+(`UnstickHop`, ~0.14s) to hop the lip. `UnstickCooldown` is the refractory so
+a true pocket falls through to the watchdog instead of bouncing forever.
+**Stall watchdog** (server, backstop): a ball whose position is frozen for
 `Config.Death.StallSeconds` (past `StallGraceDist`) is wedged in geometry and
 killed like any other death, converting what would be a silent hang into a
 normal run-over + instant retry. **External destruction** (e.g.

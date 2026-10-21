@@ -70,6 +70,11 @@ Config.Steering = {
 	LateralAccel = 90, -- studs/s^2
 	IdleLateralDamping = 6, -- extra damping when no steer key held (kills drift)
 	SettleSeconds = 0.8, -- "rolling…" settle: steering locked this long after RunStarted (§6)
+	-- Unstick hop (§11): grounded + real forward speed under 15% of target
+	-- for UnstickTime = wedged on a seam lip — pop one Y impulse to clear it.
+	UnstickTime = 0.35, -- seconds of wedge before the hop fires
+	UnstickHop = 11, -- Y impulse studs/s, held ~0.14s
+	UnstickCooldown = 1.0, -- refractory; true pockets fall to StallSeconds
 }
 
 Config.Camera = {

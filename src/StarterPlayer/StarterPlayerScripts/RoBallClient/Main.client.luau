@@ -82,6 +82,9 @@ local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
 local bestDist = 0 -- RoBallBestDist: the PB gate's z; 0 = no marked record
 local passedBest = false -- set when this run crosses it (one flash only)
 local wasDashing = false
+local stuckT = 0 -- sustained wedge time (§11 unstick hop)
+local unstickUntil = 0 -- hop impulse window
+local unstickAfter = 0 -- refractory before another hop may fire
 local camPos: Vector3? = nil -- damped camera position; nil = snap on next run frame
 
 --============================ garage ==============================--
@@ -227,6 +230,9 @@ local function bindBall(b: Instance)
 		lastDashAt = 0
 		dashDeniedAt = 0
 		wasDashing = false
+		stuckT = 0
+		unstickUntil = 0
+		unstickAfter = 0
 		lastBallPos = ball.Position
 		-- The settle starts when the ball EXISTS for the client, not when
 		-- the event lands — replication order vs RunStarted isn't promised.
@@ -791,10 +797,25 @@ RunService.Heartbeat:Connect(function(dt)
 	Ghost.tick(dt, b.Position) -- record this run + advance the PB echo
 
 	local v = b.AssemblyLinearVelocity
+	-- Unstick hop (§11): the -Z write below means a freeze is physics
+	-- canceling intent — real v.Z collapses while Y stays quiet (grounded).
+	-- Sustain that past UnstickTime → one Y impulse pops the seam lip.
+	local now = tick()
+	if not inFlip and math.abs(v.Y) < 6 and -v.Z < fwdSpeed * 0.15 then
+		stuckT += dt
+	else
+		stuckT = 0
+	end
+	if stuckT >= steer.UnstickTime and now >= unstickAfter then
+		stuckT = 0
+		unstickAfter = now + steer.UnstickCooldown
+		unstickUntil = now + 0.14
+	end
+	local vY = if inFlip then Config.Flip.Lift elseif now < unstickUntil then steer.UnstickHop else v.Y
 	-- Inside a flip zone vY is pinned to +Lift so gravity can't pull the
 	-- ball off the ceiling; at the zone edge the pin drops and gravity
 	-- takes over — the ball falls ClearH back to the deck.
-	b.AssemblyLinearVelocity = Vector3.new(lateralVel, if inFlip then Config.Flip.Lift else v.Y, -fwdSpeed)
+	b.AssemblyLinearVelocity = Vector3.new(lateralVel, vY, -fwdSpeed)
 	lastBallPos = b.Position
 
 	-- HUD: attributes arrive from the server; only rebuild on visible change
