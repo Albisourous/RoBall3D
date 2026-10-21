@@ -194,11 +194,11 @@ near-miss-FX removal so client "before" is slightly heavy.
   a seeded PressRow layout whose middle sample leaves no safe line.
   Needs a generation-side fix (out of scope here); deterministic, so
   it reproduces on every seed-8 run at c439.
-- **`Enum.PartType.Torus` does not exist.** An in-flight TierGate-ring
-  refactor set `ring.Shape = Enum.PartType.Torus`, which throws in
-  `makeTierGate` and kills `ensureAhead` (no ball spawns). Valid
-  shapes: Ball/Block/Cylinder/Wedge/CornerWedge — use a MeshPart or
-  PartOperation for a torus.
+- **`Enum.PartType.Torus` does not exist.** The TierGate-ring refactor
+  briefly set `ring.Shape = Enum.PartType.Torus`, which threw in
+  `makeTierGate` and killed `ensureAhead` (no ball spawns). Fixed in
+  the same refactor: the ring is now built from 14 tangent box
+  segments — and the faceted look matches the wireframe palette.
 - **Rojo sync hazard for A/B testing:** the Rojo plugin auto-connects
   any newly opened `.rbxl` to a running `rojo serve`, silently
   overwriting the opened file's tree with the live working copy. Kill
