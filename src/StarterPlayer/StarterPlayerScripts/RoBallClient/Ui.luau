@@ -476,16 +476,18 @@ function Ui.new(): Ui
 	self.comboText = comboText
 
 	--=========== SPEED + BOOST (bottom corners) ===========--
-	-- Minimal vaporwave readout (DESIGN.md §12): the digit is the heard
-	-- BPM — track tempo x snapped playback speed, so it steps in
-	-- semitones with the music. Its hue gradients cyan -> violet ->
-	-- magenta as ball speed climbs and snaps hot red past 100 s/s.
-	-- No dial chrome; the digit does the work.
+	-- Vaporwave BPM readout (DESIGN.md §12): the digit is the heard tempo
+	-- (track bpm x snapped PlaybackSpeed — it steps in semitones with the
+	-- music), chromed like retro lettering and slanted outrun-style. Twin
+	-- cyan/pink ghosts ride it: VHS chromatic aberration that spreads and
+	-- flares with the audio pulse, so the digit thumps on the beat. Hue
+	-- still keys off ball speed (cyan -> magenta -> hot red past 100 s/s).
 	local spdNum = Instance.new("TextLabel")
 	spdNum.Name = "SpeedNum"
 	spdNum.AnchorPoint = Vector2.new(1, 1)
 	spdNum.Position = UDim2.new(0.82, 0, 1, -18)
 	spdNum.Size = UDim2.fromOffset(180, 62)
+	spdNum.Rotation = -6
 	spdNum.BackgroundTransparency = 1
 	spdNum.Font = F_DATA
 	spdNum.TextSize = 56
@@ -496,15 +498,55 @@ function Ui.new(): Ui
 	spdNum.Visible = false
 	spdNum.Parent = gui
 	self.spdNum = spdNum
+	-- Chrome band: bright crown -> dark horizon line -> pale reflection.
+	-- The speed-hue TextColor3 multiplies through it, so the band reads as
+	-- shade of the current hue, never a second color.
 	local numGrad = Instance.new("UIGradient")
 	numGrad.Rotation = 90
-	numGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 150, 255))
+	numGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.48, Color3.fromRGB(255, 240, 255)),
+		ColorSequenceKeypoint.new(0.52, Color3.fromRGB(70, 45, 115)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 205, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 110, 200)),
+	})
 	numGrad.Parent = spdNum
+	-- Neon rim: a contextual outline that wears the same speed hue —
+	-- reads as glow around the glyph edges, not a second color.
+	local numStroke = Instance.new("UIStroke")
+	numStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	numStroke.Color = C_CYAN
+	numStroke.Transparency = 0.72
+	numStroke.Thickness = 1.5
+	numStroke.Parent = spdNum
+	self.spdStroke = numStroke
+	-- Aberration ghosts: children of the digit so slant, position and
+	-- visibility track it for free; only Text/TextSize/offset sync per
+	-- frame. Fixed cyan/pink — the fringe stays chromatic at any hue.
+	local function ghost(dx: number, color: Color3): TextLabel
+		local g = Instance.new("TextLabel")
+		g.BackgroundTransparency = 1
+		g.Font = spdNum.Font
+		g.TextSize = spdNum.TextSize
+		g.TextColor3 = color
+		g.TextTransparency = 0.82
+		g.TextXAlignment = spdNum.TextXAlignment
+		g.Position = UDim2.fromOffset(dx, 0)
+		g.Size = UDim2.fromScale(1, 1)
+		g.Text = spdNum.Text
+		g.Parent = spdNum
+		return g
+	end
+	local spdGhostA = ghost(-2, C_CYAN)
+	local spdGhostB = ghost(2, C_PINK)
+	self.spdGhostA = spdGhostA
+	self.spdGhostB = spdGhostB
 
 	local spdUnit = Instance.new("TextLabel")
 	spdUnit.AnchorPoint = Vector2.new(1, 1)
 	spdUnit.Position = UDim2.new(0.82, 0, 1, -8)
 	spdUnit.Size = UDim2.fromOffset(180, 14)
+	spdUnit.Rotation = -6
 	spdUnit.BackgroundTransparency = 1
 	spdUnit.Font = F_DATA
 	spdUnit.TextSize = 12
@@ -514,6 +556,9 @@ function Ui.new(): Ui
 	spdUnit.Visible = false
 	spdUnit.Parent = gui
 	self.spdUnit = spdUnit
+	local unitGrad = Instance.new("UIGradient")
+	unitGrad.Color = ColorSequence.new(C_DIM, C_PINK:Lerp(C_DIM, 0.35))
+	unitGrad.Parent = spdUnit
 
 	-- Boost bar: a vaporwave nitro strip — a tilted pill of LED segments
 	-- ramping cyan->magenta like a tape-deck VU meter. A diamond bead
@@ -699,6 +744,12 @@ function Ui:setHud(score: number, dist: number, gems: number, _speed: number, se
 	self.seedTag.Text = string.format("seed %d", seed)
 end
 
+-- Audio pulse from Music.sample() (0..1) — the digit thumps on the beat:
+-- slight swell, brighter face, and the chromatic ghosts spread wider.
+function Ui:setPulse(v: number)
+	self.pulse = v
+end
+
 -- BPM number + boost bar, called every heartbeat during a run. `bpm` is
 -- the heard tempo (Music.bpm()); the digit's hue still keys off s/s:
 -- cyan 0 -> magenta 100 -> hot red pegged past it. The boost bar pulses
@@ -712,16 +763,32 @@ function Ui:setSpeedo(
 	boostSpent: boolean,
 	braking: boolean?
 )
-	self.spdNum.Text = tostring(math.floor(bpm + 0.5))
+	local num = tostring(math.floor(bpm + 0.5))
+	self.spdNum.Text = num
+	self.spdGhostA.Text = num
+	self.spdGhostB.Text = num
+	local pulse = self.pulse or 0
+	local size = 56 + pulse * 5 -- beat thump: swell on the heard grid
+	self.spdNum.TextSize = size
+	self.spdGhostA.TextSize = size
+	self.spdGhostB.TextSize = size
+	local spread = 2 + pulse * 4 -- VHS fringe widens with the kick
+	self.spdGhostA.Position = UDim2.fromOffset(-spread, 0)
+	self.spdGhostB.Position = UDim2.fromOffset(spread, 0)
+	self.spdGhostA.TextTransparency = 0.82 - pulse * 0.42
+	self.spdGhostB.TextTransparency = 0.82 - pulse * 0.42
+	local col
 	if speed >= 100 then
 		-- Over the line: flat hot red, pulsing so it reads as "pegged".
 		local v = 0.85 + 0.15 * math.sin(tick() * 9)
-		self.spdNum.TextColor3 = Color3.fromRGB(255, 40, 60):Lerp(Color3.fromRGB(255, 120, 140), v)
+		col = Color3.fromRGB(255, 40, 60):Lerp(Color3.fromRGB(255, 120, 140), v)
 	else
 		-- Gradient hue cyan(0.53) -> violet(0.75) -> magenta(0.88) with speed.
 		local h = 0.53 + (speed / 100) * 0.35
-		self.spdNum.TextColor3 = Color3.fromHSV(h, 0.92, 1)
+		col = Color3.fromHSV(h, 0.92, 1)
 	end
+	self.spdNum.TextColor3 = col:Lerp(C_WHITE, pulse * 0.3)
+	self.spdStroke.Color = col -- rim wears the hue so it reads as glow
 	-- Analog-smooth across the discrete cells: the shown charge eases to
 	-- the real value (~70ms) and the leading cell only glows partial, so
 	-- the strip breathes instead of stepping.

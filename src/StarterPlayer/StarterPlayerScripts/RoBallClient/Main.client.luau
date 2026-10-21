@@ -474,7 +474,9 @@ end)
 RunService.RenderStepped:Connect(function()
 	camera.CameraType = Enum.CameraType.Scriptable
 	local cam = Config.Camera
-	Backdrop.setPulse(Music.sample()) -- analyzer energy -> sun breathing (AUDIO.md §8)
+	local pulse = Music.sample()
+	Backdrop.setPulse(pulse) -- analyzer energy -> sun breathing (AUDIO.md §8)
+	ui:setPulse(pulse) -- same energy -> speedo thump / chromatic spread
 
 	local b = ball
 	if b then

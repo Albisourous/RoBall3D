@@ -470,6 +470,9 @@ deferred.
   semitones), so the digit steps in real intervals exactly when the music
   does. The digit's hue is still the speed meter: gradients cyan →
   violet → magenta across 0–100 s/s and snaps hot red + pulsing past it.
+  It's dressed vaporwave: a chrome gradient band under the hue, a −6°
+  outrun slant, and twin cyan/pink VHS-fringe ghosts that spread and
+  flare with the audio pulse — the digit thumps on the heard beat.
   Bottom-left
   is a glanceable **boost bar**: a tilted capsule of LED segments ramping
   cyan→magenta like a VU meter, diamond bead riding the lit edge,
