@@ -212,6 +212,10 @@ runs the loop below and does not stop until you say **stop**.
     per-rail on cutouts — the pace pulse the HUD counts is visible on the
     track itself. Verified live: marks at z=-250/-500, full width,
     non-collidable)*
+33. **Crown toast** *(done — e31c852: the ghost upload brackets
+    `crownChampion` with `loadPodium` reads; a dethroning fires `Crown`
+    and the client toasts `♛ CROWN TAKEN from <name>` / `CLAIMED`.
+    Verified live: remote → listener → `RoBallGui` toast text)*
 
 ## Standing rules for new work
 

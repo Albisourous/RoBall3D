@@ -166,9 +166,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     unlatches them all), the seed `TextBox` (defaults to `daily` — race
     today's shared board; `daily`/`today` resolve — §14), and the
     `TRACK` cycler (AUDIO.md §3).
-  - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK`: equip cyclers,
-    bundle passes, and the gem bank each get their own page so the shop
-    can't flood the menu (§18). The preview ball still dresses live.
+  - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK | AUDIO`: equip
+    cyclers, bundle passes, the gem bank, and the audio mixer each get
+    their own page so the shop can't flood the menu (§18). The preview
+    ball still dresses live.
   - Leaderboard panel — TOP / DAILY tabs (`name / score / seed`);
     the daily tab shows the shared seed + UTC reset countdown.
     A `◈ friends` toggle filters whichever board is
@@ -182,11 +183,14 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     appended on every clean run end, also session-only until the first
     save) and mirrors them to the client as the `RoBallHistory`
     `s,d,z;…` CSV attribute
-  - Audio console — a collapsed `audio ▸` toggle under the controls hint
-    unfolds five channel sliders in three paired rows (`MUSIC + GEMS /
-    DASH + WIND / CUES`, 0–100%) riding the mixer taps in AUDIO.md §7,
-    persisted via `profile.audio` → `RoBallVol_<ch>` attributes so a mix
-    survives sessions
+  - **MISSIONS** card — same bordered chrome as RUN SETUP, holding the
+    day's three seeded quests (`◇` open / `✓` done) plus the award tally
+    footer (§14). Second card, second job: setup shapes the run, missions
+    say what it pays.
+  - Audio console — an `AUDIO` garage page, five channel sliders stacked
+    one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
+    mixer taps in AUDIO.md §7, persisted via `profile.audio` →
+    `RoBallVol_<ch>` attributes so a mix survives sessions
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.

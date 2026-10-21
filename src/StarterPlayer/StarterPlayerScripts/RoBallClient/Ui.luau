@@ -237,7 +237,7 @@ function Ui.new(): Ui
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 6)
 
 	-- RUN SETUP (§6): everything that shapes THIS run lives next to PLAY —
-	-- one-tap RANDOM/DAILY chips write the seed box, or type a
+	-- one-tap DAILY/RANDOM chips write the seed box, or type a
 	-- custom seed, and the TRACK cycler picks the song. The old cryptic
 	-- "blank = random · 'daily' = today" explainer is gone: the chips are
 	-- self-describing.
@@ -380,129 +380,41 @@ function Ui.new(): Ui
 	end)
 
 	label(menuCol, "", 4, F_DATA, C_DIM, 8)
-	-- Daily quests (§14): today's three seeded missions — ✓ gold when done,
-	-- ◇ dim while open; the bank quest shows today's running total.
-	label(menuCol, "today's missions", 12, F_DATA, C_DIM, 9)
+
+	-- Missions card (§14): today's three seeded missions get the same
+	-- bordered-card chrome as RUN SETUP — two cards, two jobs: "shape the
+	-- run" and "what today pays". ✓ gold when done, ◇ dim while open; the
+	-- bank quest shows today's running total. The footer is the award
+	-- tally — the toast does the celebrating, the card just counts.
+	local missions = Instance.new("Frame")
+	missions.Name = "Missions"
+	missions.BackgroundColor3 = C_PANEL
+	missions.BackgroundTransparency = 0.45
+	missions.BorderSizePixel = 0
+	missions.Size = UDim2.fromOffset(392, 124)
+	missions.LayoutOrder = 9
+	missions.Parent = menuCol
+	local mCorner = Instance.new("UICorner")
+	mCorner.CornerRadius = UDim.new(0, 10)
+	mCorner.Parent = missions
+	local mStroke = Instance.new("UIStroke")
+	mStroke.Color = C_DIM
+	mStroke.Thickness = 1
+	mStroke.Transparency = 0.55
+	mStroke.Parent = missions
+
+	label(missions, "TODAY'S MISSIONS", 12, F_DATA, C_DIM, 0).Position = UDim2.fromOffset(0, 8)
 	self.questLines = {}
 	for i = 1, 3 do
-		self.questLines[i] = label(menuCol, "", 14, F_DATA, C_DIM, 9 + i)
+		local ql = label(missions, "", 14, F_DATA, C_DIM, 0)
+		ql.Position = UDim2.fromOffset(0, 32 + (i - 1) * 21)
+		self.questLines[i] = ql
 	end
-	-- Achievements (§14): running unlock count — the celebration itself is
-	-- the toast; the menu keeps only the tally.
-	self.achLine = label(menuCol, "", 12, F_DATA, C_GOLD, 13)
-	label(menuCol, "", 4, F_DATA, C_DIM, 14)
-	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 15)
+	self.achLine = label(missions, "", 12, F_DATA, C_GOLD, 0)
+	self.achLine.Position = UDim2.fromOffset(0, 102)
 
-	-- Audio mixer (AUDIO.md §7 / DESIGN.md §6): a mini console hidden
-	-- behind an "audio" toggle — click to unfold the channel rows. Drag
-	-- applies instantly; release persists through RoBallVol_<ch> ->
-	-- profile.audio.
-	local mixerRows: { Frame } = {}
-	local mixerOpen = false
-	local audioToggle = ghostButton(menuCol, "audio ▸", 11, 16)
-	audioToggle.MouseButton1Click:Connect(function()
-		mixerOpen = not mixerOpen
-		audioToggle.Text = if mixerOpen then "audio ▾" else "audio ▸"
-		for _, row in ipairs(mixerRows) do
-			row.Visible = mixerOpen
-		end
-	end)
-	local function sliderUnit(parent: Frame, ch: string, x: number)
-		local name = label(parent, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
-		name.TextXAlignment = Enum.TextXAlignment.Left
-		name.Size = UDim2.fromOffset(64, 19)
-		name.Position = UDim2.fromOffset(x, 0)
-
-		local track = Instance.new("Frame")
-		track.BackgroundColor3 = C_BG
-		track.BorderSizePixel = 0
-		track.AnchorPoint = Vector2.new(0, 0.5)
-		track.Position = UDim2.new(0, x + 68, 0.5, 0)
-		track.Size = UDim2.fromOffset(120, 7)
-		track.Parent = parent
-		local trackCorner = Instance.new("UICorner")
-		trackCorner.CornerRadius = UDim.new(0, 4)
-		trackCorner.Parent = track
-
-		local fill = Instance.new("Frame")
-		fill.BackgroundColor3 = C_CYAN
-		fill.BorderSizePixel = 0
-		fill.Size = UDim2.fromScale(1, 1)
-		fill.Parent = track
-		local fillCorner = Instance.new("UICorner")
-		fillCorner.CornerRadius = UDim.new(0, 4)
-		fillCorner.Parent = fill
-
-		local pct = label(parent, "", 10, F_DATA, C_WHITE)
-		pct.Position = UDim2.fromOffset(x + 194, 0)
-		pct.Size = UDim2.fromOffset(42, 19)
-		pct.TextXAlignment = Enum.TextXAlignment.Left
-
-		local function applyRow(v: number)
-			fill.Size = UDim2.fromScale(v, 1)
-			pct.Text = string.format("%d%%", math.floor(v * 100 + 0.5))
-		end
-		applyRow(AudioMix.gain(ch))
-		AudioMix.onChange(ch, applyRow)
-
-		local hit = Instance.new("TextButton")
-		hit.BackgroundTransparency = 1
-		hit.AutoButtonColor = false
-		hit.Text = ""
-		hit.Position = UDim2.fromOffset(x + 62, 0)
-		hit.Size = UDim2.new(0, 132, 1, 0)
-		hit.Parent = parent
-
-		local dragging = false
-		local function write(mx: number)
-			AudioMix.set(ch, math.clamp((mx - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1))
-		end
-		hit.InputBegan:Connect(function(input)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
-				dragging = true
-				write(input.Position.X)
-			end
-		end)
-		UserInputService.InputChanged:Connect(function(input)
-			if
-				dragging
-				and (
-					input.UserInputType == Enum.UserInputType.MouseMovement
-					or input.UserInputType == Enum.UserInputType.Touch
-				)
-			then
-				write(input.Position.X)
-			end
-		end)
-		UserInputService.InputEnded:Connect(function(input)
-			if
-				dragging
-				and (
-					input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch
-				)
-			then
-				dragging = false
-				AudioMix.save(ch)
-			end
-		end)
-	end
-	for i = 1, 3 do
-		local row = Instance.new("Frame")
-		row.BackgroundTransparency = 1
-		row.Visible = false
-		row.Size = UDim2.new(1, 0, 0, 19)
-		row.LayoutOrder = 17 + i
-		row.Parent = menuCol
-		table.insert(mixerRows, row)
-		sliderUnit(row, Config.Audio.Channels[i * 2 - 1], 20)
-		if Config.Audio.Channels[i * 2] then
-			sliderUnit(row, Config.Audio.Channels[i * 2], 270)
-		end
-	end
+	label(menuCol, "", 8, F_DATA, C_DIM, 10)
+	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 13, F_DATA, C_DIM, 11)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -545,9 +457,9 @@ function Ui.new(): Ui
 		b.Parent = board
 		return b
 	end
-	self.tabTop = boardTab("TOP", 14)
+	self.tabTop = boardTab("TOP", 54)
 	self.tabTop.Name = "TabTop"
-	self.tabDaily = boardTab("DAILY", 114)
+	self.tabDaily = boardTab("DAILY", 170)
 	self.tabDaily.Name = "TabDaily"
 	self.tabTop.MouseButton1Click:Connect(function()
 		self:setBoard("top")
@@ -686,16 +598,16 @@ function Ui.new(): Ui
 
 	local gTabs: { [string]: TextButton } = {}
 	local gPages: { [string]: Frame } = {}
-	for i, name in ipairs({ "STYLE", "PACKS", "BANK" }) do
+	for i, name in ipairs({ "STYLE", "PACKS", "BANK", "AUDIO" }) do
 		local b = Instance.new("TextButton")
 		b.Name = "Tab" .. name
 		b.BackgroundTransparency = 1
 		b.AutoButtonColor = false
 		b.Font = F_DISPLAY
-		b.TextSize = 13
+		b.TextSize = 12
 		b.Text = name
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 104, 40)
-		b.Size = UDim2.fromOffset(96, 24)
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 78, 40)
+		b.Size = UDim2.fromOffset(72, 24)
 		b.Parent = garage
 		gTabs[name] = b
 
@@ -1057,6 +969,101 @@ function Ui.new(): Ui
 	local hint = label(pageBank, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
 	hint.Position = UDim2.fromOffset(0, 136)
 	hint.TextTransparency = 0.3
+
+	--=========== AUDIO (AUDIO.md §7) ===========--
+	-- Mixer page: one channel per row, stacked — the garage panel is too
+	-- narrow for the old side-by-side pairs. Drag applies instantly;
+	-- release persists through RoBallVol_<ch> -> profile.audio.
+	local function sliderUnit(parent: Frame, ch: string, y: number)
+		local name = label(parent, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.Size = UDim2.fromOffset(60, 24)
+		name.Position = UDim2.fromOffset(14, y)
+
+		local track = Instance.new("Frame")
+		track.BackgroundColor3 = C_BG
+		track.BorderSizePixel = 0
+		track.Position = UDim2.fromOffset(82, y + 8)
+		track.Size = UDim2.fromOffset(168, 8)
+		track.Parent = parent
+		local trackCorner = Instance.new("UICorner")
+		trackCorner.CornerRadius = UDim.new(0, 4)
+		trackCorner.Parent = track
+
+		local fill = Instance.new("Frame")
+		fill.BackgroundColor3 = C_CYAN
+		fill.BorderSizePixel = 0
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.Parent = track
+		local fillCorner = Instance.new("UICorner")
+		fillCorner.CornerRadius = UDim.new(0, 4)
+		fillCorner.Parent = fill
+
+		local pct = label(parent, "", 10, F_DATA, C_WHITE)
+		pct.Position = UDim2.fromOffset(256, y)
+		pct.Size = UDim2.fromOffset(42, 24)
+		pct.TextXAlignment = Enum.TextXAlignment.Left
+
+		local function applyRow(v: number)
+			fill.Size = UDim2.fromScale(v, 1)
+			pct.Text = string.format("%d%%", math.floor(v * 100 + 0.5))
+		end
+		applyRow(AudioMix.gain(ch))
+		AudioMix.onChange(ch, applyRow)
+
+		local hit = Instance.new("TextButton")
+		hit.BackgroundTransparency = 1
+		hit.AutoButtonColor = false
+		hit.Text = ""
+		hit.Position = UDim2.fromOffset(76, y)
+		hit.Size = UDim2.fromOffset(180, 24)
+		hit.Parent = parent
+
+		local dragging = false
+		local function write(mx: number)
+			AudioMix.set(ch, math.clamp((mx - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1))
+		end
+		hit.InputBegan:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = true
+				write(input.Position.X)
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				write(input.Position.X)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				dragging = false
+				AudioMix.save(ch)
+			end
+		end)
+	end
+	local pageAudio = gPages.AUDIO
+	label(pageAudio, "MIXER", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 6)
+	for i, ch in ipairs(Config.Audio.Channels) do
+		sliderUnit(pageAudio, ch, 34 + (i - 1) * 32)
+	end
+	local ahint = label(pageAudio, "drag to mix · release saves", 10, F_DATA, C_DIM, 0)
+	ahint.Position = UDim2.fromOffset(0, 34 + #Config.Audio.Channels * 32 + 10)
+	ahint.TextTransparency = 0.35
 
 	--============================= HUD ==============================--
 	-- Top-right cluster (§12): the score leaves the center cone clear for
