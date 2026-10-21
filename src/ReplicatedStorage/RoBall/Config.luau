@@ -906,6 +906,27 @@ Config.MusicSync = {
 	DropDenseGems = true,
 }
 
+-- Seed flavor (DESIGN.md §8.7): each seed rolls one mutator on a salted
+-- rng stream and GenCore multiplies it into the songform pick weights —
+-- selection bias ONLY. Legality rules, contracts, the intro, and debut
+-- milestones are untouched, so a flavor can never make an unfair map.
+Config.Mutators = {
+	-- Random.new(seed + Salt): a stream separate from the gen rng so the
+	-- flavor pick can't shift the chunk roll sequence.
+	Salt = 7919,
+	-- standard sits in the order twice — ~1 in 4 seeds runs the plain mix.
+	Order = { "standard", "standard", "steady", "pressure", "airshow", "weave", "rotorfield", "pressgang" },
+	List = {
+		standard = {},
+		steady = { label = "STEADY", fams = { lethal = 0.5, breather = 1.8 } },
+		pressure = { label = "PRESSURE", fams = { lethal = 2.1, breather = 0.4 } },
+		airshow = { label = "AIRSHOW", fams = { spectacle = 2.1, technical = 0.6 } },
+		weave = { label = "WEAVE", fams = { technical = 2.0, lethal = 0.6 } },
+		rotorfield = { label = "ROTOR FIELD", fams = { spectacle = 1.3 }, types = { Rotor = 3.5 } },
+		pressgang = { label = "PRESS GANG", types = { PressRow = 3.5 } },
+	},
+}
+
 Config.Palette = {
 	-- Vaporwave hue wheel, cycled by distance. Neon elements sample this.
 	-- The wheel laps magenta -> violet -> blue -> cyan -> magenta — always

@@ -391,6 +391,14 @@ runs the loop below and does not stop until you say **stop**.
     Gates green; live visual check still owed — Studio was closed at
     commit time)*
 
+55. **Seed flavor mutators** *(new — invented when the backlog ran dry.
+    Each seed derives one bias record (`Config.Mutators` — STEADY /
+    PRESSURE / AIRSHOW / WEAVE / ROTOR FIELD / PRESS GANG / standard×2)
+    on a salted rng stream and `GenCore` multiplies it into the
+    songform pick weights — selection bias only, contracts/debuts/
+    intro untouched. The daily gets a daily-changing personality;
+    label on the HUD seed tag, daily status line, and death card)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

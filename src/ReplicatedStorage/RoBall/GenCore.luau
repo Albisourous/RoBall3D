@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local MusicGrid = require(ReplicatedStorage.RoBall.MusicGrid)
+local Mutator = require(ReplicatedStorage.RoBall.Mutator)
 local SongMap = require(ReplicatedStorage.RoBall.SongMap)
 
 local GenCore = {}
@@ -33,6 +34,9 @@ function GenCore.new(seed: number): Gen
 	-- opens on a seed-rotated accent (§6) — start the clock there so
 	-- stamped sections match what the player hears from beat one.
 	self.map = SongMap.forTrack(SongMap.trackIdFor(seed, Config.Music.ActiveTracklist))
+	-- Seed flavor (§8.7): one mutator record, rolled on a salted stream so
+	-- the flavor pick never shifts the chunk roll sequence.
+	self.mutator = Mutator.forSeed(seed)
 	self.beatPos = Config.MusicSync.SeededStartOffset and self.map.startBeatFor(seed) or 0
 	self.introIndex = 0
 	-- Feature ramp (DESIGN.md §8.6): name -> true once its gentle debut
@@ -156,32 +160,32 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 			if #cand == 0 then
 				cand = { "Flat" }
 			end
-			if Config.MusicSync.Enabled then
-				-- Songform weighting (AUDIO.md §5.2): chunk families reweight
-				-- by the section energy under the ball — drops roll lethal,
-				-- breaks roll breathers. Legality rules untouched.
-				local e = songSection.energy
-				local weights = {}
-				local total = 0
-				for _, cname in ipairs(cand) do
-					local fam = Config.MusicSync.ChunkFamily[cname] or "technical"
-					local fw = Config.MusicSync.Families[fam]
-					local w = fw.lo + (fw.hi - fw.lo) * e
-					weights[cname] = w
-					total += w
-				end
-				local roll = self.rng:NextNumber(0, total)
-				for _, cname in ipairs(cand) do
-					roll -= weights[cname]
-					if roll <= 0 then
-						name = cname
-						break
-					end
-				end
-				name = name or cand[#cand]
-			else
-				name = cand[self.rng:NextInteger(1, #cand)]
+			-- Songform weighting (AUDIO.md §5.2): chunk families reweight
+			-- by the section energy under the ball — drops roll lethal,
+			-- breaks roll breathers. The seed's flavor (§8.7) then
+			-- multiplies in — selection bias only, legality rules untouched.
+			-- MusicSync off still carries the flavor over a uniform base.
+			local e = songSection.energy
+			local mut = self.mutator
+			local weights = {}
+			local total = 0
+			for _, cname in ipairs(cand) do
+				local fam = Config.MusicSync.ChunkFamily[cname] or "technical"
+				local fw = Config.MusicSync.Families[fam]
+				local w = if Config.MusicSync.Enabled then fw.lo + (fw.hi - fw.lo) * e else 1
+				w *= (mut.fams[fam] or 1) * (mut.types[cname] or 1)
+				weights[cname] = w
+				total += w
 			end
+			local roll = self.rng:NextNumber(0, total)
+			for _, cname in ipairs(cand) do
+				roll -= weights[cname]
+				if roll <= 0 then
+					name = cname
+					break
+				end
+			end
+			name = name or cand[#cand]
 			spec = ChunkDefs[name](self.rng, snap, tier)
 		end
 	end
