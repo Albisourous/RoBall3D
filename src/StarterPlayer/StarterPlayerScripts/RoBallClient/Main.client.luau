@@ -524,6 +524,8 @@ local statPrevZ = 0
 -- Pace delta (§12): last whole-meter delta shown; nil when no ghost
 -- echoes (different seed / no PB yet) so the HUD line stays hidden.
 local paceCache: number? = nil
+-- Hazard radar (§12): scan clock for the look-ahead strip.
+local radarT = 0
 -- Death-cam (§11): each death bumps the sequence so a pending card lands
 -- only if no restart/menu happened mid-orbit.
 local deathSeq = 0
@@ -813,6 +815,34 @@ RunService.Heartbeat:Connect(function(dt)
 	if paceR ~= paceCache then
 		paceCache = paceR
 		ui:setPace(paceR)
+	end
+	-- Hazard radar (§12): re-read the tagged lethal set at ScanSeconds —
+	-- movers/spinners track for free. Ball-relative: dz ahead, dx off
+	-- center; other lanes fall outside HalfWidth naturally. Nearest
+	-- MaxBars win the pool.
+	radarT += dt
+	if radarT >= Config.Radar.ScanSeconds then
+		radarT = 0
+		local R = Config.Radar
+		local scan = {}
+		for _, p in ipairs(CollectionService:GetTagged("RoBallLethal")) do
+			local dz = b.Position.Z - p.Position.Z
+			local dx = p.Position.X - b.Position.X
+			if dz > -2 and dz < R.Range and math.abs(dx) - p.Size.X / 2 < R.HalfWidth then
+				table.insert(scan, { dx = dx, dz = math.max(dz, 0), w = p.Size.X })
+			end
+		end
+		table.sort(scan, function(a, c)
+			return a.dz < c.dz
+		end)
+		if #scan > R.MaxBars then
+			local keep = {}
+			for i = 1, R.MaxBars do
+				keep[i] = scan[i]
+			end
+			scan = keep
+		end
+		ui:setRadar(scan)
 	end
 
 	local v = b.AssemblyLinearVelocity

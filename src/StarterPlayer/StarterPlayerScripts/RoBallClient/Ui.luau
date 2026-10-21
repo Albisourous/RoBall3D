@@ -185,6 +185,7 @@ function Ui.new(): Ui
 	grad.Parent = menu
 
 	local menuCol = Instance.new("Frame")
+	menuCol.Name = "Hero"
 	menuCol.BackgroundTransparency = 1
 	menuCol.Size = UDim2.fromOffset(520, 700) -- hero column: title, PLAY, run setup, missions
 	menuCol.Position = UDim2.fromScale(0.5, 0.5)
@@ -205,6 +206,7 @@ function Ui.new(): Ui
 	-- not another ghosted outline, so the one action that matters reads
 	-- first. ENTER and R both start.
 	local play = Instance.new("TextButton")
+	play.Name = "PlayBtn"
 	play.BackgroundColor3 = C_PINK
 	play.AutoButtonColor = false
 	play.Font = F_DISPLAY
@@ -263,6 +265,7 @@ function Ui.new(): Ui
 	setupStroke.Parent = setup
 
 	local seedBox = Instance.new("TextBox")
+	seedBox.Name = "SeedBox"
 	seedBox.BackgroundColor3 = C_BG
 	seedBox.BackgroundTransparency = 0.3
 	seedBox.BorderSizePixel = 0
@@ -344,6 +347,7 @@ function Ui.new(): Ui
 	trkLabel.Parent = setup
 
 	local trkName = Instance.new("TextButton")
+	trkName.Name = "TrackName"
 	trkName.BackgroundTransparency = 1
 	trkName.AutoButtonColor = false
 	trkName.Font = F_DATA
@@ -371,12 +375,14 @@ function Ui.new(): Ui
 	end
 
 	local trkLeft = arrowButton(setup, "<", 74, 84)
+	trkLeft.Name = "TrackPrev"
 	trkLeft.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
 			self.onTrackCycle(-1)
 		end
 	end)
 	local trkRight = arrowButton(setup, ">", 296, 84)
+	trkRight.Name = "TrackNext"
 	trkRight.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
 			self.onTrackCycle(1)
@@ -550,8 +556,11 @@ function Ui.new(): Ui
 		return b
 	end
 	self.tabTop = boardTab("TOP", 14)
+	self.tabTop.Name = "TabTop"
 	self.tabDaily = boardTab("DAILY", 114)
+	self.tabDaily.Name = "TabDaily"
 	self.tabWeekly = boardTab("WEEKLY", 214)
+	self.tabWeekly.Name = "TabWeekly"
 	self.tabTop.MouseButton1Click:Connect(function()
 		self:setBoard("top")
 	end)
@@ -1031,6 +1040,45 @@ function Ui.new(): Ui
 	paceText.Visible = false
 	paceText.Parent = hud
 	self.paceText = paceText
+
+	-- Look-ahead radar (§12): a vertical strip under the stack — top is
+	-- Radar.Range studs out, bottom is the ball; bars are lethal blocks
+	-- in ball-relative studs with the cyan line as "you". Pooled bars —
+	-- setRadar repositions, never allocates.
+	local R = Config.Radar
+	local radar = Instance.new("Frame")
+	radar.Name = "Radar"
+	radar.AnchorPoint = Vector2.new(1, 0)
+	radar.Position = UDim2.new(1, 0, 0, 158)
+	radar.Size = UDim2.fromOffset(R.Width, R.Height)
+	radar.BackgroundColor3 = C_PANEL
+	radar.BackgroundTransparency = 0.45
+	radar.BorderSizePixel = 0
+	radar.ClipsDescendants = true
+	radar.Parent = hud
+	local radarCorner = Instance.new("UICorner")
+	radarCorner.CornerRadius = UDim.new(0, 6)
+	radarCorner.Parent = radar
+	local radarLine = Instance.new("Frame")
+	radarLine.BackgroundColor3 = C_CYAN
+	radarLine.BackgroundTransparency = 0.55
+	radarLine.BorderSizePixel = 0
+	radarLine.AnchorPoint = Vector2.new(0.5, 0)
+	radarLine.Position = UDim2.new(0.5, 0, 0, 3)
+	radarLine.Size = UDim2.new(0, 1, 1, -6)
+	radarLine.Parent = radar
+	self.radarBars = {}
+	for i = 1, R.MaxBars do
+		local bar = Instance.new("Frame")
+		bar.BackgroundColor3 = Config.LethalColor
+		bar.BorderSizePixel = 0
+		bar.AnchorPoint = Vector2.new(0.5, 0.5)
+		bar.Size = UDim2.fromOffset(4, R.BarH)
+		bar.Visible = false
+		bar.Parent = radar
+		self.radarBars[i] = bar
+	end
+	self.radar = radar
 
 	-- Achievement toast (§14): top-center gold ribbon on unlock —
 	-- toast() writes the line, it never idles.
@@ -1671,6 +1719,25 @@ end
 
 function Ui:seedText(): string
 	return self.seedBox.Text
+end
+
+-- Look-ahead radar (§12): bars are { dx, dz, w } in ball-relative studs —
+-- dz is distance ahead (0 = at the ball), dx/w the block's offset/span.
+-- Normalization lives here so callers pass raw world units.
+function Ui:setRadar(bars: { { dx: number, dz: number, w: number } })
+	local R = Config.Radar
+	local px = (R.Width / 2) / R.HalfWidth -- px per stud off-center
+	for i, bar in ipairs(self.radarBars) do
+		local e = bars[i]
+		if e then
+			bar.Position = UDim2.fromScale(0.5 + e.dx / R.HalfWidth * 0.5, 1 - e.dz / R.Range)
+			bar.Size = UDim2.fromOffset(math.max(3, e.w * px), R.BarH)
+			bar.BackgroundTransparency = 0.15 + e.dz / R.Range * 0.55
+			bar.Visible = true
+		else
+			bar.Visible = false
+		end
+	end
 end
 
 -- Pace delta (§12): signed meters vs the PB echo; nil hides the line

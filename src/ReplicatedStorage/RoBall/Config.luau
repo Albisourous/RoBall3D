@@ -100,6 +100,21 @@ Config.Camera = {
 	DeathOrbitPull = 1.6, -- offset multiplier at the end of the sweep
 }
 
+-- Look-ahead radar (DESIGN.md §12): a vertical strip beside the HUD —
+-- top = Range studs out, bottom = at the ball; bars are RoBallLethal
+-- blocks projected ball-relative (center line = you). Presentation
+-- only: the client re-reads tagged parts every ScanSeconds, so movers
+-- and spinners track for free and nothing allocates per frame.
+Config.Radar = {
+	Range = 240, -- studs ahead shown
+	HalfWidth = 26, -- studs either side of the ball mapped to the strip edges
+	ScanSeconds = 0.06, -- ~16Hz refresh
+	MaxBars = 18, -- pooled bar frames; nearest threats win the pool
+	Width = 52, -- strip px
+	Height = 150, -- strip px
+	BarH = 3, -- bar px
+}
+
 -- Speed blur (DESIGN.md §12): the world smears as the ball gets faster —
 -- a BlurEffect plus the DepthOfField's far-field intensity, both driven
 -- by forward speed. Power curve, not linear: Size = MaxBlur * t^Exponent

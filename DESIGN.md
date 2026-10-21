@@ -646,7 +646,11 @@ explicitly deferred.
   the `±N vs PB` pace line when a PB echo replays. A graze also kicks
   `Camera.MissFovKick` degrees of FOV that decays at `MissFovDecay`/s —
   the near-miss you feel, riding the same `RoBallNearMiss` bump as the
-  ping.
+  ping. Below the stack a narrow **look-ahead radar** (`Config.Radar`)
+  strips the next `Range` studs down to red bars — top = far, bottom =
+  at the ball, x = block offset vs the ball — re-read from the tagged
+  `RoBallLethal` set every `ScanSeconds` so movers track for free;
+  nearest `MaxBars` threats win the pooled frames.
   Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music
