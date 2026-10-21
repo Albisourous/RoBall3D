@@ -262,6 +262,13 @@ runs the loop below and does not stop until you say **stop**.
     Verified live: right-rail pin → `EdgeL=false EdgeR=true`, airborne
     mid-deck +10 → both false, high over void → both true (honest
     nothing-below); both chevrons screenshotted mid-run)*
+39. **Landing shadow** *(done — b933b6c: a cyan ring projected on the
+    ground directly under the ball — one down-probe per heartbeat into
+    the lane folder, pooled part, no per-frame creation. It doubles as
+    the landing spot on pad arcs over a descending track and hides over
+    void where the edge chevrons already speak. Client-only readability;
+    no physics, scoring, or generation touched. Verified live: ring at
+    deck level under the ball tracked per-frame, screenshotted mid-run)*
 
 ## Standing rules for new work
 
