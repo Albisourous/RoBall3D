@@ -711,6 +711,9 @@ Config.Leaderboard = {
 	TopRunsStore = "RoBall3D_TopRuns_v1", -- OrderedDataStore: userId -> best score
 	BestStore = "RoBall3D_Best_v1", -- DataStore: personal best + last seed
 	ProfileStore = "RoBall3D_Profile_v1", -- DataStore: equipped cosmetic ids (§18)
+	-- Daily board (§14): a per-day OrderedDataStore pair — prefix .. YYYYMMDD
+	-- (+ "_Meta" for the seed row). Old days simply go unread; no cleanup.
+	DailyStorePrefix = "RoBall3D_Daily_v1_",
 	TopCount = 20,
 	SaveRetryCount = 3,
 	CacheSeconds = 45, -- server-side top-board cache: menu fetches share it
@@ -738,8 +741,19 @@ Config.Monetization = {
 		vip = 0, -- VOID VIP — violet set + pulse skin (~199)
 		bank2x = 0, -- 2X BANK — every pickup banks double, forever (~99)
 		peaks = 0, -- NEON PEAKS — wireframe ridge world theme (~149)
+		aurora = 0, -- AURORA — green-polar set + borealis death (~149)
+		phantom = 0, -- PHANTOM — ghost-mono set + static death (~199)
 	},
-	Price = { starter = 49, synthwave = 149, midas = 149, vip = 199, bank2x = 99, peaks = 149 },
+	Price = {
+		starter = 49,
+		synthwave = 149,
+		midas = 149,
+		vip = 199,
+		bank2x = 99,
+		peaks = 149,
+		aurora = 149,
+		phantom = 199,
+	},
 	-- Gem bank (§18 P2): each pickup banks this many gems, credited live.
 	BankPerGem = 1,
 	BankDoubleMult = 2, -- bank2x pass multiplier

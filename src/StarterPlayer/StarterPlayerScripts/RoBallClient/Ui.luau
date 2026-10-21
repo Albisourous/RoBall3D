@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
+local Daily = require(ReplicatedStorage.RoBall.Daily)
 
 local Ui = {}
 Ui.__index = Ui
@@ -20,6 +21,12 @@ local C_GOLD = Color3.fromRGB(255, 212, 64)
 local C_DIM = Color3.fromRGB(150, 120, 185)
 local C_WHITE = Color3.fromRGB(245, 238, 255)
 local C_GATE_DIM = C_GOLD:Lerp(C_PANEL, 0.78) -- unlit lock-zone cells: faint warm wash
+
+-- Daily-tab status line (§14): today's shared seed + UTC reset countdown.
+local function dailyText(): string
+	local s = Daily.resetIn()
+	return string.format("seed #%d · resets in %02d:%02d", Daily.seed(), s // 3600, (s % 3600) // 60)
+end
 
 -- Vaporwave type system (DESIGN.md §12): three voices, one job each.
 --   F_HERO    — Garamond spaced caps: the Floral Shoppe serif for
@@ -183,7 +190,7 @@ function Ui.new(): Ui
 
 	label(menuCol, "or press R", 13, F_DATA, C_DIM, 5).TextTransparency = 0.25
 
-	local seedLabel = label(menuCol, "seed — blank = random", 14, F_DATA, C_DIM, 6)
+	local seedLabel = label(menuCol, "seed — blank = random · 'daily' = today's map", 14, F_DATA, C_DIM, 6)
 	seedLabel.TextTransparency = 0.2
 
 	local seedBox = Instance.new("TextBox")
@@ -217,13 +224,14 @@ function Ui.new(): Ui
 
 	-- Leaderboard: right-side panel, filled via GetLeaderboard remote. Row
 	-- count tracks Config.Leaderboard.TopCount so the fetch and the panel
-	-- never disagree.
+	-- never disagree. Two boards (§14): ALL-TIME top runs and DAILY — every
+	-- run on today's shared seed races the same map.
 	local TOP_N = Config.Leaderboard.TopCount
 	local board = Instance.new("Frame")
 	board.Name = "Leaderboard"
 	board.AnchorPoint = Vector2.new(1, 0.5)
 	board.Position = UDim2.fromScale(0.96, 0.5)
-	board.Size = UDim2.fromOffset(320, 58 + TOP_N * 25)
+	board.Size = UDim2.fromOffset(320, 78 + TOP_N * 25)
 	board.BackgroundColor3 = C_PANEL
 	board.BackgroundTransparency = 0.25
 	board.BorderSizePixel = 0
@@ -232,11 +240,55 @@ function Ui.new(): Ui
 	boardCorner.CornerRadius = UDim.new(0, 10)
 	boardCorner.Parent = board
 
-	label(board, "TOP RUNS", 22, F_DISPLAY, C_PINK, 0)
+	self.boardMode = "top" :: string
+	self.onBoardTab = nil :: ((board: string) -> ())?
+	local function boardTab(text, x)
+		local b = Instance.new("TextButton")
+		b.BackgroundTransparency = 1
+		b.AutoButtonColor = false
+		b.Font = F_DISPLAY
+		b.TextSize = 15
+		b.Text = text
+		b.Position = UDim2.fromOffset(x, 10)
+		b.Size = UDim2.fromOffset(140, 26)
+		b.Parent = board
+		return b
+	end
+	self.tabTop = boardTab("ALL-TIME", 14)
+	self.tabDaily = boardTab("DAILY", 158)
+	self.tabTop.MouseButton1Click:Connect(function()
+		self:setBoard("top")
+	end)
+	self.tabDaily.MouseButton1Click:Connect(function()
+		self:setBoard("daily")
+	end)
+
+	-- Daily status line: today's shared seed + reset countdown (UTC).
+	self.dailyInfo = Instance.new("TextLabel")
+	self.dailyInfo.BackgroundTransparency = 1
+	self.dailyInfo.Font = F_DATA
+	self.dailyInfo.TextSize = 12
+	self.dailyInfo.TextColor3 = C_GOLD
+	self.dailyInfo.TextXAlignment = Enum.TextXAlignment.Left
+	self.dailyInfo.Position = UDim2.fromOffset(14, 38)
+	self.dailyInfo.Size = UDim2.new(1, -28, 0, 18)
+	self.dailyInfo.Visible = false
+	self.dailyInfo.Parent = board
+	-- Slow ticker keeps the countdown honest while the menu sits open —
+	-- 15s granularity, gated on Visible so it costs nothing during runs.
+	task.spawn(function()
+		while true do
+			task.wait(15)
+			if self.dailyInfo.Visible then
+				self.dailyInfo.Text = dailyText()
+			end
+		end
+	end)
+
 	local boardBody = Instance.new("Frame")
 	boardBody.BackgroundTransparency = 1
-	boardBody.Size = UDim2.new(1, -24, 1, -50)
-	boardBody.Position = UDim2.fromOffset(12, 42)
+	boardBody.Size = UDim2.new(1, -24, 1, -72)
+	boardBody.Position = UDim2.fromOffset(12, 62)
 	boardBody.Parent = board
 	vlist(boardBody, 4)
 	self.boardRows = {}
@@ -259,7 +311,7 @@ function Ui.new(): Ui
 	garage.Name = "Garage"
 	garage.AnchorPoint = Vector2.new(0, 0.5)
 	garage.Position = UDim2.fromScale(0.04, 0.5)
-	garage.Size = UDim2.fromOffset(330, 660)
+	garage.Size = UDim2.fromOffset(330, 710)
 	garage.BackgroundColor3 = C_PANEL
 	garage.BackgroundTransparency = 0.25
 	garage.BorderSizePixel = 0
@@ -405,14 +457,14 @@ function Ui.new(): Ui
 		end)
 	end
 	for i, b in ipairs(Cosmetics.Bundles) do
-		packRow(b.id, b.name, b.desc, 258 + (i - 1) * 48)
+		packRow(b.id, b.name, b.desc, 256 + (i - 1) * 42)
 	end
 
 	--=========== BANK (§18 P2) ===========--
 	-- Gem economy surface: balance line, three gem-pack dev products, and
 	-- the 2X BANK pass row. Everything degrades to SOON until the ids are
 	-- created on the dashboard — the buttons only arm via setGarage.
-	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 498)
+	label(garage, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 558)
 	local bal = Instance.new("TextLabel")
 	bal.BackgroundTransparency = 1
 	bal.Font = F_DATA
@@ -420,7 +472,7 @@ function Ui.new(): Ui
 	bal.TextColor3 = C_GOLD
 	bal.TextXAlignment = Enum.TextXAlignment.Right
 	bal.Text = "◊ 0"
-	bal.Position = UDim2.fromOffset(150, 496)
+	bal.Position = UDim2.fromOffset(150, 556)
 	bal.Size = UDim2.fromOffset(166, 20)
 	bal.Parent = garage
 	self.bankLabel = bal
@@ -439,7 +491,7 @@ function Ui.new(): Ui
 		b.TextSize = 13
 		b.TextColor3 = C_GOLD
 		b.Text = "◊?\nSOON"
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 524)
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 582)
 		b.Size = UDim2.fromOffset(96, 44)
 		b.Parent = garage
 		local corner = Instance.new("UICorner")
@@ -471,10 +523,10 @@ function Ui.new(): Ui
 
 	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
 	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow("bank2x", "2X BANK", "every gem banks double", 580)
+	packRow("bank2x", "2X BANK", "every gem banks double", 638)
 
 	local hint = label(garage, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 632)
+	hint.Position = UDim2.fromOffset(0, 684)
 	hint.TextTransparency = 0.3
 
 	--============================= HUD ==============================--
@@ -959,16 +1011,37 @@ function Ui:setBest(best: number)
 	self.bestLabel.Text = "BEST " .. tostring(best or 0)
 end
 
+-- Board tab switch (§14): recolors tabs, shows/hides the daily info line,
+-- then asks Main to fetch — rows arrive via setLeaderboard.
+function Ui:setBoard(mode: string)
+	if mode ~= "top" and mode ~= "daily" then
+		return
+	end
+	self.boardMode = mode
+	self.tabTop.TextColor3 = if mode == "top" then C_PINK else C_DIM
+	self.tabDaily.TextColor3 = if mode == "daily" then C_PINK else C_DIM
+	self.dailyInfo.Visible = mode == "daily"
+	if mode == "daily" then
+		self.dailyInfo.Text = dailyText()
+	end
+	if self.onBoardTab then
+		self.onBoardTab(mode)
+	end
+end
+
 -- nil rows = stores unreachable (offline), {} = real but empty board.
 function Ui:setLeaderboard(rows: { { name: string, score: number, seed: number } }?)
+	local daily = self.boardMode == "daily"
 	for i, row in ipairs(self.boardRows) do
 		local r = rows and rows[i]
 		row.Text = r and string.format("%2d. %-12s %7d  #%d", i, r.name, r.score, r.seed) or ""
 	end
 	if rows == nil then
-		self.boardRows[1].Text = "  leaderboard offline"
+		self.boardRows[1].Text = if daily then "  daily board offline" else "  leaderboard offline"
 	elseif #rows == 0 then
-		self.boardRows[1].Text = "  no saved runs yet — set one."
+		self.boardRows[1].Text = if daily
+			then "  no daily runs yet — type 'daily' and set one."
+			else "  no saved runs yet — set one."
 	end
 end
 

@@ -60,6 +60,9 @@ local UV = Color3.fromRGB(180, 90, 255)
 local AMETHYST = Color3.fromRGB(190, 120, 255)
 local WHITE = Color3.fromRGB(245, 238, 255)
 local SILVER = Color3.fromRGB(140, 150, 190)
+local AURORA_G = Color3.fromRGB(80, 255, 170) -- teal-green (the unused family)
+local AURORA_B = Color3.fromRGB(80, 180, 255)
+local PALE_VIOLET = Color3.fromRGB(210, 200, 255)
 
 Cosmetics.Items = {
 	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball face
@@ -113,6 +116,23 @@ Cosmetics.Items = {
 		core = Color3.fromRGB(2, 0, 6),
 		fx = "pulse",
 	},
+	skin_aurora = {
+		slot = "skin",
+		name = "AURORA",
+		gemPrice = 800,
+		ringA = AURORA_G,
+		ringB = AURORA_B,
+		core = Color3.fromRGB(4, 14, 10),
+	},
+	skin_phantom = {
+		slot = "skin",
+		name = "PHANTOM",
+		gemPrice = 900,
+		ringA = WHITE,
+		ringB = AMETHYST,
+		core = Color3.fromRGB(6, 4, 12),
+		fx = "pulse",
+	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
 	trail_magenta = { slot = "trail", name = "PALETTE WAKE", free = true, color = "palette" },
@@ -121,6 +141,8 @@ Cosmetics.Items = {
 	trail_bullion = { slot = "trail", name = "BULLION", gemPrice = 400, color = GOLD },
 	trail_prism = { slot = "trail", name = "PRISM", gemPrice = 400, color = "rainbow" },
 	trail_uv = { slot = "trail", name = "ULTRAVIOLET", gemPrice = 500, color = UV },
+	trail_aurora = { slot = "trail", name = "AURORA WAKE", gemPrice = 450, color = AURORA_G },
+	trail_spectre = { slot = "trail", name = "SPECTRE", gemPrice = 500, color = PALE_VIOLET },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -129,6 +151,8 @@ Cosmetics.Items = {
 	gemfx_jackpot = { slot = "gemFx", name = "JACKPOT", gemPrice = 400, color = PALE_GOLD },
 	gemfx_prism = { slot = "gemFx", name = "PRISM POP", gemPrice = 400, color = "rainbow" },
 	gemfx_amethyst = { slot = "gemFx", name = "AMETHYST", gemPrice = 500, color = AMETHYST },
+	gemfx_aurora = { slot = "gemFx", name = "AURORA POP", gemPrice = 450, color = AURORA_G },
+	gemfx_spectre = { slot = "gemFx", name = "SPECTRE POP", gemPrice = 500, color = PALE_VIOLET },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -171,6 +195,22 @@ Cosmetics.Items = {
 		colorA = VIOLET,
 		colorB = PINK,
 	},
+	deathfx_borealis = {
+		slot = "deathFx",
+		name = "BOREALIS",
+		gemPrice = 600,
+		style = "nova",
+		colorA = AURORA_G,
+		colorB = AURORA_B,
+	},
+	deathfx_static = {
+		slot = "deathFx",
+		name = "STATIC",
+		gemPrice = 650,
+		style = "shatter",
+		colorA = WHITE,
+		colorB = AMETHYST,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -179,10 +219,45 @@ Cosmetics.Items = {
 
 -- Equip-cycle order in the garage (matches the table above).
 Cosmetics.Order = {
-	skin = { "skin_classic", "skin_mono", "skin_solar", "skin_midas", "skin_prism", "skin_void" },
-	trail = { "trail_magenta", "trail_ion", "trail_sunset", "trail_bullion", "trail_prism", "trail_uv" },
-	gemFx = { "gemfx_gold", "gemfx_cold", "gemfx_sunset", "gemfx_jackpot", "gemfx_prism", "gemfx_amethyst" },
-	deathFx = { "deathfx_shatter", "deathfx_pop", "deathfx_nova", "deathfx_implode", "deathfx_horizon" },
+	skin = {
+		"skin_classic",
+		"skin_mono",
+		"skin_solar",
+		"skin_midas",
+		"skin_prism",
+		"skin_void",
+		"skin_aurora",
+		"skin_phantom",
+	},
+	trail = {
+		"trail_magenta",
+		"trail_ion",
+		"trail_sunset",
+		"trail_bullion",
+		"trail_prism",
+		"trail_uv",
+		"trail_aurora",
+		"trail_spectre",
+	},
+	gemFx = {
+		"gemfx_gold",
+		"gemfx_cold",
+		"gemfx_sunset",
+		"gemfx_jackpot",
+		"gemfx_prism",
+		"gemfx_amethyst",
+		"gemfx_aurora",
+		"gemfx_spectre",
+	},
+	deathFx = {
+		"deathfx_shatter",
+		"deathfx_pop",
+		"deathfx_nova",
+		"deathfx_implode",
+		"deathfx_horizon",
+		"deathfx_borealis",
+		"deathfx_static",
+	},
 	world = { "world_city", "world_peaks" },
 } :: { [string]: { string } }
 
@@ -226,6 +301,18 @@ Cosmetics.Bundles = {
 		name = "NEON PEAKS",
 		desc = "wireframe ridge world",
 		items = { "world_peaks" },
+	},
+	{
+		id = "aurora",
+		name = "AURORA",
+		desc = "green-polar set · borealis death",
+		items = { "skin_aurora", "trail_aurora", "gemfx_aurora", "deathfx_borealis" },
+	},
+	{
+		id = "phantom",
+		name = "PHANTOM",
+		desc = "ghost-mono set · static death",
+		items = { "skin_phantom", "trail_spectre", "gemfx_spectre", "deathfx_static" },
 	},
 }
 

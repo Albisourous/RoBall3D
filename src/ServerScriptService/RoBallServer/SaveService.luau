@@ -14,6 +14,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
+local Daily = require(ReplicatedStorage.RoBall.Daily)
 
 local SaveService = {}
 
@@ -21,6 +22,11 @@ local bestStore: DataStore? = nil
 local topStore: OrderedDataStore? = nil
 local metaStore: DataStore? = nil
 local profileStore: DataStore? = nil
+
+-- Per-day daily-board handles, memoized — a new day tag just means a new
+-- OrderedDataStore name; yesterday's store is simply never read again.
+local dailyStores: { [string]: OrderedDataStore } = {}
+local dailyMetaStores: { [string]: DataStore } = {}
 
 -- DataStores can throw without API access; probe once with a real read. On
 -- failure, re-probe after a cooldown — a boot-time backend hiccup shouldn't
@@ -147,8 +153,32 @@ end
 
 type TopRow = { name: string, score: number, seed: number }
 local topCache: { rows: { TopRow }, count: number, at: number }? = nil
+local dailyCache: { tag: string, rows: { TopRow }, count: number, at: number }? = nil
 local fetchBusy = false
+local dailyFetchBusy = false
 local nameCache: { [number]: string } = {}
+
+-- Daily-board handles for a day tag, created lazily and cached — handles are
+-- cheap and the tag rolls at UTC midnight on its own.
+local function dailyStore(tag: string): (OrderedDataStore?, DataStore?)
+	if not ensureStores() then
+		return nil, nil
+	end
+	local store = dailyStores[tag]
+	local meta = dailyMetaStores[tag]
+	if not store or not meta then
+		local ok = pcall(function()
+			store = DataStoreService:GetOrderedDataStore(Config.Leaderboard.DailyStorePrefix .. tag)
+			meta = DataStoreService:GetDataStore(Config.Leaderboard.DailyStorePrefix .. tag .. "_Meta")
+		end)
+		if not ok or not store or not meta then
+			return nil, nil
+		end
+		dailyStores[tag] = store
+		dailyMetaStores[tag] = meta
+	end
+	return store, meta
+end
 
 -- Submit to the global top board (score only) + meta row (seed for display).
 -- UpdateAsync folds read+compare+write into one atomic call — no Get/Set race
@@ -181,6 +211,51 @@ function SaveService.submitTop(userId: number, score: number, seed: number)
 	end
 end
 
+-- Name + meta lookups yield; run all rows in parallel so a 20-entry
+-- board doesn't serialize ~40 datastore/name calls. The join has a hard
+-- deadline: one hung lookup must not stall the RemoteFunction forever.
+local function rowsFromPages(entries: { { key: string, value: any } }, meta: DataStore?): { TopRow }
+	local rows: { TopRow? } = table.create(#entries)
+	local remaining = #entries
+	for i, entry in ipairs(entries) do
+		task.spawn(function()
+			local userId = tonumber((entry.key :: string):sub(2)) or 0
+			local name = "player" .. userId
+			if nameCache[userId] then
+				name = nameCache[userId]
+			else
+				pcall(function()
+					local fetched = Players:GetNameFromUserIdAsync(userId)
+					name = fetched
+					nameCache[userId] = fetched
+				end)
+			end
+			local seed = 0
+			if meta then
+				pcall(function()
+					local m = (meta :: DataStore):GetAsync("u" .. userId)
+					if typeof(m) == "table" and typeof(m.seed) == "number" then
+						seed = m.seed
+					end
+				end)
+			end
+			rows[i] = { name = name, score = entry.value, seed = seed }
+			remaining -= 1
+		end)
+	end
+	local deadline = os.clock() + 8
+	while remaining > 0 and os.clock() < deadline do
+		task.wait()
+	end
+	for i, entry in ipairs(entries) do
+		if rows[i] == nil then
+			local userId = tonumber((entry.key :: string):sub(2)) or 0
+			rows[i] = { name = "player" .. userId, score = entry.value, seed = 0 }
+		end
+	end
+	return rows :: { TopRow }
+end
+
 -- Top rows for the menu: { {name, score, seed}, ... }. Name lookup per entry.
 -- Returns nil when stores are unreachable — nil means OFFLINE (the client
 -- shows "leaderboard offline"), while {} means a real but empty board.
@@ -211,50 +286,74 @@ function SaveService.getTop(count: number, staleOnly: boolean?): { TopRow }?
 	if not pages then
 		return nil
 	end
-	-- Name + meta lookups yield; run all rows in parallel so a 20-entry
-	-- board doesn't serialize ~40 datastore/name calls. The join has a hard
-	-- deadline: one hung lookup must not stall the RemoteFunction forever.
-	local entries = (pages :: DataStorePages):GetCurrentPage()
-	local rows: { TopRow? } = table.create(#entries)
-	local remaining = #entries
-	for i, entry in ipairs(entries) do
-		task.spawn(function()
-			local userId = tonumber((entry.key :: string):sub(2)) or 0
-			local name = "player" .. userId
-			if nameCache[userId] then
-				name = nameCache[userId]
-			else
-				pcall(function()
-					local fetched = Players:GetNameFromUserIdAsync(userId)
-					name = fetched
-					nameCache[userId] = fetched
-				end)
-			end
-			local seed = 0
-			if metaStore then
-				pcall(function()
-					local meta = (metaStore :: DataStore):GetAsync("u" .. userId)
-					if typeof(meta) == "table" and typeof(meta.seed) == "number" then
-						seed = meta.seed
-					end
-				end)
-			end
-			rows[i] = { name = name, score = entry.value, seed = seed }
-			remaining -= 1
+	local done = rowsFromPages((pages :: DataStorePages):GetCurrentPage(), metaStore)
+	topCache = { rows = done, count = count, at = os.clock() }
+	return done
+end
+
+-- Daily board (§14): submitTop equivalent against today's store. Same
+-- keep-max UpdateAsync shape; Main only calls it when the run's seed is
+-- today's daily seed.
+function SaveService.submitDaily(userId: number, score: number)
+	local tag = Daily.dayTag()
+	local store, meta = dailyStore(tag)
+	if not store then
+		return
+	end
+	local won = false
+	local ok = retry("submitDaily", function()
+		(store :: OrderedDataStore):UpdateAsync("u" .. userId, function(old)
+			won = typeof(old) ~= "number" or score > old
+			return if won then score else nil
+		end)
+	end)
+	if not ok or not won then
+		return
+	end
+	dailyCache = nil
+	if meta then
+		retry("submitDaily meta", function()
+			(meta :: DataStore):SetAsync("u" .. userId, { seed = Daily.seed(), score = score })
 		end)
 	end
-	local deadline = os.clock() + 8
-	while remaining > 0 and os.clock() < deadline do
-		task.wait()
+end
+
+-- Today's daily rows. `staleOnly`/fetchBusy mirror getTop; the cache keys on
+-- the day tag so a post-midnight fetch can't serve yesterday's board.
+function SaveService.getDailyTop(count: number, staleOnly: boolean?): { TopRow }?
+	local tag = Daily.dayTag()
+	local store, meta = dailyStore(tag)
+	if not store then
+		return nil
 	end
-	for i, entry in ipairs(entries) do
-		if rows[i] == nil then
-			local userId = tonumber((entry.key :: string):sub(2)) or 0
-			rows[i] = { name = "player" .. userId, score = entry.value, seed = 0 }
+	count = math.clamp(count, 1, 100)
+	local cache = dailyCache
+	if
+		cache
+		and cache.tag == tag
+		and count <= cache.count
+		and (staleOnly or os.clock() - cache.at < Config.Leaderboard.CacheSeconds)
+	then
+		local rows: { TopRow } = {}
+		for i = 1, math.min(count, #cache.rows) do
+			rows[i] = cache.rows[i]
 		end
+		return rows
 	end
-	local done = rows :: { TopRow }
-	topCache = { rows = done, count = count, at = os.clock() }
+	if staleOnly or dailyFetchBusy then
+		return nil
+	end
+	dailyFetchBusy = true
+	local pages: DataStorePages? = nil
+	retry("getDailyTop", function()
+		pages = (store :: OrderedDataStore):GetSortedAsync(false, count)
+	end)
+	dailyFetchBusy = false
+	if not pages then
+		return nil
+	end
+	local done = rowsFromPages((pages :: DataStorePages):GetCurrentPage(), meta)
+	dailyCache = { tag = tag, rows = done, count = count, at = os.clock() }
 	return done
 end
 

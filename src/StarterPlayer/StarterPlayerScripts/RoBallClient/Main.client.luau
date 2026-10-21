@@ -308,15 +308,28 @@ end
 -- Leaderboard rows: fetched on boot and refreshed every time the menu
 -- shows — otherwise a score saved this session stays invisible until
 -- rejoin. RemoteFunction yields, so it runs off the render thread.
-local function refreshBoard()
+-- `board` is "top" (all-time) or "daily" (today's shared-seed board, §14).
+local boardFetchSeq = 0
+local function refreshBoard(board: string?)
+	-- Only the latest fetch may paint — a slow all-time response must not
+	-- land after the player has already flipped to DAILY.
+	boardFetchSeq += 1
+	local seq = boardFetchSeq
 	task.spawn(function()
 		-- Unprotected InvokeServer can throw (server error/shutdown) — an
 		-- error reads as offline rather than leaving the board on "loading…".
 		local ok, rows = pcall(function()
-			return fnGetLeaderboard:InvokeServer()
+			return fnGetLeaderboard:InvokeServer(board or "top")
 		end)
-		ui:setLeaderboard(if ok then rows else nil)
+		if seq == boardFetchSeq then
+			ui:setLeaderboard(if ok then rows else nil)
+		end
 	end)
+end
+
+-- Tab switch on the board panel: re-fetch under the new board key.
+ui.onBoardTab = function(board)
+	refreshBoard(board)
 end
 
 -- Death screen -> menu: the garage lives on the menu (§18), so this is
@@ -327,7 +340,7 @@ ui.onMenu = function()
 	ui:showMenu(player:GetAttribute("RoBallBest") or 0)
 	Music.onMenu()
 	refreshGarage()
-	refreshBoard()
+	refreshBoard(ui.boardMode)
 end
 
 -- The saved best loads async after join; the boot-time showMenu reads the

@@ -157,8 +157,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 - **Menu** (built in code, `StarterGui` from Luau — everything stays in git):
   - Title `ROBALL3D`, vaporwave-styled
   - **PLAY** button — starts a run on a random seed
-  - Seed `TextBox` — paste/type a seed for an identical map (for challenges)
-  - Leaderboard panel — global top 20 (`name / score / seed`)
+  - Seed `TextBox` — paste/type a seed for an identical map, or `daily`
+    for today's shared UTC seed (§14)
+  - Leaderboard panel — ALL-TIME / DAILY tabs (`name / score / seed`);
+    daily shows the shared seed + time to reset
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.
@@ -633,6 +635,15 @@ Full spec: `AUDIO.md`. Binding decisions:
   seed that earned that score. The menu panel sizes its rows from
   `Config.Leaderboard.TopCount` and refetches on every menu entry (boot +
   death → menu) so a just-saved score is immediately visible.
+- **Daily board**: `RoBall3D_Daily_v1_YYYYMMDD` (+ `_Meta`) — a per-day
+  OrderedDataStore pair. The daily seed is `djb2("daily:" .. YYYYMMDD)` over
+  the UTC date (`Daily.luau`): every player who runs it gets the identical
+  map that day, so the board is a same-seed race. Typing `daily`/`today` in
+  the seed box resolves to it; a run whose seed equals today's seed submits
+  to the day's board on death (same keep-max `UpdateAsync` + session-best
+  write thrift as the all-time board). The menu panel gains ALL-TIME/DAILY
+  tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
+  stores are simply never read — no cleanup needed.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`
@@ -800,7 +811,10 @@ rides the same plumbing: `RoBallEq_world` lands on the client and
 `Backdrop.setTheme` re-seeds whichever scenery system takes over — the
 NEON PEAKS vista is visible in the menu the moment the pass equips.
 `world_peaks` sells as its own bundle pass (`Passes.peaks`) or à-la-carte
-for ◊800 — the flagship grind target.
+for ◊800 — the flagship grind target. Later sets fill the palette families
+the launch bundles left open: **AURORA** (green-polar: teal-green rings,
+borealis nova) and **PHANTOM** (ghost-mono: white/amethyst rings, static
+shatter). Both stay inside color law — nothing near `LethalColor`.
 
 **Score integrity contract**: the leaderboard meta row carries
 `assisted = false` today. Any future advantage item (bounded power-ups sit
@@ -814,6 +828,7 @@ OrderedDataStore — clean and assisted boards never mix.
   score), gem-pack dev products, per-item `gemPrice`s, the "2x bank" pass,
   browse-the-catalog garage.
 - **P3 (backlog)**: themed monthly bundles, music packs (renderer mints
-  tracks for free), seed-of-the-day retention board.
+  tracks for free). The seed-of-the-day board landed ahead of schedule —
+  see §14's daily board.
 - **Never**: energy systems, timers, pay-to-restart, fake urgency, paid
   random items without PolicyService + disclosed odds.

@@ -16,6 +16,7 @@ local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local BallDress = require(ReplicatedStorage.RoBall.BallDress)
 local TrackStreamer = require(script.Parent.TrackStreamer)
 local SaveService = require(script.Parent.SaveService)
+local Daily = require(ReplicatedStorage.RoBall.Daily)
 local ShopService = require(script.Parent.ShopService)
 
 Players.CharacterAutoLoads = false
@@ -124,6 +125,10 @@ local runs: { [Player]: Run } = {}
 local laneOf: { [Player]: number } = {}
 local seedPref: { [Player]: string } = {}
 local bestOf: { [Player]: { score: number, dist: number, seed: number } } = {}
+-- Session-known daily best (§14): same write-thrift as the all-time board —
+-- only a new session record writes. The store's keep-max UpdateAsync stays
+-- correct even if a previous session set a higher score.
+local dailyBestOf: { [Player]: number } = {}
 local lbCooldown: { [Player]: number } = {}
 local statsOf: { [Player]: { best: IntValue, score: IntValue } } = {}
 local nextLane = 0
@@ -144,6 +149,11 @@ end
 local function resolveSeed(player: Player): number
 	local s = seedPref[player]
 	if s and #s > 0 then
+		-- "daily"/"today" → the shared UTC-day seed (DESIGN.md §14): every
+		-- player who runs it today gets the identical map.
+		if Daily.isKeyword(s) then
+			return Daily.seed()
+		end
 		local n = tonumber(s)
 		if n then
 			return math.floor(math.abs(n)) % 2147483647
@@ -258,6 +268,14 @@ local function killRun(player: Player, run: Run)
 				SaveService.submitTop(player.UserId, score, run.seed)
 			end
 		end)
+		-- Daily board (§14): a run on today's seed competes on today's store.
+		-- Session-best thrift mirrors the all-time write policy.
+		if run.seed == Daily.seed() and score > (dailyBestOf[player] or 0) then
+			dailyBestOf[player] = score
+			task.spawn(function()
+				SaveService.submitDaily(player.UserId, score)
+			end)
+		end
 	else
 		warn("[RoBall3D] implausible score rejected:", player.Name, score)
 	end
@@ -419,14 +437,22 @@ local function onPlayerAdded(player: Player)
 	print("[RoBall3D] joined", player.Name, "lane", laneOf[player])
 end
 
-fnGetLeaderboard.OnServerInvoke = function(player)
+fnGetLeaderboard.OnServerInvoke = function(player, board)
+	-- board: "top" (all-time) or "daily" (today's shared-seed board, §14).
 	-- Per-player cooldown: repeat pulls inside the window serve the cached
 	-- board (staleOnly) instead of forcing a fresh DataStore fetch.
+	local daily = board == "daily"
 	local now = os.clock()
 	if now - (lbCooldown[player] or -math.huge) < Config.Leaderboard.FetchCooldown then
+		if daily then
+			return SaveService.getDailyTop(Config.Leaderboard.TopCount, true)
+		end
 		return SaveService.getTop(Config.Leaderboard.TopCount, true)
 	end
 	lbCooldown[player] = now
+	if daily then
+		return SaveService.getDailyTop(Config.Leaderboard.TopCount)
+	end
 	return SaveService.getTop(Config.Leaderboard.TopCount)
 end
 
@@ -484,6 +510,7 @@ Players.PlayerRemoving:Connect(function(player)
 	laneOf[player] = nil
 	seedPref[player] = nil
 	bestOf[player] = nil
+	dailyBestOf[player] = nil
 	lbCooldown[player] = nil
 	statsOf[player] = nil
 end)
