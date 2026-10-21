@@ -550,6 +550,17 @@ Config.Score = {
 		ChainWindow = 6,
 		ChainMax = 4,
 	},
+	-- Graze spark (§10): a small particle burst at the ball the moment a
+	-- near-miss pays — the dodge reads physically, not only as HUD text.
+	Graze = {
+		Sparks = 8, -- particles per burst
+		Life = 0.45, -- particle seconds
+		Speed = 16, -- studs/s outward (range top)
+		Spread = 40, -- cone degrees
+		Size = 0.35, -- particle studs
+		Drag = 4,
+		Color = Color3.fromRGB(160, 240, 255), -- icy cyan: scraped and lived
+	},
 }
 
 -- PB ghost replay (DESIGN.md §14): your record run leaves a translucent

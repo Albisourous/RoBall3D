@@ -326,6 +326,11 @@ runs the loop below and does not stop until you say **stop**.
     approach (0.6s before contact); direct calls spawned voices with
     exact octave math 0.59/0.68 = `0.5×(1+0.35×I)`)*
 
+47. **Graze spark** — a small particle burst at the ball when a
+    near-miss pays (`RoBallNearMiss` bump) or a press-thread lands, so
+    the dodge reads physically at the moment of risk. One pooled
+    emitter, client-only, honors "no per-frame allocation".
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

@@ -97,6 +97,7 @@ local EDGE_DOWN = Vector3.new(0, -1, 0)
 local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
 local landingRing: Part? = nil -- pooled blob shadow, made once on first use
+local grazeEmitter: ParticleEmitter? = nil -- pooled burst, lives on the ball
 local dangerDz: number? = nil -- nearest corridor threat ahead, set by the radar scan
 local nextPingAt = 0 -- sonar cadence clock; 0 re-arms on zone entry
 local threatCache: string? = nil -- threat label currently on the radar
@@ -265,6 +266,22 @@ local function bindBall(b: Instance)
 		-- Edge probes only count the ball's own lane as ground (§12).
 		edgeLane = lanesFolder
 			and lanesFolder:FindFirstChild("Lane" .. math.round(ball.Position.X / Config.Generation.RowSpacing))
+		-- Graze spark (§10): one pooled burst emitter rides the ball;
+		-- near-miss/thread bumps Emit() a handful of icy shards.
+		local G = Config.Score.Graze
+		local em = Instance.new("ParticleEmitter")
+		em.Name = "GrazeSpark"
+		em.Rate = 0
+		em.Lifetime = NumberRange.new(G.Life * 0.6, G.Life)
+		em.Speed = NumberRange.new(G.Speed * 0.5, G.Speed)
+		em.SpreadAngle = Vector2.new(G.Spread, G.Spread)
+		em.Size = NumberSequence.new(G.Size)
+		em.Drag = G.Drag
+		em.Color = ColorSequence.new(G.Color)
+		em.LightEmission = 1
+		em.Enabled = false -- Emit() only; Rate=0 emits nothing on its own
+		em.Parent = ball
+		grazeEmitter = em
 	end
 end
 for _, c in ipairs(workspace:GetChildren()) do
@@ -274,6 +291,7 @@ workspace.ChildAdded:Connect(bindBall)
 workspace.ChildRemoved:Connect(function(c)
 	if c == ball then
 		ball = nil -- destroyed part isn't nil; clear so we stop driving it
+		grazeEmitter = nil -- emitter died with the ball
 	end
 end)
 
@@ -613,6 +631,9 @@ player:GetAttributeChangedSignal("RoBallNearMiss"):Connect(function()
 		if chain > 1 then
 			ui:chainPulse(chain) -- re-arms the drain; ×1 stays flash-only
 		end
+		if grazeEmitter then
+			grazeEmitter:Emit(Config.Score.Graze.Sparks)
+		end
 		missFovKick = Config.Camera.MissFovKick
 	end
 end)
@@ -622,6 +643,9 @@ end)
 player:GetAttributeChangedSignal("RoBallThread"):Connect(function()
 	if mode == "running" then
 		ui:flashMiss((player:GetAttribute("RoBallNmAward") :: number?) or Config.Press.ThreadBonus, nil, "THREAD")
+		if grazeEmitter then
+			grazeEmitter:Emit(Config.Score.Graze.Sparks)
+		end
 		missFovKick = Config.Camera.MissFovKick
 	end
 end)
