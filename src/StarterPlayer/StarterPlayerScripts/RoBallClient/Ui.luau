@@ -1192,15 +1192,58 @@ function Ui.new(): Ui
 	hud.Parent = gui
 	self.hud = hud
 
+	-- Vaporwave hero digit (§12): the score wears the speedo's chrome —
+	-- gradient band, neon rim, twin VHS ghosts, outrun slant. Ghosts are
+	-- children of the digit so slant/visibility track it for free; Text
+	-- syncs in setHud, the beat flare in setSpeedo.
 	local scoreText = Instance.new("TextLabel")
 	scoreText.BackgroundTransparency = 1
 	scoreText.Font = F_DATA
 	scoreText.TextSize = 52
 	scoreText.TextColor3 = C_PINK
+	scoreText.TextStrokeTransparency = 0.4
 	scoreText.TextXAlignment = Enum.TextXAlignment.Right
 	scoreText.Size = UDim2.new(1, 0, 0, 58)
+	scoreText.Rotation = -4
 	scoreText.Parent = hud
 	self.scoreText = scoreText
+	-- Chrome band: bright crown -> dark horizon line -> pale reflection.
+	-- The pink TextColor3 multiplies through it — pink chrome, not a
+	-- second color.
+	local scoreGrad = Instance.new("UIGradient")
+	scoreGrad.Rotation = 90
+	scoreGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.48, Color3.fromRGB(255, 240, 255)),
+		ColorSequenceKeypoint.new(0.52, Color3.fromRGB(70, 45, 115)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 205, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 110, 200)),
+	})
+	scoreGrad.Parent = scoreText
+	local scoreStroke = Instance.new("UIStroke")
+	scoreStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	scoreStroke.Color = C_PINK
+	scoreStroke.Transparency = 0.72
+	scoreStroke.Thickness = 1.5
+	scoreStroke.Parent = scoreText
+	-- Aberration ghosts: fixed cyan/pink, spread+flare quantized with the
+	-- speedo's beat thump.
+	local function scoreGhost(dx: number, color: Color3): TextLabel
+		local g = Instance.new("TextLabel")
+		g.BackgroundTransparency = 1
+		g.Font = scoreText.Font
+		g.TextSize = scoreText.TextSize
+		g.TextColor3 = color
+		g.TextTransparency = 0.82
+		g.TextXAlignment = scoreText.TextXAlignment
+		g.Position = UDim2.fromOffset(dx, 0)
+		g.Size = UDim2.fromScale(1, 1)
+		g.Text = scoreText.Text
+		g.Parent = scoreText
+		return g
+	end
+	self.scoreGhostA = scoreGhost(-2, C_CYAN)
+	self.scoreGhostB = scoreGhost(2, C_PINK)
 
 	local subText = Instance.new("TextLabel")
 	subText.BackgroundTransparency = 1
@@ -1212,6 +1255,10 @@ function Ui.new(): Ui
 	subText.Size = UDim2.new(1, 0, 0, 20)
 	subText.Parent = hud
 	self.subText = subText
+	-- Neon tail: the readout warms dim->pink toward the screen edge.
+	local subGrad = Instance.new("UIGradient")
+	subGrad.Color = ColorSequence.new(C_DIM, C_PINK:Lerp(C_DIM, 0.35))
+	subGrad.Parent = subText
 
 	-- Gem combo counter under the subline: "x3" while a pickup streak is
 	-- alive (client derives it from RoBallGems timing, ComboWindow).
@@ -1228,6 +1275,13 @@ function Ui.new(): Ui
 	comboText.Visible = false
 	comboText.Parent = hud
 	self.comboText = comboText
+	-- Neon rim: the streak pops like signage, not plain text.
+	local comboStroke = Instance.new("UIStroke")
+	comboStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	comboStroke.Color = C_CYAN
+	comboStroke.Transparency = 0.6
+	comboStroke.Thickness = 1
+	comboStroke.Parent = comboText
 
 	-- Pass-moment gold (§11): the record earns its flash when you cross
 	-- the PB gate — flashBest() fires it, it never idles on screen.
@@ -1244,6 +1298,11 @@ function Ui.new(): Ui
 	bestFlash.Visible = false
 	bestFlash.Parent = hud
 	self.bestFlash = bestFlash
+	-- Metallic fade: bright crown over a dimmer base, chrome-lite.
+	local bestGrad = Instance.new("UIGradient")
+	bestGrad.Rotation = 90
+	bestGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 170, 120))
+	bestGrad.Parent = bestFlash
 
 	-- Pace delta (§12): while the PB echo replays (same-seed runs), a
 	-- persistent "+N vs PB" / "-N vs PB" line — cyan ahead, pink behind.
@@ -1764,7 +1823,10 @@ function Ui:showHud()
 end
 
 function Ui:setHud(score: number, dist: number, gems: number, _speed: number, seed: number)
-	self.scoreText.Text = tostring(score)
+	local s = tostring(score)
+	self.scoreText.Text = s
+	self.scoreGhostA.Text = s
+	self.scoreGhostB.Text = s
 	-- Speed lives on the dial now; the subline stays quiet.
 	self.subText.Text = string.format("%d m  ·  gems +%d", dist, gems)
 	self.seedTag.Text = string.format("seed %d%s", seed, flavorTag(seed))
@@ -1816,12 +1878,24 @@ function Ui:setSpeedo(
 		self._spdSpread = spread
 		self.spdGhostA.Position = UDim2.fromOffset(-spread, 0)
 		self.spdGhostB.Position = UDim2.fromOffset(spread, 0)
+		-- Same fringe on the score hero — one quantum, one flare.
+		self.scoreGhostA.Position = UDim2.fromOffset(-spread, 0)
+		self.scoreGhostB.Position = UDim2.fromOffset(spread, 0)
+	end
+	local ssize = math.floor(52 + pulse * 4 + 0.5) -- score thumps on the same grid
+	if ssize ~= self._scoreSize then
+		self._scoreSize = ssize
+		self.scoreText.TextSize = ssize
+		self.scoreGhostA.TextSize = ssize
+		self.scoreGhostB.TextSize = ssize
 	end
 	local tr = math.floor((0.82 - pulse * 0.42) * 64 + 0.5) / 64
 	if tr ~= self._spdTr then
 		self._spdTr = tr
 		self.spdGhostA.TextTransparency = tr
 		self.spdGhostB.TextTransparency = tr
+		self.scoreGhostA.TextTransparency = tr
+		self.scoreGhostB.TextTransparency = tr
 	end
 	local col
 	if speed >= 100 then

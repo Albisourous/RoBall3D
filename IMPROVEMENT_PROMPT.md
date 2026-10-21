@@ -424,6 +424,11 @@ runs the loop below and does not stop until you say **stop**.
     edge armed at run start; banner pulses refactored onto one shared
     helper)*
 
+60. **Two new seed flavors** *(done — GROUNDED (anti-airshow: spectacle
+    ×0.35, technical ×1.5 — jump-free deck runs) and SNAKE PIT
+    (SnakeField ×3.5, third single-mover flavor). Order grows to 11
+    with standard ×3 keeping ~1-in-4 vanilla)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

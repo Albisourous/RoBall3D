@@ -230,7 +230,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   new record, so the gate always marks the real best, never a later run.
   The HUD score cluster lives top-right — Roblox's native menu overlays
   the top-left corner, and the center cone stays clear for the track
-  read at speed. While the PB echo replays (same-seed runs, §14) a
+  read at speed. The score digit wears the speedo's chrome: gradient
+  band, neon rim, cyan/pink VHS ghosts and a −4° outrun slant, thumping
+  on the same audio-pulse quantum; the subline warms dim→pink toward the
+  edge and the combo pip carries a cyan neon rim. While the PB echo replays (same-seed runs, §14) a
   `±N vs PB` line under the cluster shows the live meter delta against
   the ghost's position at the same elapsed time — cyan ahead, pink
   behind, hidden when no echo exists. Inside `Ghost.DuelRange` studs
@@ -535,8 +538,10 @@ same map, so the daily board stays a same-map race; off-daily the TOP
 board already compares across seeds, and flavor is just one more axis
 of seed identity. Flavors: STEADY (lethal-light breather runs),
 PRESSURE (lethal-heavy), AIRSHOW (spectacle-heavy), WEAVE
-(technical-heavy), ROTOR FIELD / PRESS GANG (one mover ×3.5 — soft
-bias: debut-gated movers only show once the ramp lets them in). The
+(technical-heavy), GROUNDED (anti-airshow — spectacle ×0.35,
+technical ×1.5: jump-free deck runs), ROTOR FIELD / PRESS GANG /
+SNAKE PIT (one mover ×3.5 — soft bias: debut-gated movers only show
+once the ramp lets them in). The
 label rides the HUD seed tag, the daily status line, and the death
 card's seed line — a seed's flavor is part of its name. A non-standard
 flavor also announces itself at run start over the debut-banner channel

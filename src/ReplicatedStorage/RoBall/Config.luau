@@ -914,8 +914,21 @@ Config.Mutators = {
 	-- Random.new(seed + Salt): a stream separate from the gen rng so the
 	-- flavor pick can't shift the chunk roll sequence.
 	Salt = 7919,
-	-- standard sits in the order twice — ~1 in 4 seeds runs the plain mix.
-	Order = { "standard", "standard", "steady", "pressure", "airshow", "weave", "rotorfield", "pressgang" },
+	-- standard sits in the order three times — ~1 in 4 seeds runs the
+	-- plain mix.
+	Order = {
+		"standard",
+		"standard",
+		"standard",
+		"steady",
+		"pressure",
+		"airshow",
+		"weave",
+		"rotorfield",
+		"pressgang",
+		"grounded",
+		"snakepit",
+	},
 	List = {
 		standard = {},
 		steady = { label = "STEADY", fams = { lethal = 0.5, breather = 1.8 } },
@@ -924,6 +937,8 @@ Config.Mutators = {
 		weave = { label = "WEAVE", fams = { technical = 2.0, lethal = 0.6 } },
 		rotorfield = { label = "ROTOR FIELD", fams = { spectacle = 1.3 }, types = { Rotor = 3.5 } },
 		pressgang = { label = "PRESS GANG", types = { PressRow = 3.5 } },
+		grounded = { label = "GROUNDED", fams = { spectacle = 0.35, technical = 1.5 } },
+		snakepit = { label = "SNAKE PIT", types = { SnakeField = 3.5 } },
 	},
 }
 
