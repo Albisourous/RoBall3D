@@ -205,6 +205,11 @@ runs the loop below and does not stop until you say **stop**.
     styles, aurora/reef/meteor world themes, `customA/B/C` hue params on
     the LAB items resolved through RoBallHue* attrs; hue band
     pre-sanitized off LethalColor)*
+32. **Sector deck ribbons** *(done — d65c1af: `TrackStreamer` paints a
+    neon `SectorMark` across the deck at each `Sectors.Length` boundary,
+    per-rail on cutouts — the pace pulse the HUD counts is visible on the
+    track itself. Verified live: marks at z=-250/-500, full width,
+    non-collidable)*
 
 ## Standing rules for new work
 
