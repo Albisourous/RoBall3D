@@ -188,9 +188,12 @@ runs the loop below and does not stop until you say **stop**.
     motionless — and dropY audits the reach band since the plate's
     x-span never moves. 8 seeds × 70 chunks: 0 violations; press travel
     verified 0 … −3.2 live)*
-28. **Ghost split trails** — faint translucent trail ribbons behind each
-    echo so you can see *where* the PB/champ lines diverged, not just how
-    far. Cosmetic-only, attachments+trail pooled per echo.
+28. **Ghost split trails** *(done — 7c7f019: each echo draws a Trail
+    between two y-offset attachments; Config.Ghost.TrailLife/TrailGap/
+    TrailFade. Verified live — ribbons on both echoes)*
+28b. **Death replay** *(done — b58a7b0: `Ghost.replayTail` re-baselines
+    the run's last DeathOrbitSec as a dim echo through the death-cam;
+    the fatal approach is visible before the card. Verified live)*
 29. **Crowd ghost on daily runs** — when the run seed is the daily seed
     and the day's board has >1 player, replay the #2 finisher's ghost as
     a second (silver) echo. Extends the champ pipeline by one store read.
