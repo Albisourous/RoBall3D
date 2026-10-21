@@ -1246,6 +1246,27 @@ function Ui.new(): Ui
 	edgeR.Parent = gui
 	self.edgeR = edgeR
 
+	-- Danger vignette (§12): a full-screen stroke that tightens red as a
+	-- corridor-overlapping lethal closes in — forward-looking where the
+	-- chevrons are lateral. gui-rooted, stroke-only, never a fill.
+	local D = Config.Danger
+	local dangerFrame = Instance.new("Frame")
+	dangerFrame.Name = "DangerVignette"
+	dangerFrame.BackgroundTransparency = 1
+	dangerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	dangerFrame.Position = UDim2.fromScale(0.5, 0.5)
+	dangerFrame.Size = UDim2.fromScale(1, 1)
+	dangerFrame.Visible = false
+	local dangerStroke = Instance.new("UIStroke")
+	dangerStroke.Thickness = D.Stroke
+	dangerStroke.Color = C_PINK
+	dangerStroke.Transparency = 1
+	dangerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	dangerStroke.Parent = dangerFrame
+	dangerFrame.Parent = gui
+	self.dangerFrame = dangerFrame
+	self.dangerStroke = dangerStroke
+
 	-- Look-ahead radar (§12): a vertical strip under the stack — top is
 	-- Radar.Range studs out, bottom is the ball; bars are lethal blocks
 	-- in ball-relative studs with the cyan line as "you". Pooled bars —
@@ -2062,6 +2083,18 @@ end
 function Ui:setEdgeWarn(left: boolean, right: boolean)
 	self.edgeL.Visible = left
 	self.edgeR.Visible = right
+end
+
+-- Danger vignette (§12): intensity 0..1 of nearest corridor threat —
+-- 0 hides, 1 is contact distance at full Config.Danger.MaxAlpha.
+function Ui:setDanger(intensity: number)
+	if intensity <= 0 then
+		self.dangerFrame.Visible = false
+		self.dangerStroke.Transparency = 1
+		return
+	end
+	self.dangerFrame.Visible = true
+	self.dangerStroke.Transparency = 1 - math.min(intensity, 1) * Config.Danger.MaxAlpha
 end
 
 function Ui:setSeedText(text: string)

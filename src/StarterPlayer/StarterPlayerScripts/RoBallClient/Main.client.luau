@@ -97,6 +97,7 @@ local EDGE_DOWN = Vector3.new(0, -1, 0)
 local lanesFolder = workspace:FindFirstChild("RoBallLanes")
 local edgeLane: Instance? = nil -- this run's lane folder, set in bindBall
 local landingRing: Part? = nil -- pooled blob shadow, made once on first use
+local dangerDz: number? = nil -- nearest corridor threat ahead, set by the radar scan
 
 --============================ garage ==============================--
 -- Shop state lives on player attributes (§18): RoBallEq_<slot> item ids,
@@ -696,6 +697,8 @@ evRunEnded.OnClientEvent:Connect(
 		combo = 0
 		ui:setCombo(0)
 		ui:setEdgeWarn(false, false)
+		ui:setDanger(0)
+		dangerDz = nil
 		if landingRing then
 			landingRing.Transparency = 1
 		end
@@ -974,6 +977,14 @@ RunService.Heartbeat:Connect(function(dt)
 				table.insert(scan, { dx = dx, dz = math.max(dz, 0), w = p.Size.X })
 			end
 		end
+		-- Danger vignette (§12): nearest threat overlapping the ball's line
+		-- feeds the heartbeat's frame-stroke intensity.
+		dangerDz = nil :: number?
+		for _, e in ipairs(scan) do
+			if math.abs(e.dx) - e.w / 2 < Config.Danger.Lane and (not dangerDz or e.dz < dangerDz) then
+				dangerDz = e.dz
+			end
+		end
 		table.sort(scan, function(a, c)
 			return a.dz < c.dz
 		end)
@@ -1024,6 +1035,11 @@ RunService.Heartbeat:Connect(function(dt)
 	else
 		ring.Transparency = 1 -- over the void the chevrons speak instead
 	end
+
+	-- Danger vignette (§12): intensity rises toward contact distance —
+	-- steady ramp, no pulse: speed already thins the time it reads.
+	local dd = dangerDz
+	ui:setDanger(dd and math.clamp(1 - dd / Config.Danger.Near, 0, 1) or 0)
 
 	local v = b.AssemblyLinearVelocity
 	-- Unstick hop (§11): the -Z write below means a freeze is physics

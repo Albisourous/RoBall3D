@@ -708,6 +708,11 @@ leaves the line off.
   directly under the ball — the same lane-only probe straight down —
   so a pad arc's landing spot reads on the descending deck; over void
   it hides and the chevrons speak.
+  A red **danger vignette** (`Config.Danger`) strokes the screen frame
+  with intensity rising toward contact distance when a lethal part
+  overlaps the ball's own line (`Danger.Lane`) inside `Danger.Near`
+  studs — the forward brace warning the radar can't give; the chevrons
+  stay lateral.
   Bottom-right is a single big **BPM number** — the
   heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
   semitones), so the digit steps in real intervals exactly when the music

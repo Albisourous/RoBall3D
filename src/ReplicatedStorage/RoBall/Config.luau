@@ -132,6 +132,16 @@ Config.Landing = {
 	Radius = 2.0, -- ring radius in studs
 }
 
+-- Danger vignette (§12): a red screen-frame stroke that tightens as the
+-- nearest corridor-overlapping lethal threat closes — the peripheral
+-- brace warning the radar strip can't give.
+Config.Danger = {
+	Near = 50, -- studs ahead where the vignette starts
+	Lane = 4, -- half-width of "overlaps my line" in studs
+	MaxAlpha = 0.6, -- stroke opacity at contact distance
+	Stroke = 10, -- frame thickness px
+}
+
 -- Split-time sectors (§14): every Length studs down-track the HUD
 -- flashes the sector index, run-elapsed time, and a delta vs each live
 -- replay (PB and champion) — long runs get a heartbeat of micro-goals.
