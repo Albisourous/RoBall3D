@@ -165,6 +165,25 @@ runs the loop below and does not stop until you say **stop**.
     `RoBallNmChain` attrs feed a `CLOSE +N ×M` flash; plausible() cap
     gained the ChainMax factor. Verified live: chain=2 award=6 on a
     two-plane pair)*
+25. **Rival pace line** *(done — 7b65cd0: `Ghost.rivalPace()` reads the
+    champion echo's lead separately; gold `±N vs <name>` line under the
+    cyan PB line, pink when behind; radar shifted to y174. PaceText/
+    RivalText named for MCP probes. Verified live via stubbed GetGhost)*
+26. **Split-time sectors** — divide the run into ~250m sectors; on each
+    boundary, flash a small `SECTOR n` line with the sector's elapsed time
+    and a gold `PB`/`CHAMP` delta vs that entity's replay at the same
+    distance. Cheap to compute (replay z→t lookup), gives long runs a
+    heartbeat of micro-goals without new UI real estate.
+27. **Hazard variety: low ceiling** — a `HeadBlock` spec that sweeps the
+    lane at ball-height+; crossing under it demands a hop *not* taken.
+    ChunkDefs + canRun contract + GenVerify blocker as per standing rule;
+    client leans camera down inside the clearance window.
+28. **Ghost split trails** — faint translucent trail ribbons behind each
+    echo so you can see *where* the PB/champ lines diverged, not just how
+    far. Cosmetic-only, attachments+trail pooled per echo.
+29. **Crowd ghost on daily runs** — when the run seed is the daily seed
+    and the day's board has >1 player, replay the #2 finisher's ghost as
+    a second (silver) echo. Extends the champ pipeline by one store read.
 
 ## Standing rules for new work
 
