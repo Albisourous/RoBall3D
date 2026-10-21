@@ -366,7 +366,8 @@ function Ui.new(): Ui
 		dl.Parent = garage
 
 		local btn = Instance.new("TextButton")
-		btn.BackgroundTransparency = 1
+		btn.BackgroundColor3 = C_BG
+		btn.BackgroundTransparency = 0
 		btn.AutoButtonColor = false
 		btn.Font = F_DATA
 		btn.TextSize = 14
@@ -375,12 +376,28 @@ function Ui.new(): Ui
 		btn.Position = UDim2.fromOffset(232, y + 2)
 		btn.Size = UDim2.fromOffset(84, 32)
 		btn.Parent = garage
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = btn
 		local stroke = Instance.new("UIStroke")
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Color = C_PINK
 		stroke.Thickness = 1.5
 		stroke.Parent = btn
 		self.packBtn[id] = btn
 		self.packStroke[id] = stroke
+		-- Neon-chip affordance: enabled buttons flare cyan on hover, then
+		-- fall back to their state color (setGarage re-pushes it anyway).
+		btn.MouseEnter:Connect(function()
+			if self.packEnabled[id] then
+				btn.TextColor3 = C_CYAN
+				stroke.Color = C_CYAN
+			end
+		end)
+		btn.MouseLeave:Connect(function()
+			btn.TextColor3 = self.packEnabled[id] and C_PINK or C_DIM
+			stroke.Color = btn.TextColor3
+		end)
 		btn.MouseButton1Click:Connect(function()
 			if self.packEnabled[id] and self.onBuy then
 				self.onBuy(id)
@@ -415,7 +432,8 @@ function Ui.new(): Ui
 	self.gemPackEnabled = {}
 	for i, key in ipairs(Config.Monetization.ProductOrder) do
 		local b = Instance.new("TextButton")
-		b.BackgroundTransparency = 1
+		b.BackgroundColor3 = C_BG
+		b.BackgroundTransparency = 0
 		b.AutoButtonColor = false
 		b.Font = F_DATA
 		b.TextSize = 13
@@ -424,12 +442,26 @@ function Ui.new(): Ui
 		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 524)
 		b.Size = UDim2.fromOffset(96, 44)
 		b.Parent = garage
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = b
 		local stroke = Instance.new("UIStroke")
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Color = C_GOLD
 		stroke.Thickness = 1.5
 		stroke.Parent = b
 		self.gemPackBtn[key] = b
 		self.gemPackStroke[key] = stroke
+		b.MouseEnter:Connect(function()
+			if self.gemPackEnabled[key] then
+				b.TextColor3 = C_CYAN
+				stroke.Color = C_CYAN
+			end
+		end)
+		b.MouseLeave:Connect(function()
+			b.TextColor3 = self.gemPackEnabled[key] and C_GOLD or C_DIM
+			stroke.Color = b.TextColor3
+		end)
 		b.MouseButton1Click:Connect(function()
 			if self.gemPackEnabled[key] and self.onGemPack then
 				self.onGemPack(key)
