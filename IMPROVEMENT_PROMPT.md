@@ -333,6 +333,13 @@ runs the loop below and does not stop until you say **stop**.
     confirmed on the ball and the attr→Emit path ran clean mid-run; the
     0.45s burst is too brief to capture via tool round-trips)*
 
+48. **Graze whoosh** *(done — 8a58109: the bell inhale-swept
+    `WhooshStartOct→WhooshEndOct` (0.4→1.15) on the `wind` mixer channel
+    — air rushing past the face, mirror of the dash's falling zip; fires
+    with the spark on near-miss and thread bumps. Verified live:
+    `GrazeWhoosh` voice spawned on the attr bump with oct0=0.40,
+    vol=0.32 — exact config math)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
