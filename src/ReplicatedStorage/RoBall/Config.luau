@@ -548,7 +548,11 @@ Config.Music = {
 			},
 		},
 		neon_descent = {
-			AssetId = 127402293202751,
+			-- Master 127402293202751 is moderation-blocked ("Asset is not
+			-- approved for the requester"). AssetId = 0 — the track stays
+			-- playable via its stem set, which buildPlayers prefers; only
+			-- the single-mix fallback is dead.
+			AssetId = 0,
 			Stems = {
 				pad = 78035449894734,
 				bass = 91799845866937,
@@ -642,14 +646,33 @@ Config.Music = {
 	WindCutMax = 4200,
 }
 
--- The seeded/garage pool: Tracklist order, minus ids whose AssetId is
--- still 0 (unuploaded) — a track that can't play can't be seeded or
--- picked. GenCore and MusicController both consume THIS list so the
--- gen's stamped SongMap always matches the heard audio.
+-- The seeded/garage pool: Tracklist order, minus ids that can't play —
+-- a track with no master AND no complete stem set can't be seeded or
+-- picked. (Stem-driven tracks like neon_descent never touch their
+-- master AssetId at runtime, so a moderation-blocked master doesn't
+-- kill them.) GenCore and MusicController both consume THIS list so
+-- the gen's stamped SongMap always matches the heard audio.
+local function trackPlayable(ta): boolean
+	if not ta then
+		return false
+	end
+	if ta.AssetId ~= 0 then
+		return true
+	end
+	if type(ta.Stems) ~= "table" then
+		return false
+	end
+	for _, name in ipairs({ "pad", "bass", "drums", "lead", "arp", "air" }) do
+		local id = ta.Stems[name]
+		if id == nil or id == 0 or id == "" then
+			return false
+		end
+	end
+	return true
+end
 Config.Music.ActiveTracklist = {}
 for _, id in ipairs(Config.Music.Tracklist) do
-	local ta = Config.Music.TrackAssets[id]
-	if ta and ta.AssetId ~= 0 then
+	if trackPlayable(Config.Music.TrackAssets[id]) then
 		table.insert(Config.Music.ActiveTracklist, id)
 	end
 end
@@ -657,7 +680,7 @@ end
 -- The menu bed, when its asset exists — else the seeded default.
 function Config.Music.menuTrackId(): string
 	local ta = Config.Music.TrackAssets[Config.Music.MenuTrack]
-	if ta and ta.AssetId ~= 0 then
+	if trackPlayable(ta) then
 		return Config.Music.MenuTrack
 	end
 	return Config.Music.ActiveTracklist[1]

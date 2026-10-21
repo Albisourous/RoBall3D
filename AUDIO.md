@@ -129,9 +129,9 @@ FlowMusic renders imported by `import_flowmusic.py` (the script detects
 BPM by onset autocorrelation, picks the best 16-bar window by
 contrast/seam score, circular-folds the cut, emits `SongMap_<id>.luau`,
 and encodes `rb3_<id>.ogg`). The run's seed picks from
-`Config.Music.ActiveTracklist` — Tracklist order minus ids whose
-`TrackAssets.AssetId` is still 0, so an unuploaded track can never be
-seeded — via `SongMap.trackIdFor`: **same seed → same track + same map +
+`Config.Music.ActiveTracklist` — Tracklist order minus ids that can't
+play (no master `AssetId` AND no complete `Stems` set), so an
+undecodable track can never be seeded — via `SongMap.trackIdFor`: **same seed → same track + same map +
 same musical pacing** — the leaderboard row becomes a replayable
 "level" exactly like a GD ID. The synthesized three carry full stem
 sets (`TrackAssets[id].Stems`) so tier-layering works on them; FlowMusic
