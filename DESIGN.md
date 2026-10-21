@@ -528,7 +528,10 @@ Every seed rolls exactly one **flavor** from `Config.Mutators` on a
 salted rng stream (`Random.new(seed + Salt)`) — separate from the gen
 rng so the flavor pick can never shift the chunk roll sequence. The
 flavor is a table of **weight multipliers** (`fams`/`types`) folded
-into the songform pick (AUDIO.md §5.2) — selection bias ONLY. It cannot
+into the songform pick (AUDIO.md §5.2), plus an optional **width
+axis** (`width`) that scales the tier width window every chunk
+target rolls from — the drift math, clamps, and `canRun` contracts
+all run on the scaled window. It cannot
 introduce a chunk `canRun` wouldn't already allow, cannot touch the
 scripted intro, the debut ramp, contracts, or pacing, and `standard`
 (¼ of seeds) is the plain mix. Fairness: same seed → same flavor →
@@ -539,9 +542,10 @@ PRESSURE (lethal-heavy), AIRSHOW (spectacle-heavy), WEAVE
 (technical-heavy), GROUNDED (anti-airshow — spectacle ×0.35,
 technical ×1.5: jump-free deck runs), ROTOR FIELD / PRESS GANG /
 SNAKE PIT (one mover ×3.5 — soft bias: debut-gated movers only show
-once the ramp lets them in). The
-label rides the HUD seed tag, the daily status line, and the death
-card's seed line — a seed's flavor is part of its name.
+once the ramp lets them in), SQUEEZE / EXPANSE (width axis: the whole
+map ~18% tighter / roomier). Flavors are
+silent — no label rides the HUD, menu, or death card (cut as jargon
+clutter); the bias is still seeded into the map itself.
 
 ## 9. Difficulty & speed
 

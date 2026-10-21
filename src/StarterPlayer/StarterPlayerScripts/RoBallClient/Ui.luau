@@ -10,7 +10,6 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
-local Mutator = require(ReplicatedStorage.RoBall.Mutator)
 local AudioMix = require(script.Parent.AudioMix)
 
 local Ui = {}
@@ -25,24 +24,11 @@ local C_DIM = Color3.fromRGB(150, 120, 185)
 local C_WHITE = Color3.fromRGB(245, 238, 255)
 local C_GATE_DIM = C_GOLD:Lerp(C_PANEL, 0.78) -- unlit lock-zone cells: faint warm wash
 
--- Seed flavor suffix (§8.7): the seed's mutator label — vanilla seeds
--- (`standard`, nil label) add nothing.
-local function flavorTag(seed: number): string
-	local label = Mutator.forSeed(seed).label
-	return if label then " · " .. label else ""
-end
-
 -- Daily-tab status line (§14): today's shared seed + UTC reset countdown
 -- + the player's consecutive-day streak when one is alive.
 local function dailyText(): string
 	local s = Daily.resetIn()
-	local text = string.format(
-		"seed #%d%s · resets in %02d:%02d",
-		Daily.seed(),
-		flavorTag(Daily.seed()),
-		s // 3600,
-		(s % 3600) // 60
-	)
+	local text = string.format("seed #%d · resets in %02d:%02d", Daily.seed(), s // 3600, (s % 3600) // 60)
 	local lp = Players.LocalPlayer
 	local streak = (lp and lp:GetAttribute("RoBallDailyStreak")) or 0
 	if streak > 0 then
@@ -1793,7 +1779,7 @@ function Ui:setHud(score: number, dist: number, gems: number, _speed: number, se
 	self.scoreGhostB.Text = s
 	-- Speed lives on the dial now; the subline stays quiet.
 	self.subText.Text = string.format("%d m  ·  gems +%d", dist, gems)
-	self.seedTag.Text = string.format("seed %d%s", seed, flavorTag(seed))
+	self.seedTag.Text = string.format("seed %d", seed)
 end
 
 -- Audio pulse from Music.sample() (0..1) — the digit thumps on the beat:
@@ -2078,7 +2064,7 @@ function Ui:showDeath(
 	self.dScore.Text = tostring(score)
 	self.dBreakdown.Text =
 		string.format('%d m  ·  +%d gem pts    <font color="#FFD440">◊ +%d BANKED</font>', dist, gems, banked or 0)
-	self.dBest.Text = string.format("BEST %d   ·   seed %d%s", best, seed, flavorTag(seed))
+	self.dBest.Text = string.format("BEST %d   ·   seed %d", best, seed)
 	self.dNewBest.Visible = newBest == true
 	local n = streak or 0
 	local bonus = streakBonus or 0
