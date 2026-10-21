@@ -339,6 +339,12 @@ local function killRun(player: Player, run: Run)
 			dailyBestOf[player] = score
 			task.spawn(function()
 				SaveService.submitDaily(player.UserId, score)
+				-- Daily rank (§14): the board slot lands a beat after the
+				-- death card — the attr listener fills it in late.
+				local rank = SaveService.dailyRank(player.UserId)
+				if rank then
+					player:SetAttribute("RoBallDailyRank", rank)
+				end
 			end)
 		end
 	else
@@ -370,6 +376,8 @@ local function startRun(player: Player)
 		stillT = 0,
 	}
 	runs[player] = run
+	-- A stale daily rank can't leak onto a non-daily run's death card.
+	player:SetAttribute("RoBallDailyRank", 0)
 
 	streamer.onGem = function(hit, value)
 		if run.ball and hit == run.ball then

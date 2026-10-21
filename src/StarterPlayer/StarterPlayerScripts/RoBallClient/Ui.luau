@@ -1484,6 +1484,10 @@ function Ui.new(): Ui
 	-- Daily quests completed this run (§14): "2 quests done · ◊ +90 banked".
 	self.dQuest = label(dCol, "", 15, F_DATA, C_GOLD, 7)
 	self.dQuest.Visible = false
+	-- Daily rank (§14): the board slot lands a beat after the card —
+	-- setDailyRank fills this late via the RoBallDailyRank attribute.
+	self.dRank = label(dCol, "", 14, F_DATA, C_CYAN, 8)
+	self.dRank.Visible = false
 
 	-- Run-stats card (§11): one quiet dim line — top speed, gates passed,
 	-- boost share, closest call. Display-only; never score.
@@ -1748,6 +1752,7 @@ function Ui:showDeath(
 	local hits = questHits or 0
 	self.dQuest.Text = string.format("%s done · ◊ +%d banked", hits == 1 and "quest" or hits .. " quests", qb)
 	self.dQuest.Visible = hits > 0
+	self.dRank.Visible = false -- daily rank fills in late via setDailyRank
 	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
 	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
 	if stats then
@@ -1765,6 +1770,17 @@ function Ui:showDeath(
 		self.dStats.Visible = true
 	else
 		self.dStats.Visible = false
+	end
+end
+
+-- Daily rank (§14): "daily #3" on the death card — the server publishes
+-- it a beat after RunEnded (submit → fetch → attr), so this slots into
+-- an already-visible card. 0 hides it (off the TopCount window).
+function Ui:setDailyRank(rank: number?)
+	local n = rank or 0
+	self.dRank.Visible = n > 0
+	if n > 0 then
+		self.dRank.Text = string.format("daily #%d today", n)
 	end
 end
 

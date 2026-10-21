@@ -455,6 +455,23 @@ function SaveService.submitDaily(userId: number, score: number)
 	end
 end
 
+-- The player's 1-based slot on today's board, nil when off-board or the
+-- stores are down. Called right after submitDaily — a real write drops
+-- dailyCache so this read is fresh, and the rank is only meaningful
+-- inside the TopCount window the menu shows anyway.
+function SaveService.dailyRank(userId: number): number?
+	local rows = SaveService.getDailyTop(Config.Leaderboard.TopCount)
+	if not rows then
+		return nil
+	end
+	for i, row in ipairs(rows) do
+		if row.userId == userId then
+			return i
+		end
+	end
+	return nil
+end
+
 -- Today's daily rows. `staleOnly`/fetchBusy mirror getTop; the cache keys on
 -- the day tag so a post-midnight fetch can't serve yesterday's board.
 function SaveService.getDailyTop(count: number, staleOnly: boolean?): { TopRow }?

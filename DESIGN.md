@@ -784,7 +784,11 @@ Full spec: `AUDIO.md`. Binding decisions:
   to the day's board on death (same keep-max `UpdateAsync` + session-best
   write thrift as the all-time board). The menu panel has TOP/DAILY
   tabs; the daily tab shows the seed + UTC reset countdown. Yesterday's
-  stores are simply never read — no cleanup needed.
+  stores are simply never read — no cleanup needed. After a daily-seeded
+  death posts a session-best to the board, the server fetches the fresh
+  rows and publishes `RoBallDailyRank` — the death card fills in
+  `daily #n today` a beat later (0 when off the TopCount window; cleared
+  on every run start so a non-daily death never shows a stale slot).
 - **Daily streak**: finishing a daily-seeded run counts the UTC day —
   same day again is a no-op, yesterday continues the streak, a gap resets
   to 1. Each counted day pays `min(streak, DailyStreakCap) *

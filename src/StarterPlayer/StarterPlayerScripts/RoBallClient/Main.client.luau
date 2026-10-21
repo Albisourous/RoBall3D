@@ -499,6 +499,12 @@ ui.onHistoryPick = function(seed)
 	ui:setSeedText(tostring(seed))
 end
 
+-- Daily rank (§14): the server publishes RoBallDailyRank a beat after
+-- the death card — the listener slots it into the card that's already up.
+player:GetAttributeChangedSignal("RoBallDailyRank"):Connect(function()
+	ui:setDailyRank(player:GetAttribute("RoBallDailyRank") :: number?)
+end)
+
 -- Achievements (§14): RoBallAch = full unlock set -> menu tally;
 -- RoBallAchNew = only ids unlocked by the latest eval -> the toast batch.
 -- Keeping them separate means a restored profile never re-fires ribbons.
