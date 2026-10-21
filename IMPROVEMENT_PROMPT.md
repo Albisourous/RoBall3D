@@ -326,10 +326,12 @@ runs the loop below and does not stop until you say **stop**.
     approach (0.6s before contact); direct calls spawned voices with
     exact octave math 0.59/0.68 = `0.5×(1+0.35×I)`)*
 
-47. **Graze spark** — a small particle burst at the ball when a
-    near-miss pays (`RoBallNearMiss` bump) or a press-thread lands, so
-    the dodge reads physically at the moment of risk. One pooled
-    emitter, client-only, honors "no per-frame allocation".
+47. **Graze spark** *(done — fb8657a: a pooled `GrazeSpark` emitter
+    rides the ball (bound per run, cleared on removal); near-miss and
+    press-thread bumps `Emit(8)` icy shards — the dodge reads physically
+    at the moment of risk, not only as HUD text. Verified live: emitter
+    confirmed on the ball and the attr→Emit path ran clean mid-run; the
+    0.45s burst is too brief to capture via tool round-trips)*
 
 ## Standing rules for new work
 
