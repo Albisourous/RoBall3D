@@ -263,7 +263,7 @@ narrow. Then the seeded generator takes over.
 | `TunnelSlot` | Roof ribbon + hanging slabs leaving one corridor + decor teeth | Enclosed corridor | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
-| `Rotor` | Post + spinning arm; swept disc never covers the far corridor | Timing + bait gems | 6+ |
+| `Rotor` | Near-center post + spinning arm; swept disc can't reach either rim — both rails are always-clear lanes | Timing + bait gems | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
 - Every row of lethal geometry must leave ≥1 clear corridor ≥
@@ -363,9 +363,11 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
 
 1. Every lethal row leaves ≥ `Obstacles.CorridorMin` of continuous deck —
    including movers: the Pacer's gap is constant-width (slabs overhang the
-   rim and slide together); the Rotor's swept disc is bounded so the far
-   corridor is never swept. And no chunk may squeeze the deck under
-   `Generation.MinWidth` (4 studs) — Pinch and SplitGap rails floor there.
+   rim and slide together); the Rotor's near-center post sweeps a disc
+   bounded `CorridorMin` short of BOTH rims — two always-clear lanes, and
+   the worst entry owes only ~halfW of transit. And no chunk may squeeze
+   the deck under `Generation.MinWidth` (4 studs) — Pinch and SplitGap
+   rails floor there.
 2. Read distance ≥ `speed × ReactionTime` before any commitment. A chain
    of ONE repeated pattern (Chicane/SnakeField) may use a ×0.75/×0.5
    window — the read is learned from the first row. Chained chunks size
@@ -399,7 +401,10 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
    (a center entry must reach a rail before the floor is gone); `gateRow`
    and `DropGate` draw the slot inside `latReach(lead)` of the far edge;
    `Chicane` bounds its alternating amplitude by the entry→row-1 and
-   row→row transits. Empty chunks are still refused over silently-empty.
+   row→row transits; `Rotor` grows its lead until a mid-deck entry can
+   reach the nearer always-clear rim lane — and `canRun` declines it when
+   that lead would exceed `2 × ChunkMaxLength` (a degenerate runway on
+   wide/fast decks). Empty chunks are still refused over silently-empty.
 6. Gem lines breadcrumb the intended line through every hard chunk —
    SnakeField's zig line, Fork's risk rail, gate gaps, pad arcs.
 

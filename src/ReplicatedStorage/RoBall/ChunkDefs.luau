@@ -860,7 +860,7 @@ local MinEntryWidth = {
 	SplitGap = 10, -- two MinWidth rails + a 2-stud void
 	Slalom = 16, -- sway must leave a ball-width corridor under the worst phase
 	Pacer = 26,
-	Rotor = 14,
+	Rotor = 23, -- center-post windmill needs arm half >= 3 with both rim lanes
 	Fork = 24,
 	TunnelSlot = 18,
 }
@@ -887,6 +887,17 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 		return Config.Features.JumpOrbs == true
 	elseif name == "FlipRide" then
 		return Config.Features.GravityFlip == true
+	elseif name == "Rotor" then
+		-- Center-post windmill: both rims keep CorridorMin lanes and the
+		-- worst entry owes ~halfW of transit — the builder grows the lead
+		-- to afford it. Decline when the lead would be a degenerate runway
+		-- (wide/fast decks).
+		local halfW = st.width / 2
+		local lead = latTravel(
+			halfW - Config.Obstacles.CorridorMin + Config.Ball.Diameter / 2,
+			Tiers.speedAt(st.dist + 100)
+		) / 0.45
+		return lead <= 2 * Config.Generation.ChunkMaxLength
 	end
 	return true
 end
@@ -1318,19 +1329,24 @@ function ChunkDefs.Pacer(rng: Random, st: GenState, tier, debut: boolean?): Chun
 	)
 end
 
--- Rotor: a lethal post off one rail with a spinning bar — the swept disc
--- never covers the far corridor, so there's always an open lane; gems
--- inside the sweep zone dare you to time it anyway.
+-- Rotor: a near-center lethal post with a spinning bar — the swept disc
+-- can't reach EITHER rim, so both rails are always-clear lanes and the
+-- worst entry (mid-deck) only owes ~halfW of transit, not a full-deck
+-- cross. Gems inside the sweep zone dare you to time it anyway.
 function ChunkDefs.Rotor(rng: Random, st: GenState, tier, debut: boolean?): ChunkSpec
-	local length = rng:NextInteger(45, 65)
 	local halfW = st.width / 2
+	local postX = rng:NextNumber(-Config.Movers.RotorPostJitter, Config.Movers.RotorPostJitter) * halfW
+	-- Disc must stop CorridorMin short of both rims; canRun requires a
+	-- meaningful arm (>= 3 half-length) or the windmill is a stub.
+	local armHalf = math.min(halfW * Config.Movers.RotorArmFrac, halfW - Config.Obstacles.CorridorMin - math.abs(postX))
+	-- Reach-honest lead (§8.6): worst entry is near the post, ~armHalf +
+	-- ball radius from the nearest rim lane. The chunk grows until the
+	-- shortest rotor lead (tRot = 0.45) affords that transit.
+	local transit = math.max(armHalf + Config.Ball.Diameter / 2 - math.abs(postX), 0)
+	local length = math.max(rng:NextInteger(45, 65), math.ceil(latTravel(transit, Tiers.speedAt(st.dist + 100)) / 0.45))
 	local map = st.map or SongMap
 	local beatSec = 60 / (map.bpm * MusicGrid.playbackSpeedAt(tier.speed))
 	local period = beatSec * Config.Movers.RotorBeats * (if debut then 1.5 else 1)
-	local side = rng:NextInteger(0, 1) * 2 - 1 -- open corridor is on this side
-	local postX = -side * halfW * Config.Movers.RotorPostFrac
-	-- Disc edge must stop CorridorMin short of the far rim.
-	local armHalf = math.min(halfW * Config.Movers.RotorArmFrac, halfW - Config.Obstacles.CorridorMin - postX * side)
 	local tRot = rng:NextNumber(0.45, 0.6)
 	local obstacles = {
 		{ t = tRot, xOff = postX, w = 1.8, h = Config.Movers.RotorPostH, d = 1.8 },

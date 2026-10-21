@@ -215,7 +215,7 @@ Config.Movers = {
 	PacerRimMargin = 2, -- sliding gap never closes nearer than this to a rim
 	RotorBeats = 6, -- full sweep period in beats (debut runs it 1.5x)
 	RotorArmFrac = 1.15, -- arm half-length vs half deck width (pre-clamp)
-	RotorPostFrac = 0.4, -- post sits this fraction of halfW toward one edge
+	RotorPostJitter = 0.12, -- post wanders this fraction of halfW off center
 	RotorArmH = 1.4, -- arm bar height — sweeps the ball's lower half
 	RotorPostH = 5,
 }

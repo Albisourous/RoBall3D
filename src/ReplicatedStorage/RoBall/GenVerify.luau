@@ -202,18 +202,22 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 
 		-- Static lethal blockers for the reachability band: at a row's
 		-- depth the ball can only occupy the corridor gaps, which shapes
-		-- what the next chunk must survive. Movers and tunnel teeth are
-		-- timing/decoration, and pad chunks exempt their strip — the
-		-- crossing is airborne (the kick audit owns it).
+		-- what the next chunk must survive. Spin arms audit as their whole
+		-- swept disc — the guaranteed lane is the always-clear corridor,
+		-- threading the arm is bonus skill, not the required read. slideX
+		-- movers and tunnel teeth stay timing/decoration, and pad chunks
+		-- exempt their strip — the crossing is airborne (kick audit owns it).
 		local blockers: { { t0: number, t1: number, xOff: number, hw: number } } = {}
 		if spec.obstacles then
 			local stripHMax = Config.Pads.StripH + 0.01
 			for _, ob in ipairs(spec.obstacles) do
 				local isTooth = ob.hang == true and ob.h <= Config.Tunnel.ToothMax + 0.01
-				local isMover = ob.motion ~= nil
+				local isMover = ob.motion ~= nil and ob.motion.kind ~= "spin"
 				local isStrip = spec.pads ~= nil and ob.h <= stripHMax
 				if not (isTooth or isMover or isStrip) then
-					local zHalf = ob.d / (2 * spec.length)
+					-- (depth + ball diameter)/2L: the ball's center collides
+					-- over that z-window — also keeps thin rows on a sample.
+					local zHalf = (ob.d + Config.Ball.Diameter) / (2 * spec.length)
 					table.insert(blockers, { t0 = ob.t - zHalf, t1 = ob.t + zHalf, xOff = ob.xOff, hw = ob.w / 2 })
 				end
 			end
