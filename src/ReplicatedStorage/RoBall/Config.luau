@@ -16,16 +16,21 @@ Config.Ball = {
 	ElasticityWeight = 100,
 }
 
--- Forward speed is tier-driven: the generator moves the target up at each
--- milestone and the ball eases toward it at Accel.
+-- Forward speed is a logarithmic curve (DESIGN.md §9): the whole ramp is
+--   speed(d) = Start + LogGain * ln(1 + d / LogDist)
+-- fit through the old tier milestones (~63@500m, 78@900m, 92@1400m,
+-- 105@2000m), so early game is gentler and the endless tail keeps
+-- climbing slower than linear — the width-shrink + reaction squeeze
+-- carry difficulty, not an out-of-control odometer.
 Config.Speed = {
-	Start = 40, -- studs/s
-	Accel = 6, -- studs/s^2 ease toward tier target
+	Start = 34, -- studs/s — a shade under the old 40 opener: learnable, not boring
+	Accel = 6, -- studs/s^2 ease toward the curve target
+	LogGain = 49.3, -- curve slope (studs/s per log unit)
+	LogDist = 625, -- characteristic distance, meters — d/D inside ln(1+x)
 	-- Reference speed for 0..1 normalization (FOV, music ramp, gem beat
-	-- spacing) — those saturate at Max. Actual speed is UNCAPPED: past the
-	-- last tier, Tiers.speedAt grows by EndlessRamp per meter forever.
+	-- spacing) — those saturate at Max. Actual speed is UNCAPPED: the log
+	-- curve keeps growing (slowly) forever.
 	Max = 110,
-	EndlessRamp = 0.012, -- studs/s gained per meter past the last tier (+12/km)
 	-- Track keeps narrowing gently: widthMin/widthMax shrink by this per
 	-- meter past the last tier, floored so lethal rows can always spawn —
 	-- below ~12 studs gateRow/BlockField have no room and the run would go
@@ -261,17 +266,15 @@ Config.Flip = {
 -- target rises, new chunk types join the pool, width range tightens.
 -- `chunkPool` entries must exist in ChunkDefs.
 Config.Tiers = {
-	{ dist = 0, speed = 40, chunkPool = { "Flat", "Slalom" }, widthMin = 40, widthMax = 50 },
+	{ dist = 0, chunkPool = { "Flat", "Slalom" }, widthMin = 40, widthMax = 50 },
 	{
 		dist = 200,
-		speed = 52,
 		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate", "Terrace" },
 		widthMin = 34,
 		widthMax = 48,
 	},
 	{
 		dist = 500,
-		speed = 64,
 		chunkPool = {
 			"Flat",
 			"Slalom",
@@ -289,7 +292,6 @@ Config.Tiers = {
 	},
 	{
 		dist = 900,
-		speed = 78,
 		chunkPool = {
 			"Flat",
 			"Slalom",
@@ -313,7 +315,6 @@ Config.Tiers = {
 	},
 	{
 		dist = 1400,
-		speed = 92,
 		chunkPool = {
 			"Flat",
 			"Narrow",
@@ -340,7 +341,6 @@ Config.Tiers = {
 	},
 	{
 		dist = 2000,
-		speed = 106,
 		chunkPool = {
 			"Flat",
 			"Narrow",

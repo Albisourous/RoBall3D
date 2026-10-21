@@ -469,8 +469,21 @@ OrbHop 3300m · FlipRide 3500m.
 
 ## 9. Difficulty & speed
 
-Tier table is in `Config.Tiers`. Crossing a tier threshold:
-- target speed steps up (40 → 106 by 2000m), eased at `6 studs/s²`
+Tier table is in `Config.Tiers` (milestones → chunk pool + width window).
+Speed itself is **one log curve**, not a tier column:
+
+```
+speed(d) = Speed.Start + Speed.LogGain * ln(1 + d / Speed.LogDist)
+         = 34 + 49.3 * ln(1 + d / 625)
+```
+
+Fit through the old step milestones — ≈48@200m, 63@500m, 78@900m,
+92@1400m, 105@2000m — then keeps rising slower than linear (~142@5km,
+~174@10km, ~197@20km). Start `34` is a shade under the old `40` opener:
+first-timer breathing room without a boring crawl. The ball eases
+toward the curve at `Accel` = `6 studs/s²`.
+
+Crossing a tier threshold:
 - new chunk types join the RNG pool
 - allowed width range tightens (24 → 4 min)
 
@@ -485,13 +498,14 @@ and its edge-margin gems make the lateral reach (Q/E dash, §4) pay off
 while the field is wide.
 
 **Endless mode** — there is no speed cap. Past the last listed tier
-(2000m), `Tiers.forDistance` extrapolates: speed rises by
-`Speed.EndlessRamp` per meter (+12 s/s per km — ~142 s/s at 5km, ~200 at
-10km) and the width window eases toward `EndlessWidth*Floor` (12/18) —
-floored where a gate row + rim margin still fits, since below ~12 studs
-lethal rows can't generate and the run would paradoxically get easier.
-The chunk pool stays tier-6's; **speed is the difficulty driver** —
-collapsing reaction time does the work, not new hazards or razor lanes.
+(2000m), `Tiers.forDistance` extrapolates: the log curve keeps climbing
+(unbounded but decelerating — ~142 s/s at 5km vs ~174 at 10km, so the
+marginal squeeze shrinks the deeper you get) and the width window eases
+toward `EndlessWidth*Floor` (12/18) — floored where a gate row + rim
+margin still fits, since below ~12 studs lethal rows can't generate and
+the run would paradoxically get easier. The chunk pool stays tier-6's;
+**speed is still the difficulty driver** — collapsing reaction time plus
+the narrowing deck do the work, not new hazards or razor lanes.
 `Config.Speed.Max` only normalizes presentation (FOV, music ramp, gem
 beat spacing all saturate at it).
 

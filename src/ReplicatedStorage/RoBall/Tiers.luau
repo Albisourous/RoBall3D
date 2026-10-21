@@ -1,6 +1,10 @@
 --!strict
 -- Distance -> tier lookup, shared by server (generation) and client
 -- (speed pacing). Pure; driven by Config.Tiers.
+-- Speed itself is NOT a tier column — it's the log curve in
+-- Tiers.speedAt (Config.Speed): gentler early, forever-rising but
+-- slower than linear. forDistance attaches it to the returned tier so
+-- `tier.speed` stays the single read for every consumer.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,6 +25,14 @@ for i, t in ipairs(Config.Tiers) do
 	(t :: any).index = i
 end
 
+function Tiers.speedAt(dist: number): number
+	-- Uncapped by design: Config.Speed.Max only bounds normalization
+	-- norms. The curve is the whole ramp — no per-tier steps, no linear
+	-- tail: Start + K * ln(1 + d/D).
+	local s = Config.Speed
+	return s.Start + s.LogGain * math.log(1 + dist / s.LogDist)
+end
+
 function Tiers.forDistance(dist: number): TierDef
 	local best = Config.Tiers[1] :: TierDef
 	for _, t in ipairs(Config.Tiers) do
@@ -30,29 +42,19 @@ function Tiers.forDistance(dist: number): TierDef
 			break
 		end
 	end
-	-- Endless mode (DESIGN.md §9): past the last listed tier, difficulty
-	-- never plateaus — speed ramps linearly forever and the width window
-	-- keeps shrinking toward its floors. Same chunk pool; the pool's
-	-- existing breadth plus collapsing reaction time does the work.
+	-- Endless mode (DESIGN.md §9): past the last listed tier, the width
+	-- window keeps shrinking toward its floors. Speed needs no tail
+	-- clause — the log curve already climbs forever.
 	local last = Config.Tiers[#Config.Tiers] :: TierDef
+	local out = table.clone(best :: any)
+	out.speed = Tiers.speedAt(dist)
 	if best == last and dist > last.dist then
 		local over = dist - last.dist
 		local s = Config.Speed
-		return {
-			index = last.index,
-			dist = last.dist,
-			speed = last.speed + over * s.EndlessRamp,
-			chunkPool = last.chunkPool,
-			widthMin = math.max(s.EndlessWidthMinFloor, last.widthMin - over * s.EndlessWidthShrink),
-			widthMax = math.max(s.EndlessWidthMaxFloor, last.widthMax - over * s.EndlessWidthShrink),
-		}
+		out.widthMin = math.max(s.EndlessWidthMinFloor, last.widthMin - over * s.EndlessWidthShrink)
+		out.widthMax = math.max(s.EndlessWidthMaxFloor, last.widthMax - over * s.EndlessWidthShrink)
 	end
-	return best
-end
-
-function Tiers.speedAt(dist: number): number
-	-- Uncapped by design: Config.Speed.Max only bounds normalization norms.
-	return Tiers.forDistance(dist).speed
+	return out
 end
 
 return Tiers
