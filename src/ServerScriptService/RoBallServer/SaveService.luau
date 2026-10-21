@@ -140,6 +140,12 @@ export type Profile = {
 	-- Weekly cup (§14): last week-tag whose run bonus + lazy podium payout
 	-- were granted — write gates both to once per week.
 	weeklyTag: string?,
+	-- Achievements (§14): unlocked ids + the lifetime stats they check
+	-- against. stats are append-only counters; unlocks never roll back.
+	achievements: { string }?,
+	statsGems: number?,
+	statsRuns: number?,
+	statsBestDist: number?,
 }
 
 function SaveService.loadProfile(userId: number): Profile?

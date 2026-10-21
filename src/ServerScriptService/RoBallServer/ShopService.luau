@@ -38,6 +38,11 @@ local questDone: { [Player]: { [string]: boolean } } = {} -- quest id -> true (t
 local questBanked: { [Player]: number } = {} -- gems banked toward today's bank quest
 local weeklyTag: { [Player]: string } = {} -- last counted weekly-cup week tag (§14)
 local pendingWeekly: { [Player]: boolean } = {} -- weekly run ended before the profile landed
+local achDone: { [Player]: { [string]: boolean } } = {} -- achievement id -> true (§14)
+local achNew: { [Player]: { string } } = {} -- ids unlocked by the latest eval (one-push toast batch)
+local statsGems: { [Player]: number } = {} -- lifetime gems banked through play
+local statsRuns: { [Player]: number } = {} -- lifetime clean runs finished
+local statsBestDist: { [Player]: number } = {} -- lifetime best single-run distance
 
 function ShopService.ownsPass(player: Player, key: string): boolean
 	local set = owned[player]
@@ -97,6 +102,17 @@ local function pushAttrs(player: Player)
 	end
 	table.insert(flags, tostring(questBanked[player] or 0))
 	player:SetAttribute("RoBallQuests", table.concat(flags, ","))
+	-- Achievements (§14): RoBallAch = the full sorted unlock set for the
+	-- menu tally; RoBallAchNew = only ids unlocked by the latest eval —
+	-- the client toasts that batch, so a restored profile never re-fires.
+	local ach = {}
+	for id in pairs(achDone[player] or {}) do
+		table.insert(ach, id)
+	end
+	table.sort(ach)
+	player:SetAttribute("RoBallAch", table.concat(ach, ","))
+	player:SetAttribute("RoBallAchNew", table.concat(achNew[player] or {}, ","))
+	achNew[player] = {}
 end
 
 local function itemArray(player: Player): { string }
@@ -127,6 +143,10 @@ local function saveNow(player: Player)
 	for id in pairs(questDone[player] or {}) do
 		table.insert(questDoneSnapshot, id)
 	end
+	local achSnapshot = {}
+	for id in pairs(achDone[player] or {}) do
+		table.insert(achSnapshot, id)
+	end
 	task.spawn(function()
 		SaveService.saveProfile(player.UserId, {
 			equipped = eqSnapshot,
@@ -138,6 +158,10 @@ local function saveNow(player: Player)
 			questDone = questDoneSnapshot,
 			questBanked = questBankedSnapshot,
 			weeklyTag = weeklyTag[player] or "",
+			achievements = achSnapshot,
+			statsGems = statsGems[player] or 0,
+			statsRuns = statsRuns[player] or 0,
+			statsBestDist = statsBestDist[player] or 0,
 		})
 	end)
 end
@@ -158,6 +182,9 @@ function ShopService.awardGems(player: Player, n: number): number
 	local mult = ShopService.ownsPass(player, "bank2x") and Config.Monetization.BankDoubleMult or 1
 	local credited = n * mult
 	bank[player] = (bank[player] or 0) + credited
+	-- Lifetime stat for achievements (§14): play-earned gems only —
+	-- purchases route through grantGems and don't count toward VAULT.
+	statsGems[player] = (statsGems[player] or 0) + credited
 	dirty[player] = true
 	player:SetAttribute("RoBallBank", bank[player])
 	return credited
@@ -218,6 +245,38 @@ function ShopService.onRunEnd(player: Player, dist: number, score: number, banke
 			end
 		end
 	end
+	-- Achievements (§14): clean runs only — the caller gates this. Stats
+	-- move first so same-run thresholds (1k dist + 100 lifetime gems)
+	-- can both clear on one ending.
+	statsRuns[player] = (statsRuns[player] or 0) + 1
+	statsBestDist[player] = math.max(statsBestDist[player] or 0, dist)
+	local allQuests = 0
+	for _, q in ipairs(Daily.quests()) do
+		if questDone[player][q.id] then
+			allQuests += 1
+		end
+	end
+	local achBonus = 0
+	local achHits = 0
+	if not achNew[player] then
+		achNew[player] = {}
+	end
+	for _, a in ipairs(Config.Monetization.Achievements) do
+		if not achDone[player][a.id] then
+			local ok = (a.kind == "runs" and statsRuns[player] >= a.target)
+				or (a.kind == "runDist" and dist >= a.target)
+				or (a.kind == "lifetimeGems" and (statsGems[player] or 0) >= a.target)
+				or (a.kind == "streak" and (dailyStreak[player] or 0) >= a.target)
+				or (a.kind == "questsAll" and allQuests >= a.target)
+			if ok then
+				achDone[player][a.id] = true
+				table.insert(achNew[player], a.id)
+				achBonus += a.reward
+				achHits += 1
+			end
+		end
+	end
+	bonus += achBonus
 	pushAttrs(player)
 	if bonus > 0 then
 		ShopService.awardGems(player, bonus)
@@ -402,6 +461,11 @@ function ShopService.onPlayerAdded(player: Player)
 	questBanked[player] = 0
 	weeklyTag[player] = ""
 	pendingWeekly[player] = false
+	achDone[player] = {}
+	achNew[player] = {}
+	statsGems[player] = 0
+	statsRuns[player] = 0
+	statsBestDist[player] = 0
 	profileReady[player] = false
 	task.spawn(function()
 		local eq = equipped[player]
@@ -454,6 +518,21 @@ function ShopService.onPlayerAdded(player: Player)
 			if typeof(prof.weeklyTag) == "string" then
 				weeklyTag[player] = prof.weeklyTag
 			end
+			-- Achievements restore unconditionally — unlocks are permanent,
+			-- stats are lifetime counters. Unknown ids are ignored.
+			if typeof(prof.achievements) == "table" then
+				for _, id in ipairs(prof.achievements) do
+					achDone[player][id] = true
+				end
+			end
+			statsGems[player] =
+				math.max(statsGems[player], if typeof(prof.statsGems) == "number" then prof.statsGems else 0)
+			statsRuns[player] =
+				math.max(statsRuns[player], if typeof(prof.statsRuns) == "number" then prof.statsRuns else 0)
+			statsBestDist[player] = math.max(
+				statsBestDist[player],
+				if typeof(prof.statsBestDist) == "number" then prof.statsBestDist else 0
+			)
 		end
 		queryPasses(player)
 		if equipped[player] == nil then
@@ -496,6 +575,11 @@ function ShopService.onPlayerRemoving(player: Player)
 	questBanked[player] = nil
 	weeklyTag[player] = nil
 	pendingWeekly[player] = nil
+	achDone[player] = nil
+	achNew[player] = nil
+	statsGems[player] = nil
+	statsRuns[player] = nil
+	statsBestDist[player] = nil
 end
 
 function ShopService.init()

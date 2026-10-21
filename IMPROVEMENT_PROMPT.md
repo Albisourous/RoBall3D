@@ -71,9 +71,13 @@ runs the loop below and does not stop until you say **stop**.
    label near-field only + NEW BEST flash on crossing. *(done — see git log)*
 4. **Daily quests** — 3 seeded missions per day (e.g. "pass 5 Rotors",
    "bank 150 gems", "reach 2200m"), gem rewards, progress in the HUD menu.
-   Reuse the `Daily` module's seed for quest selection.
+   Reuse the `Daily` module's seed for quest selection. *(done — e74df54)*
 5. **Weekly seed cup** — same machinery as the daily board keyed on ISO week;
-   bigger gem payout, own tab.
+   bigger gem payout, own tab. *(done — 15b7811: Sunday-week tag, W<n> store
+   pair, third tab, +25 first-run bonus, lazy top-3 payout 200/100/50)*
+5b. **Music canon + TRACK cycler** — FlowMusic batch (10 charts), menu bed,
+   seeded-pool gating via ActiveTracklist. *(done — bcdf769, synced from the
+   audio pipeline)*
 6. **Achievements** — milestone badges (first 1k/2.5k/5k, 50 rotor passes,
    10k lifetime gems banked). Menu section + a toast on unlock. Server-tracked
    in the profile store.

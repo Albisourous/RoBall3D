@@ -861,6 +861,62 @@ Config.Monetization = {
 	-- week via profile.weeklyTag — same-day repeats never re-pay.
 	WeeklyRunBonus = 25,
 	WeeklyTopGems = { 200, 100, 50 }, -- 1st / 2nd / 3rd on last week's board
+	-- Achievements (§14): milestone badges, server-evaluated at clean run
+	-- end. kind: runDist (one run), lifetimeGems / runs (profile stats),
+	-- streak (daily streak), questsAll (all 3 day missions done). Rewards
+	-- pay banked gems — never score. Persisted in profile.achievements.
+	Achievements = {
+		{ id = "ignition", name = "IGNITION", desc = "finish a run", kind = "runs", target = 1, reward = 5 },
+		{
+			id = "k1",
+			name = "KILOMETER",
+			desc = "reach 1000m in one run",
+			kind = "runDist",
+			target = 1000,
+			reward = 20,
+		},
+		{
+			id = "k25",
+			name = "DEEP CUT",
+			desc = "reach 2500m in one run",
+			kind = "runDist",
+			target = 2500,
+			reward = 40,
+		},
+		{
+			id = "k5",
+			name = "TERMINAL VELOCITY",
+			desc = "reach 5000m in one run",
+			kind = "runDist",
+			target = 5000,
+			reward = 80,
+		},
+		{
+			id = "bank100",
+			name = "COLLECTOR",
+			desc = "bank 100 gems lifetime",
+			kind = "lifetimeGems",
+			target = 100,
+			reward = 25,
+		},
+		{
+			id = "bank1k",
+			name = "VAULT",
+			desc = "bank 1000 gems lifetime",
+			kind = "lifetimeGems",
+			target = 1000,
+			reward = 100,
+		},
+		{ id = "streak3", name = "REGULAR", desc = "3-day streak", kind = "streak", target = 3, reward = 30 },
+		{
+			id = "quests3",
+			name = "DAILY GRIND",
+			desc = "finish all 3 day missions",
+			kind = "questsAll",
+			target = 3,
+			reward = 60,
+		},
+	},
 	BankDoubleMult = 2, -- bank2x pass multiplier
 	-- Gem pack dev products: id 0 = not created yet -> SOON. ProductGems is
 	-- the grant the server applies in ProcessReceipt; ProductPrice is only

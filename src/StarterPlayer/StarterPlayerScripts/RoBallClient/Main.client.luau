@@ -382,6 +382,37 @@ end
 player:GetAttributeChangedSignal("RoBallQuests"):Connect(refreshQuests)
 refreshQuests()
 
+-- Achievements (§14): RoBallAch = full unlock set -> menu tally;
+-- RoBallAchNew = only ids unlocked by the latest eval -> the toast batch.
+-- Keeping them separate means a restored profile never re-fires ribbons.
+local achById = {}
+for _, a in ipairs(Config.Monetization.Achievements) do
+	achById[a.id] = a
+end
+local function refreshAchievements()
+	local count = 0
+	for _ in string.gmatch(player:GetAttribute("RoBallAch") or "", "[^,]+") do
+		count += 1
+	end
+	ui:setAchievements(count)
+end
+player:GetAttributeChangedSignal("RoBallAch"):Connect(refreshAchievements)
+player:GetAttributeChangedSignal("RoBallAchNew"):Connect(function()
+	local names = {}
+	local total = 0
+	for id in string.gmatch(player:GetAttribute("RoBallAchNew") or "", "[^,]+") do
+		local a = achById[id]
+		if a then
+			table.insert(names, a.name)
+			total += a.reward
+		end
+	end
+	if #names > 0 then
+		ui:toast(string.format("◈ %s  ·  ◊ +%d", table.concat(names, " + "), total))
+	end
+end)
+refreshAchievements()
+
 -- Gem combo pip: RoBallGems ticks up per pickup; a pickup inside
 -- ComboWindow of the last extends the streak — the same window
 -- SfxController's pitch ladder uses, so the "xN" matches the chime run.

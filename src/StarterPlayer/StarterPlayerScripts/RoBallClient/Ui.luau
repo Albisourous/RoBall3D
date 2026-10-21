@@ -235,8 +235,11 @@ function Ui.new(): Ui
 	for i = 1, 3 do
 		self.questLines[i] = label(menuCol, "", 14, F_DATA, C_DIM, 10 + i)
 	end
-	label(menuCol, "", 6, F_DATA, C_DIM, 14)
-	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 15)
+	-- Achievements (§14): running unlock count — the celebration itself is
+	-- the toast; the menu keeps only the tally.
+	self.achLine = label(menuCol, "", 12, F_DATA, C_GOLD, 14)
+	label(menuCol, "", 6, F_DATA, C_DIM, 15)
+	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 14, F_DATA, C_DIM, 16)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -662,6 +665,21 @@ function Ui.new(): Ui
 	bestFlash.Parent = hud
 	self.bestFlash = bestFlash
 
+	-- Achievement toast (§14): top-center gold ribbon on unlock —
+	-- toast() writes the line, it never idles.
+	local achToast = Instance.new("TextLabel")
+	achToast.BackgroundTransparency = 1
+	achToast.Font = F_DATA
+	achToast.TextSize = 18
+	achToast.TextColor3 = C_GOLD
+	achToast.TextStrokeTransparency = 0.5
+	achToast.AnchorPoint = Vector2.new(0.5, 0)
+	achToast.Position = UDim2.new(0.5, 0, 0, 90)
+	achToast.Size = UDim2.fromOffset(560, 24)
+	achToast.Visible = false
+	achToast.Parent = gui
+	self.achToast = achToast
+
 	--=========== SPEED + POWER METER (bottom corners) ===========--
 	-- Vaporwave BPM readout (DESIGN.md §12): the digit is the heard tempo
 	-- (track bpm x snapped PlaybackSpeed — it steps in semitones with the
@@ -1055,6 +1073,22 @@ function Ui:flashBest()
 	task.delay(Config.Score.PbFlashSeconds, function()
 		flash.Visible = false
 	end)
+end
+
+-- Achievement toast (§14): "◈ NAME · +N gems" — a ribbon for the unlock
+-- moment. Back-to-back unlocks queue visually by overwriting the text.
+function Ui:toast(text: string)
+	self.achToast.Text = text
+	self.achToast.Visible = true
+	local toast = self.achToast
+	task.delay(4, function()
+		toast.Visible = false
+	end)
+end
+
+-- Achievement tally on the menu (§14): "awards n/total".
+function Ui:setAchievements(unlocked: number)
+	self.achLine.Text = string.format("awards %d/%d", unlocked, #Config.Monetization.Achievements)
 end
 
 -- Daily quests (§14): csv "1,0,0,<bankedToday>" from RoBallQuests — quest

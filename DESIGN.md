@@ -680,6 +680,19 @@ Full spec: `AUDIO.md`. Binding decisions:
   banked gems, and at the same moment lazily reads LAST week's final board
   once — a top-3 finish pays `WeeklyTopGems[rank]` (200/100/50). Both
   writes gate on profile `weeklyTag` so they fire exactly once per week.
+- **Achievements**: `Config.Monetization.Achievements` — milestone badges
+  evaluated server-side at every clean run end (`ShopService.onRunEnd`,
+  after streak + quest eval so those counts are fresh). Kinds:
+  `runs`/`runDist` (this run / lifetime), `lifetimeGems` (play-earned gems
+  — `awardGems` credits the counter; purchases through `grantGems` don't),
+  `streak` (daily streak), `questsAll` (all day missions done). Rewards
+  pay banked gems — never score. Profile carries the `achievements` id
+  list plus `statsGems`/`statsRuns`/`statsBestDist` counters; unlocks are
+  permanent and idempotent (a re-eval on a done id is a no-op). Mirroring:
+  `RoBallAch` = full sorted id CSV for the menu tally (`awards n/N`),
+  `RoBallAchNew` = only the just-unlocked batch — the client toasts
+  `◈ NAME · ◊ +N` off that attribute and clears, so a restored profile
+  never re-fires ribbons.
 - Server-side validation lite: reject submitted scores above
   `maxSpeed * elapsed * 1.15` + gem cap sanity.
 - Production guards: top-board submission is a single atomic `UpdateAsync`
