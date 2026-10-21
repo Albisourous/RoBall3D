@@ -194,9 +194,11 @@ runs the loop below and does not stop until you say **stop**.
 28b. **Death replay** *(done — b58a7b0: `Ghost.replayTail` re-baselines
     the run's last DeathOrbitSec as a dim echo through the death-cam;
     the fatal approach is visible before the card. Verified live)*
-29. **Crowd ghost on daily runs** — when the run seed is the daily seed
-    and the day's board has >1 player, replay the #2 finisher's ghost as
-    a second (silver) echo. Extends the champ pipeline by one store read.
+29. **Crowd ghost on daily runs** *(done — b755f11: the champ store is
+    now a podium `{c, r}` merged atomically in UpdateAsync (v1 bare-Champ
+    keys migrate on read); `GetGhost` returns `r` too, and on the daily
+    seed the client replays it as a labeled silver echo — verified live:
+    silver77 on daily, absent off-daily)*
 30. **Weekly cup removed** *(external — the cup board, seed keywords,
     run bonus, and podium payouts were cut when the menu went
     DAILY|RANDOM; see item 5's note)*
