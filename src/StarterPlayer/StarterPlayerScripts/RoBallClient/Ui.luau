@@ -23,6 +23,12 @@ local C_WHITE = Color3.fromRGB(245, 238, 255)
 local F_DISPLAY = Enum.Font.SciFi
 local F_DATA = Enum.Font.Code
 
+-- Boost strip geometry: LED-cell count + the segment strip's inset
+-- inside the capsule (tip/gate math derives the inner width from it).
+local BOOST_W = 220
+local BOOST_SEGS = 14
+local BOOST_PAD = 9
+
 local function label(parent, text, size, font, color, order)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
@@ -506,15 +512,16 @@ function Ui.new(): Ui
 	spdUnit.Parent = gui
 	self.spdUnit = spdUnit
 
-	-- Boost bar: a nitro capsule — tilted -4° so it reads as motion, pill
-	-- ends, a diamond bead riding the fill's leading edge, gold slash tick
-	-- at RechargeGate. Cyan fill, pink flare while boosting, orange burn
-	-- while braking, blink while latched out.
+	-- Boost bar: a vaporwave nitro strip — a tilted pill of LED segments
+	-- ramping cyan->magenta like a tape-deck VU meter. A diamond bead
+	-- rides the lit edge; the boundary cell glows partial so charge reads
+	-- analog-smooth between cells. Gold slash at RechargeGate; the strip
+	-- still flares (pink boost, orange brake, gold ready-ping).
 	local bWrap = Instance.new("Frame")
 	bWrap.Name = "BoostBar"
 	bWrap.AnchorPoint = Vector2.new(0.5, 0.5)
-	bWrap.Position = UDim2.new(0.18, 110, 1, -38)
-	bWrap.Size = UDim2.fromOffset(220, 16)
+	bWrap.Position = UDim2.new(0.18, BOOST_W / 2, 1, -38)
+	bWrap.Size = UDim2.fromOffset(BOOST_W, 18)
 	bWrap.Rotation = -4
 	bWrap.BackgroundColor3 = C_BG
 	bWrap.BackgroundTransparency = 0.25
@@ -530,40 +537,49 @@ function Ui.new(): Ui
 	bStroke.Thickness = 1.5
 	bStroke.Transparency = 0.35
 	bStroke.Parent = bWrap
-	local bFill = Instance.new("Frame")
-	bFill.BackgroundColor3 = C_CYAN
-	bFill.BorderSizePixel = 0
-	bFill.Size = UDim2.fromScale(1, 1)
-	bFill.Parent = bWrap
-	self.boostFill = bFill
-	local fCorner = Instance.new("UICorner")
-	fCorner.CornerRadius = UDim.new(1, 0)
-	fCorner.Parent = bFill
-	-- Mid-band gloss: transparency-only gradient, so the state colors
-	-- (cyan/pink/orange/gold) still drive BackgroundColor3 underneath.
-	local bGloss = Instance.new("UIGradient")
-	bGloss.Rotation = 90
-	bGloss.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.5),
-		NumberSequenceKeypoint.new(0.45, 0),
-		NumberSequenceKeypoint.new(1, 0.3),
-	})
-	bGloss.Parent = bFill
-	-- Diamond bead at the fill's leading edge — the bar's "hot tip".
+	-- Segment strip inside the capsule; unlit cells stay visible as dark
+	-- LED slots so the meter has structure even when empty.
+	local bInner = Instance.new("Frame")
+	bInner.BackgroundTransparency = 1
+	bInner.Position = UDim2.fromOffset(BOOST_PAD, 4)
+	bInner.Size = UDim2.new(1, -BOOST_PAD * 2, 1, -8)
+	bInner.Parent = bWrap
+	local bLayout = Instance.new("UIListLayout")
+	bLayout.FillDirection = Enum.FillDirection.Horizontal
+	bLayout.Padding = UDim.new(0, 3)
+	bLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	bLayout.Parent = bInner
+	self.boostSegs = {}
+	for i = 1, BOOST_SEGS do
+		local s = Instance.new("Frame")
+		s.Size = UDim2.new(1 / BOOST_SEGS, -3, 1, 0)
+		s.BackgroundColor3 = C_PANEL
+		s.BackgroundTransparency = 0.4
+		s.BorderSizePixel = 0
+		s.LayoutOrder = i
+		local sc = Instance.new("UICorner")
+		sc.CornerRadius = UDim.new(0, 3)
+		sc.Parent = s
+		s.Parent = bInner
+		self.boostSegs[i] = s
+	end
+	-- Diamond bead riding the lit edge — in wrap space (not the layout)
+	-- so its x tracks the smoothed fill fraction every frame.
 	local bTip = Instance.new("Frame")
 	bTip.AnchorPoint = Vector2.new(0.5, 0.5)
-	bTip.Position = UDim2.fromScale(1, 0.5)
-	bTip.Size = UDim2.fromOffset(11, 11)
+	bTip.Position = UDim2.new(0, BOOST_PAD, 0.5, 0)
+	bTip.Size = UDim2.fromOffset(12, 12)
 	bTip.Rotation = 45
 	bTip.BackgroundColor3 = C_CYAN
 	bTip.BorderSizePixel = 0
-	bTip.Parent = bFill
+	bTip.Visible = false
+	bTip.Parent = bWrap
 	self.boostTip = bTip
 	local bGate = Instance.new("Frame") -- gate slash; positioned by gateFrac
 	bGate.AnchorPoint = Vector2.new(0.5, 0.5)
 	bGate.Position = UDim2.fromScale(0.35, 0.5)
 	bGate.Rotation = 22
-	bGate.Size = UDim2.fromOffset(2, 18)
+	bGate.Size = UDim2.fromOffset(2, 20)
 	bGate.BackgroundColor3 = C_GOLD
 	bGate.BorderSizePixel = 0
 	bGate.Parent = bWrap
@@ -571,7 +587,7 @@ function Ui.new(): Ui
 	local bLab = Instance.new("TextLabel")
 	bLab.AnchorPoint = Vector2.new(0, 1)
 	bLab.Position = UDim2.fromOffset(0, -3)
-	bLab.Size = UDim2.fromOffset(220, 13)
+	bLab.Size = UDim2.fromOffset(BOOST_W, 13)
 	bLab.BackgroundTransparency = 1
 	bLab.Font = F_DATA
 	bLab.TextSize = 11
@@ -691,9 +707,17 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 		self.spdNum.TextColor3 = Color3.fromHSV(h, 0.92, 1)
 	end
 	if self.gateFrac then
-		self.boostGate.Position = UDim2.fromScale(self.gateFrac, 0)
+		self.boostGate.Position = UDim2.fromScale(self.gateFrac, 0.5)
 	end
-	self.boostFill.Size = UDim2.fromScale(math.clamp(boostFrac, 0, 1), 1)
+	-- Analog-smooth across the discrete cells: the shown charge eases to
+	-- the real value (~70ms) and the leading cell only glows partial, so
+	-- the strip breathes instead of stepping.
+	local frac = math.clamp(boostFrac, 0, 1)
+	local now = tick()
+	local disp = self._boostDisp or frac
+	disp += (frac - disp) * math.min(1, math.max(0, now - (self._boostT or now)) * 14)
+	self._boostT = now
+	self._boostDisp = disp
 	-- Ready flash: when charge crosses the gate upward, the bar pings gold
 	-- for a moment — you feel W come back without watching it.
 	local gate = self.gateFrac or 1
@@ -704,14 +728,26 @@ function Ui:setSpeedo(speed: number, boostFrac: number, boosting: boolean, boost
 	self._boostReady = ready
 	local blink = boostSpent and math.sin(tick() * 10) > 0
 	local flash = self._readyFlash ~= nil and tick() - self._readyFlash < 0.45
-	-- Braking (S) spends the same meter — bar burns hot orange to tell it
-	-- apart from the pink boost flare.
-	self.boostFill.BackgroundColor3 = flash and C_GOLD
-		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or C_CYAN))
-	-- The bead tip wears the same state color; hidden when the meter is
-	-- empty so it doesn't dangle off the capsule's left end.
-	self.boostTip.BackgroundColor3 = self.boostFill.BackgroundColor3
-	self.boostTip.Visible = boostFrac > 0.04
+	-- Forced state color overrides the cyan->magenta ramp: gold ready-ping,
+	-- hot orange while braking (S spends the same meter), pink boost flare.
+	local forced = flash and C_GOLD
+		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or nil))
+	local lit = disp * BOOST_SEGS
+	for i, s in ipairs(self.boostSegs) do
+		local edge = lit - (i - 1)
+		if edge > 0 then
+			s.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / BOOST_SEGS)
+			s.BackgroundTransparency = math.clamp((1 - edge) * 0.85, 0, 0.85)
+		else
+			s.BackgroundColor3 = C_PANEL
+			s.BackgroundTransparency = 0.4
+		end
+	end
+	-- The bead tip rides the smoothed lit edge, wearing the same color;
+	-- hidden when the meter is empty so it doesn't dangle off the left end.
+	self.boostTip.BackgroundColor3 = forced or C_CYAN:Lerp(C_PINK, disp)
+	self.boostTip.Position = UDim2.new(0, BOOST_PAD + disp * (BOOST_W - BOOST_PAD * 2), 0.5, 0)
+	self.boostTip.Visible = disp > 0.04
 end
 
 -- Gem combo pip under the subline (n>=2 shows "xN").
