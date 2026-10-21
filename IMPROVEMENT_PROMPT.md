@@ -216,6 +216,13 @@ runs the loop below and does not stop until you say **stop**.
     `crownChampion` with `loadPodium` reads; a dethroning fires `Crown`
     and the client toasts `♛ CROWN TAKEN from <name>` / `CLAIMED`.
     Verified live: remote → listener → `RoBallGui` toast text)*
+34. **Menu cleanup pass** *(done — 16354d3: leaderboard TOP|DAILY tabs
+    re-centered for the two-board layout (was 3-tab geometry), the
+    `audio ▸` toggle left the hero column for a fourth garage page
+    `STYLE|PACKS|BANK|AUDIO` with five stacked sliders, and today's
+    quests moved off bare text lines into a `MISSIONS` card matching
+    RUN SETUP's bordered chrome. Verified live: chips centered,
+    DAILY lit on `daily`, audio page holds 5 sliders)*
 
 ## Standing rules for new work
 
