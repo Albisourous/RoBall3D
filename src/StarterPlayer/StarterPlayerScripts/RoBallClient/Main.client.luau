@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
+local Mutator = require(ReplicatedStorage.RoBall.Mutator)
 local Ui = require(script.Parent.Ui)
 local Backdrop = require(script.Parent.Backdrop)
 local Music = require(script.Parent.MusicController)
@@ -671,6 +672,12 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	-- Live mission tracker (§14): snapshot the bank so the bank quest can
 	-- add this run's pickups to the stored today-tally.
 	ui:missionArm(player:GetAttribute("RoBallBank") or 0)
+	-- Seed flavor banner (§8.7): a non-standard mutator announces itself
+	-- over the debut channel at run start.
+	local flavorLabel = Mutator.forSeed(seed).label
+	if flavorLabel then
+		ui:flashFlavor(flavorLabel)
+	end
 	-- The attribute is set server-side just before this event fires, but
 	-- replication order isn't promised — read it lazily per frame instead.
 	bestDist = 0

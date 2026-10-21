@@ -2390,6 +2390,17 @@ function Ui:flashDebut(typeName: string)
 	end)
 end
 
+-- Seed flavor banner (§8.7): "FLAVOR ▸ PRESS GANG" — announces a
+-- non-standard mutator at run start over the same channel.
+function Ui:flashFlavor(flavorName: string)
+	self.debutFlash.Text = "FLAVOR ▸ " .. flavorName
+	self.debutFlash.Visible = true
+	local flash = self.debutFlash
+	task.delay(Config.Features.BannerSeconds, function()
+		flash.Visible = false
+	end)
+end
+
 -- Deck-edge warning (§12): one chevron per unsupported side. Called from
 -- the heartbeat probe; both args are "side has ground under it" negated.
 function Ui:setEdgeWarn(left: boolean, right: boolean)

@@ -413,6 +413,11 @@ runs the loop below and does not stop until you say **stop**.
     Verified live: `◇ reach 1500m · 60`/`◇ score 1600 · 100`/`◇ bank
     60 ◊ · 10` screenshotted mid-run)*
 
+57. **Flavor run-start banner** *(done — a non-standard seed flavor
+    announces itself at run start over the debut-banner channel:
+    `FLAVOR ▸ PRESS GANG`, same slot/seconds. Makes the daily's
+    personality legible, not just a corner label)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

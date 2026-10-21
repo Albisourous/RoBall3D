@@ -540,7 +540,9 @@ PRESSURE (lethal-heavy), AIRSHOW (spectacle-heavy), WEAVE
 (technical-heavy), ROTOR FIELD / PRESS GANG (one mover ×3.5 — soft
 bias: debut-gated movers only show once the ramp lets them in). The
 label rides the HUD seed tag, the daily status line, and the death
-card's seed line — a seed's flavor is part of its name.
+card's seed line — a seed's flavor is part of its name. A non-standard
+flavor also announces itself at run start over the debut-banner channel
+(`FLAVOR ▸ PRESS GANG`, same seconds, same slot).
 
 ## 9. Difficulty & speed
 
