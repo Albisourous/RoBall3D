@@ -447,6 +447,27 @@ Config.GemSfx = {
 	DuckRelease = 0.24,
 }
 
+Config.DashSfx = {
+	-- Q/E dash voice (SfxController, AUDIO.md §6): OFF-grid on purpose —
+	-- quantizing a panic input would cost the dodge. The same uploaded
+	-- bell plays through a PitchShiftSoundEffect swept down over the
+	-- burst: duration stays fixed, the read is a falling zip, not a chime.
+	AssetId = 88208694516408, -- reuses the uploaded rb3_gem_pickup bell
+	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.3,
+	StartOctave = 1.0, -- PitchShift octaves at press time
+	EndOctave = 0.55, -- swept target — most of the fall lands in-burst
+	SweepTime = 0.17, -- seconds for the octave to ease down (EasingStyle.Quad)
+	DirTilt = 0.06, -- E starts this fraction brighter than Q — direction signature
+	-- Denied press: flat low blip, hard-stopped so it never rings out.
+	DenyOctave = 0.45,
+	DenyVolume = 0.14,
+	DenyTime = 0.09,
+	-- Light sidechain punch on a fired dash (same duck() the chime uses).
+	DuckDepth = 0.18,
+	DuckRelease = 0.28,
+}
+
 Config.GemFx = {
 	-- Pickup flourish (GemFx.luau): ghost diamond pop + sparkle burst + ring
 	-- flash, client-local. All gold — reuses Gems.Color.

@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Music = require(script.Parent.MusicController)
@@ -97,6 +98,54 @@ local function chime()
 	-- Sidechain punch: the pickup knocks the whole mix down and it blooms
 	-- back — the chime reads as hitting the track, not stacking on it.
 	Music.duck(cfg.DuckDepth, cfg.DuckRelease)
+end
+
+-- Dash voice (AUDIO.md §6): one shot of the bell through a pitch-sweep —
+-- Octave eases StartOctave -> EndOctave while the source runs at full
+-- length, so the burst reads as a falling zip instead of a chime. A
+-- plain Sound is fine here: the zip isn't musical and never rides the
+-- SFX tap; the sidechain duck on the bus supplies the punch.
+function Sfx.dash(dir: number)
+	local cfg = Config.DashSfx
+	local s = Instance.new("Sound")
+	s.Name = "Dash"
+	s.SoundId = assetUri(cfg)
+	s.Volume = cfg.Volume
+	local ps = Instance.new("PitchShiftSoundEffect")
+	ps.Octave = cfg.StartOctave * (1 + cfg.DirTilt * dir)
+	ps.Parent = s
+	s.Parent = SoundService
+	s:Play()
+	TweenService:Create(
+		ps,
+		TweenInfo.new(cfg.SweepTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Octave = cfg.EndOctave }
+	):Play()
+	task.delay(2, function()
+		s:Destroy()
+	end)
+	Music.duck(cfg.DuckDepth, cfg.DuckRelease)
+end
+
+-- Denied press: same source flattened to a low blip and hard-stopped —
+-- a blunt "nope" that mirrors the bar's dim flicker, never a ring-out.
+function Sfx.dashDenied()
+	local cfg = Config.DashSfx
+	local s = Instance.new("Sound")
+	s.Name = "DashDenied"
+	s.SoundId = assetUri(cfg)
+	s.Volume = cfg.DenyVolume
+	local ps = Instance.new("PitchShiftSoundEffect")
+	ps.Octave = cfg.DenyOctave
+	ps.Parent = s
+	s.Parent = SoundService
+	s:Play()
+	task.delay(cfg.DenyTime, function()
+		s:Stop()
+	end)
+	task.delay(2, function()
+		s:Destroy()
+	end)
 end
 
 function Sfx.init()

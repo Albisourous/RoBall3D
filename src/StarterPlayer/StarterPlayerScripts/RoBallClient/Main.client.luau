@@ -461,12 +461,14 @@ local function tryDash(dir: number): string
 	end
 	if powerCharge < math.max(Config.Power.RechargeGate, Config.Dash.Cost) then
 		dashDeniedAt = now
+		Sfx.dashDenied()
 		return "denied"
 	end
 	powerCharge = math.max(0, powerCharge - Config.Dash.Cost)
 	dashDir = dir
 	dashUntil = now + Config.Dash.Time
 	lastDashAt = now
+	Sfx.dash(dir)
 	return "fired"
 end
 

@@ -341,6 +341,17 @@ Anything that *sounds* musical lands on the grid:
   and blooms back over `DuckRelease`; re-dips cancel the in-flight
   release. The chime voices ride the post-duck SFX tap (§4) — they punch
   *through* the dip instead of stacking on the mix.
+- **Dash zip** (`Config.DashSfx`, deliberately OFF-grid) — the dodge is a
+  panic input: quantizing it onto a subdivision would cost the move, so
+  it fires unclamped. One voice plays the bell asset through a
+  `PitchShiftSoundEffect` swept `StartOctave → EndOctave` over
+  `SweepTime` — a falling zip that ends inside the ~0.2s burst window —
+  plus a `DuckDepth`/`DuckRelease` dip on the music bus (the sidechain
+  dip is half the punch). `DirTilt` nudges `E` a hair brighter than `Q`
+  so direction carries an audible signature. A denied press (meter under
+  the marker, §4 power meter) gets a flat low blip hard-stopped at
+  `DenyTime` — a blunt "nope" that never rings out. Cooldown presses are
+  silent — denial audio mirrors the bar flicker exactly.
 
 ## 7. Scene scoring — menu, death, wind
 

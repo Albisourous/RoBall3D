@@ -123,7 +123,9 @@ explainable.
   can be bought sideways at meter cost, and a dash can even carry a
   narrow cutout laterally — voids still kill (Y stays gravity's), so
   the skip is a gamble, not a cheat. The bar flashes white for the
-  burst window. No chunk ever *requires* a dash — it only widens the
+  burst window; an accepted press plays a downward pitch-swept zip plus
+  a light mix duck, a denied press a low blip that mirrors the flicker
+  (AUDIO.md §6). No chunk ever *requires* a dash — it only widens the
   movement envelope, so every §8.1 solvability invariant still stands
   on steering alone.
 - **Restart**: `R` in any mode = instant re-roll. Mid-run it tears the run
