@@ -698,6 +698,10 @@ Config.Leaderboard = {
 -- fields are display fallbacks; the shop prefers live GetProductInfo
 -- PriceInRobux when the pass/product exists.
 Config.Monetization = {
+	-- TEMP test mode: every pack/product grants instantly on click — no
+	-- dashboard ids, no purchase prompts, and OWNED/bank behave exactly
+	-- like the real grants. Flip false (or remove) when real ids land.
+	FreeForTesting = true,
 	Passes = {
 		starter = 0, -- STARTER NEON — solar skin + sunset trail + sunset pop (~49)
 		synthwave = 0, -- SYNTHWAVE — full prism set, rainbow fx (~149)

@@ -54,6 +54,8 @@ local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
 local fnGetLeaderboard = remotes:WaitForChild("GetLeaderboard") :: RemoteFunction
 local fnEquipItem = remotes:WaitForChild("EquipItem") :: RemoteFunction
 local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
+local fnBuyPack = remotes:WaitForChild("BuyPack") :: RemoteFunction
+local fnBuyGems = remotes:WaitForChild("BuyGems") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -146,10 +148,12 @@ local function packStates(): { [string]: { label: string, enabled: boolean } }
 	end
 	for _, key in ipairs(keys) do
 		local passId = Config.Monetization.Passes[key] or 0
-		if passId == 0 then
-			states[key] = { label = "SOON", enabled = false } -- pass not created yet
-		elseif owned[key] then
+		if owned[key] then
 			states[key] = { label = "OWNED", enabled = false }
+		elseif Config.Monetization.FreeForTesting then
+			states[key] = { label = "FREE", enabled = true } -- temp: no paywall yet
+		elseif passId == 0 then
+			states[key] = { label = "SOON", enabled = false } -- pass not created yet
 		else
 			states[key] = {
 				label = "R$" .. tostring(priceCache[key] or Config.Monetization.Price[key] or "?"),
@@ -165,7 +169,9 @@ local function gemPackStates(): { [string]: { label: string, enabled: boolean } 
 	for _, key in ipairs(Config.Monetization.ProductOrder) do
 		local productId = Config.Monetization.Products[key] or 0
 		local gems = Config.Monetization.ProductGems[key] or 0
-		if productId == 0 then
+		if Config.Monetization.FreeForTesting then
+			states[key] = { label = string.format("◊%d\nFREE", gems), enabled = true } -- temp: no paywall yet
+		elseif productId == 0 then
 			states[key] = { label = string.format("◊%d\nSOON", gems), enabled = false }
 		else
 			local price = productPrice[key] or Config.Monetization.ProductPrice[key] or "?"
@@ -256,6 +262,14 @@ ui.onItemSlot = function(slot)
 end
 
 ui.onBuy = function(bundleId)
+	-- FreeForTesting (§18, temp): the server claims the pass straight into
+	-- the ownership set — same equip/save pipeline as a real purchase.
+	if Config.Monetization.FreeForTesting then
+		pcall(function()
+			fnBuyPack:InvokeServer(bundleId)
+		end)
+		return
+	end
 	local passId = Config.Monetization.Passes[bundleId] or 0
 	if passId > 0 then
 		MarketplaceService:PromptGamePassPurchase(player, passId)
@@ -263,8 +277,14 @@ ui.onBuy = function(bundleId)
 end
 
 -- Gem packs are dev products (§18 P2): prompt, and the server's
--- ProcessReceipt grants the gems.
+-- ProcessReceipt grants the gems. FreeForTesting skips the prompt.
 ui.onGemPack = function(key)
+	if Config.Monetization.FreeForTesting then
+		pcall(function()
+			fnBuyGems:InvokeServer(key)
+		end)
+		return
+	end
 	local productId = Config.Monetization.Products[key] or 0
 	if productId > 0 then
 		MarketplaceService:PromptProductPurchase(player, productId)

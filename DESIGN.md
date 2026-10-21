@@ -645,7 +645,10 @@ set across slots): passes are the platform's permanent-unlock primitive and
 keep the dashboard surface small. Pass ids live in
 `Config.Monetization.Passes`; `0` means the pass isn't created on the
 Creator Dashboard yet — the shop shows SOON and everything else still works
-(same stub pattern as `Music.Stems`).
+(same stub pattern as `Music.Stems`). `Config.Monetization.FreeForTesting`
+(temp, pre-paywall) makes every pack/product grant instantly on click
+through the same ownership/equip/save pipeline — the shop shows FREE
+instead of SOON.
 
 **Color law**: cosmetics must never sample or resemble `LethalColor`
 (255,32,48, hue ~356°). The allowed space is the vaporwave family

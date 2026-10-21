@@ -99,6 +99,12 @@ fnEquipItem.Parent = remotes
 local fnBuyItem = Instance.new("RemoteFunction")
 fnBuyItem.Name = "BuyItem"
 fnBuyItem.Parent = remotes
+local fnBuyPack = Instance.new("RemoteFunction")
+fnBuyPack.Name = "BuyPack"
+fnBuyPack.Parent = remotes
+local fnBuyGems = Instance.new("RemoteFunction")
+fnBuyGems.Name = "BuyGems"
+fnBuyGems.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 type Run = {
@@ -431,6 +437,20 @@ fnBuyItem.OnServerInvoke = function(player, itemId)
 		return false, "bad arg"
 	end
 	return ShopService.buyItem(player, itemId)
+end
+
+fnBuyPack.OnServerInvoke = function(player, key)
+	if typeof(key) ~= "string" then
+		return false, "bad arg"
+	end
+	return ShopService.claimPass(player, key)
+end
+
+fnBuyGems.OnServerInvoke = function(player, key)
+	if typeof(key) ~= "string" then
+		return false, "bad arg"
+	end
+	return ShopService.claimGemPack(player, key)
 end
 
 ShopService.init()

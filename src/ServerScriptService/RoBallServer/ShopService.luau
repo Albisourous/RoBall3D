@@ -220,6 +220,45 @@ function ShopService.equip(player: Player, itemId: string): boolean
 	return true
 end
 
+-- Free-for-testing grants (Config.Monetization.FreeForTesting — §18): the
+-- pre-paywall path. A garage click "buys" instantly — no prompt, no
+-- dashboard id — but lands through the same ownership/equip/save pipeline
+-- as a real purchase. Dead ends once the flag is off.
+function ShopService.claimPass(player: Player, key: string): (boolean, string)
+	if not Config.Monetization.FreeForTesting then
+		return false, "unavailable"
+	end
+	if Config.Monetization.Passes[key] == nil then
+		return false, "unknown pass"
+	end
+	if ShopService.ownsPass(player, key) then
+		return false, "owned"
+	end
+	if not owned[player] then
+		owned[player] = {}
+	end
+	if not equipped[player] then
+		equipped[player] = Cosmetics.defaults()
+	end
+	owned[player][key] = true
+	equipBundle(player, key)
+	pushAttrs(player)
+	saveNow(player)
+	return true, "ok"
+end
+
+function ShopService.claimGemPack(player: Player, key: string): (boolean, string)
+	if not Config.Monetization.FreeForTesting then
+		return false, "unavailable"
+	end
+	local gems = Config.Monetization.ProductGems[key]
+	if gems == nil then
+		return false, "unknown pack"
+	end
+	ShopService.grantGems(player, gems)
+	return true, "ok"
+end
+
 function ShopService.onPlayerAdded(player: Player)
 	owned[player] = {}
 	items[player] = {}
