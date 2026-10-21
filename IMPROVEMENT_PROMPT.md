@@ -384,6 +384,14 @@ runs the loop below and does not stop until you say **stop**.
     frames, echo at frame 1's `z=-6, x=2.4`, parked at the final frame's
     `z=-240`)*
 
+54. **Radar ghost ticks** *(done — c5d0f45: a cyan PB tick on the
+    radar's left edge and a gold rival tick on the right pin each
+    echo's distance-ahead (`dz = -pace`) on the same ruler the threat
+    bars use — a ghost in front climbs the strip as it pulls away;
+    behind-you clamps to the bottom edge, out-of-range pins the top.
+    Gates green; live visual check still owed — Studio was closed at
+    commit time)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`
