@@ -216,6 +216,10 @@ runs the loop below and does not stop until you say **stop**.
     `crownChampion` with `loadPodium` reads; a dethroning fires `Crown`
     and the client toasts `♛ CROWN TAKEN from <name>` / `CLAIMED`.
     Verified live: remote → listener → `RoBallGui` toast text)*
+34. **Daily rank on the death card** *(done — c54f9ab: a daily-seeded
+    session-best submits, then `dailyRank` re-reads the fresh board and
+    publishes `RoBallDailyRank`; the card fills in `daily #n today`
+    late. Cleared on run start. Verified live: attr → `daily #3 today`)*
 34. **Menu cleanup pass** *(done — 16354d3: leaderboard TOP|DAILY tabs
     re-centered for the two-board layout (was 3-tab geometry), the
     `audio ▸` toggle left the hero column for a fourth garage page
