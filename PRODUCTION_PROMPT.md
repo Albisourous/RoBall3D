@@ -60,8 +60,9 @@ entirely.
 
 ## 5. Audio & assets
 
-- [ ] Every `TrackAssets` entry loads — `AssetId = 0` tracks are dropped
-      from `ActiveTracklist` by the watchdog; sweep the list.
+- [x] Every `TrackAssets` entry loads — no `AssetId = 0` placeholders;
+      `ActiveTracklist` verified 10/10 live. Real-client load test still
+      owed post-publish (§7.6).
 - [ ] `rbxassetid://203785492` fails to load at startup ("asset type does
       not match") — **confirmed external**: not in `src/`, not in the
       Edit tree (broad ContentId-property sweep), not in either play
@@ -69,15 +70,16 @@ entirely.
       wrong expected type at Studio session/rojo-push transitions — a
       stale reference inside a Studio built-in/plugin asset. Harmless;
       nothing game code can do. Verify in a real client.
-- [ ] Menu/stem assets all load; the `Music.Wave*` scope trace
-      (BPM HUD) stays ≤ 30 Hz analyzer reads — no extra taps.
+- [x] Menu/stem assets all load; the scope waveform is procedural
+      (`WaveFns`) — no analyzer taps at all.
 - [ ] SFX ids (gem pickup, dash, UI) all resolve.
 
 ## 6. Presentation & UX
 
-- [ ] Device simulator pass: phone portrait/landscape + tablet — check
-      BPM digit + waveform vs. seed corner text, power meter, radar,
-      and the native Roblox chrome for overlap.
+- [x] Device simulator pass: landscape-locked game verified on iPhone
+      17 Pro, Galaxy A06 (low-end), iPad Pro M5 13" — pills scale on
+      narrow screens, hold buttons clear the TEMPO capsule + radar,
+      daily-seed placeholder + coach hint read correctly.
 - [ ] HUD clutter law holds: score top-right, radar right, meter
       bottom-left, BPM+wave bottom-right — nothing else perma-on-screen.
 - [ ] Menu → run → death → retry and menu → run → death → rerun-seed
