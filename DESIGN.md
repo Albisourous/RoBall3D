@@ -1431,7 +1431,11 @@ plus the real `makeSun` strip stack. SelectionBox tower outlines can't
 draw in a ViewportFrame, so the diorama path traces laid tower segments
 with neon edge parts — same `layTower` math, only the stroke primitive
 swaps. A real `Gems.Size`/`FloatY` pickup sits on the lane ahead and
-beat-pulses.
+beat-pulses — mid-loop the weave eases onto its line and the ball runs
+it over: the REAL pickup flourish fires into the WorldModel
+(`GemFx.previewBurst` — ghost pop in the gem's own shape/tint, sparkle
+burst, ring flash; the BillboardGui "+N" can't draw in a ViewportFrame)
+and the wrap respawns it.
 Animated flags (`fx = "rainbow" | "pulse" | "strobe" | "wave"` on skins —
 strobe is a fast hue flicker, wave flows the run palette across the rings;
 `"rainbow"`/`"palette"` on trails/gemfx) are evaluated in the client

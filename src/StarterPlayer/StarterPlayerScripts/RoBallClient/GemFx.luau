@@ -35,7 +35,7 @@ end
 
 -- Ghost of the collected gem: pops oversize, rises, spins, fades — in the
 -- real pickup's shape + tier tint (§8.4), resolved through GemTypes.
-local function popGem(pos: Vector3, shape: string, size: number, color: Color3)
+local function popGem(parent: Instance, pos: Vector3, shape: string, size: number, color: Color3)
 	local fx = Config.GemFx
 	local g = Instance.new("Part")
 	g.Name = "GemPopFx"
@@ -45,7 +45,7 @@ local function popGem(pos: Vector3, shape: string, size: number, color: Color3)
 	g.CFrame = CFrame.new(pos) * GemTypes.pose(g, shape, size)
 	g.Color = color
 	g.Material = Enum.Material.Neon
-	g.Parent = workspace
+	g.Parent = parent
 	local baseSize = g.Size
 	local ori = g.Orientation
 	Debris:AddItem(g, fx.PopTime + 0.1)
@@ -60,7 +60,7 @@ local function popGem(pos: Vector3, shape: string, size: number, color: Color3)
 end
 
 -- Sparkles scatter up-and-out.
-local function sparkle(pos: Vector3, color: Color3)
+local function sparkle(parent: Instance, pos: Vector3, color: Color3)
 	local fx = Config.GemFx
 	local anchor = Instance.new("Part")
 	anchor.Name = "GemSparkFx"
@@ -84,13 +84,13 @@ local function sparkle(pos: Vector3, color: Color3)
 	pe.Rate = 0
 	pe.LightEmission = 1
 	pe.Parent = anchor
-	anchor.Parent = workspace
+	anchor.Parent = parent
 	pe:Emit(fx.SparkleCount)
 	Debris:AddItem(anchor, fx.SparkleLife + 0.6)
 end
 
 -- Thin neon ring that flashes outward across the deck — the "collected!" read.
-local function ring(pos: Vector3, color: Color3)
+local function ring(parent: Instance, pos: Vector3, color: Color3)
 	local fx = Config.GemFx
 	local r = Instance.new("Part")
 	r.Name = "GemRingFx"
@@ -103,7 +103,7 @@ local function ring(pos: Vector3, color: Color3)
 	r.Color = color
 	r.Material = Enum.Material.Neon
 	r.Transparency = 0.15
-	r.Parent = workspace
+	r.Parent = parent
 	Debris:AddItem(r, fx.RingTime + 0.1)
 	TweenService:Create(r, TweenInfo.new(fx.RingTime, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		Size = Vector3.new(0.15, fx.RingSize, fx.RingSize),
@@ -160,12 +160,23 @@ local function burst(pts: number)
 	-- RoBallGemColor carries the live pickup's own tint (styled worlds
 	-- like APE BALL's banana orbs differ from the tier ramp).
 	tcolor = player:GetAttribute("RoBallGemColor") or tcolor
-	popGem(pos, shape, size, tcolor)
-	sparkle(pos, color)
-	ring(pos, color)
+	popGem(workspace, pos, shape, size, tcolor)
+	sparkle(workspace, pos, color)
+	ring(workspace, pos, color)
 	if pts > 0 then
 		popup(pos, pts, color)
 	end
+end
+
+-- Garage diorama (CosmeticFx): the same flourish fired into the preview's
+-- WorldModel — the ghost keeps the diorama gem's own shape + tint, the
+-- sparkles/ring take the BROWSED gemFx item's color. The "+N" popup is
+-- skipped: BillboardGuis can't draw inside a ViewportFrame.
+function Fx.previewBurst(parent: Instance, pos: Vector3, item: any, shape: string, size: number, color: Color3)
+	local fx = Cosmetics.colorOf(item and item.color, Config.Gems.Color, Cosmetics.huesOf(player))
+	popGem(parent, pos, shape, size, color)
+	sparkle(parent, pos, fx)
+	ring(parent, pos, fx)
 end
 
 function Fx.init()

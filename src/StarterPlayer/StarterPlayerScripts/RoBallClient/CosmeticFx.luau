@@ -5,10 +5,12 @@
 --    straight Flat ribbon emitted with TrackStreamer's own part recipe,
 --    the dressed ball rolling down-grade at the real opener speed, the
 --    real Backdrop generators around it, framed by the live chase-cam
---    transform. The loop ends at a lethal-style wall: the ball slams,
---    the browsed DEATH FX's real burst fires into the WorldModel, then
---    the wrap respawns it. Rebuilt on every browse change (unowned
---    items preview too — that's the conversion lever).
+--    transform. Mid-loop the ball steers onto the lane's pickup and the
+--    real GEM FX flourish fires into the WorldModel (GemFx.previewBurst);
+--    the wrap respawns the gem. The loop ends at a lethal-style wall:
+--    the ball slams, the browsed DEATH FX's real burst fires into the
+--    WorldModel, then the wrap respawns it. Rebuilt on every browse
+--    change (unowned items preview too — that's the conversion lever).
 -- 2) Animated skin/trail flags ("rainbow"/"pulse") applied to the live
 --    ball AND the diorama in the render loop.
 --
@@ -28,6 +30,7 @@ local BallDress = require(ReplicatedStorage.RoBall.BallDress)
 local GemTypes = require(ReplicatedStorage.RoBall.GemTypes)
 local Backdrop = require(script.Parent.Backdrop)
 local DeathFx = require(script.Parent.DeathFx)
+local GemFx = require(script.Parent.GemFx)
 
 local player = Players.LocalPlayer
 
@@ -74,6 +77,11 @@ local ROLL_LEN = 150 -- studs per loop before the wrap reset
 local SWAY_AMP = 8 -- studs of lateral weave — sells the trail's stream
 local SWAY_W = 1.1 -- weave rate (rad/s): ~1 lazy S per loop
 local SWAY_BANK = 0.3 -- steer lean into the weave (rad)
+local GEM_X = -4 -- the pickup's lane spot
+local GEM_Z = -75 -- this far down the lane
+local GEM_ROLL = ROLL_Z0 - GEM_Z -- studs in when the ball runs it over
+local GEM_STEER = 26 -- studs either side the weave yields onto the gem's line
+local GEM_TAKE = 10 -- pickup window past the gem (covers the per-frame step)
 -- Ribbon: one quad pair (core + glow) per sampled position — ~0.4 s of
 -- history at the opener pace, same coverage as TrailLifetime ×
 -- ROLL_SPEED. Ember motes peel off the wake — the boost-trail look:
@@ -109,6 +117,10 @@ local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
 local vpGemCf: CFrame? = nil
 local vpGemSize = Config.Gems.Size
+local vpGemShape = "diamond"
+local vpGemColor = Config.Gems.Color
+local vpGemItem: any = nil
+local vpGemTaken = false
 local vpBallAlpha = 0 -- rest transparency (capsule skins aren't opaque)
 -- Capsule inhabitant preview bits: anchored spheres pinned to the roll
 -- CFrame each frame (welds can't ride the diorama's manual CFraming).
@@ -253,6 +265,9 @@ function Fx.preview(items: { [string]: any })
 	vpGem = nil
 	vpGemCf = nil
 	vpGemSize = Config.Gems.Size
+	vpGemShape = "diamond"
+	vpGemItem = nil
+	vpGemTaken = false
 	vpBallAlpha = 0
 	vpMonkey = {}
 	vpTrailSegs = {}
@@ -274,6 +289,7 @@ function Fx.preview(items: { [string]: any })
 	local worldI = items.world
 	local sunI = items.sun
 	vpDeathItem = deathI
+	vpGemItem = gemI
 	vpFx = skin and skin.fx or nil
 	vpRainbowTrail = trailI ~= nil and trailI.color == "rainbow"
 	vpPaletteTrail = trailI ~= nil and trailI.color == "palette"
@@ -357,12 +373,14 @@ function Fx.preview(items: { [string]: any })
 	-- Gem on the lane ahead — the real pickup: corner-balanced cube at
 	-- FloatY over the deck, tinted by the browsed GEM FX color. Worlds
 	-- carrying a gemStyle (world_sky → "ball") restyle it the same way
-	-- TrackStreamer does live: banana orb, tier scale.
-	local gemPos = Vector3.new(-4, deckTopAt(-75) + Config.Gems.FloatY, -75)
+	-- TrackStreamer does live: banana orb, tier scale. The ball steers
+	-- onto its line in step() and really runs it over each loop.
+	local gemPos = Vector3.new(GEM_X, deckTopAt(GEM_Z) + Config.Gems.FloatY, GEM_Z)
 	local gem: BasePart
 	if worldI and worldI.gemStyle == "ball" then
 		local shape, gsize, gcol = GemTypes.ball(10)
 		vpGemSize = gsize
+		vpGemShape = shape
 		gem = vpart(Vector3.one * gsize, gemPos, gcol)
 		gem.Shape = if shape == "orb" then Enum.PartType.Ball else Enum.PartType.Block
 		vpGemCf = CFrame.new(gemPos)
@@ -375,6 +393,7 @@ function Fx.preview(items: { [string]: any })
 		)
 		vpGemCf = CFrame.new(gemPos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
 	end
+	vpGemColor = gem.Color
 	gem.Material = Enum.Material.Neon
 	gem.CFrame = vpGemCf
 	vpGem = gem
@@ -469,10 +488,12 @@ local function step()
 	end
 
 	-- Diorama anims: the ball really rolls down the straight at opener
-	-- speed (that's why the trail streams like a run), slams the wall at
-	-- the loop end — the real browsed DEATH FX bursts at the impact and
-	-- the ball hides until the wrap respawns it — the chase cam re-aims
-	-- with the live transform, rings ride the roll, the gem beat-pulses.
+	-- speed (that's why the trail streams like a run), steers onto the
+	-- gem mid-loop — the real browsed GEM FX flourish pops it — slams the
+	-- wall at the loop end (the real browsed DEATH FX bursts at the
+	-- impact and the ball hides until the wrap respawns it), the chase
+	-- cam re-aims with the live transform, rings ride the roll, the gem
+	-- beat-pulses until it's taken.
 	if vpBall then
 		local tt = tick()
 		local roll = (tt * ROLL_SPEED) % CYCLE
@@ -507,15 +528,39 @@ local function step()
 					p.Transparency = 0
 				end
 			end
+			if vpGem then
+				vpGemTaken = false
+				vpGem.Transparency = 0
+			end
 		end
 		local z = ROLL_Z0 - math.min(roll, ROLL_LEN)
 		-- Gentle lateral weave — the trail streams in a visible S instead
 		-- of a dead-straight line, like real steering input.
-		local sway = math.sin((tt * SWAY_W) % TAU) * SWAY_AMP
+		local x = math.sin((tt * SWAY_W) % TAU) * SWAY_AMP
 		local lean = math.cos((tt * SWAY_W) % TAU) * SWAY_BANK
-		local bc = CFrame.new(sway, deckTopAt(z) + BALL_D / 2, z)
+		if not dead then
+			-- Capture window around the gem: the weave eases onto the
+			-- pickup's line so the ball really runs it over, then blends
+			-- back out once it's past.
+			local w = 1 - math.abs(z - GEM_Z) / GEM_STEER
+			if w > 0 then
+				x += (GEM_X - x) * (w * w * (3 - 2 * w))
+			end
+		end
+		local bc = CFrame.new(x, deckTopAt(z) + BALL_D / 2, z)
 			* CFrame.Angles((-tt * ROLL_SPEED / (BALL_D / 2)) % TAU, 0, -lean)
 		vpBall.CFrame = bc
+		-- Pickup: the ball crosses the gem's line — hide it and fire the
+		-- real flourish into the WorldModel. The GEM_TAKE window keeps a
+		-- mid-loop rebuild (roll already past) from popping a gem the ball
+		-- missed; that gem just waits for the wrap.
+		if vpGem and not vpGemTaken and not dead and roll >= GEM_ROLL and roll < GEM_ROLL + GEM_TAKE then
+			vpGemTaken = true
+			vpGem.Transparency = 1
+			if wmodel then
+				GemFx.previewBurst(wmodel, bc.Position, vpGemItem, vpGemShape, vpGemSize, vpGemColor)
+			end
+		end
 		for _, b in ipairs(vpMonkey) do
 			b.part.CFrame = bc * CFrame.new(b.off)
 		end
@@ -594,7 +639,7 @@ local function step()
 			end
 		end
 	end
-	if vpGem and vpGemCf then
+	if vpGem and vpGemCf and not vpGemTaken then
 		-- Beat pulse — same swell fraction live pickups use.
 		vpGem.Size = Vector3.one * vpGemSize * (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
 		vpGem.CFrame = vpGemCf
