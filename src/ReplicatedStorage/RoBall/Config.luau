@@ -1610,6 +1610,7 @@ Config.Menu = {
 	ChromePulse = 0.04, -- §2 poster swell per pulse unit
 	SpringStiff = 170, -- §4 cycler spring stiffness
 	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
+	SpringDtMax = 1 / 20, -- §4 frame dt cap — a hitch must not slingshot the spring
 	JacketPx = 40, -- §4 cycler overshoot amplitude in px
 	UiTick = { -- §5 grid-snapped menu hitsounds
 		Subdiv = 4, -- 16th-note snap, same as the gem chime
@@ -1622,6 +1623,7 @@ Config.Menu = {
 		ClickRelease = 0.3,
 	},
 	StampSec = 0.25, -- §7 death-hero stamp duration
+	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
 	StampDuck = 0.3, -- §7 duck depth when the card lands
 	StampDuckRelease = 0.5,
 	MenuSpecBars = 24, -- §8 scope segments

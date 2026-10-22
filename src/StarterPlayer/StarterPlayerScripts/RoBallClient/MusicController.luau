@@ -399,8 +399,8 @@ end
 
 -- Back to the menu (§18: the garage lives there): reverse the tape-stop —
 -- playback speed and the lowpass ease back to the muffled menu bed.
-function Music.onMenu()
-	selectTrack(m.menuTrackId()) -- parked bed, not the run's seeded pick
+function Music.onMenu(previewId: string?)
+	selectTrack(previewId or m.menuTrackId()) -- parked bed follows the menu's browse pick
 	norm = 0
 	local speed = ps()
 	for _, p in ipairs(players) do
@@ -411,6 +411,13 @@ function Music.onMenu()
 		TweenService:Create(shifter, TweenInfo.new(m.FilterSweepTime), { Pitch = speed ^ -m.PitchCompensation }):Play()
 	end
 	setFilter(m.MenuCutoffHz, m.FilterSweepTime)
+end
+
+-- MENU.md §3: menu audition — swap the muffled bed to the browsed track.
+-- Menu-only; the filter/volumes stay parked at menu values, so PLAY's
+-- filter-open is a lift on the same stream, not a cut.
+function Music.preview(id: string?)
+	selectTrack(id or m.menuTrackId()) -- nil/RANDOM re-parks the bed
 end
 
 -- speedNorm (ball fwdSpeed vs Speed.Start..Max). The top is UNclamped —

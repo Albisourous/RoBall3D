@@ -195,6 +195,32 @@ function Sfx.dangerPing(intensity: number)
 	end)
 end
 
+-- Menu hitsounds (MENU.md §5): UI ticks quantized to the heard grid —
+-- the gem-chime trick on quieter voices. Hover reads as a hat tick (a
+-- flattened blip at a high octave), click as a low kick that knocks the
+-- bed — browsing the menu plays the track like percussion, not UI noise.
+function Sfx.uiTick(kind: string)
+	local cfg = Config.Menu.UiTick
+	local delay = Music.nextGridDelay(cfg.Subdiv, cfg.Cap)
+	task.delay(delay, function()
+		local s = Instance.new("Sound")
+		s.Name = "UiTick"
+		s.SoundId = assetUri(Config.DashSfx)
+		s.Volume = (if kind == "click" then cfg.ClickVol else cfg.HoverVol) * AudioMix.gain("dash")
+		local ps = Instance.new("PitchShiftSoundEffect")
+		ps.Octave = if kind == "click" then cfg.ClickOct else cfg.HoverOct
+		ps.Parent = s
+		s.Parent = SoundService
+		s:Play()
+		s.Ended:Connect(function()
+			s:Destroy()
+		end)
+	end)
+	if kind == "click" then
+		Music.duck(cfg.ClickDuck, cfg.ClickRelease) -- the kick punches the bed
+	end
+end
+
 function Sfx.init()
 	Music.preloadSfx(assetUri(Config.GemSfx)) -- warm the decode so the first pickup isn't late
 	lastGems = player:GetAttribute("RoBallGems") or 0

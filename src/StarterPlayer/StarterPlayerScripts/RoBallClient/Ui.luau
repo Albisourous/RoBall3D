@@ -70,10 +70,9 @@ local METER_PAD = 9
 local WAVE_W = 140
 local WAVE_H = 42
 
--- Menu feel (MENU.md): cycler springs ride the menu's own frame tick —
--- a hitch (window drag, load stall) must not slingshot them, so dt caps.
-local SPRING_DT_MAX = 1 / 20
-local STAMP_KICK = 1.35 -- §7: the death hero slams in past 100%, then settles
+-- Menu feel (MENU.md): tunables live in Config.Menu — springs ride the
+-- menu's own frame tick (pulseMenu), and the death hero stamps in on
+-- the Back ease there.
 
 local function label(parent, text, size, font, color, order)
 	local l = Instance.new("TextLabel")
@@ -343,31 +342,35 @@ function Ui.new(): Ui
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	ruleGrad.Parent = rule
-	self.ruleGrad = ruleGrad
+	self.ruleGrad = ruleGrad -- §2: pulseMenu dips the mid keypoint on the beat
 
-	-- MENU.md §8: a second, thinner scope strip under the horizon rule —
-	-- the menu's heartbeat monitor, sharing setWave's discipline
-	-- (2px-quantized heights, per-seg cache, repaint on change only).
+	-- Menu scope strip (MENU.md §8): a second, thinner spectrum trace
+	-- parked under the horizon rule — the poster's heartbeat monitor
+	-- while the menu idles. Child of `rule`, NOT menuCol: a Frame child
+	-- doesn't ride menuCol's UIListLayout, so it never takes a slot.
+	-- menuScope() paints it with setWave's write-gated discipline.
 	local mScope = Instance.new("Frame")
+	mScope.Name = "MenuScope"
+	mScope.AnchorPoint = Vector2.new(0.5, 0)
+	mScope.Position = UDim2.new(0.5, 0, 0, 10)
+	mScope.Size = UDim2.fromOffset(rule.Size.X.Offset, Config.Menu.MenuSpecH)
 	mScope.BackgroundTransparency = 1
-	mScope.Size = UDim2.fromOffset(280, 14)
-	mScope.LayoutOrder = 4
-	mScope.Parent = menuCol
-	self.menuScopeSegs = {}
-	self._menuScopeCache = {}
-	local nScope = Config.Music.WavePoints
-	local scopeStep = 280 / nScope
-	for i = 1, nScope do
+	mScope.Parent = rule
+	self.menuWaveSegs = {}
+	self._menuWaveCache = {}
+	local menuStep = rule.Size.X.Offset / Config.Menu.MenuSpecBars
+	for i = 1, Config.Menu.MenuSpecBars do
 		local s = Instance.new("Frame")
 		s.AnchorPoint = Vector2.new(0, 1)
-		s.Position = UDim2.new(0, math.floor((i - 1) * scopeStep + 0.5), 1, 0)
-		s.Size = UDim2.fromOffset(2, 2)
-		s.BackgroundColor3 = C_CYAN:Lerp(C_PINK, (i - 1) / (nScope - 1))
-		s.BackgroundTransparency = 0.25
+		s.Position = UDim2.new(0, math.floor((i - 1) * menuStep + 0.5), 1, 0)
+		s.Size = UDim2.fromOffset(3, 2)
+		s.BackgroundColor3 = C_CYAN
 		s.BorderSizePixel = 0
 		s.Parent = mScope
-		self.menuScopeSegs[i] = s
+		self.menuWaveSegs[i] = s
 	end
+
+	label(menuCol, "", 8, F_DATA, C_DIM, 4)
 
 	-- PLAY is the single solid element on the menu — a filled neon slab,
 	-- not another ghosted outline, so the one action that matters reads
@@ -384,6 +387,7 @@ function Ui.new(): Ui
 	play.LayoutOrder = 5
 	play.Parent = menuCol
 	local playScale = Instance.new("UIScale") -- MENU.md §2: the poster's beat swell rides this
+	playScale.Name = "PulseScale"
 	playScale.Scale = 1
 	playScale.Parent = play
 	self.playScale = playScale
@@ -410,6 +414,7 @@ function Ui.new(): Ui
 		playStroke.Transparency = 0.55
 	end)
 	self.playBtn = play
+	wireTick(play)
 
 	self.playHint = label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6)
 	self.playHint.TextTransparency = 0.25
@@ -448,6 +453,7 @@ function Ui.new(): Ui
 		dashStroke.Color = C_GOLD
 	end)
 	self.dashToggle = dash
+	wireTick(dash)
 
 	-- SEED row: empty means "daily" — the placeholder IS the default, no
 	-- chip to flip; typed text seeds the map (keywords stay live, §14).
@@ -490,6 +496,11 @@ function Ui.new(): Ui
 	seedStroke.Parent = seedBox
 	seedBox.Parent = seedRow
 	self.seedBox = seedBox
+	-- §5: the seed box is the menu's one text field — keyboard players
+	-- "hover" it by focusing, so focus lands the tick.
+	seedBox.Focused:Connect(function()
+		Sfx.uiTick("hover")
+	end)
 
 	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip —
 	-- run-scoped, so it rides the hero column, not the garage.
@@ -525,23 +536,33 @@ function Ui.new(): Ui
 	trkName.TextXAlignment = Enum.TextXAlignment.Center
 	trkName.Parent = trkRow
 	self.trackName = trkName
+	-- §4 spring cycler: the arrows move the spring's target; the name
+	-- rides the residual so each cycle kicks ~JacketPx then re-seats.
+	self._trkSpring = { pos = 0, vel = 0, target = 0 }
+	self._trkPos = trkName.Position
+	self._trkKick = 0
+	wireTick(trkName)
 
 	local trkLeft = arrowButton(trkRow, "<", 64, 2)
 	trkLeft.Name = "TrackPrev"
 	trkLeft.Selectable = true
 	trkLeft.MouseButton1Click:Connect(function()
+		self._trkSpring.target -= 1
 		if self.onTrackCycle then
 			self.onTrackCycle(-1)
 		end
 	end)
+	wireTick(trkLeft)
 	local trkRight = arrowButton(trkRow, ">", 258, 2)
 	trkRight.Name = "TrackNext"
 	trkRight.Selectable = true
 	trkRight.MouseButton1Click:Connect(function()
+		self._trkSpring.target += 1
 		if self.onTrackCycle then
 			self.onTrackCycle(1)
 		end
 	end)
+	wireTick(trkRight)
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 10)
 
@@ -621,6 +642,7 @@ function Ui.new(): Ui
 		b.Position = UDim2.fromOffset(x, 10)
 		b.Size = UDim2.fromOffset(96, 26)
 		b.Parent = board
+		wireTick(b)
 		return b
 	end
 	-- DAILY leads: the menu's default run is today's shared seed, so its
@@ -821,6 +843,7 @@ function Ui.new(): Ui
 		b.MouseButton1Click:Connect(function()
 			setGarageTab(name)
 		end)
+		wireTick(b)
 	end
 	setGarageTab("STYLE")
 
@@ -870,6 +893,12 @@ function Ui.new(): Ui
 	self.slotSwatch = {}
 	self.slotSwatchStroke = {}
 	self.slotTint = {}
+	-- §4 (stretch): the equip rows are persistent frames — setGarage only
+	-- rewrites Text — so each name button keeps a cycler spring exactly
+	-- like the TRACK row.
+	self._slotSpring = {}
+	self._slotPos = {}
+	self._slotKick = {}
 	local pageStyle = gPages.STYLE
 	local ROW_Y0 = 4
 	local ROW_PITCH = 26 -- 8 slots + the color lab have to fit the page
@@ -897,6 +926,9 @@ function Ui.new(): Ui
 		nm.Size = UDim2.fromOffset(182, 24)
 		nm.Parent = pageStyle
 		self.slotItem[slot] = nm
+		self._slotSpring[slot] = { pos = 0, vel = 0, target = 0 }
+		self._slotPos[slot] = nm.Position
+		self._slotKick[slot] = 0
 		local sw = Instance.new("Frame")
 		sw.Name = "Swatch"
 		sw.AnchorPoint = Vector2.new(1, 0.5)
@@ -932,12 +964,14 @@ function Ui.new(): Ui
 
 		local left = arrowButton(pageStyle, "<", 72, y)
 		left.MouseButton1Click:Connect(function()
+			self._slotSpring[slot].target -= 1
 			if self.onEquipCycle then
 				self.onEquipCycle(slot, -1)
 			end
 		end)
 		local right = arrowButton(pageStyle, ">", 288, y)
 		right.MouseButton1Click:Connect(function()
+			self._slotSpring[slot].target += 1
 			if self.onEquipCycle then
 				self.onEquipCycle(slot, 1)
 			end
@@ -2427,6 +2461,11 @@ function Ui.new(): Ui
 	self.dPanelTitle = prow("", 1)
 	self.dScore = prow("", 2, true)
 	self.dScore.Size = UDim2.new(1, 0, 0, 40) -- inline 30px hero number
+	-- §7 stamp: UIScale lets showDeath slam the hero row in past 100%.
+	local dScoreScale = Instance.new("UIScale")
+	dScoreScale.Name = "StampScale"
+	dScoreScale.Parent = self.dScore
+	self.dScoreScale = dScoreScale
 	self.dBest = prow("", 3)
 	local pDiv = Instance.new("Frame")
 	pDiv.Size = UDim2.new(1, 0, 0, 1)
@@ -2483,6 +2522,8 @@ function Ui.new(): Ui
 	end)
 	self.retryBtn = retry
 	self.toMenuBtn = toMenu
+	wireTick(retry)
+	wireTick(toMenu)
 	self.deathHint = label(dCol, "press R", 13, F_DATA, C_DIM, 8)
 	self.deathHint.TextTransparency = 0.25
 
@@ -2819,10 +2860,35 @@ end
 -- MENU.md §2: the poster thumps on the menu bed — PLAY swells a few
 -- percent and the horizon rule's mid keypoint dips (the menu's only
 -- filled element is the one that breathes). setWave's discipline:
--- quantized envelope, write only on change, menu-only.
+-- quantized envelope, write only on change, menu-only. Doubles as the
+-- menu's per-frame spring tick (§4): cyclers integrate EVERY call, so
+-- they run ahead of the env early-out.
 function Ui:pulseMenu()
 	if not self.menu.Visible then
+		self._menuT = nil -- reopening starts a fresh clock, not a stale dt
 		return
+	end
+	local now = os.clock()
+	local dt = math.min(now - (self._menuT or now), Config.Menu.SpringDtMax)
+	self._menuT = now
+	-- §4 cyclers: the arrows move the target; the label rides the spring
+	-- residual (pos - target) — the transient kick that re-seats the name
+	-- on its slot once settled. Quantized + write-gated so a parked
+	-- cycler costs nothing.
+	local s = self._trkSpring
+	s.pos, s.vel = spring(s.pos, s.vel, s.target, dt)
+	local kq = math.floor((s.pos - s.target) * 64 + 0.5) / 64
+	if kq ~= self._trkKick then
+		self._trkKick = kq
+		self.trackName.Position = self._trkPos + UDim2.fromOffset(kq * Config.Menu.JacketPx, 0)
+	end
+	for slot, ss in pairs(self._slotSpring) do
+		ss.pos, ss.vel = spring(ss.pos, ss.vel, ss.target, dt)
+		local sq = math.floor((ss.pos - ss.target) * 64 + 0.5) / 64
+		if sq ~= self._slotKick[slot] then
+			self._slotKick[slot] = sq
+			self.slotItem[slot].Position = self._slotPos[slot] + UDim2.fromOffset(sq * Config.Menu.JacketPx, 0)
+		end
 	end
 	local e8 = math.floor((self.pulse or 0) * 8 + 0.5) / 8
 	if e8 == self._menuEnv then
@@ -2838,27 +2904,29 @@ function Ui:pulseMenu()
 end
 
 -- MENU.md §8: a second, thinner scope under the horizon rule — setWave's
--- loop over a second seg set (quantized heights, per-seg cache, repaint
--- on change), gated on the menu being up.
+-- loop over a second seg set (2px-quantized heights, per-seg cache,
+-- repaint on change only), gated on the menu being up so a still menu
+-- costs nothing. Main pushes Music.spectrum()'s shared buffer here.
 function Ui:menuScope(spec: { number }?)
 	if not self.menu.Visible then
 		return
 	end
-	local segs = self.menuScopeSegs
+	local segs = self.menuWaveSegs
 	if not segs then
 		return
 	end
-	local cache = self._menuScopeCache
+	local cache = self._menuWaveCache
 	local env = math.min(1, (self.pulse or 0) * Config.Music.WaveBeatGain)
 	local amp = Config.Music.WaveBeatFloor + (1 - Config.Music.WaveBeatFloor) * env
+	local maxH = Config.Menu.MenuSpecH
 	local gamma = Config.Music.WaveGamma
 	for i, s in ipairs(segs) do
 		local v = spec and spec[i] or 0
 		v = v ^ gamma
-		local h = math.max(2, math.floor(v * amp * 12 / 2 + 0.5) * 2)
+		local h = math.max(2, math.floor(v * amp * maxH / 2 + 0.5) * 2)
 		if h ~= cache[i] then
 			cache[i] = h
-			s.Size = UDim2.fromOffset(2, h)
+			s.Size = UDim2.fromOffset(3, h)
 		end
 	end
 end
@@ -3231,6 +3299,15 @@ function Ui:showDeath(
 		spaced(tostring(score)),
 		newBest == true and '      <font color="#FFD440">★ NEW BEST!</font>' or ""
 	)
+	-- Stamp (MENU.md §7): the hero row slams in past 100% and settles on
+	-- a Back ease — osu's grade stamp. ★ NEW BEST is inline rich text on
+	-- this same label, so the one scale stamps both.
+	self.dScoreScale.Scale = Config.Menu.StampKick
+	TweenService:Create(
+		self.dScoreScale,
+		TweenInfo.new(Config.Menu.StampSec, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Scale = 1 }
+	):Play()
 	self.dBest.Text = string.format("%-6s   %s", "best", spaced(tostring(best)))
 	self.dLoot.Text = string.format(
 		'%-6s   %-13s  %-6s  <font color="#FFD440">◊ +%d</font>',
