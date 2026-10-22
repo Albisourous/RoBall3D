@@ -210,7 +210,7 @@ function Ui.new(): Ui
 		local f = Instance.new("Frame")
 		f.Name = name
 		f.BackgroundColor3 = C_PANEL
-		f.BackgroundTransparency = 0.06
+		f.BackgroundTransparency = 0
 		f.BorderSizePixel = 0
 		f.AnchorPoint = Vector2.new(0.5, 1)
 		f.Position = UDim2.new(0.5, 0, 1, -98)
@@ -569,7 +569,7 @@ function Ui.new(): Ui
 	board.Position = UDim2.new(0.5, 0, 1, -98)
 	board.Size = UDim2.fromOffset(340, 78 + TOP_N * 25 + RECENT_H)
 	board.BackgroundColor3 = C_PANEL
-	board.BackgroundTransparency = 0.06
+	board.BackgroundTransparency = 0
 	board.BorderSizePixel = 0
 	board.Visible = false
 	board.Parent = menu
@@ -727,7 +727,7 @@ function Ui.new(): Ui
 	garage.Position = UDim2.new(0.5, 0, 1, -98)
 	garage.Size = UDim2.fromOffset(340, 430)
 	garage.BackgroundColor3 = C_PANEL
-	garage.BackgroundTransparency = 0.06
+	garage.BackgroundTransparency = 0
 	garage.BorderSizePixel = 0
 	garage.Visible = false
 	garage.Parent = menu
