@@ -193,6 +193,7 @@ function Ui.new(): Ui
 	self.onRetry = nil :: (() -> ())?
 	self.onMenu = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
+	self.onRandomize = nil :: (() -> ())? -- RANDOM chip: slot-machine the browse set
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
 	self.onDashMode = nil :: (() -> ())? -- menu dash-style toggle
 	self.onBuy = nil :: ((bundleId: string) -> ())?
@@ -786,12 +787,21 @@ function Ui.new(): Ui
 	fov.Parent = vp
 	self.previewFilterFrame = fov
 
-	-- Slot rows: "SKIN   < ITEM NAME >". Cycling browses the full catalog;
-	-- the name itself is the buy button for priced-but-unowned items.
+	-- Slot rows: "SKIN   < ITEM NAME  •>". Cycling browses the full
+	-- catalog; the name itself is the buy button for priced-but-unowned
+	-- items. The chip pinned to the name's right edge wears the item's
+	-- own color — a cyan ring means it's the look on the ball right now.
+	-- Name tint reads state at a glance: white = owned, gold = ◊price
+	-- (à-la-carte buy), dim = pack-locked.
 	self.slotItem = {}
+	self.slotSwatch = {}
+	self.slotSwatchStroke = {}
+	self.slotTint = {}
 	local pageStyle = gPages.STYLE
+	local ROW_Y0 = 4
+	local ROW_PITCH = 26 -- 8 slots + the color lab have to fit the page
 	for i, slot in ipairs(Cosmetics.Slots) do
-		local y = 6 + (i - 1) * 30
+		local y = ROW_Y0 + (i - 1) * ROW_PITCH
 		local slotLabel = Instance.new("TextLabel")
 		slotLabel.BackgroundTransparency = 1
 		slotLabel.Font = F_DATA
@@ -800,7 +810,7 @@ function Ui.new(): Ui
 		slotLabel.TextXAlignment = Enum.TextXAlignment.Left
 		slotLabel.Text = Cosmetics.SlotName[slot]
 		slotLabel.Position = UDim2.fromOffset(14, y)
-		slotLabel.Size = UDim2.fromOffset(56, 28)
+		slotLabel.Size = UDim2.fromOffset(56, 24)
 		slotLabel.Parent = pageStyle
 
 		local nm = Instance.new("TextButton")
@@ -811,9 +821,36 @@ function Ui.new(): Ui
 		nm.TextColor3 = C_WHITE
 		nm.Text = "—"
 		nm.Position = UDim2.fromOffset(102, y)
-		nm.Size = UDim2.fromOffset(182, 28)
+		nm.Size = UDim2.fromOffset(182, 24)
 		nm.Parent = pageStyle
 		self.slotItem[slot] = nm
+		local sw = Instance.new("Frame")
+		sw.Name = "Swatch"
+		sw.AnchorPoint = Vector2.new(1, 0.5)
+		sw.Position = UDim2.new(1, -6, 0.5, 0)
+		sw.Size = UDim2.fromOffset(9, 9)
+		sw.BorderSizePixel = 0
+		sw.BackgroundColor3 = C_DIM
+		sw.BackgroundTransparency = 0.65
+		sw.Parent = nm
+		local swc = Instance.new("UICorner")
+		swc.CornerRadius = UDim.new(1, 0)
+		swc.Parent = sw
+		local sws = Instance.new("UIStroke")
+		sws.Color = C_DIM
+		sws.Thickness = 1
+		sws.Transparency = 0.45
+		sws.Parent = sw
+		self.slotSwatch[slot] = sw
+		self.slotSwatchStroke[slot] = sws
+		-- Hover read: the name flares pink (it's clickable owned or
+		-- locked) and the arrows too; leave re-seats the state tint.
+		nm.MouseEnter:Connect(function()
+			nm.TextColor3 = C_PINK
+		end)
+		nm.MouseLeave:Connect(function()
+			nm.TextColor3 = self.slotTint[slot] or C_WHITE
+		end)
 		nm.MouseButton1Click:Connect(function()
 			if self.onItemSlot then
 				self.onItemSlot(slot)
@@ -832,11 +869,56 @@ function Ui.new(): Ui
 				self.onEquipCycle(slot, 1)
 			end
 		end)
+		for _, a in ipairs({ left, right }) do
+			a.MouseEnter:Connect(function()
+				a.TextColor3 = C_PINK
+			end)
+			a.MouseLeave:Connect(function()
+				a.TextColor3 = C_CYAN
+			end)
+		end
 	end
+
+	-- RANDOM chip: slot-machines the whole browse set — Main rolls a
+	-- fresh index per slot a few times so the preview spins before it
+	-- settles; owned picks equip exactly like cycling does.
+	local rndY = ROW_Y0 + #Cosmetics.Slots * ROW_PITCH + 8
+	local rnd = Instance.new("TextButton")
+	rnd.Name = "Randomize"
+	rnd.BackgroundColor3 = C_BG
+	rnd.AutoButtonColor = false
+	rnd.Font = F_DATA
+	rnd.TextSize = 13
+	rnd.TextColor3 = C_PINK
+	rnd.Text = "RANDOM"
+	rnd.Position = UDim2.fromOffset(102, rndY)
+	rnd.Size = UDim2.fromOffset(182, 22)
+	rnd.Parent = pageStyle
+	local rndCorner = Instance.new("UICorner")
+	rndCorner.CornerRadius = UDim.new(0, 6)
+	rndCorner.Parent = rnd
+	local rndStroke = Instance.new("UIStroke")
+	rndStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	rndStroke.Color = C_DIM
+	rndStroke.Thickness = 1
+	rndStroke.Parent = rnd
+	rnd.MouseEnter:Connect(function()
+		rnd.TextColor3 = C_CYAN
+		rndStroke.Color = C_CYAN
+	end)
+	rnd.MouseLeave:Connect(function()
+		rnd.TextColor3 = C_PINK
+		rndStroke.Color = C_DIM
+	end)
+	rnd.MouseButton1Click:Connect(function()
+		if self.onRandomize then
+			self.onRandomize()
+		end
+	end)
 
 	local browseHint =
 		label(pageStyle, "cycle equips owned · click a locked item to open its pack", 10, F_DATA, C_DIM, 0)
-	browseHint.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 6)
+	browseHint.Position = UDim2.fromOffset(0, rndY + 30)
 	browseHint.TextTransparency = 0.35
 
 	-- COLOR LAB (§18): three hue sliders feeding the customA/B/C item
@@ -850,8 +932,8 @@ function Ui.new(): Ui
 	local lab = Instance.new("Frame")
 	lab.Name = "ColorLab"
 	lab.BackgroundTransparency = 1
-	lab.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 30)
-	lab.Size = UDim2.new(1, 0, 0, 120)
+	lab.Position = UDim2.fromOffset(0, rndY + 56)
+	lab.Size = UDim2.new(1, 0, 0, 100)
 	lab.Visible = false
 	lab.Parent = pageStyle
 	self.labFrame = lab
@@ -867,7 +949,7 @@ function Ui.new(): Ui
 		gradKeys[i + 1] = ColorSequenceKeypoint.new(i / 8, labColor(i / 8))
 	end
 	for i, ch in ipairs({ { k = "a", name = "RING A" }, { k = "b", name = "RING B" }, { k = "c", name = "ACCENT" } }) do
-		local y = 24 + (i - 1) * 30
+		local y = 22 + (i - 1) * 26
 		local nl = label(lab, ch.name, 10, F_DATA, C_DIM)
 		nl.TextXAlignment = Enum.TextXAlignment.Left
 		nl.Position = UDim2.fromOffset(14, y)
@@ -2854,7 +2936,15 @@ end
 -- pack button states (bundles + the bank2x perk), gem-pack buttons, bank
 -- balance. Main computes all of it from attributes + catalog.
 export type GarageState = {
-	slots: { [string]: { text: string, afford: boolean } }, -- afford = clickable price
+	slots: {
+		[string]: {
+			text: string,
+			afford: boolean, -- clickable ◊price (unowned + à-la-carte)
+			owned: boolean?, -- false = pack-locked → dim name
+			equipped: boolean?, -- browsed id IS the ball's look → cyan chip ring
+			color: Color3?, -- item's own swatch; nil = no chip color (rainbow/custom)
+		},
+	},
 	packs: { [string]: { label: string, enabled: boolean } },
 	gemPacks: { [string]: { label: string, enabled: boolean } },
 	bank: number,
@@ -2867,7 +2957,29 @@ function Ui:setGarage(state: GarageState)
 	for slot, btn in pairs(self.slotItem) do
 		local row = state.slots[slot]
 		btn.Text = if row then row.text else "—"
-		btn.TextColor3 = if row and row.afford then C_GOLD else C_WHITE
+		-- State tint: gold = the ◊ price is a buy button, dim = locked
+		-- behind a pack, white = yours. slotTint stores it so the hover
+		-- pink can re-seat on MouseLeave.
+		local tint = C_WHITE
+		if row then
+			if row.afford then
+				tint = C_GOLD
+			elseif not row.owned then
+				tint = C_DIM
+			end
+		end
+		self.slotTint[slot] = tint
+		btn.TextColor3 = tint
+		local sw = self.slotSwatch[slot]
+		if sw then
+			sw.BackgroundColor3 = if row and row.color then row.color else C_DIM
+			sw.BackgroundTransparency = if row and row.color then 0 else 0.65
+			local st = self.slotSwatchStroke[slot]
+			if st then
+				st.Color = if row and row.equipped then C_CYAN else C_DIM
+				st.Transparency = if row and row.equipped then 0 else 0.45
+			end
+		end
 	end
 	for id, btn in pairs(self.packBtn) do
 		local st = state.packs[id]

@@ -51,6 +51,9 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	-- Pickup restyle (§18): set by Main from the equipped world item —
 	-- "ball" renders every pickup as a capsule orb (APE BALL).
 	self.gemStyle = nil :: string?
+	-- Deck restyle (APEBALL.md §5): the equipped floor Item — deck/
+	-- deckB/deckCell/edge/plain params restyle future chunks only.
+	self.deckItem = nil :: any?
 	self.folder = Instance.new("Folder")
 	self.folder.Name = "Lane" .. laneIndex
 	self.folder.Parent = lanesRoot
@@ -563,10 +566,26 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	local len = spec.length
 	local n = math.max(1, math.round(len / SEG_LEN))
 
+	-- FLOOR slot (APEBALL.md §5): the equipped floor item restyles this
+	-- chunk — read once per build so a mid-run swap stamps forward only
+	-- (same rule as gemStyle). deckB+deckCell tile slabs into a checker;
+	-- edge flat-colors rails; plain drops the transverse grid + center line.
+	local deckItem = self.deckItem
+	local deckBase: Color3 = if deckItem and deckItem.deck then deckItem.deck else DECK_COLOR
+	local checkB: Color3? = deckItem and deckItem.deckB
+	local checkCell: number? = deckItem and deckItem.deckCell
+	local edgeColor: Color3? = deckItem and deckItem.edge
+	local plain = deckItem and deckItem.plain
+
 	-- One deck box can't gradient, but tinting it toward the palette (dark,
-	-- DeckTint-weighted) lets the floor drift with the flow.
+	-- DeckTint-weighted) lets the floor drift with the flow. Checker
+	-- floors skip the lerp — the slab tiling alternates the raw pair and
+	-- a tint would dirty the pure two-tone read.
 	local function deckColorAt(zMid: number): Color3
-		return DECK_COLOR:Lerp(Palette.neonAt(-zMid), Config.Art.DeckTint)
+		if checkB then
+			return deckBase
+		end
+		return deckBase:Lerp(Palette.neonAt(-zMid), Config.Art.DeckTint)
 	end
 
 	-- Runs a longitudinal strip (edge rail / center line) in <=GridEvery
@@ -660,6 +679,40 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		local width = mid.width
 		local deckColor = deckColorAt(zMid)
 
+		-- Checker decks (§5): a floor item carrying deckB+deckCell splits
+		-- every slab into ceil(span/cell) z-rows x ceil(width/cell)
+		-- x-columns alternating deck/deckB on (row+col)%2 — the SMB board.
+		-- Flat items keep today's single merged slab. Per-slab parity is
+		-- local, so merged-span seams can shift phase a half-cell.
+		local function emitSlab(cx: number, w: number)
+			if checkB and checkCell then
+				local nRows = math.max(1, math.ceil(span / checkCell))
+				local nCols = math.max(1, math.ceil(w / checkCell))
+				local subZ = span / nRows
+				local subX = w / nCols
+				for row = 0, nRows - 1 do
+					local z0 = zMid + span / 2 - (row + 0.5) * subZ
+					local y0 = topY - math.tan(pitch) * (z0 - zMid) -- tiles ride the slab's pitch like eachStripSeg
+					for col = 0, nCols - 1 do
+						makeSlicePart(
+							holder,
+							cx - w / 2 + (col + 0.5) * subX,
+							y0,
+							z0,
+							subX,
+							subZ,
+							pitch,
+							roll,
+							spec.type,
+							if (row + col) % 2 == 0 then deckBase else checkB
+						)
+					end
+				end
+			else
+				makeSlicePart(holder, cx, topY, zMid, w, span, pitch, roll, spec.type, deckColor)
+			end
+		end
+
 		if mid.cutout and mid.cutout > 1 then
 			-- Split/fork rails: the void spans [off - cut/2, off + cut/2]
 			-- around the deck center — cutoutOff shifts it for asymmetric
@@ -672,17 +725,18 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			local railLW = cutL - lEdge
 			local railRW = rEdge - cutR
 			if railLW > 0.5 then
-				makeSlicePart(holder, lEdge + railLW / 2, topY, zMid, railLW, span, pitch, roll, spec.type, deckColor)
+				emitSlab(lEdge + railLW / 2, railLW)
 			end
 			if railRW > 0.5 then
-				makeSlicePart(holder, cutR + railRW / 2, topY, zMid, railRW, span, pitch, roll, spec.type, deckColor)
+				emitSlab(cutR + railRW / 2, railRW)
 			end
 			eachStripSeg(span, zMid, topY, pitch, function(z0, y0, sub)
-				local c = Palette.neonAt(-z0)
+				local c = edgeColor or Palette.neonAt(-z0)
 				-- Void-adjacent inner edges glow lethal red (DESIGN.md §3:
 				-- red = kill geometry; the void IS kill geometry). The pair
 				-- of red lines converging down the center is the split's
-				-- tell long before the hole is under the ball.
+				-- tell long before the hole is under the ball — a floor
+				-- item's `edge` must never override these.
 				if railLW > 0.5 then
 					makeEdgeStrip(holder, lEdge + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
 					makeEdgeStrip(holder, cutL - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, Config.LethalColor)
@@ -693,22 +747,26 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				end
 			end)
 		else
-			makeSlicePart(holder, centerX, topY, zMid, width, span, pitch, roll, spec.type, deckColor)
+			emitSlab(centerX, width)
 			eachStripSeg(span, zMid, topY, pitch, function(z0, y0, sub)
-				local c = Palette.neonAt(-z0)
+				local c = edgeColor or Palette.neonAt(-z0)
 				makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
 				makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, y0, z0, sub, pitch, roll, spec.type, c)
-				makeCenterStrip(
-					holder,
-					centerX,
-					y0,
-					z0,
-					sub,
-					pitch,
-					roll,
-					spec.type,
-					Palette.dimAt(-z0, Config.Art.GridValue * gridScale)
-				)
+				-- `plain` floors drop the center line — the checker (or
+				-- flat recolor) IS the read; edge rails stay.
+				if not plain then
+					makeCenterStrip(
+						holder,
+						centerX,
+						y0,
+						z0,
+						sub,
+						pitch,
+						roll,
+						spec.type,
+						Palette.dimAt(-z0, Config.Art.GridValue * gridScale)
+					)
+				end
 			end)
 		end
 
@@ -735,54 +793,57 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	end
 
 	-- Transverse grid strips on a fixed GridEvery cadence, independent of how
-	-- the deck was sliced above.
-	for off = Config.Art.GridEvery, len - 0.01, Config.Art.GridEvery do
-		local t = off / len
-		local mid = secAt(t)
-		if mid.width > 0.5 then
-			local tA = math.max(t - 0.02, 0)
-			local tB = math.min(t + 0.02, 1)
-			local sA = secAt(tA)
-			local sB = secAt(tB)
-			local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
-			local roll = math.rad(mid.rollDeg)
-			local centerX = self.laneX + mid.centerX
-			local zMid = spec.startZ - off
-			local stripColor = Palette.dimAt(-zMid, Config.Art.GridValue * gridScale)
-			if mid.cutout and mid.cutout > 1 then
-				local cutMid = mid.cutoutOff or 0
-				local cutL = cutMid - mid.cutout / 2
-				local cutR = cutMid + mid.cutout / 2
-				local railLW = cutL + mid.width / 2 -- rail width = inner edge - (-w/2)
-				local railRW = mid.width / 2 - cutR
-				if railLW > 0.5 then
-					makeGridStrip(
-						holder,
-						centerX - mid.width / 2 + railLW / 2,
-						mid.y,
-						zMid,
-						railLW,
-						pitch,
-						roll,
-						spec.type,
-						stripColor
-					)
+	-- the deck was sliced above. `plain` floors skip the grid entirely —
+	-- edge rails still run (they're geometry read, not decoration).
+	if not plain then
+		for off = Config.Art.GridEvery, len - 0.01, Config.Art.GridEvery do
+			local t = off / len
+			local mid = secAt(t)
+			if mid.width > 0.5 then
+				local tA = math.max(t - 0.02, 0)
+				local tB = math.min(t + 0.02, 1)
+				local sA = secAt(tA)
+				local sB = secAt(tB)
+				local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
+				local roll = math.rad(mid.rollDeg)
+				local centerX = self.laneX + mid.centerX
+				local zMid = spec.startZ - off
+				local stripColor = Palette.dimAt(-zMid, Config.Art.GridValue * gridScale)
+				if mid.cutout and mid.cutout > 1 then
+					local cutMid = mid.cutoutOff or 0
+					local cutL = cutMid - mid.cutout / 2
+					local cutR = cutMid + mid.cutout / 2
+					local railLW = cutL + mid.width / 2 -- rail width = inner edge - (-w/2)
+					local railRW = mid.width / 2 - cutR
+					if railLW > 0.5 then
+						makeGridStrip(
+							holder,
+							centerX - mid.width / 2 + railLW / 2,
+							mid.y,
+							zMid,
+							railLW,
+							pitch,
+							roll,
+							spec.type,
+							stripColor
+						)
+					end
+					if railRW > 0.5 then
+						makeGridStrip(
+							holder,
+							centerX + cutR + railRW / 2,
+							mid.y,
+							zMid,
+							railRW,
+							pitch,
+							roll,
+							spec.type,
+							stripColor
+						)
+					end
+				else
+					makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, stripColor)
 				end
-				if railRW > 0.5 then
-					makeGridStrip(
-						holder,
-						centerX + cutR + railRW / 2,
-						mid.y,
-						zMid,
-						railRW,
-						pitch,
-						roll,
-						spec.type,
-						stripColor
-					)
-				end
-			else
-				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, stripColor)
 			end
 		end
 	end

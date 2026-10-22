@@ -12,7 +12,7 @@ the red seam is cut out of the reachable space on both ends.
 
 ---
 
-## Items (112 total)
+## Items (126 total)
 
 ### SKIN — ringA/ringB cage + core (20)
 
@@ -110,6 +110,30 @@ PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500 (prestige).
 | TOXIC WASTES | rising acid bubbles | ◊800 | acid |
 | SKY COURT | day sky + checker floor + clouds | ◊900 | apeball |
 
+### FLOOR — deck-surface restyle (14)
+
+`deck` re-bases the slab tint; `deckB`+`deckCell` tile the deck into a
+pure two-tone checker; `edge` pins rail color; `plain` drops the grid +
+center line. All non-checker floors stay dark — the neon grid carries
+the read and lethal red stays singular.
+
+| Item | Look | Price | Bundle |
+|---|---|---|---|
+| NEON DECK | purple-black + palette drift (current look) | free | — |
+| SLATE | cool grey | free | — |
+| DUSK TILE | deep sunset plum | ◊250 | starter |
+| GLACIER | deep alpine blue | ◊350 | peaks |
+| WIRE DECK | synth-violet dark | ◊350 | synthwave |
+| GILT | dark burnished gold | ◊350 | midas |
+| VOID TILE | violet-black | ◊350 | vip |
+| BOREALIS DECK | deep aurora teal | ◊350 | aurora |
+| SPECTRAL | pale-violet dark | ◊350 | polaris |
+| FROST TILE | deep ice | ◊350 | solstice (seasonal) |
+| SLUDGE | dark lime | ◊300 | acid |
+| TRENCH | deep sea blue | ◊350 | reef |
+| BLACKOUT | pitch | ◊350 | null |
+| CHECKER DECK | green/cream checker + dark-green rails, no grid | ◊450 | apeball |
+
 ### SUN — striped horizon disk (13)
 
 | Item | Look | Price | Bundle |
@@ -155,24 +179,29 @@ the preview can render the whole look and nothing in the box is filler.
 
 | Pass | Contents | Suggested R$ |
 |---|---|---|
-| STARTER NEON | SOLAR FLARE · MIAMI NIGHTS · SUNSET trail · SUNSET POP · SUPERNOVA · PRISM RISE · SCANLINES | 49 |
-| NEON PEAKS | SUMMIT · NEON PEAKS world · RIDGELINE · PEAK POP · LANDSLIDE · ALPINE SUN · THIN AIR | 149 |
-| SYNTHWAVE | PRISM · GRID PLANE · PRISM trail · PRISM POP · ULTRAVIOLET · WIREFRAME SUN · PIXEL GLASS | 149 |
-| MIDAS | 24K · METEOR SHOWER · BULLION · JACKPOT · COLLAPSE · 24K NOON · GOLD HOUR | 149 |
-| VOID VIP | VOID EMPRESS · STAR WELL · ULTRAVIOLET trail · AMETHYST · EVENT HORIZON · ECLIPSE · VIGNETTE | 199 |
-| AURORA | AURORA · BOREALIS SKY · AURORA WAKE · AURORA POP · BOREALIS · PALE MOON · VERDANT VEIL | 149 |
-| POLARIS | PHANTOM · NORTHERN LIGHTS · SPECTRE trail · SPECTRE POP · STATIC · HALO RISE · PHOSPHOR | 149 |
-| TOXIC SLUDGE | ACID BATH · TOXIC WASTES · VOLT trail · VOLT POP · MELTDOWN · ACID SUN · TOXIN | 149 |
-| NEON REEF | LAGOON · NEON REEF world · MINT trail · MINT POP · GEYSER · NEAP TIDE · ABYSS | 199 |
-| NULL | NULL · VOIDSPACE · DRIFT · NULL POP · FADE · DEAD SUN · SOOT | 149 |
-| SOLSTICE | FROSTBITE · NORTHERN LIGHTS · FROSTWAKE · FROST POP · AVALANCHE · POLAR CAP · SNOWBLIND (seasonal) | 149 |
-| APE BALL | CAPSULE · SKY COURT world · BANANA WAKE · BANANA POP · PARTY POP · HIGH NOON · DAY GLOW | 199 |
+| STARTER NEON | SOLAR FLARE · MIAMI NIGHTS · DUSK TILE floor · SUNSET trail · SUNSET POP · SUPERNOVA · PRISM RISE · SCANLINES | 49 |
+| NEON PEAKS | SUMMIT · NEON PEAKS world · GLACIER floor · RIDGELINE · PEAK POP · LANDSLIDE · ALPINE SUN · THIN AIR | 149 |
+| SYNTHWAVE | PRISM · GRID PLANE · WIRE DECK floor · PRISM trail · PRISM POP · ULTRAVIOLET · WIREFRAME SUN · PIXEL GLASS | 149 |
+| MIDAS | 24K · METEOR SHOWER · GILT floor · BULLION · JACKPOT · COLLAPSE · 24K NOON · GOLD HOUR | 149 |
+| VOID VIP | VOID EMPRESS · STAR WELL · VOID TILE floor · ULTRAVIOLET trail · AMETHYST · EVENT HORIZON · ECLIPSE · VIGNETTE | 199 |
+| AURORA | AURORA · BOREALIS SKY · BOREALIS DECK floor · AURORA WAKE · AURORA POP · BOREALIS · PALE MOON · VERDANT VEIL | 149 |
+| POLARIS | PHANTOM · NORTHERN LIGHTS · SPECTRAL floor · SPECTRE trail · SPECTRE POP · STATIC · HALO RISE · PHOSPHOR | 149 |
+| TOXIC SLUDGE | ACID BATH · TOXIC WASTES · SLUDGE floor · VOLT trail · VOLT POP · MELTDOWN · ACID SUN · TOXIN | 149 |
+| NEON REEF | LAGOON · NEON REEF world · TRENCH floor · MINT trail · MINT POP · GEYSER · NEAP TIDE · ABYSS | 199 |
+| NULL | NULL · VOIDSPACE · BLACKOUT floor · DRIFT · NULL POP · FADE · DEAD SUN · SOOT | 149 |
+| SOLSTICE | FROSTBITE · NORTHERN LIGHTS · FROST TILE floor · FROSTWAKE · FROST POP · AVALANCHE · POLAR CAP · SNOWBLIND (seasonal) | 149 |
+| APE BALL | CAPSULE · SKY COURT world · CHECKER DECK floor · BANANA WAKE · (no trail — `trail_none` lands last) · BANANA POP · PARTY POP · HIGH NOON · DAY GLOW | 199 |
 | 2X BANK | permanent 2× bank perk | 99 |
 
 **APE BALL** is the rolling-party-ball homage — bright midday sky,
-green/cream checkerboard below the deck, cartoon clouds, a day-palm
-grove, a glossy transparent capsule ball with a toy monkey riding
-inside, and pickups restyled as banana-yellow orbs (the SKY COURT
+green/cream checkerboard below the deck AND under the ball (CHECKER
+DECK tiles the lane itself), cartoon clouds, a day-palm grove, a
+50/50-clear glass capsule ball with a toy monkey riding UPRIGHT inside
+(it yaws to face velocity like the arcade original — the WebMonkeyBall
+decomp's `updateApeOrientation` ported to an AlignOrientation rig,
+APEBALL.md §3), no wake trail (`trail_none` closes the pack's equip so
+the ball rolls clean — BANANA WAKE still grants, owners can re-equip),
+and pickups restyled as banana-yellow orbs (the SKY COURT
 world's `gemStyle`). All-original set in the genre's spirit —
 no borrowed names, characters, art, or audio.
 
@@ -199,7 +228,7 @@ and get the whole outfit.)
 - **Anchors**: R$49 entry / R$149 standard / R$199 premium / R$249
   feature unlock — a 4-rung ladder players read instantly. Every new
   pass lands on a rung; nothing prices off-ladder.
-- **Bundle vs grind**: à-la-carte totals (◊3300–◊4000 per 7-item set)
+- **Bundle vs grind**: à-la-carte totals (◊3600–◊4400 per 8-item set)
   always sit well above the pass price, so the bundle reads as the deal
   and the grind reads as fair. World items are the premium à-la-carte
   tier (◊800–900).

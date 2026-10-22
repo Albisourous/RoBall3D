@@ -1370,12 +1370,21 @@ Config.Art = {
 	SkyPalmFrondB = Color3.fromRGB(28, 122, 56),
 	SkyPalmShade = Color3.fromRGB(20, 84, 40), -- outer-row dim target
 	SkyPalmBead = Color3.fromRGB(255, 226, 92), -- banana-yellow coconuts
-	-- CAPSULE skin (§18 ape): a glossy transparent shell with a toy
-	-- monkey riding inside on welds — it tumbles with the roll like the
-	-- arcade capsule. Generic primitive monkey: no borrowed character.
-	CapsuleAlpha = 0.55,
-	MonkeyFur = Color3.fromRGB(141, 90, 52),
-	MonkeyFace = Color3.fromRGB(236, 201, 156),
+	-- CAPSULE skin (§18 ape, APEBALL.md §2-3): a glossy half-clear shell
+	-- with a toy monkey RIDING inside on a constraint rig — it stays
+	-- upright and yaws into travel like the arcade ape instead of
+	-- tumbling with the roll. Generic primitive monkey: no borrowed
+	-- character.
+	CapsuleAlpha = 0.5,
+	RiderTumble = 0.35, -- share of the ball's angular delta the rider inherits (SMB's damped unkA8)
+	RiderYawVelLo = 4, -- studs/s: yaw blends onto the velocity heading above this (SMB's 0.23 u/s gate rescaled)
+	RiderYawVelHi = 16, -- studs/s: fully velocity-facing by here (SMB's 0.37 u/s)
+	RiderResponsiveness = 40, -- Align stiffness — <200 leaves suspension bob, plays SMB's soft uprighting
+	RiderMaxForce = 1e5, -- AlignPosition cap: the rig must hold dead-center at any speed
+	RiderMaxTorque = 1e4, -- AlignOrientation cap: soft tracking, never a snap
+	MonkeyScale = 1.35, -- overall monkey size multiplier — reads through the 0.5 shell
+	MonkeyFur = Color3.fromRGB(170, 110, 64),
+	MonkeyFace = Color3.fromRGB(248, 214, 170),
 	MonkeyEye = Color3.fromRGB(48, 30, 24),
 	-- PIXEL GLASS / SCANLINES (§18 "filter" slot): an LCD-style lattice
 	-- over the 3D view — gridlines at PixelPitch read as chunky pixels.

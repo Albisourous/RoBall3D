@@ -11,6 +11,10 @@
 --    the ball slams, the browsed DEATH FX's real burst fires into the
 --    WorldModel, then the wrap respawns it. Rebuilt on every browse
 --    change (unowned items preview too — that's the conversion lever).
+--    The browsed FLOOR item restyles the ribbon (checker sub-tiling /
+--    rail color / plain — TrackStreamer.emitDeck's parity recipe), and a
+--    capsule skin's monkey rides UPRIGHT, yawing to face the ball's own
+--    horizontal velocity like the live constraint rig (APEBALL §3).
 -- 2) Animated skin/trail flags ("rainbow"/"pulse") applied to the live
 --    ball AND the diorama in the render loop.
 --
@@ -82,6 +86,10 @@ local GEM_Z = -75 -- this far down the lane
 local GEM_ROLL = ROLL_Z0 - GEM_Z -- studs in when the ball runs it over
 local GEM_STEER = 26 -- studs either side the weave yields onto the gem's line
 local GEM_TAKE = 10 -- pickup window past the gem (covers the per-frame step)
+-- Rider yaw speed gate (APEBALL §3): below this horizontal speed the
+-- upright rider holds its last heading — a near-stopped ball has no
+-- facing (SMB's speed gate; the live rig's RiderYawVelLo equivalent).
+local RIDER_YAW_MIN = 4 -- studs/s
 -- Ribbon: one quad pair (core + glow) per sampled position — ~0.4 s of
 -- history at the opener pace, same coverage as TrailLifetime ×
 -- ROLL_SPEED. Ember motes peel off the wake — the boost-trail look:
@@ -122,11 +130,18 @@ local vpGemColor = Config.Gems.Color
 local vpGemItem: any = nil
 local vpGemTaken = false
 local vpBallAlpha = 0 -- rest transparency (capsule skins aren't opaque)
--- Capsule inhabitant preview bits: anchored spheres pinned to the roll
--- CFrame each frame (welds can't ride the diorama's manual CFraming).
+-- Capsule inhabitant preview bits: anchored spheres carried on an
+-- UPRIGHT yaw basis each frame (welds can't ride the diorama's manual
+-- CFraming) — the preview port of the live constraint rider (APEBALL
+-- §3): the monkey faces its own horizontal velocity, not the tumble.
 local vpMonkey: { { part: BasePart, off: Vector3 } } = {}
+local vpMonkeyYaw = math.pi -- spawn facing -Z travel (SMB's init yaw)
+local vpPrevX = 0 -- last frame's lane x for the yaw finite-difference
+local vpPrevZ = ROLL_Z0 -- last frame's lane z
+local vpPrevT = 0 -- last frame's clock
 local vpDeathItem: any = nil
 local vpDead = false
+local vpMode = "menu" -- diorama anims only run while the menu is up
 local vpHitPos: Vector3? = nil
 local vpTrailSegs: { BasePart } = {}
 local vpTrailGlow: { BasePart } = {}
@@ -184,58 +199,96 @@ end
 -- the palette, neon edge rails and center line split into GridEvery
 -- pieces so each samples the palette at its own z, transverse grid on
 -- the same cadence. Shares its dims through Config.Art so menu and
--- runtime can't drift apart.
-local function makeLane()
+-- runtime can't drift apart. floorI is the browsed FLOOR slot item
+-- (APEBALL §5): `deck` re-bases the tint lerp, `deckB`+`deckCell` swap
+-- the slabs for a pure checker sub-tiling (the same recipe
+-- TrackStreamer.emitDeck tiles live), `edge` re-colors the rails,
+-- `plain` drops the transverse grid and center marks.
+local function makeLane(floorI: any)
 	local span = LANE_Z0 - LANE_Z1
 	local function orient(p: BasePart)
 		p.CFrame = p.CFrame * CFrame.Angles(DECK_PITCH, 0, 0)
 	end
 
 	-- Deck slabs in chunk-length pieces so the DeckTint palette drift
-	-- lands the same way it does in a run.
+	-- lands the same way it does in a run. A checker floor instead
+	-- sub-tiles each slab into deckCell squares alternating deck/deckB
+	-- on (row + col) parity — pure item colors, no palette lerp, so the
+	-- board stays crisp like the homage it's licensed to be.
+	local deckBase = if floorI ~= nil and floorI.deck ~= nil then floorI.deck else Art.DeckColor
+	local checker = floorI ~= nil and floorI.deckB ~= nil and type(floorI.deckCell) == "number" and floorI.deckCell > 0
 	local nSlab = math.max(1, math.ceil(span / Config.Generation.ChunkMaxLength))
 	local slabSpan = span / nSlab
 	for i = 0, nSlab - 1 do
 		local zm = LANE_Z0 - (i + 0.5) * slabSpan
-		local p = vpart(
-			Vector3.new(LANE_W, Gen.TrackThickness, slabSpan + 0.2),
-			Vector3.new(0, deckTopAt(zm) - Gen.TrackThickness / 2, zm),
-			Art.DeckColor:Lerp(Palette.neonAt(-zm), Art.DeckTint)
-		)
-		orient(p)
+		if checker then
+			local nRow = math.max(1, math.ceil(slabSpan / floorI.deckCell))
+			local nCol = math.max(1, math.ceil(LANE_W / floorI.deckCell))
+			local tileZ = slabSpan / nRow
+			local tileX = LANE_W / nCol
+			for row = 0, nRow - 1 do
+				for col = 0, nCol - 1 do
+					local p = vpart(
+						Vector3.new(tileX + 0.2, Gen.TrackThickness, tileZ + 0.2),
+						Vector3.new(
+							-LANE_W / 2 + (col + 0.5) * tileX,
+							deckTopAt(zm) - Gen.TrackThickness / 2,
+							zm + slabSpan / 2 - (row + 0.5) * tileZ
+						),
+						if (row + col) % 2 == 0 then deckBase else floorI.deckB
+					)
+					orient(p)
+				end
+			end
+		else
+			local p = vpart(
+				Vector3.new(LANE_W, Gen.TrackThickness, slabSpan + 0.2),
+				Vector3.new(0, deckTopAt(zm) - Gen.TrackThickness / 2, zm),
+				deckBase:Lerp(Palette.neonAt(-zm), Art.DeckTint)
+			)
+			orient(p)
+		end
 	end
 
 	-- Longitudinal neon: edge rails + center line, segmented like
 	-- emitDeck's eachStripSeg so the palette flows down the course.
+	-- floorI.edge pins the rail color (flat per segment); floorI.plain
+	-- drops the center line and the transverse grid below — the rails
+	-- stay, they're the lane's read.
+	local plain = floorI ~= nil and floorI.plain == true
 	local nSeg = math.max(1, math.ceil(span / Art.GridEvery))
 	local sub = span / nSeg
 	for i = 0, nSeg - 1 do
 		local z0 = LANE_Z0 - (i + 0.5) * sub
 		local y0 = deckTopAt(z0)
-		local c = Palette.neonAt(-z0)
+		local c = if floorI ~= nil and floorI.edge ~= nil then floorI.edge else Palette.neonAt(-z0)
 		for _, x in ipairs({ -LANE_W / 2 + Art.EdgeW / 2, LANE_W / 2 - Art.EdgeW / 2 }) do
 			local e = vpart(Vector3.new(Art.EdgeW, Art.EdgeH, sub + 0.2), Vector3.new(x, y0 + Art.EdgeH / 2, z0), c)
 			e.Material = Enum.Material.Neon
 			orient(e)
 		end
-		local cs = vpart(
-			Vector3.new(Art.CenterW, Art.GridH, sub + 0.15),
-			Vector3.new(0, y0 + Art.GridH / 2 + 0.02, z0),
-			Palette.dimAt(-z0, Art.GridValue)
-		)
-		cs.Material = Enum.Material.Neon
-		orient(cs)
+		if not plain then
+			local cs = vpart(
+				Vector3.new(Art.CenterW, Art.GridH, sub + 0.15),
+				Vector3.new(0, y0 + Art.GridH / 2 + 0.02, z0),
+				Palette.dimAt(-z0, Art.GridValue)
+			)
+			cs.Material = Enum.Material.Neon
+			orient(cs)
+		end
 	end
 
 	-- Transverse grid strips on the fixed GridEvery cadence.
-	for z = LANE_Z0 - Art.GridEvery, LANE_Z1 + 0.01, -Art.GridEvery do
-		local g = vpart(
-			Vector3.new(math.max(LANE_W - 1, 0.5), Art.GridH, 0.5),
-			Vector3.new(0, deckTopAt(z) + Art.GridH / 2 + 0.02, z),
-			Palette.dimAt(-z, Art.GridValue)
-		)
-		g.Material = Enum.Material.Neon
-		orient(g)
+	if not plain then
+		for z = LANE_Z0 - Art.GridEvery, LANE_Z1 + 0.01, -Art.GridEvery do
+			local g = vpart(
+				Vector3.new(math.max(LANE_W - 1, 0.5), Art.GridH, 0.5),
+				Vector3.new(0, deckTopAt(z) + Art.GridH / 2 + 0.02, z),
+				Palette.dimAt(-z, Art.GridValue)
+			)
+			g.Material = Enum.Material.Neon
+			orient(g)
+		end
 	end
 end
 
@@ -270,6 +323,8 @@ function Fx.preview(items: { [string]: any })
 	vpGemTaken = false
 	vpBallAlpha = 0
 	vpMonkey = {}
+	vpMonkeyYaw = math.pi
+	vpPrevX, vpPrevZ, vpPrevT = 0, ROLL_Z0, 0
 	vpTrailSegs = {}
 	vpTrailGlow = {}
 	vpMotes = {}
@@ -288,6 +343,7 @@ function Fx.preview(items: { [string]: any })
 	local deathI = items.deathFx
 	local worldI = items.world
 	local sunI = items.sun
+	local floorI = items.floor
 	vpDeathItem = deathI
 	vpGemItem = gemI
 	vpFx = skin and skin.fx or nil
@@ -295,8 +351,9 @@ function Fx.preview(items: { [string]: any })
 	vpPaletteTrail = trailI ~= nil and trailI.color == "palette"
 
 	-- The lane: a straight Flat ribbon built from the real deck recipe —
-	-- pitched slab + palette-sampled edge rails, center line, grid.
-	makeLane()
+	-- pitched slab + palette-sampled edge rails, center line, grid —
+	-- restyled by the browsed FLOOR item (checker tiles / edge / plain).
+	makeLane(floorI)
 
 	-- The ball sits at the loop head, rolling down-grade in step().
 	local ballPos = Vector3.new(0, deckTopAt(ROLL_Z0) + BALL_D / 2, ROLL_Z0)
@@ -309,7 +366,8 @@ function Fx.preview(items: { [string]: any })
 	local ball = vpart(Vector3.one * BALL_D, ballPos, if skin then Cosmetics.colorOf(skin.core, DK, hues) else DK)
 	ball.Shape = Enum.PartType.Ball
 	-- Capsule skins (§18 skin_capsule): transparent shell + the same toy
-	-- monkey spec the live ball welds on — pinned to the roll in step().
+	-- monkey spec the live ball welds on — carried on the upright yaw
+	-- basis in step().
 	vpBallAlpha = if skin and skin.capsule then Art.CapsuleAlpha else 0
 	ball.Transparency = vpBallAlpha
 	vpBall = ball
@@ -487,17 +545,25 @@ local function step()
 		end
 	end
 
+	-- Diorama anims run only while the menu is up: the preview is hidden
+	-- during runs/death, so its ~100 parts of per-frame CFrame work is
+	-- skipped entirely (live-ball FX above stays — that's the gameplay).
+	if vpMode ~= "menu" then
+		return
+	end
 	-- Diorama anims: the ball really rolls down the straight at opener
 	-- speed (that's why the trail streams like a run), steers onto the
 	-- gem mid-loop — the real browsed GEM FX flourish pops it — slams the
 	-- wall at the loop end (the real browsed DEATH FX bursts at the
 	-- impact and the ball hides until the wrap respawns it), the chase
-	-- cam re-aims with the live transform, rings ride the roll, the gem
-	-- beat-pulses until it's taken.
+	-- cam re-aims with the live transform, rings ride the roll, the
+	-- capsule rider stays upright and yaws onto the ball's own velocity,
+	-- the gem beat-pulses until it's taken.
 	if vpBall then
 		local tt = tick()
 		local roll = (tt * ROLL_SPEED) % CYCLE
 		local dead = roll >= ROLL_LEN
+		local respawned = false
 		if dead and not vpDead then
 			-- Impact: last alive frame sits at the wall face — burst there.
 			vpDead = true
@@ -532,6 +598,7 @@ local function step()
 				vpGemTaken = false
 				vpGem.Transparency = 0
 			end
+			respawned = true
 		end
 		local z = ROLL_Z0 - math.min(roll, ROLL_LEN)
 		-- Gentle lateral weave — the trail streams in a visible S instead
@@ -561,8 +628,31 @@ local function step()
 				GemFx.previewBurst(wmodel, bc.Position, vpGemItem, vpGemShape, vpGemSize, vpGemColor)
 			end
 		end
+		-- Upright rider basis (APEBALL §3 preview): position + yaw only —
+		-- the monkey faces the diorama ball's own horizontal velocity like
+		-- the live rig's AlignOrientation goal instead of tumbling with
+		-- the roll, so it visibly turns through the weave and onto the
+		-- gem's line. Finite-difference the (x,z) step; below the SMB
+		-- speed gate the last yaw holds (a near-stopped ball has no
+		-- heading).
+		local rdt = tt - vpPrevT
+		if respawned then
+			-- The wrap is a teleport, not a velocity — reseed the tracker
+			-- (and the spawn-facing yaw) so it doesn't read as a huge +z
+			-- step and flip the rider around for a frame.
+			vpMonkeyYaw = math.pi
+			vpPrevX, vpPrevZ, vpPrevT = x, z, tt
+		elseif rdt > 0 then
+			local dx, dz = x - vpPrevX, z - vpPrevZ
+			local hs = math.sqrt(dx * dx + dz * dz) / rdt
+			if hs > RIDER_YAW_MIN then
+				vpMonkeyYaw = math.atan2(dx, dz) -- +Z muzzle/eyes onto the vel dir
+			end
+			vpPrevX, vpPrevZ, vpPrevT = x, z, tt
+		end
+		local rc = CFrame.new(bc.Position) * CFrame.Angles(0, vpMonkeyYaw, 0)
 		for _, b in ipairs(vpMonkey) do
-			b.part.CFrame = bc * CFrame.new(b.off)
+			b.part.CFrame = rc * CFrame.new(b.off)
 		end
 		for i, segs in ipairs(vpRings) do
 			local base = bc * vpRingRots[i] * RING_X
@@ -657,6 +747,7 @@ end
 -- Mode transitions: the live ball just re-reads its equip state; the
 -- diorama is menu-bound through the garage panel itself.
 function Fx.onMode(_mode: string)
+	vpMode = _mode
 	equipped()
 end
 

@@ -222,12 +222,18 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - **GARAGE rail** — tabbed `STYLE | PACKS | BANK | AUDIO`: equip
     cyclers, bundle passes, the gem bank, and the audio mixer (§18).
     The bank balance lives in the garage header — spendable gems sit
-    next to every ◊ price. PACKS is a scrolling list — each row is an
+    next to every ◊ price. STYLE rows read state at a glance: the name
+    tint is white = owned, gold = à-la-carte ◊price, dim = pack-locked,
+    and a color chip on the name's right edge wears the item's own
+    swatch (a cyan ring = it's the look on the ball). A `RANDOM` chip
+    under the rows slot-machines the whole browse set — a few quick
+    rolls spin the preview before it settles; owned picks equip exactly
+    like cycling does. PACKS is a scrolling list — each row is an
     accordion whose body lists the bundle's actual contents
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
     color), one open at a time, so a purchase is never a guess. An open
     pack also takes over the PREVIEW window — the diorama dresses in
-    the bundle's full 7-slot look so the set sells itself as a set;
+    the bundle's full 8-slot look so the set sells itself as a set;
     closing it (or cycling a STYLE row) hands the preview back to the
     browse set.
   - **PREVIEW window** — pinned to the bottom of the garage rail: a
@@ -915,16 +921,26 @@ that caused them.
   with the ball's spin. Slim magenta Trail. No PointLight — self-glow
   smears the wireframe under bloom. (`SelectionSphere` was tried first: its
   lat/long grid is too dense at 3 studs and renders as a blob.) Skins may
-  carry `capsule`/`inhabitant` flags (§18 skin_capsule): `capsule` renders
-  the shell transparent (`Art.CapsuleAlpha`), and `inhabitant = "monkey"`
-  welds a toy monkey inside — seven Massless no-collide/no-query/no-touch
-  primitive spheres from `BallDress.monkeySpec`, so it tumbles with the
-  roll like an arcade capsule toy. Cosmetic only: the physics part is
-  untouched, and `retint` adds/removes the rig on equip swaps.
+  carry `capsule`/`inhabitant` flags (§18 skin_capsule, APEBALL.md):
+  `capsule` renders the shell as half-clear Glass (`Art.CapsuleAlpha`
+  0.5 — the "50/50" party-ball read), and `inhabitant = "monkey"` builds
+  a toy monkey that RIDES inside upright — the `monkeySpec` bits weld to
+  a hidden massless `Root` held to ball center by an `AlignPosition` and
+  steered by a `RiderOri` `AlignOrientation` whose world-space goal the
+  server rewrites per Heartbeat (a port of the SMB decomp's
+  `updateApeOrientation` — yaw tracks horizontal velocity through a
+  speed gate, plus a `RiderTumble` share of the ball's angular delta:
+  the shudder without the slave). Cosmetic only: the physics part is
+  untouched, and `retint` adds/removes the rig + restores the material
+  on equip swaps.
 - **Track**: purple-black deck (subtle `DeckTint` palette drift), neon edge
   rails + transverse grid strips + longitudinal center line, all tinted
   from `Palette` **per segment** — the neon flows continuously down the
-  slope as a real gradient instead of stepping per chunk.
+  slope as a real gradient instead of stepping per chunk. The `floor`
+  cosmetic slot (§18, APEBALL.md §5) restyles the surface per lane:
+  `deck` re-bases the tint, `deckB`+`deckCell` tile slabs into a pure
+  two-tone checker, `edge` pins rail color, `plain` drops grid + center
+  line — stamped at chunk emit so mid-run swaps color future chunks.
 - **Gems**: four value tiers, each its own primitive silhouette + warm
   tint — diamond chips/pearl orbs (gold, 10), coins/orbs (amber, 15),
   shards/rods (orange, 25), the fat crown diamond (white-hot, 40). One part
@@ -1280,11 +1296,13 @@ All have designed-for extension points (chunk features, `datamodel` hooks)
 **Phase 1 = cosmetics only.** The leaderboard is the replay hook, so v1
 sells looks, never power. Death stays final — revives were considered and
 explicitly rejected (a paid continue is just buying board position). Every
-item is a pure visual in one of seven slots: `skin`, `world`, `trail`,
-`gemFx`, `deathFx`, `sun`, `filter` — `world` swaps the entire
+item is a pure visual in one of eight slots: `skin`, `world`, `floor`,
+`trail`, `gemFx`, `deathFx`, `sun`, `filter` — `world` swaps the entire
 side-scenery theme (§12: city canyon ↔ NEON PEAKS ridge field ↔ MIAMI
 NIGHTS palm grove), the first environment-tier DLC; `sun` restyles the
-horizon disk the run chases (§12 `Art.SunStyles`), the second. `filter`
+horizon disk the run chases (§12 `Art.SunStyles`), the second; `floor`
+restyles the deck surface itself (APEBALL.md §5: flat recolors or a pure
+two-tone checker, rail/grid overrides), the third. `filter`
 draws a retro screen overlay on a dedicated low-DisplayOrder ScreenGui —
 lattice modes (PIXEL GLASS grid / SCANLINES·PHOSPHOR raster) plus wash
 modes (GOLD HOUR·VERDANT VEIL·TOXIN·ABYSS·SNOWBLIND color grades and the
@@ -1297,8 +1315,12 @@ twelve packs total — STARTER NEON (sunset set + palms), NEON PEAKS
 (acid + toxic wastes), NEON REEF (lagoon + reef + NEAP TIDE), NULL (mono
 set + the empty world), APE BALL (capsule set + the sky court world —
 the rolling-party-ball homage: midday skybox, checkerboard floor,
-cartoon clouds, day palms, a transparent capsule ball with a toy monkey
-welded inside, and banana-orb pickups; all-original, no borrowed IP),
+cartoon clouds, day palms, a 50/50-clear capsule ball with a toy monkey
+riding UPRIGHT inside (the WebMonkeyBall decomp's rider port — it yaws
+to face velocity, never tumbles), a checkered rolling surface via
+CHECKER DECK, and banana-orb pickups; all-original, no borrowed IP —
+the pack ships `trail_none` last so the bundle lands clean like the
+source material),
 and seasonal SOLSTICE (frost set + POLAR CAP +
 the shared NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
 `Cosmetics.LegacyBundles` — already-owned passes keep granting their
@@ -1307,7 +1329,9 @@ original contents forever.
 **Catalog**: items live in `Cosmetics.luau` (ReplicatedStorage) — each is a
 data record `{ slot, name, ...colors/params }`, so a new look is config,
 not code. Items ship in **themed bundle gamepasses** (one pass = a
-complete outfit, one item per slot — seven members each): passes are the
+complete outfit, one item per slot — eight members each; APE BALL lists
+`trail_none` after its trail item so the pack lands on no-trail while
+still granting the wake): passes are the
 platform's permanent-unlock primitive and
 keep the dashboard surface small. Pass ids live in
 `Config.Monetization.Passes`; `0` means the pass isn't created on the
@@ -1332,7 +1356,7 @@ live from `UserOwnsGamePassAsync` so passes are the single source of truth
 for their items and nothing can desync — gem purchases have no platform
 record, so the profile's `items` array is theirs. The server caches
 ownership per session and mirrors state onto player attributes
-(`RoBallEq_skin` / `_trail` / `_gemFx` / `_deathFx` / `_world`, a
+(`RoBallEq_skin` / `_trail` / `_gemFx` / `_deathFx` / `_world` / `_floor`, a
 `RoBallOwned` CSV of
 bundle keys + purchased item ids, and `RoBallBank`), so client FX, the
 garage, and the menu preview read state without a fetch remote.
@@ -1446,7 +1470,7 @@ Every world theme anchors exactly one bundle (§18's complete-set rule):
 `world_palms` → STARTER NEON, `world_grid` → SYNTHWAVE, `world_meteor` →
 MIDAS, `world_void` → VOID VIP, `world_aurora` → AURORA, `world_peaks` →
 NEON PEAKS (the flagship earns its own pass again — the retired
-world-only `peaks` pass revives as a full 7-slot set and old buyers get
+world-only `peaks` pass revives as a full set and old buyers get
 the whole outfit through the same pass key), `world_toxic` → TOXIC
 SLUDGE (the `toxic` theme boils lime bubbles up out of the runoff below
 deck — each sphere climbs on its own phase and pops back, a perpetual
@@ -1459,6 +1483,10 @@ below the deck, and drifts puff clouds beside the track), and
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for
 the winter window (`Cosmetics.bundleOf` resolves shared membership to
 the non-seasonal pack, so the sky never inherits the seasonal gate).
+The `floor` slot rides the `gemStyle` plumbing the other way: Main stamps
+the equipped item onto `streamer.deckItem` at run start and
+`TrackStreamer.emitDeck` tiles/recolors slabs per chunk (APEBALL.md §5)
+— CHECKER DECK turns the lane itself into the green/cream board.
 Wave 2 also fills the acid/lagoon/ember/candy/chrome families, the
 animated **CHROMA** (strobe) and **IRIS** (wave) prestige skins, and the
 COLOR LAB singles — all inside color law; retired bundles' contents

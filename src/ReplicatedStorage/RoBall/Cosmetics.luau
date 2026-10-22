@@ -15,15 +15,16 @@ local Palette = require(script.Parent.Palette)
 
 local Cosmetics = {}
 
-export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world" | "sun" | "filter"
+export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world" | "floor" | "sun" | "filter"
 
-Cosmetics.Slots = { "skin", "world", "trail", "gemFx", "deathFx", "sun", "filter" } :: { Slot }
+Cosmetics.Slots = { "skin", "world", "floor", "trail", "gemFx", "deathFx", "sun", "filter" } :: { Slot }
 Cosmetics.SlotName = {
 	skin = "SKIN",
 	trail = "TRAIL",
 	gemFx = "GEM FX",
 	deathFx = "DEATH FX",
 	world = "WORLD",
+	floor = "FLOOR",
 	sun = "SUN",
 	filter = "FILTER",
 } :: { [Slot]: string }
@@ -38,6 +39,11 @@ Cosmetics.SlotName = {
 --            colorA/colorB accents
 --   world:   theme "city"|"peaks"|"void"|"grid"|"aurora"|"reef"|"meteor"|
 --            "palms"|"polar" — picks the scenery Backdrop draws
+--   floor:   deck = slab base color (still DeckTint-lerped toward the
+--            palette unless deckB is set); deckB + deckCell = checker
+--            partner color + tile size in studs (no palette lerp);
+--            edge = flat edge-rail color; plain = suppress the transverse
+--            grid strips + center line
 --   sun:     sun = a key into Config.Art.SunStyles — restyles the striped
 --            horizon disk Backdrop parks down the slope
 --   filter:  filter = "off"|"scan"|"pixel"|"tint"|"vignette" — a screen
@@ -67,6 +73,15 @@ export type Item = {
 	alpha: number?,
 	pitch: number?,
 	bar: number?,
+	deck: Color3?,
+	deckB: Color3?,
+	deckCell: number?,
+	edge: Color3?,
+	plain: boolean?,
+	capsule: boolean?,
+	inhabitant: string?,
+	gemStyle: string?,
+	none: boolean?,
 }
 
 local CYAN = Color3.fromRGB(0, 230, 255)
@@ -468,6 +483,37 @@ Cosmetics.Items = {
 	-- (TrackStreamer stamps it server-side; §8.4).
 	world_sky = { slot = "world", name = "SKY COURT", gemPrice = 900, theme = "sky", gemStyle = "ball" },
 
+	--==== FLOOR — the deck slab itself (TrackStreamer/CosmeticFx restyle
+	-- it). `deck` is the lane base color, still lerped toward the run
+	-- palette by DeckTint; `deckB` + `deckCell` switch to a two-color
+	-- checkerboard that skips the drift. Every flat recolor stays DARK in
+	-- its pack family — the neon grid carries the read and lethal red
+	-- stays singular (CHECKER DECK is the licensed exception, the ape-ball
+	-- homage). NEON DECK = no fields, the current look.
+	floor_neon = { slot = "floor", name = "NEON DECK", free = true },
+	floor_slate = { slot = "floor", name = "SLATE", free = true, deck = Color3.fromRGB(17, 18, 24) },
+	floor_dusk = { slot = "floor", name = "DUSK TILE", gemPrice = 250, deck = Color3.fromRGB(28, 10, 22) },
+	floor_glacier = { slot = "floor", name = "GLACIER", gemPrice = 350, deck = Color3.fromRGB(6, 12, 22) },
+	floor_wire = { slot = "floor", name = "WIRE DECK", gemPrice = 350, deck = Color3.fromRGB(12, 6, 22) },
+	floor_gilt = { slot = "floor", name = "GILT", gemPrice = 350, deck = Color3.fromRGB(26, 18, 5) },
+	floor_void = { slot = "floor", name = "VOID TILE", gemPrice = 350, deck = Color3.fromRGB(6, 2, 14) },
+	floor_boreal = { slot = "floor", name = "BOREALIS DECK", gemPrice = 350, deck = Color3.fromRGB(4, 16, 12) },
+	floor_spectre = { slot = "floor", name = "SPECTRAL", gemPrice = 350, deck = Color3.fromRGB(14, 12, 24) },
+	floor_frost = { slot = "floor", name = "FROST TILE", gemPrice = 350, deck = Color3.fromRGB(6, 14, 22) },
+	floor_sludge = { slot = "floor", name = "SLUDGE", gemPrice = 300, deck = Color3.fromRGB(12, 18, 3) },
+	floor_trench = { slot = "floor", name = "TRENCH", gemPrice = 350, deck = Color3.fromRGB(3, 10, 18) },
+	floor_blackout = { slot = "floor", name = "BLACKOUT", gemPrice = 350, deck = Color3.fromRGB(2, 2, 5) },
+	floor_check = {
+		slot = "floor",
+		name = "CHECKER DECK",
+		gemPrice = 450,
+		deck = Config.Art.SkyFloorA,
+		deckB = Config.Art.SkyFloorB,
+		deckCell = 13, -- studs per tile; ~13 reads at speed
+		edge = Color3.fromRGB(28, 110, 50), -- grass-green rails, far from lethal
+		plain = true, -- the checker IS the pattern — no grid strips/center line
+	},
+
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
 	-- read, "moon"/"eclipse" pack them into a solid body)
@@ -641,6 +687,22 @@ Cosmetics.Order = {
 		"world_toxic",
 		"world_sky",
 	},
+	floor = {
+		"floor_neon",
+		"floor_slate",
+		"floor_dusk",
+		"floor_glacier",
+		"floor_wire",
+		"floor_gilt",
+		"floor_void",
+		"floor_boreal",
+		"floor_spectre",
+		"floor_frost",
+		"floor_sludge",
+		"floor_trench",
+		"floor_blackout",
+		"floor_check",
+	},
 	sun = {
 		"sun_classic",
 		"sun_moon",
@@ -679,6 +741,7 @@ Cosmetics.Defaults = {
 	gemFx = "gemfx_gold",
 	deathFx = "deathfx_shatter",
 	world = "world_city",
+	floor = "floor_neon",
 	sun = "sun_classic",
 	filter = "filter_off",
 } :: { [string]: string }
@@ -702,6 +765,7 @@ Cosmetics.Bundles = {
 			"deathfx_nova",
 			"sun_prism",
 			"filter_scan",
+			"floor_dusk",
 		},
 	},
 	{
@@ -719,6 +783,7 @@ Cosmetics.Bundles = {
 			"deathfx_landslide",
 			"sun_alpine",
 			"filter_thinair",
+			"floor_glacier",
 		},
 	},
 	{
@@ -733,6 +798,7 @@ Cosmetics.Bundles = {
 			"deathfx_violet",
 			"sun_grid",
 			"filter_pixel",
+			"floor_wire",
 		},
 	},
 	{
@@ -747,6 +813,7 @@ Cosmetics.Bundles = {
 			"deathfx_implode",
 			"sun_midas",
 			"filter_gild",
+			"floor_gilt",
 		},
 	},
 	{
@@ -761,6 +828,7 @@ Cosmetics.Bundles = {
 			"deathfx_horizon",
 			"sun_eclipse",
 			"filter_vignette",
+			"floor_void",
 		},
 	},
 	{
@@ -775,6 +843,7 @@ Cosmetics.Bundles = {
 			"deathfx_borealis",
 			"sun_moon",
 			"filter_verdant",
+			"floor_boreal",
 		},
 	},
 	{
@@ -789,6 +858,7 @@ Cosmetics.Bundles = {
 			"deathfx_static",
 			"sun_halo",
 			"filter_phosphor",
+			"floor_spectre",
 		},
 	},
 	{
@@ -803,6 +873,7 @@ Cosmetics.Bundles = {
 			"deathfx_meltdown",
 			"sun_acid",
 			"filter_toxin",
+			"floor_sludge",
 		},
 	},
 	{
@@ -817,6 +888,7 @@ Cosmetics.Bundles = {
 			"deathfx_geyser",
 			"sun_tide",
 			"filter_abyss",
+			"floor_trench",
 		},
 	},
 	{
@@ -834,6 +906,7 @@ Cosmetics.Bundles = {
 			"deathfx_null",
 			"sun_null",
 			"filter_soot",
+			"floor_blackout",
 		},
 	},
 	{
@@ -851,6 +924,7 @@ Cosmetics.Bundles = {
 			"deathfx_avalanche",
 			"sun_frost",
 			"filter_snowblind",
+			"floor_frost",
 		},
 	},
 	{
@@ -863,7 +937,12 @@ Cosmetics.Bundles = {
 		items = {
 			"skin_capsule",
 			"world_sky",
+			"floor_check",
 			"trail_banana",
+			-- equipBundle equips in list order, so NONE lands last: the pack
+			-- ships trail-less like the homage, while trail_banana stays in
+			-- the grant list (pass holders keep the wake à-la-carte).
+			"trail_none",
 			"gemfx_banana",
 			"deathfx_party",
 			"sun_noon",
@@ -922,6 +1001,7 @@ function Cosmetics.defaults(): { [string]: string }
 		gemFx = Cosmetics.Defaults.gemFx,
 		deathFx = Cosmetics.Defaults.deathFx,
 		world = Cosmetics.Defaults.world,
+		floor = Cosmetics.Defaults.floor,
 		sun = Cosmetics.Defaults.sun,
 		filter = Cosmetics.Defaults.filter,
 	}

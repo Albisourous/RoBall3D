@@ -156,24 +156,41 @@ for _, slot in ipairs(Cosmetics.Slots) do
 	syncBrowse(slot)
 end
 
-local function slotRows(): { [string]: { text: string, afford: boolean } }
+local function slotRows(): {
+	[string]: { text: string, afford: boolean, owned: boolean, equipped: boolean, color: Color3? },
+}
 	local owned = ownedSet()
 	local rows = {}
 	for _, slot in ipairs(Cosmetics.Slots) do
 		local id = browseId(slot)
 		local item = Cosmetics.item(id)
-		local text, afford = "—", false
+		local text, afford, own = "—", false, false
+		local color: Color3? = nil
 		if item then
+			own = Cosmetics.owns(owned, id :: string)
 			-- Unowned + priced shows the ◊price (clickable); owned and
 			-- pack-only records show a plain name.
-			if not Cosmetics.owns(owned, id :: string) and item.gemPrice then
+			if not own and item.gemPrice then
 				text = item.name .. "  ◊" .. tostring(item.gemPrice)
 				afford = true
 			else
 				text = item.name
 			end
+			-- Row chip wears the item's own swatch — pack contents resolve
+			-- the same precedence. String colors ("rainbow"/"customC"/
+			-- "palette") stay chipless; the preview sells those.
+			local c = item.color or item.ringA or item.colorA or item.deck
+			if typeof(c) == "Color3" then
+				color = c
+			end
 		end
-		rows[slot] = { text = text, afford = afford }
+		rows[slot] = {
+			text = text,
+			afford = afford,
+			owned = own,
+			equipped = id ~= nil and id == equippedId(slot),
+			color = color,
+		}
 	end
 	return rows
 end
@@ -263,6 +280,28 @@ local function previewPush()
 	ui:setPreviewFilter(items.filter)
 end
 
+-- Diorama pushes collapse to at most one rebuild per frame (PERFORMANCE):
+-- preview() is a full ~200-part scene rebuild and attribute bursts — the
+-- profile landing its ~12 attr pushes, an equip-bundle write, hue saves —
+-- fire refreshGarage once per attr. Boot was rebuilding the diorama a
+-- dozen times in the first seconds; one deferred pass instead. While the
+-- menu's hidden (mid-run) pushes skip entirely — ui.onMenu's refresh
+-- rebuilds once on reopen.
+local previewGen = 0
+local function queuePreview()
+	previewGen += 1
+	local gen = previewGen
+	-- Trailing 0.12s debounce: attribute pushes replicate over a few
+	-- frames, so each new write re-arms the timer and a whole burst —
+	-- the profile landing its ~12 attrs, an equip-bundle write — lands
+	-- exactly one rebuild. Browsing/equips still feel instant.
+	task.delay(0.12, function()
+		if gen == previewGen and ui.menu.Visible then
+			previewPush()
+		end
+	end)
+end
+
 local function refreshGarage()
 	local owned = ownedSet()
 	ui:setGarage({
@@ -281,7 +320,7 @@ local function refreshGarage()
 			},
 		},
 	})
-	previewPush()
+	queuePreview()
 end
 
 local function bindBall(b: Instance)
@@ -375,7 +414,7 @@ ui.onRetry = requestStart
 -- item funnel lands here too — focusPack opens the row, the set renders.
 ui.onPackOpen = function(id)
 	packPreviewId = id
-	previewPush()
+	queuePreview()
 end
 
 ui.onEquipCycle = function(slot, dir)
@@ -390,6 +429,43 @@ ui.onEquipCycle = function(slot, dir)
 		end)
 	end
 	refreshGarage()
+end
+
+-- RANDOM chip (§18): slot-machines the whole browse set — two throwaway
+-- rolls then the settle, so the preview reads as a spin, not a pop. A
+-- roll never re-lands on the current pick; the commit roll equips owned
+-- picks through the same server path as cycling, unowned ones stay
+-- window-shopping.
+ui.onRandomize = function()
+	packPreviewId = nil
+	local owned = ownedSet()
+	local function roll(commit: boolean)
+		for _, slot in ipairs(Cosmetics.Slots) do
+			local order = Cosmetics.Order[slot]
+			if #order > 1 then
+				local i = browseIdx[slot] or 1
+				local r = math.random(#order - 1)
+				if r >= i then
+					r += 1
+				end
+				browseIdx[slot] = r
+				local id = order[r]
+				if commit and Cosmetics.owns(owned, id) and equippedId(slot) ~= id then
+					pcall(function()
+						fnEquipItem:InvokeServer(id)
+					end)
+				end
+			end
+		end
+		refreshGarage()
+	end
+	roll(false)
+	task.delay(0.09, function()
+		roll(false)
+	end)
+	task.delay(0.18, function()
+		roll(true)
+	end)
 end
 
 -- Dash style (§4): the menu toggle cycles Config.Dash.Modes; the server

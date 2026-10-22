@@ -82,7 +82,8 @@ What the decomp actually does, in its own terms:
   centered — `Responsiveness` < 200 gives the suspension bob; reaction
   force on the ball is ~0 (massless assembly).
 - `AlignOrientation` **OneAttachment** on the root attachment; `CFrame`
-  is the world-upright goal, rewritten per frame by the lean driver.
+  is the world-upright goal, rewritten per frame by the rider goal
+  driver.
 
 **Rider goal driver** (server, `Main.server.luau` Heartbeat — the ball's
 network owner is the client, but the server reads

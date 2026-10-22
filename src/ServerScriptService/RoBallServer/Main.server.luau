@@ -150,6 +150,7 @@ type Run = {
 	lastFloorDist: number, -- last whole meter written to score attributes
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
 	stillT: number, -- seconds the ball has been frozen in place
+	riderYaw: number, -- capsule rider heading (§3): persists so the yaw gate holds last heading
 }
 
 local runs: { [Player]: Run } = {}
@@ -395,8 +396,12 @@ local function startRun(player: Player)
 	end
 	-- Pickup restyle (§18): the equipped world item may restyle gems —
 	-- world_sky's "ball" style renders every pickup as a capsule orb.
-	local worldItem = Cosmetics.item(ShopService.equipped(player).world)
+	local eq = ShopService.equipped(player)
+	local worldItem = Cosmetics.item(eq.world)
 	streamer.gemStyle = worldItem and worldItem.gemStyle
+	-- FLOOR slot (APEBALL.md §5): the equipped floor item restyles deck
+	-- slabs/rails — a mid-run swap stamps future chunks only.
+	streamer.deckItem = Cosmetics.item(eq.floor)
 	local run: Run = {
 		laneIndex = laneIndex,
 		streamer = streamer,
@@ -416,6 +421,7 @@ local function startRun(player: Player)
 		lastFloorDist = 0,
 		lastPos = nil,
 		stillT = 0,
+		riderYaw = math.pi, -- facing -Z/travel at spawn, matching SMB's getInitApeYaw
 	}
 	runs[player] = run
 	-- A stale daily rank can't leak onto a non-daily run's death card.
@@ -890,6 +896,46 @@ RunService.Heartbeat:Connect(function(dt)
 				if m ~= run.lastFloorDist then
 					run.lastFloorDist = m
 					writeScore(player, run)
+				end
+			end
+
+			-- Capsule rider goal (APEBALL.md §3 — port of the SMB decomp's
+			-- updateApeOrientation, WebMonkeyBall physics.ts ~571): the
+			-- Inhabitant rig's "RiderOri" AlignOrientation gets a fresh
+			-- world-space goal each frame — yaw blends onto the horizontal
+			-- velocity heading through the Lo→Hi speed gate (the last
+			-- heading holds when nearly stopped), then a RiderTumble share
+			-- of the ball's angular delta gives the shudder without
+			-- slaving the rider to the roll. The constraint's soft
+			-- Responsiveness plays the decomp's incremental uprighting —
+			-- no manual upright nudge needed. The ball's network owner is
+			-- the client, but server reads + constraint-property writes
+			-- replicate to whichever machine simulates the rig.
+			local inhab = ball:FindFirstChild("Inhabitant")
+			if inhab then
+				local ori = inhab:FindFirstChild("RiderOri", true)
+				if ori and ori:IsA("AlignOrientation") then
+					local v = ball.AssemblyLinearVelocity
+					local hs = math.sqrt(v.X * v.X + v.Z * v.Z)
+					if hs > Config.Art.RiderYawVelLo then
+						local target = math.atan2(v.X, v.Z) -- +Z face (muzzle/eyes) onto vel dir
+						local blend = math.clamp(
+							(hs - Config.Art.RiderYawVelLo) / (Config.Art.RiderYawVelHi - Config.Art.RiderYawVelLo),
+							0,
+							1
+						)
+						-- Shortest-arc blend toward the heading — the
+						-- decomp's s16-wrapped delta.
+						local dYaw = (target - run.riderYaw + math.pi) % (2 * math.pi) - math.pi
+						run.riderYaw += dYaw * blend
+					end
+					local w = ball.AssemblyAngularVelocity
+					local wn = w.Magnitude
+					local goal = CFrame.Angles(0, run.riderYaw, 0)
+					if wn > 1e-3 then
+						goal = CFrame.fromAxisAngle(w.Unit, wn * dt * Config.Art.RiderTumble) * goal
+					end
+					ori.CFrame = goal
 				end
 			end
 
