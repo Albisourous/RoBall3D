@@ -234,6 +234,7 @@ Cosmetics.Items = {
 	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
+	trail_none = { slot = "trail", name = "NONE", free = true, none = true },
 	trail_magenta = { slot = "trail", name = "PALETTE WAKE", free = true, color = "palette" },
 	trail_ion = { slot = "trail", name = "ION", free = true, color = CYAN },
 	trail_sunset = { slot = "trail", name = "SUNSET", gemPrice = 200, color = SUNSET },
@@ -433,6 +434,7 @@ Cosmetics.Order = {
 		"skin_custom",
 	},
 	trail = {
+		"trail_none",
 		"trail_magenta",
 		"trail_ion",
 		"trail_sunset",
@@ -512,7 +514,7 @@ Cosmetics.Order = {
 
 Cosmetics.Defaults = {
 	skin = "skin_classic",
-	trail = "trail_magenta",
+	trail = "trail_none",
 	gemFx = "gemfx_gold",
 	deathFx = "deathfx_shatter",
 	world = "world_city",

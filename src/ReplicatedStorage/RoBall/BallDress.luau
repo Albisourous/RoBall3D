@@ -63,6 +63,9 @@ function BallDress.dress(ball: BasePart, skin: any?, trailItem: any?, scale: num
 	trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil, hues))
 	trail.Transparency = NumberSequence.new(0.5, 1)
 	trail.WidthScale = NumberSequence.new(0.35, 0.05)
+	-- `none` items (TRAIL ▸ NONE) keep the object parked — equip swaps
+	-- just flip Enabled, no rebuild needed.
+	trail.Enabled = not (trailItem and trailItem.none == true)
 	trail.Parent = ball
 
 	return { rings = rings, trail = trail }
@@ -82,6 +85,7 @@ function BallDress.retint(ball: BasePart, skin: any?, trailItem: any?, hues: Cos
 	local trail = ball:FindFirstChildOfClass("Trail")
 	if trail then
 		trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil, hues))
+		trail.Enabled = not (trailItem and trailItem.none == true)
 	end
 end
 

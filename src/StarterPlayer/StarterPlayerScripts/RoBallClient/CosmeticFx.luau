@@ -66,6 +66,9 @@ local LANE_Z0 = 40 -- lane runs a little behind the camera
 local LANE_Z1 = -430 -- ...and out past the scenery window
 local ROLL_Z0 = -30 -- ball loop head
 local ROLL_LEN = 150 -- studs per loop before the wrap reset
+local SWAY_AMP = 8 -- studs of lateral weave — sells the trail's stream
+local SWAY_W = 1.1 -- weave rate (rad/s): ~1 lazy S per loop
+local SWAY_BANK = 0.3 -- steer lean into the weave (rad)
 local BALL_D = Config.Ball.Diameter
 local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
@@ -279,7 +282,7 @@ function Fx.preview(items: { [string]: any })
 	-- ball really rolls, so the ribbon streams behind it exactly like a
 	-- run. FaceCamera stays on as a readability aid (the chase cam
 	-- otherwise sees the ribbon edge-on).
-	if trailI then
+	if trailI and not trailI.none then
 		local a0 = Instance.new("Attachment")
 		a0.Position = Vector3.new(0, BALL_D * 0.3, 0)
 		a0.Parent = ball
@@ -394,8 +397,12 @@ local function step()
 		local tt = tick()
 		local roll = (tt * ROLL_SPEED) % ROLL_LEN
 		local z = ROLL_Z0 - roll
-		local bc = CFrame.new(0, deckTopAt(z) + BALL_D / 2, z)
-			* CFrame.Angles((-tt * ROLL_SPEED / (BALL_D / 2)) % TAU, 0, 0)
+		-- Gentle lateral weave — the trail streams in a visible S instead
+		-- of a dead-straight line, like real steering input.
+		local sway = math.sin((tt * SWAY_W) % TAU) * SWAY_AMP
+		local lean = math.cos((tt * SWAY_W) % TAU) * SWAY_BANK
+		local bc = CFrame.new(sway, deckTopAt(z) + BALL_D / 2, z)
+			* CFrame.Angles((-tt * ROLL_SPEED / (BALL_D / 2)) % TAU, 0, -lean)
 		vpBall.CFrame = bc
 		for i, segs in ipairs(vpRings) do
 			local base = bc * vpRingRots[i] * RING_X

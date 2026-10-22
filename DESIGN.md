@@ -1307,7 +1307,9 @@ the adornments it stands in for — rings are cylinder parts since
 adornments don't render inside a ViewportFrame) rolls down-grade at
 `Config.Speed.Start`, so the trail — BallDress's own attachment pair +
 taper spec — streams exactly like a run; a ~150-stud loop wraps with a
-trail reset. The ViewportFrame camera re-aims each frame with the live
+trail reset. The ball weaves ±8 studs with a slight steer-lean so the
+ribbon draws a visible S instead of a dead-straight line. The
+ViewportFrame camera re-aims each frame with the live
 chase-cam transform (`Camera.Offset` behind-above, `LookAhead`/
 `LookDrop` aim) at the real speed-ramped FOV. The world is no sketch
 either: `Backdrop.diorama(parent, theme, sun, anchor)` lays ONE static

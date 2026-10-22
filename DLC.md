@@ -36,10 +36,11 @@ the red seam is cut out of the reachable space on both ends.
 | IRIS | wave fx | ◊1100 | — (prestige) |
 | COLOR LAB | your hues ×2 | ◊1500 | colorlab |
 
-### TRAIL — wake ribbon (15)
+### TRAIL — wake ribbon (16)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
+| NONE | no trail | free | — |
 | PALETTE WAKE | run-wheel hue | free | — |
 | ION | cyan | free | — |
 | SUNSET | sun-orange | ◊200 | starter |
