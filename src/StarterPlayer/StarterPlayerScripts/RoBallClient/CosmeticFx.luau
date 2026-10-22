@@ -69,9 +69,13 @@ local ROLL_LEN = 150 -- studs per loop before the wrap reset
 local SWAY_AMP = 8 -- studs of lateral weave — sells the trail's stream
 local SWAY_W = 1.1 -- weave rate (rad/s): ~1 lazy S per loop
 local SWAY_BANK = 0.3 -- steer lean into the weave (rad)
--- Ribbon: one quad per sampled position — ~0.4 s of history at the
--- opener pace, same coverage as TrailLifetime × ROLL_SPEED.
+-- Ribbon: one quad pair (core + glow) per sampled position — ~0.4 s of
+-- history at the opener pace, same coverage as TrailLifetime ×
+-- ROLL_SPEED. Ember motes peel off the wake — the boost-trail look:
+-- white-hot at the ball, cooling to the item's color, sparks scattering.
 local TRAIL_SEGS = 24
+local TRAIL_MOTES = 10
+local WHITE = Color3.new(1, 1, 1)
 local BALL_D = Config.Ball.Diameter
 local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
@@ -94,6 +98,8 @@ local vpGem: BasePart? = nil
 local vpGemCf: CFrame? = nil
 local vpShards: { BasePart } = {}
 local vpTrailSegs: { BasePart } = {}
+local vpTrailGlow: { BasePart } = {}
+local vpMotes: { BasePart } = {}
 local vpTrailPts: { Vector3 } = {}
 local vpTrailColor = PK
 local vpLastRoll = 0
@@ -228,6 +234,8 @@ function Fx.preview(items: { [string]: any })
 	vpGem = nil
 	vpGemCf = nil
 	vpTrailSegs = {}
+	vpTrailGlow = {}
+	vpMotes = {}
 	vpTrailPts = {}
 	vpLastRoll = 0
 	vpRings = {}
@@ -284,10 +292,11 @@ function Fx.preview(items: { [string]: any })
 	end
 
 	-- Ribbon: a Trail can't draw inside a ViewportFrame — the same
-	-- stroke-swap as the ring cage. Thin Neon quads bridge the ball's
-	-- recent positions, tapering and fading on the real spec's curve
-	-- (WidthScale 0.35→0.05, Transparency 0.5→1, Lifetime × speed long);
-	-- the widths are bumped ~2× for readability at this window size.
+	-- stroke-swap as the ring cage. The boost-trail read: a bright core
+	-- strip over a wider soft-glow layer, plus ember motes that peel off
+	-- the wake — all thin Neon quads/spheres bridging the ball's recent
+	-- positions on the real spec's taper+fade (WidthScale 0.35→0.05,
+	-- Transparency 0.5→1, Lifetime × speed long).
 	if trailI and not trailI.none then
 		vpTrailColor = Cosmetics.colorOf(trailI.color, PK, hues)
 		for i = 1, TRAIL_SEGS do
@@ -295,6 +304,17 @@ function Fx.preview(items: { [string]: any })
 			s.Material = Enum.Material.Neon
 			s.Transparency = 1
 			vpTrailSegs[i] = s
+			local g = vpart(Vector3.one * 0.1, ballPos, vpTrailColor)
+			g.Material = Enum.Material.Neon
+			g.Transparency = 1
+			vpTrailGlow[i] = g
+		end
+		for j = 1, TRAIL_MOTES do
+			local m = vpart(Vector3.one * 0.2, ballPos, vpTrailColor)
+			m.Material = Enum.Material.Neon
+			m.Shape = Enum.PartType.Ball
+			m.Transparency = 1
+			vpMotes[j] = m
 		end
 	end
 
@@ -430,14 +450,42 @@ local function step()
 			end
 			for i, s in ipairs(vpTrailSegs) do
 				local a, b = vpTrailPts[i], vpTrailPts[i + 1]
+				local g = vpTrailGlow[i]
 				if a and b then
 					local f = i / TRAIL_SEGS
-					s.CFrame = CFrame.lookAt((a + b) / 2, b)
-					s.Size = Vector3.new(1.5 * (1 - f) + 0.2, 0.07, (a - b).Magnitude + 0.01)
-					s.Transparency = 0.3 + 0.7 * f
-					s.Color = tcol
+					local len = (a - b).Magnitude + 0.01
+					-- White-hot at the ball cooling to the item color,
+					-- plus a per-seg flicker so the wake shimmers.
+					local flick = 0.07 * math.sin((tt * 17 + i * 1.9) % TAU)
+					local core = CFrame.lookAt((a + b) / 2, b)
+					s.CFrame = core
+					s.Size = Vector3.new(1.2 * (1 - f) + 0.15, 0.07, len)
+					s.Transparency = math.clamp(0.22 + 0.7 * f + flick, 0, 1)
+					s.Color = tcol:Lerp(WHITE, math.max(0, 0.65 - f * 1.3))
+					g.CFrame = core
+					g.Size = Vector3.new(2.6 * (1 - f) + 0.3, 0.05, len)
+					g.Transparency = math.clamp(0.55 + 0.43 * f, 0, 1)
+					g.Color = tcol
 				else
 					s.Transparency = 1
+					g.Transparency = 1
+				end
+			end
+			-- Ember motes: sparks that peel off the wake, drift up and
+			-- out, shrink and die — staggered lifecycles per mote.
+			for j, m in ipairs(vpMotes) do
+				local ph = (tt * 0.8 + j * 0.618) % 1
+				local idx = 1 + ((j * 7) % math.max(#vpTrailPts, 1))
+				local p = vpTrailPts[idx]
+				if p then
+					local jx = math.sin(j * 12.9) * (0.4 + ph * 3.2)
+					local jz = math.cos(j * 7.3) * (0.4 + ph * 3.2)
+					m.CFrame = CFrame.new(p + Vector3.new(jx, 0.3 + ph * 2.6, jz))
+					m.Size = Vector3.one * (0.34 * (1 - ph) + 0.06)
+					m.Transparency = 0.2 + ph * 0.78
+					m.Color = tcol:Lerp(WHITE, math.max(0, 0.5 - ph))
+				else
+					m.Transparency = 1
 				end
 			end
 		end

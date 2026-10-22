@@ -1320,7 +1320,11 @@ adornments don't render inside a ViewportFrame) rolls down-grade at
 taper spec — streams exactly like a run; a ~150-stud loop wraps with a
 trail reset. The ribbon itself is a stroke-swap like the ring cage:
 Trail objects can't draw inside a ViewportFrame, so thin Neon quads
-bridge the ball's recent positions on the same taper/fade curve. The ball weaves ±8 studs with a slight steer-lean so the
+bridge the ball's recent positions — a boost-trail composite: a bright
+core strip that lerps white-hot at the ball and cools to the item's
+color, a wider soft-glow layer under it, per-seg flicker, and ember
+motes that peel off the wake, drift up, shrink and die. The ball weaves
+±8 studs with a slight steer-lean so the
 ribbon draws a visible S instead of a dead-straight line. The
 ViewportFrame camera re-aims each frame with the live
 chase-cam transform (`Camera.Offset` behind-above, `LookAhead`/
