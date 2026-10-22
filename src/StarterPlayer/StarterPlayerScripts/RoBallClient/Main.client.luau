@@ -431,26 +431,37 @@ ui.onEquipCycle = function(slot, dir)
 	refreshGarage()
 end
 
--- RANDOM chip (§18): slot-machines the whole browse set — two throwaway
--- rolls then the settle, so the preview reads as a spin, not a pop. A
--- roll never re-lands on the current pick; the commit roll equips owned
--- picks through the same server path as cycling, unowned ones stay
--- window-shopping.
+-- RANDOM chip (§18): slot-machines a loadout out of OWNED items only —
+-- two throwaway rolls then the settle, so the preview reads as a spin,
+-- not a pop. A roll never re-lands on the current pick; every commit
+-- pick equips through the same server path as cycling (owned = the
+-- server always says yes).
 ui.onRandomize = function()
 	packPreviewId = nil
 	local owned = ownedSet()
+	-- Each slot's owned subset as Order-index picks (browseIdx stays an
+	-- index into Cosmetics.Order, so a pick carries its order position).
+	local pools: { [string]: { number } } = {}
+	for _, slot in ipairs(Cosmetics.Slots) do
+		local p = {}
+		for i, id in ipairs(Cosmetics.Order[slot]) do
+			if Cosmetics.owns(owned, id) then
+				table.insert(p, i)
+			end
+		end
+		pools[slot] = p
+	end
 	local function roll(commit: boolean)
 		for _, slot in ipairs(Cosmetics.Slots) do
-			local order = Cosmetics.Order[slot]
-			if #order > 1 then
-				local i = browseIdx[slot] or 1
-				local r = math.random(#order - 1)
-				if r >= i then
-					r += 1
+			local pool = pools[slot]
+			if #pool > 1 then
+				local pick = pool[math.random(#pool)]
+				while pick == browseIdx[slot] do
+					pick = pool[math.random(#pool)]
 				end
-				browseIdx[slot] = r
-				local id = order[r]
-				if commit and Cosmetics.owns(owned, id) and equippedId(slot) ~= id then
+				browseIdx[slot] = pick
+				local id = Cosmetics.Order[slot][pick]
+				if commit and equippedId(slot) ~= id then
 					pcall(function()
 						fnEquipItem:InvokeServer(id)
 					end)

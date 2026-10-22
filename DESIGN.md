@@ -226,9 +226,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     tint is white = owned, gold = à-la-carte ◊price, dim = pack-locked,
     and a color chip on the name's right edge wears the item's own
     swatch (a cyan ring = it's the look on the ball). A `RANDOM` chip
-    under the rows slot-machines the whole browse set — a few quick
-    rolls spin the preview before it settles; owned picks equip exactly
-    like cycling does. PACKS is a scrolling list — each row is an
+    under the rows slot-machines a loadout out of owned items only —
+    a few quick rolls spin the preview before it settles into a fit
+    the player can actually wear; every pick equips exactly like
+    cycling does. PACKS is a scrolling list — each row is an
     accordion whose body lists the bundle's actual contents
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
     color), one open at a time, so a purchase is never a guess. An open
