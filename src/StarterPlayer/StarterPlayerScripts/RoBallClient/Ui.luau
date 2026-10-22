@@ -1646,8 +1646,8 @@ function Ui.new(): Ui
 
 	--=========== SPEED + POWER METER (bottom corners) ===========--
 	-- Vaporwave BPM readout (DESIGN.md §12): the digit is the heard tempo
-	-- (track bpm x snapped PlaybackSpeed — it steps in semitones with the
-	-- music), chromed like retro lettering and slanted outrun-style. Twin
+	-- (track bpm x the player's live PlaybackSpeed — it steps in semitones
+	-- with the music), chromed like retro lettering and slanted outrun-style. Twin
 	-- cyan/pink ghosts ride it: VHS chromatic aberration that spreads and
 	-- flares with the audio pulse, so the digit thumps on the beat. Hue
 	-- still keys off ball speed (cyan -> magenta -> hot red past 100 s/s).

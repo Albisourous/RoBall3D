@@ -47,16 +47,18 @@ level builder can read the song.
   16 bars at its own measured BPM — `palm_screens` doubles as the menu
   bed. The earlier synthesized set (`vaporwave_loop`, `neon_descent`,
   `retro_wave`) is retired.
-- `MusicController` drives `Sound.PlaybackSpeed` `0.9 → 1.35` with ball
-  speed (`speedNorm`). **Heard BPM is therefore `BaseBpm × PlaybackSpeed`:
-  ~79 BPM cruising to ~119 BPM flat-out** — the track morphs chillwave →
-  EDM as the run accelerates. This is already the GD "speed = energy"
+- `MusicController` drives `Sound.PlaybackSpeed` `0.5 → 1.35` with ball
+  speed (`speedNorm`). **Heard BPM is therefore `map.bpm × PlaybackSpeed`**
+  — every song opens at exactly half tempo (−12 st snaps a clean
+  octave-down, the "chopped & screwed" opener) and lifts to a full-tilt
+  1.35× as the run accelerates. This is the GD "speed = energy"
   signature; keep it.
 - Gem clusters already land on the heard beat grid (`beatSpacing`,
   `rollRhythm`, `gemRhythmLine` — cluster sizes are note groupings:
   8 = 16ths, 4 = 8ths, 2 = quarters, 1 = accent). Pickups chime up an
   A-minor pentatonic ladder per combo (`SfxController`).
-- Death slides pitch to `DeathPitchFloor = 0.6`.
+- Death slides pitch to `DeathPitchFloor = 0.4` — always below
+  `PlaybackSpeedMin` so the tape-stop only ever dives.
 
 Everything below builds on this — nothing here is thrown away.
 
@@ -410,10 +412,10 @@ Config.Music = {
     Track = "palm_screens",       -- SongMap id; seed can pick from a canon
     Volume = 0.5,
     BaseBpm = 105.38,             -- must equal the parked map's bpm — grid truth
-    PlaybackSpeedMin = 0.9,
+    PlaybackSpeedMin = 0.5,       -- half-speed opener (−12 st, octave down)
     PlaybackSpeedMax = 1.35,
     PitchCompensation = 0.5,      -- 0 = full chipmunk ramp, 1 = pitch-locked
-    DeathPitchFloor = 0.6,
+    DeathPitchFloor = 0.4,        -- must stay below PlaybackSpeedMin
     Layers = { pad = {...}, bass = {...}, drums = {...}, ... }, -- §5.1
     FadeBars = 2,                 -- layer fades complete over this many bars
     SeedStartOffset = false,      -- rotate start bar by seed

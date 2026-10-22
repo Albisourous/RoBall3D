@@ -903,9 +903,9 @@ that caused them.
   `PingLift` at contact) — the audible mirror of the frame closing in,
   on the `dash` mixer channel.
   Bottom-right is a single big **BPM number** — the
-  heard tempo (`map.bpm × PlaybackSpeed`, snapped to `TempoStepSt`
-  semitones), so the digit steps in real intervals exactly when the music
-  does. The digit's hue is still the speed meter: gradients cyan →
+  heard tempo (`map.bpm × the player's live PlaybackSpeed`, which rides the
+  semitone-snapped `TempoStepSt` curve), so the digit is accurate even
+  mid-glide and steps in real intervals exactly when the music does. The digit's hue is still the speed meter: gradients cyan →
   violet → magenta across 0–100 s/s and snaps hot red + pulsing past it.
   It's dressed vaporwave: a chrome gradient band under the hue, a −6°
   outrun slant, and twin cyan/pink VHS-fringe ghosts that spread and
@@ -962,8 +962,8 @@ Full spec: `AUDIO.md`. Binding decisions:
 - Shipped catalog: ten FlowMusic loops (`Config.Music.Tracklist`,
   per-track measured BPMs — `palm_screens` doubles as the menu bed).
   The earlier synthesized set (`vaporwave_loop`, `neon_descent`,
-  `retro_wave`) is retired. `PlaybackSpeed` maps ball speed `0.9x ->
-  1.35x`, so the heard tempo rides the run's acceleration. Optional
+  `retro_wave`) is retired. `PlaybackSpeed` maps ball speed `0.5x ->
+  1.35x` — a half-speed opener that rides the run's acceleration. Optional
   `AudioPitchShifter` (`Music.PitchCompensation`) softens the squeak
   while tempo keeps climbing.
 - Runtime migrates `Sound` → the audio-graph API: one

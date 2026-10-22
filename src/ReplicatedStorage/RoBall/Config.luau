@@ -886,7 +886,11 @@ Config.Music = {
 	-- one tempo is what makes gem spacing, mover periods, and section
 	-- energy identical across songs (AUDIO.md §5.2 fairness contract).
 	BaseBpm = 105.38,
-	PlaybackSpeedMin = 0.9,
+	-- Runs open at HALF speed: 0.5 snaps to exactly −12 semitones — a clean
+	-- octave-down "chopped & screwed" opener that lifts to full tilt as the
+	-- ball accelerates (AUDIO.md §4). Fairness holds: the same curve applies
+	-- to every song, and generation never reads the track's own bpm.
+	PlaybackSpeedMin = 0.5,
 	PlaybackSpeedMax = 1.35,
 	-- Speed IS the tempo (AUDIO.md §4): heard BPM = map.bpm * PlaybackSpeed
 	-- and norm rides ball speed, so the song literally accelerates with the
@@ -899,7 +903,8 @@ Config.Music = {
 	-- and each step glides in over TempoStepGlide seconds. 0 = continuous.
 	TempoStepSt = 1,
 	TempoStepGlide = 0.3,
-	DeathPitchFloor = 0.6, -- pitch slides to this on death
+	DeathPitchFloor = 0.4, -- pitch slides to this on death; must sit BELOW
+	-- PlaybackSpeedMin or an instant-death tape-stop slides UP in tempo
 	-- AudioPitchShifter compensation (AUDIO.md §4): Pitch = ps^-k.
 	-- 0 = full chipmunk ramp (pitch+tempo coupled), 1 = pitch-locked while
 	-- tempo climbs. 0.5 halves the squeak, keeps the urgency.

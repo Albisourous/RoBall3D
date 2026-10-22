@@ -486,11 +486,13 @@ function Music.setSpeedNorm(n: number)
 	applySpeed()
 end
 
--- Heard tempo right now (AUDIO.md §4): the track's bpm x the snapped
--- playback speed applied to the players — the HUD's BPM digit, so the
--- number steps in semitones exactly when the music does.
+-- Heard tempo right now (AUDIO.md §4): the track's bpm x the lead
+-- player's LIVE PlaybackSpeed — read off the instance, not the snapped
+-- target, so the HUD digit stays accurate while a step is still gliding
+-- in and while the death tape-stop dives.
 function Music.bpm(): number
-	return curMap.bpm * ps()
+	local speed = lead and lead.PlaybackSpeed or ps()
+	return (curMap and curMap.bpm or m.BaseBpm) * speed
 end
 
 -- Tier index from the client drive loop: layer mix + beat-quantized sting.
