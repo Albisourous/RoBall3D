@@ -687,6 +687,48 @@ Config.Gems = {
 	-- Reserved gold: collectible, never lethal, and reads as the "sunset"
 	-- accent against the magenta/cyan world.
 	Color = Color3.fromRGB(255, 212, 64),
+	-- Gem types (§8.4): worth IS the type — each value tier carries its own
+	-- warm-family tint + shape list, hotter/heavier reading = more points,
+	-- so pickups telegraph their payoff at speed. `shapes` lists the
+	-- silhouettes a tier can render; the streamer picks per spot by a
+	-- deterministic (startZ, t) hash in GemTypes.pick — a pure function of
+	-- the emitted spec, so a seed replays the exact same mix (no rng spent,
+	-- §6 purity intact). Tints stay in the gold→white "currency" ramp:
+	-- collectible warmth, never near LethalColor red. Keys mirror the
+	-- Value* entries above — retune a value, move its tier key too.
+	Kinds = {
+		-- safe 10 — small common pickups: the corner diamond or a pearl orb
+		[10] = {
+			color = Color3.fromRGB(255, 212, 64),
+			shapes = {
+				{ shape = "diamond", size = 1.0 },
+				{ shape = "orb", size = 0.95 },
+			},
+		},
+		-- edge 15 — amber: upright coins + orbs hugging the rails
+		[15] = {
+			color = Color3.fromRGB(255, 168, 52),
+			shapes = {
+				{ shape = "coin", size = 1.05 },
+				{ shape = "orb", size = 0.95 },
+			},
+		},
+		-- beam 25 — orange: shards and rods on the risky lines
+		[25] = {
+			color = Color3.fromRGB(255, 132, 50),
+			shapes = {
+				{ shape = "shard", size = 1.25 },
+				{ shape = "rod", size = 1.25 },
+			},
+		},
+		-- gap-arc 40 — the jackpot crown: always the fat white-hot diamond
+		[40] = {
+			color = Color3.fromRGB(255, 244, 185),
+			shapes = {
+				{ shape = "crown", size = 1.55 },
+			},
+		},
+	},
 }
 
 Config.Score = {

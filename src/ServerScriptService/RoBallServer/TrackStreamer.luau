@@ -13,6 +13,7 @@ local GenCore = require(ReplicatedStorage.RoBall.GenCore)
 local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local MoveWave = require(ReplicatedStorage.RoBall.MoveWave)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
+local GemTypes = require(ReplicatedStorage.RoBall.GemTypes)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
 -- Deck primitives live in Config.Art — the garage preview's real-scale
@@ -49,8 +50,10 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.folder = Instance.new("Folder")
 	self.folder.Name = "Lane" .. laneIndex
 	self.folder.Parent = lanesRoot
-	-- Optional: set by Main. Fired when the ball touches a gem: (hit, value).
-	self.onGem = nil :: ((hit: BasePart, value: number) -> ())?
+	-- Optional: set by Main. Fired when the ball touches a gem:
+	-- (hit, value, shape) — shape rides on to RoBallGemShape so the client
+	-- pop ghost matches what was picked up.
+	self.onGem = nil :: ((hit: BasePart, value: number, shape: string) -> ())?
 	-- Beat-locked movers (§8.6): obstacle parts animated on Heartbeat.
 	-- Entries die with their chunk's folder; cleanup() prunes dead rows.
 	self.movers =
@@ -337,28 +340,31 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	return b, mid
 end
 
--- Gems hover above the deck (or along the ramp arc). Shape: a cube balanced
--- on a corner — 35.26° pitch + 45° yaw puts a vertex straight up, giving a
--- hexagonal diamond silhouette that reads as a gem at speed. (A two-pyramid
--- octahedron via SpecialMesh was tried: MeshType.Pyramid renders nothing in
--- the current engine.) CanCollide stays off — contact means collected,
--- never an obstruction.
+-- Gems hover above the deck (or along the ramp arc). The silhouette comes
+-- from GemTypes by value tier (§8.4): worth IS the shape — chips/orbs,
+-- coins, shards/rods, the fat crown — picked per spot by a deterministic
+-- (startZ, t) hash so a seed replays the same mix. CanCollide stays off —
+-- contact means collected, never an obstruction. (A two-pyramid octahedron
+-- via SpecialMesh was tried: MeshType.Pyramid renders nothing in the
+-- current engine.)
 local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, g: ChunkDefs.GemSpot): Part
 	local s = spec.section(g.t)
+	local shape, size, color = GemTypes.pick(g.value, spec.startZ, g.t)
 	local p = Instance.new("Part")
 	p.Name = "Gem"
 	p.Anchored = true
 	p.CanCollide = false
 	p.CastShadow = false
-	p.Size = Vector3.new(Config.Gems.Size, Config.Gems.Size, Config.Gems.Size)
+	local rot = GemTypes.pose(p, shape, size)
 	p.CFrame = CFrame.new(
 		laneX + s.centerX + g.xOff,
 		s.y + (g.yOff or Config.Gems.FloatY),
 		spec.startZ - g.t * spec.length
-	) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
-	p.Color = Config.Gems.Color
+	) * rot
+	p.Color = color
 	p.Material = Enum.Material.Neon
 	p:SetAttribute("GemValue", g.value)
+	p:SetAttribute("GemShape", shape)
 	p:SetAttribute("ChunkType", spec.type)
 	CollectionService:AddTag(p, "RoBallGem") -- client BeatPulse subscribes
 	p.Parent = parent
@@ -900,7 +906,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				if taken then
 					return
 				end
-				if self.onGem and self.onGem(hit, g.value) then
+				if self.onGem and self.onGem(hit, g.value, gem:GetAttribute("GemShape") :: string) then
 					taken = true
 					gem:Destroy()
 				end

@@ -473,18 +473,35 @@ narrow beams, arcs over `RampGap` voids, and straight through the middle of
 obstacle gaps (the corridor you're meant to thread — highest risk/reward).
 Value scales with risk class:
 safe `10` / edge `15` / beam `25` / gap-arc `40`. 0–3 clusters per chunk.
-Gems are a single Neon `Part` — a cube balanced on a corner (35.26° pitch
-+ 45° yaw), giving a hexagonal diamond silhouette — with a server touched
-handler → `Score += value`. (Two-pyramid octahedron via
+
+**Worth IS the shape** (`GemTypes.luau` + `Config.Gems.Kinds`): every value
+tier renders its own Neon silhouette in a warm-family tint — hotter and
+heavier reading = more points, so the payoff telegraphs at speed:
+
+| Value | Name | Shapes (seeded pick) | Tint |
+| ----: | ---- | ---- | ---- |
+| 10 | chip | corner-balanced cube `diamond` / pearl `orb` | gold `255,212,64` |
+| 15 | edge | upright `coin` / `orb` | amber `255,168,52` |
+| 25 | beam | standing wedge `shard` / vertical `rod` | orange `255,132,50` |
+| 40 | arc | fat `crown` diamond ×1.55 | white-hot `255,244,185` |
+
+All shapes are engine primitives (Block/Ball/Cylinder/Wedge — `GemTypes.pose`
+owns the silhouette + local rotation). The per-spot pick is a deterministic
+hash of the emitted `(startZ, t)` — NOT the generator rng — so a seed
+replays the same type mix every run (§6 purity: render-only, never feeds
+scoring). Tints stay in the gold→white "currency" ramp, clear of
+`LethalColor` red. The collected shape rides `RoBallGemShape` on the player
+so client FX knows exactly what was picked up. (Two-pyramid octahedron via
 `MeshType.Pyramid` was tried: that legacy mesh type renders nothing in the
 current engine.)
 
 **Pickup juice** (`GemFx.luau`, client): the gem itself is `Destroy`ed
 instantly server-side, so the flourish is client-local at the ball's
-position when `RoBallGems` ticks up — a ghost diamond pops oversize and
-rises/fades while tumbling, a gold sparkle burst scatters (built-in
-sparkles texture, always resolvable), and a thin neon ring flashes
-outward across the deck. All one-shots, gone in ~0.5s.
+position when `RoBallGems` ticks up — a ghost of the collected gem pops
+oversize in its real shape + tier tint and rises/fades while tumbling, a
+sparkle burst scatters (built-in sparkles texture, always resolvable; the
+equipped `gemFx` color), and a thin neon ring flashes outward across the
+deck. All one-shots, gone in ~0.5s.
 
 **Rhythmic clusters** (`gemRhythmLine`): gem spacing rides the music's beat
 grid. Cluster sizes are note groupings — 8 = sixteenths, 4 = eighths,
@@ -877,8 +894,10 @@ that caused them.
   rails + transverse grid strips + longitudinal center line, all tinted
   from `Palette` **per segment** — the neon flows continuously down the
   slope as a real gradient instead of stepping per chunk.
-- **Gems**: gold corner-balanced cubes — a hexagonal diamond silhouette
-  that reads as a collectible at speed (one part each, zero mesh cost).
+- **Gems**: four value tiers, each its own primitive silhouette + warm
+  tint — diamond chips/pearl orbs (gold, 10), coins/orbs (amber, 15),
+  shards/rods (orange, 25), the fat crown diamond (white-hot, 40). One part
+  each, zero mesh cost; catalog in §8.4.
 - **Obstacles**: near-black bodies with red `SelectionBox` edge outlines —
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.

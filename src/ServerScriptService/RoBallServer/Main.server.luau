@@ -418,8 +418,11 @@ local function startRun(player: Player)
 	player:SetAttribute("RoBallDailyRank", 0)
 	player:SetAttribute("RoBallTopRank", 0)
 
-	streamer.onGem = function(hit, value)
+	streamer.onGem = function(hit, value, shape)
 		if run.ball and hit == run.ball then
+			-- Stamped BEFORE the RoBallGems bump so the client's pop ghost
+			-- reads the collected gem's shape in the same attr flush.
+			player:SetAttribute("RoBallGemShape", shape)
 			run.gemPts += value
 			writeScore(player, run)
 			-- Dual-purpose (§18 P2): the pickup is score AND banked currency —

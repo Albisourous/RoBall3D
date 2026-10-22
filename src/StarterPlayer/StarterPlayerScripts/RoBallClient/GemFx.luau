@@ -1,7 +1,8 @@
 --!strict
 -- GemFx (DESIGN.md §8.4): pickup juice. Server gems are Destroyed instantly
 -- on touch, so the client renders the flourish at the ball's position when
--- RoBallGems ticks up: a ghost diamond pops and rises, a sparkle burst
+-- RoBallGems ticks up: a ghost of the collected gem — its own shape + tier
+-- tint via GemTypes/RoBallGemShape — pops and rises, a sparkle burst
 -- scatters, and a neon ring flashes outward. All parts are client-local
 -- one-shots — zero replication cost.
 
@@ -12,6 +13,7 @@ local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
+local GemTypes = require(ReplicatedStorage.RoBall.GemTypes)
 
 local player = Players.LocalPlayer
 local ballName = player.Name .. "_Ball"
@@ -31,25 +33,26 @@ local function ballPos(): Vector3?
 	return if b and b:IsA("BasePart") then b.Position else nil
 end
 
--- Ghost of the collected gem: pops oversize, rises, spins, fades.
-local function popGem(pos: Vector3, color: Color3)
+-- Ghost of the collected gem: pops oversize, rises, spins, fades — in the
+-- real pickup's shape + tier tint (§8.4), resolved through GemTypes.
+local function popGem(pos: Vector3, shape: string, size: number, color: Color3)
 	local fx = Config.GemFx
 	local g = Instance.new("Part")
 	g.Name = "GemPopFx"
 	g.Anchored = true
 	g.CanCollide = false
 	g.CastShadow = false
-	g.Size = Vector3.one * Config.Gems.Size
+	g.CFrame = CFrame.new(pos) * GemTypes.pose(g, shape, size)
 	g.Color = color
 	g.Material = Enum.Material.Neon
-	-- same corner-cube diamond silhouette the real gems use
-	g.CFrame = CFrame.new(pos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
 	g.Parent = workspace
+	local baseSize = g.Size
+	local ori = g.Orientation
 	Debris:AddItem(g, fx.PopTime + 0.1)
 	TweenService:Create(g, TweenInfo.new(fx.PopTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		Size = Vector3.one * Config.Gems.Size * fx.PopScale,
+		Size = baseSize * fx.PopScale,
 		Transparency = 1,
-		Orientation = Vector3.new(35.264, 45 + fx.PopSpin, 20),
+		Orientation = ori + Vector3.new(0, fx.PopSpin, 20),
 	}):Play()
 	TweenService:Create(g, TweenInfo.new(fx.PopTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Position = pos + Vector3.new(0, fx.PopRise, 0),
@@ -150,7 +153,11 @@ local function burst(pts: number)
 		return
 	end
 	local color = gemColor()
-	popGem(pos, color)
+	-- The ghost wears the collected gem's own type: shape lands on
+	-- RoBallGemShape (stamped before the RoBallGems bump), tint resolves
+	-- from the point delta through the same tier table the streamer used.
+	local shape, size, tcolor = GemTypes.of(pts, player:GetAttribute("RoBallGemShape") :: string?)
+	popGem(pos, shape, size, tcolor)
 	sparkle(pos, color)
 	ring(pos, color)
 	if pts > 0 then
@@ -163,9 +170,13 @@ function Fx.init()
 	player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 		local n = player:GetAttribute("RoBallGems") or 0
 		if n > lastGems then
+			local pts = n - lastGems
 			-- RoBallGems is cumulative points — the delta IS this pickup's
 			-- value (10/15/25/40 by risk tier), so it lands on the popup.
-			burst(n - lastGems)
+			-- Defer a step: RoBallGemShape rides the same replication flush
+			-- but its apply order vs this attr isn't guaranteed — one step
+			-- later the whole batch has landed.
+			task.defer(burst, pts)
 		end
 		lastGems = n
 	end)
