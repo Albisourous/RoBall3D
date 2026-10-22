@@ -343,7 +343,7 @@ narrow. Then the seeded generator takes over.
 | `BlockGate` | Red blocks across the deck, one gap ≥ CorridorMin | Thread-the-gap | 2+ |
 | `BlockField` | Scattered red blocks, density scales with tier | Weaving pressure | 3+ |
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
-| `Terrace` | Deck descends in soft steps — each tread tilts gently up on a cosine for its front fraction (`Terrace.UpFrac`/`RiseFrac`), then eases the whole drop down; every seam lands slope-zero so a flying ball has no lip edge or foot-V to snag | Free ballistic spectacle | 2+ |
+| `Terrace` | Deck descends in soft lips — each tread is one whole cosine ease: flat at both seams, steepest mid-tread. No up-slopes, no lip edge, no foot-V — a flying ball only ever meets surfaces sloping away | Free ballistic spectacle | 2+ |
 | `Swell` | Full-width ribbon undulating in y — a pump line of gentle crests; integer sine periods land the exit on the entry height, and a slope cap (`Swell.SlopeMax`) keeps crests as hops, not launches | Kinesthetic rest | 2+ |
 | `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave | Hold the line | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |

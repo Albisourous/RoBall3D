@@ -421,15 +421,6 @@ Config.Blackout = {
 	GridScale = 0.12,
 }
 
-Config.Terrace = {
-	-- Tread shape (§8.3): the front fraction of each step tilts gently UP
-	-- on a cosine, then the whole drop (step + rise) eases back down on a
-	-- cosine — both phases land slope-zero at every seam, so the profile
-	-- has no lip edge and no foot-V for a flying ball to snag on.
-	UpFrac = 0.35, -- front share of each tread that rises
-	RiseFrac = 0.45, -- rise height as a fraction of stepH (~0.5–0.8 studs)
-}
-
 Config.Swell = {
 	-- Deck-shape rest chunk (DESIGN.md §8.3): full-width ribbon undulating
 	-- in y — a pump line of gentle crests. Integer periods land the exit

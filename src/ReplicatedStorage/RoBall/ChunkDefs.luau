@@ -933,37 +933,28 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 	return true
 end
 
--- Terrace: the deck descends in soft steps instead of a smooth grade —
--- each tread tilts gently UP for its front fraction, then eases the whole
--- drop down on a cosine. Gravity pops the ball off each crest for free
--- ballistic hops, and every seam lands tangent (slope-zero both sides):
--- no lip edge and no foot-V for a flying ball to snag. Pure spectacle:
--- every landing is deck, never void. Same total descent, same end state.
+-- Terrace: the deck descends in soft lips instead of a smooth grade —
+-- each tread is one whole cosine ease: flat at both seams, steepest
+-- mid-tread. NO up-slopes anywhere — an up-facing ramp is exactly what a
+-- low-flying ball slams into — and no lip edge or foot-V either, so
+-- nothing can snag. Gravity still pops the ball off the convex top of
+-- every drop for free hops. Pure spectacle: every landing is deck,
+-- never void. Same total descent, same end state.
 function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
 	local length = rng:NextInteger(50, 70)
 	local steps = if debut then 2 else rng:NextInteger(3, 5)
 	local stepH = if debut then 1 else rng:NextNumber(1.1, 1.8)
-	local C = Config.Terrace
-	local upFrac = C.UpFrac
-	-- Rise in stepH units — the crest each tread climbs before its drop.
-	local rise = C.RiseFrac
 	local function stepDrop(t: number): number
 		local u = t * steps
 		local i = math.floor(u)
 		local f = u - i
-		if f < upFrac then
-			-- Gentle up-tilt: cosine 0 → -rise, flat at both ends.
-			return i - rise * (1 - math.cos(math.pi * f / upFrac)) * 0.5
-		end
-		-- The drop: cosine from the crest down a full step+rise, flat at
-		-- both ends — the foot flows tangent into the next tread.
-		local g = (f - upFrac) / (1 - upFrac)
-		return i - rise + (1 + rise) * (1 - math.cos(math.pi * g)) * 0.5
+		return i + (1 - math.cos(math.pi * f)) * 0.5
 	end
 	local gems = {}
-	-- A small arc floats just past each crest — the hop line pays out.
+	-- A small arc floats just past each drop's steepest point — the hop
+	-- line pays out.
 	for i = 1, steps - 1 do
-		local t = (i + upFrac + 0.15) / steps
+		local t = (i + 0.65) / steps
 		if t < GEM_BOUND then
 			table.insert(gems, { t = t, xOff = 0, value = Config.Gems.ValueEdge, yOff = 2.6 })
 		end
