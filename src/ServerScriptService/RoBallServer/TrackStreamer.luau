@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local GenCore = require(ReplicatedStorage.RoBall.GenCore)
 local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
+local MoveWave = require(ReplicatedStorage.RoBall.MoveWave)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
@@ -53,7 +54,9 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.movers =
 		{} :: { { part: BasePart, base: Vector3, kind: string, amp: number, periodSec: number, phase: number } }
 	self.moverConn = nil :: RBXScriptConnection?
-	self.moverT0 = 0
+	-- Beat clock origin for this lane's movers — set at birth so stamped
+	-- MoverEpoch attributes are valid from the first chunk build.
+	self.moverT0 = os.clock()
 	self.moverAcc = 0
 	-- Ball's current z, fed by ensureAhead/cleanup — the mover step uses
 	-- it to freeze hazards that fell CullBehind studs off-camera.
@@ -797,6 +800,18 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				})
 			end
 			if ob.motion then
+				-- Client smooths the motion (§8.6): the part carries its
+				-- whole waveform — kind/amp/period/phase plus the base
+				-- position and this lane's beat-clock epoch on the shared
+				-- server clock — so the client re-evaluates it every frame
+				-- instead of seeing StepHz teleports.
+				block:SetAttribute("MoverKind", ob.motion.kind)
+				block:SetAttribute("MoverAmp", ob.motion.amp or 0)
+				block:SetAttribute("MoverPeriod", ob.motion.periodSec)
+				block:SetAttribute("MoverPhase", ob.motion.phase or 0)
+				block:SetAttribute("MoverBase", block.Position)
+				block:SetAttribute("MoverEpoch", workspace:GetServerTimeNow() - (os.clock() - self.moverT0))
+				CollectionService:AddTag(block, "RoBallMover")
 				table.insert(self.movers, {
 					part = block,
 					base = block.Position,
@@ -909,31 +924,16 @@ function TrackStreamer:cleanup(ballZ: number)
 	end
 end
 
--- PressRow's dropY wave (§8.6): a trapezoid pulse — the plate spends
--- most of the cycle raised, drops fast, holds the lethal window, then
--- rises. The readable hold IS the timing lesson.
-local function pressPulse(x: number): number
-	local D, H, U = Config.Movers.PressDownFrac, Config.Movers.PressHoldFrac, Config.Movers.PressUpFrac
-	if x < D then
-		return x / D
-	elseif x < D + H then
-		return 1
-	elseif x < D + H + U then
-		return 1 - (x - D - H) / U
-	end
-	return 0
-end
-
 -- Beat-locked movers (DESIGN.md §8.6): Pacer slabs slide laterally, Rotor
 -- arms spin around their post, PressRow plates slam down on the count.
 -- Periods are whole-note multiples of the heard tempo — the hazard cycle
--- IS the music. Server-side CFrame animation on anchored parts
--- replicates fine; Touched still kills.
+-- IS the music. The server's StepHz positions feed its own hazard math;
+-- clients re-evaluate the same wave per-frame (MoverController) so the
+-- motion reads smooth, not stepped. Touched still kills.
 function TrackStreamer:startMovers()
 	if self.moverConn or #self.movers == 0 then
 		return
 	end
-	self.moverT0 = os.clock()
 	local stepDt = 1 / Config.Movers.StepHz
 	self.moverConn = RunService.Heartbeat:Connect(function(dt)
 		-- Position writes replicate to every client — dt-accumulate down
@@ -956,7 +956,7 @@ function TrackStreamer:startMovers()
 					m.part.Position = m.base + Vector3.new(m.amp * math.sin(ang), 0, 0)
 				elseif m.kind == "dropY" then
 					local x = (ang / (math.pi * 2)) % 1
-					m.part.Position = m.base + Vector3.new(0, -m.amp * pressPulse(x), 0)
+					m.part.Position = m.base + Vector3.new(0, -m.amp * MoveWave.pressPulse(x), 0)
 				else -- spin
 					m.part.CFrame = CFrame.new(m.base) * CFrame.Angles(0, ang, 0)
 				end

@@ -26,6 +26,7 @@ local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
 local PadController = require(script.Parent.PadController)
 local OrbController = require(script.Parent.OrbController)
+local MoverController = require(script.Parent.MoverController)
 local FatalController = require(script.Parent.FatalController)
 local Ghost = require(script.Parent.GhostController)
 local ScreenFilter = require(script.Parent.ScreenFilter)
@@ -1232,6 +1233,12 @@ end)
 OrbController.init(function()
 	return ball
 end, Config.Features.JumpOrbs == true)
+-- Beat-locked movers re-evaluate their waveform locally every frame
+-- (§8.6): server steps at StepHz for its own bookkeeping — replicated
+-- writes alone would read as teleports.
+MoverController.init(function()
+	return ball
+end)
 -- Lethal hits are reported where they're simulated (§11): this client owns
 -- the ball, so its contact is the truth the player sees. Report once; the
 -- server seals the run and answers with the normal RunEnded flow.

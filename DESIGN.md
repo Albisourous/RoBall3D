@@ -383,7 +383,13 @@ narrow. Then the seeded generator takes over.
 - `Obstacle.motion` (`slideX`/`spin`/`dropY` + periodSec/phase) —
   beat-locked movers; periods are whole-note counts of the heard tempo
   so the hazard cycle IS the music. `dropY` runs a trapezoid pulse —
-  raised, fast slam, hold, rise — driven by `Config.Movers.Press*Frac`.
+  raised, fast slam, hold, rise — driven by `Config.Movers.Press*Frac`
+  (shape shared via `MoveWave.pressPulse`). Mover parts carry the whole
+  waveform as `Mover*` attributes + a `RoBallMover` tag; the server's
+  `StepHz` writes feed only its own hazard bookkeeping while the
+  client's `MoverController` re-evaluates the wave every frame on the
+  synced server clock (`MoverEpoch`) — smooth motion, and kills test
+  exactly what the player sees.
 - `ChunkSpec.pads` — LaunchPad strips (cyan, tagged `RoBallPad`,
   `KickY` attribute). The client applies the kick (it owns the ball's
   velocity): GD pads as terrain, not a jump button.
