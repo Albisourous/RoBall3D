@@ -495,6 +495,15 @@ so client FX knows exactly what was picked up. (Two-pyramid octahedron via
 `MeshType.Pyramid` was tried: that legacy mesh type renders nothing in the
 current engine.)
 
+**World restyle** (`gemStyle` on world items): a world cosmetic may restyle
+every pickup at spawn — `world_sky` (APE BALL) sets `gemStyle = "ball"` and
+TrackStreamer renders each gem as a banana-yellow capsule orb through
+`GemTypes.ball` (tier lead-scale still sizes it, so worth keeps
+telegraphing). The streamer stamps the live pickup's own `Color` into
+`RoBallGemColor` alongside `RoBallGemShape`, so the client's pop ghost
+matches styled pickups too. Authoritative value/scoring path untouched —
+the style is render-only and set per run from the equipped world.
+
 **Pickup juice** (`GemFx.luau`, client): the gem itself is `Destroy`ed
 instantly server-side, so the flourish is client-local at the ball's
 position when `RoBallGems` ticks up — a ghost of the collected gem pops
@@ -880,8 +889,12 @@ that caused them.
   first equip so any swap restores it verbatim), a green/cream
   checkerboard floor rides the descent `SkyFloorDrop` studs below the
   deck as solid SmoothPlastic tile rows recycled on a shared frontier,
-  and chunky four-lobe puff clouds drift beside the track on a lazy
-  sine bob, re-entering ahead once they slip behind. All follow the same
+  chunky four-lobe puff clouds drift beside the track on a lazy
+  sine bob, re-entering ahead once they slip behind, and a **day-palm
+  grove** lines the course — the same palm pool/frontier as MIAMI
+  NIGHTS, re-dressed at lay time in the `SkyPalm*` palette (brown
+  trunks, green fronds, banana beads, SmoothPlastic) so a theme swap
+  migrates the shared grove's whole look in one recycle pass. All follow the same
   contract:
   lazy-built on first equip, client-local, non-collidable, parked below
   the void on theme swap, recycled on frontiers so they stream forever.
@@ -889,7 +902,13 @@ that caused them.
   rings (3 cyan axial + 2 magenta diagonal) — a clean neon cage that rolls
   with the ball's spin. Slim magenta Trail. No PointLight — self-glow
   smears the wireframe under bloom. (`SelectionSphere` was tried first: its
-  lat/long grid is too dense at 3 studs and renders as a blob.)
+  lat/long grid is too dense at 3 studs and renders as a blob.) Skins may
+  carry `capsule`/`inhabitant` flags (§18 skin_capsule): `capsule` renders
+  the shell transparent (`Art.CapsuleAlpha`), and `inhabitant = "monkey"`
+  welds a toy monkey inside — seven Massless no-collide/no-query/no-touch
+  primitive spheres from `BallDress.monkeySpec`, so it tumbles with the
+  roll like an arcade capsule toy. Cosmetic only: the physics part is
+  untouched, and `retint` adds/removes the rig on equip swaps.
 - **Track**: purple-black deck (subtle `DeckTint` palette drift), neon edge
   rails + transverse grid strips + longitudinal center line, all tinted
   from `Palette` **per segment** — the neon flows continuously down the
@@ -1269,7 +1288,8 @@ twelve packs total — STARTER NEON (sunset set + palms), NEON PEAKS
 (acid + toxic wastes), NEON REEF (lagoon + reef + NEAP TIDE), NULL (mono
 set + the empty world), APE BALL (capsule set + the sky court world —
 the rolling-party-ball homage: midday skybox, checkerboard floor,
-cartoon clouds, banana-yellow accents; all-original, no borrowed IP),
+cartoon clouds, day palms, a transparent capsule ball with a toy monkey
+welded inside, and banana-orb pickups; all-original, no borrowed IP),
 and seasonal SOLSTICE (frost set + POLAR CAP +
 the shared NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
 `Cosmetics.LegacyBundles` — already-owned passes keep granting their

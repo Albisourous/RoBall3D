@@ -260,7 +260,8 @@ Cosmetics.Items = {
 		core = Color3.fromRGB(4, 8, 18),
 	},
 	--==== APE BALL pack — the arcade-toy set for the sky court world:
-	-- a glossy capsule ball — warm plastic face under clean white rings.
+	-- a glossy transparent capsule ball — a toy monkey rides inside on
+	-- welds, tumbling with the roll (BallDress, §18).
 	skin_capsule = {
 		slot = "skin",
 		name = "CAPSULE",
@@ -268,6 +269,8 @@ Cosmetics.Items = {
 		ringA = WHITE,
 		ringB = BANANA,
 		core = Color3.fromRGB(255, 138, 36),
+		capsule = true, -- transparent shell at Config.Art.CapsuleAlpha
+		inhabitant = "monkey",
 	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
@@ -461,7 +464,9 @@ Cosmetics.Items = {
 	world_polar = { slot = "world", name = "NORTHERN LIGHTS", gemPrice = 900, theme = "polar" },
 	world_empty = { slot = "world", name = "VOIDSPACE", gemPrice = 900, theme = "empty" },
 	world_toxic = { slot = "world", name = "TOXIC WASTES", gemPrice = 800, theme = "toxic" },
-	world_sky = { slot = "world", name = "SKY COURT", gemPrice = 900, theme = "sky" },
+	-- gemStyle "ball" restyles every pickup as a banana-yellow capsule orb
+	-- (TrackStreamer stamps it server-side; §8.4).
+	world_sky = { slot = "world", name = "SKY COURT", gemPrice = 900, theme = "sky", gemStyle = "ball" },
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe

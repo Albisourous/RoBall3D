@@ -20,6 +20,63 @@ local RING_ROTS = {
 
 local CORE_DEFAULT = Color3.fromRGB(4, 8, 6)
 
+-- CAPSULE inhabitant (§18 skin_capsule): a toy monkey riding inside the
+-- transparent shell — generic primitive build, no borrowed character.
+-- Sizes/offsets are ball-diameter fractions; the monkey faces +Z (the
+-- chase-cam side — the ball travels -Z).
+local MONKEY: { { any } } = {
+	{ 0.3, "fur", Vector3.new(0, -0.13, 0) }, -- torso
+	{ 0.4, "fur", Vector3.new(0, 0.1, 0.02) }, -- head
+	{ 0.2, "face", Vector3.new(0, 0.04, 0.17) }, -- muzzle
+	{ 0.15, "fur", Vector3.new(-0.21, 0.16, -0.02) }, -- ear L
+	{ 0.15, "fur", Vector3.new(0.21, 0.16, -0.02) }, -- ear R
+	{ 0.055, "eye", Vector3.new(-0.075, 0.12, 0.19) }, -- eye L
+	{ 0.055, "eye", Vector3.new(0.075, 0.12, 0.19) }, -- eye R
+}
+
+local function monkeyColor(key: string): Color3
+	local a = Config.Art
+	return if key == "fur" then a.MonkeyFur elseif key == "face" then a.MonkeyFace else a.MonkeyEye
+end
+
+-- Absolute spec (studs) for a ball of diameter d — the diorama consumes
+-- the same list so preview and live ball build the same monkey.
+export type MonkeyBit = { size: number, color: Color3, off: Vector3 }
+function BallDress.monkeySpec(d: number): { MonkeyBit }
+	local out: { MonkeyBit } = {}
+	for _, b in ipairs(MONKEY) do
+		table.insert(out, { size = b[1] * d, color = monkeyColor(b[2]), off = b[3] * d })
+	end
+	return out
+end
+
+-- Welded inhabitant for a live ball: Massless + no-collide/no-query/
+-- no-touch inner parts, welded so the monkey tumbles with the roll.
+local function buildInhabitant(ball: BasePart, d: number)
+	local m = Instance.new("Model")
+	m.Name = "Inhabitant"
+	for _, bit in ipairs(BallDress.monkeySpec(d)) do
+		local p = Instance.new("Part")
+		p.Name = "Bit"
+		p.Shape = Enum.PartType.Ball
+		p.Size = Vector3.one * bit.size
+		p.Color = bit.color
+		p.Material = Enum.Material.SmoothPlastic
+		p.CastShadow = false
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.CFrame = ball.CFrame * CFrame.new(bit.off)
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = ball
+		w.Part1 = p
+		w.Parent = p
+		p.Parent = m
+	end
+	m.Parent = ball
+end
+
 export type Dressed = {
 	rings: { CylinderHandleAdornment },
 	trail: Trail,
@@ -34,6 +91,10 @@ function BallDress.dress(ball: BasePart, skin: any?, trailItem: any?, scale: num
 	local ringA = Cosmetics.colorOf(skin and skin.ringA, Config.Art.RingA, hues)
 	local ringB = Cosmetics.colorOf(skin and skin.ringB, Config.Art.RingB, hues)
 	ball.Color = (skin and skin.core) or CORE_DEFAULT
+	ball.Transparency = if skin and skin.capsule then Config.Art.CapsuleAlpha else 0
+	if skin and skin.inhabitant == "monkey" then
+		buildInhabitant(ball, d)
+	end
 
 	local rings = {}
 	for i, rot in ipairs(RING_ROTS) do
@@ -82,6 +143,17 @@ function BallDress.retint(ball: BasePart, skin: any?, trailItem: any?, hues: Cos
 		end
 	end
 	ball.Color = (skin and skin.core) or CORE_DEFAULT
+	-- Capsule lifecycle: equip swaps can add or remove the transparent
+	-- shell + inhabitant without a respawn.
+	ball.Transparency = if skin and skin.capsule then Config.Art.CapsuleAlpha else 0
+	local inhab = ball:FindFirstChild("Inhabitant")
+	if skin and skin.inhabitant == "monkey" then
+		if not inhab then
+			buildInhabitant(ball, ball.Size.X)
+		end
+	elseif inhab then
+		inhab:Destroy()
+	end
 	local trail = ball:FindFirstChildOfClass("Trail")
 	if trail then
 		trail.Color = ColorSequence.new(Cosmetics.colorOf(trailItem and trailItem.color, nil, hues))

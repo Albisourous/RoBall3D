@@ -804,6 +804,19 @@ local PALM_BEAD = Color3.fromRGB(255, 46, 160) -- hot pink coconuts
 local PALM_FROND_A = Color3.fromRGB(0, 230, 255)
 local PALM_FROND_B = Color3.fromRGB(255, 64, 190)
 
+-- Grove palettes: layPalm restyles trunk/fronds/beads on every recycle,
+-- so SKY COURT can grow the same grove in a day palette (brown trunks,
+-- green fronds, banana beads, matte plastic) without a second pool.
+type PalmStyle = { trunk: Color3, frondA: Color3, frondB: Color3, bead: Color3, shade: Color3, mat: Enum.Material }
+local MIAMI_PALM: PalmStyle = {
+	trunk = PALM_TRUNK,
+	frondA = PALM_FROND_A,
+	frondB = PALM_FROND_B,
+	bead = PALM_BEAD,
+	shade = FACE_COLOR,
+	mat = Enum.Material.Neon,
+}
+
 local function makePalmPart(parent: Instance): Part
 	local p = Instance.new("Part")
 	p.Anchored = true
@@ -867,9 +880,13 @@ end
 -- Re-lay a palm at (x, baseY, z): lean a fresh trunk, fan the crown with
 -- jittered yaw/droop/length, park the beads at its base. Frond blades
 -- extend along +X from the crown — yaw fans them, -droop tips them down.
-local function layPalm(palm: Palm, x: number, baseY: number, z: number)
+-- `sty` restyles every piece each lay, so a theme swap migrates the
+-- shared grove's whole look within one recycle pass.
+local function layPalm(palm: Palm, x: number, baseY: number, z: number, sty: PalmStyle)
 	local h = rng:NextNumber(Art.PalmTrunkMin, Art.PalmTrunkMax)
 	local lean = rng:NextNumber(-0.12, 0.12)
+	palm.trunk.Material = sty.mat
+	palm.trunk.Color = sty.trunk
 	palm.trunk.Size = Vector3.new(1.4, h, 1.4)
 	palm.trunk.CFrame = CFrame.new(x, baseY + h / 2, z) * CFrame.Angles(lean, 0, lean * 0.5)
 	palm.crown = Vector3.new(x, baseY + h, z)
@@ -879,19 +896,67 @@ local function layPalm(palm: Palm, x: number, baseY: number, z: number)
 		f.yaw = ((i - 1) / n) * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
 		f.droop = rng:NextNumber(Art.PalmDroopMin, Art.PalmDroopMax)
 		f.len = Art.PalmFrondLen * rng:NextNumber(0.85, 1.2)
+		f.part.Material = sty.mat
 		f.part.Size = Vector3.new(f.len, 0.35, 1.1)
-		f.part.Color = PALM_FROND_A:Lerp(PALM_FROND_B, (i - 1) / math.max(n - 1, 1))
-			:Lerp(FACE_COLOR, 1 - Art.PalmValue * shade)
+		f.part.Color =
+			sty.frondA:Lerp(sty.frondB, (i - 1) / math.max(n - 1, 1)):Lerp(sty.shade, 1 - Art.PalmValue * shade)
 		f.part.CFrame = CFrame.new(palm.crown) * CFrame.Angles(0, f.yaw, -f.droop) * CFrame.new(f.len / 2, 0, 0)
 	end
 	for i, b in ipairs(palm.beads) do
 		local a = (i - 1) * 2.1 + rng:NextNumber(0, 0.6)
+		b.Material = sty.mat
+		b.Color = sty.bead
 		b.CFrame = CFrame.new(palm.crown + Vector3.new(math.cos(a) * 0.9, -0.7, math.sin(a) * 0.9))
+	end
+end
+
+-- The grove step, shared by MIAMI NIGHTS and SKY COURT: rows recycle on
+-- a per-(side,row) frontier like the tower canyon; every frame the
+-- crowns rustle on a slow sine. `sty` dresses the lay.
+local function stepPalms(anchor: Vector3, sty: PalmStyle)
+	ensurePalms()
+	if not palmSeeded then
+		palmSeeded = true
+		for side = -1, 1, 2 do
+			for row = 1, Art.PalmRows do
+				palmFrontZ[side .. ":" .. row] = anchor.Z + Art.PalmSpacing
+			end
+		end
+	end
+	local breeze = math.rad(Art.PalmSwayDeg) * math.sin(os.clock() * Art.PalmSwayRate)
+	for _, palm in ipairs(palms) do
+		if palm.trunk.Position.Z > anchor.Z + 60 then
+			local key = palm.side .. ":" .. palm.row
+			local z = palmFrontZ[key] - Art.PalmSpacing
+			palmFrontZ[key] = z
+			local x = anchor.X + palm.side * (Art.PalmMinX + (palm.row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
+			local ahead = math.max(anchor.Z - z, 0)
+			local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(4, 10)
+			layPalm(palm, x, baseY, z, sty)
+		end
+		local sway = breeze * math.cos(palm.phase)
+		for _, f in ipairs(palm.fronds) do
+			f.part.CFrame = CFrame.new(palm.crown)
+				* CFrame.Angles(0, f.yaw + breeze * math.sin(palm.phase) * 0.4, -(f.droop + sway * f.wob))
+				* CFrame.new(f.len / 2, 0, 0)
+		end
 	end
 end
 
 --============================ SKY COURT (§18 "sky") ============================--
 -- Built lazily on first activation — non-owners never pay for the parts.
+-- The grove is SHARED with MIAMI NIGHTS: same palm pool/frontier, just a
+-- day palette + matte material at lay time (brown trunks, green fronds,
+-- banana beads — the tropical course look).
+local SKY_PALM: PalmStyle = {
+	trunk = Art.SkyPalmTrunk,
+	frondA = Art.SkyPalmFrondA,
+	frondB = Art.SkyPalmFrondB,
+	bead = Art.SkyPalmBead,
+	shade = Art.SkyPalmShade,
+	mat = Enum.Material.SmoothPlastic,
+}
+
 local function ensureSky()
 	if #skyRows > 0 then
 		return
@@ -1251,6 +1316,9 @@ local function parkSky()
 			parkPart(p)
 		end
 	end
+	-- Sky shares the palm pool — park the grove too or the next theme
+	-- inherits palms standing where SKY COURT left them.
+	parkPalms()
 	skySeeded = false
 end
 
@@ -1450,36 +1518,9 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
-	-- MIAMI NIGHTS (§18 "palms"): rows recycle on a per-(side,row) frontier
-	-- like the tower canyon; every frame the crowns rustle on a slow sine.
+	-- MIAMI NIGHTS (§18 "palms"): the grove in neon.
 	if theme == "palms" then
-		ensurePalms()
-		if not palmSeeded then
-			palmSeeded = true
-			for side = -1, 1, 2 do
-				for row = 1, Art.PalmRows do
-					palmFrontZ[side .. ":" .. row] = anchor.Z + Art.PalmSpacing
-				end
-			end
-		end
-		local breeze = math.rad(Art.PalmSwayDeg) * math.sin(os.clock() * Art.PalmSwayRate)
-		for _, palm in ipairs(palms) do
-			if palm.trunk.Position.Z > anchor.Z + 60 then
-				local key = palm.side .. ":" .. palm.row
-				local z = palmFrontZ[key] - Art.PalmSpacing
-				palmFrontZ[key] = z
-				local x = anchor.X + palm.side * (Art.PalmMinX + (palm.row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
-				local ahead = math.max(anchor.Z - z, 0)
-				local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(4, 10)
-				layPalm(palm, x, baseY, z)
-			end
-			local sway = breeze * math.cos(palm.phase)
-			for _, f in ipairs(palm.fronds) do
-				f.part.CFrame = CFrame.new(palm.crown)
-					* CFrame.Angles(0, f.yaw + breeze * math.sin(palm.phase) * 0.4, -(f.droop + sway * f.wob))
-					* CFrame.new(f.len / 2, 0, 0)
-			end
-		end
+		stepPalms(anchor, MIAMI_PALM)
 		return
 	end
 
@@ -1500,8 +1541,10 @@ function Backdrop.update(anchor: Vector3)
 	-- SKY COURT (§18 "sky"): checker rows recycle on a shared frontier
 	-- like the grid wires; clouds re-enter ahead on a random span and
 	-- bob lazily on wall-clock sine (Position rewrite only — offs fixed).
+	-- The day-palm grove runs the same step as MIAMI NIGHTS, day palette.
 	if theme == "sky" then
 		ensureSky()
+		stepPalms(anchor, SKY_PALM)
 		if not skySeeded then
 			skySeeded = true
 			skyFrontZ = math.ceil((anchor.Z + BACK_MARGIN) / Art.SkyFloorCell) * Art.SkyFloorCell
@@ -1767,7 +1810,7 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 					z -= Art.PalmSpacing
 					local x = anchor.X + side * (Art.PalmMinX + (row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
 					local baseY = anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0) - rng:NextNumber(4, 10)
-					layPalm(makePalm(parent, side, row), x, baseY, z)
+					layPalm(makePalm(parent, side, row), x, baseY, z, MIAMI_PALM)
 				end
 			end
 		end
@@ -1848,6 +1891,17 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				anchor,
 				front - rng:NextNumber(30, Art.SkyCloudSpan * 0.7)
 			)
+		end
+		-- A few day palms flanking the lane — same lay math as the live
+		-- grove's first pass, dressed in the SKY_PALM palette.
+		for side = -1, 1, 2 do
+			local z = anchor.Z + Art.PalmSpacing
+			for _ = 1, 4 do
+				z -= Art.PalmSpacing
+				local x = anchor.X + side * (Art.PalmMinX + rng:NextNumber(0, 14))
+				local baseY = anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0) - rng:NextNumber(4, 10)
+				layPalm(makePalm(parent, side, 1), x, baseY, z, SKY_PALM)
+			end
 		end
 		return
 	end

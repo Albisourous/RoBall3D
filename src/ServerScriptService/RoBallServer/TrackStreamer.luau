@@ -47,13 +47,16 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	self.gen = GenCore.new(seed)
 	self.seed = seed
 	self.chunks = {} :: { ChunkRecord }
+	-- Pickup restyle (§18): set by Main from the equipped world item —
+	-- "ball" renders every pickup as a capsule orb (APE BALL).
+	self.gemStyle = nil :: string?
 	self.folder = Instance.new("Folder")
 	self.folder.Name = "Lane" .. laneIndex
 	self.folder.Parent = lanesRoot
 	-- Optional: set by Main. Fired when the ball touches a gem:
-	-- (hit, value, shape) — shape rides on to RoBallGemShape so the client
-	-- pop ghost matches what was picked up.
-	self.onGem = nil :: ((hit: BasePart, value: number, shape: string) -> ())?
+	-- (hit, value, shape, tint) — shape/tint ride on to RoBallGemShape /
+	-- RoBallGemColor so the client pop ghost matches what was picked up.
+	self.onGem = nil :: ((hit: BasePart, value: number, shape: string, tint: Color3) -> ())?
 	-- Beat-locked movers (§8.6): obstacle parts animated on Heartbeat.
 	-- Entries die with their chunk's folder; cleanup() prunes dead rows.
 	self.movers =
@@ -347,9 +350,20 @@ end
 -- contact means collected, never an obstruction. (A two-pyramid octahedron
 -- via SpecialMesh was tried: MeshType.Pyramid renders nothing in the
 -- current engine.)
-local function makeGem(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, g: ChunkDefs.GemSpot): Part
+local function makeGem(
+	parent: Instance,
+	laneX: number,
+	spec: ChunkDefs.ChunkSpec,
+	g: ChunkDefs.GemSpot,
+	style: string?
+): Part
 	local s = spec.section(g.t)
-	local shape, size, color = GemTypes.pick(g.value, spec.startZ, g.t)
+	local shape, size, color
+	if style == "ball" then
+		shape, size, color = GemTypes.ball(g.value)
+	else
+		shape, size, color = GemTypes.pick(g.value, spec.startZ, g.t)
+	end
 	local p = Instance.new("Part")
 	p.Name = "Gem"
 	p.Anchored = true
@@ -900,13 +914,13 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 
 	if spec.gems then
 		for _, g in ipairs(spec.gems) do
-			local gem = makeGem(holder, self.laneX, spec, g)
+			local gem = makeGem(holder, self.laneX, spec, g, self.gemStyle)
 			local taken = false
 			gem.Touched:Connect(function(hit)
 				if taken then
 					return
 				end
-				if self.onGem and self.onGem(hit, g.value, gem:GetAttribute("GemShape") :: string) then
+				if self.onGem and self.onGem(hit, g.value, gem:GetAttribute("GemShape") :: string, gem.Color) then
 					taken = true
 					gem:Destroy()
 				end

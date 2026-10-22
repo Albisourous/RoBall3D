@@ -1,8 +1,8 @@
 --!strict
 -- GemFx (DESIGN.md §8.4): pickup juice. Server gems are Destroyed instantly
 -- on touch, so the client renders the flourish at the ball's position when
--- RoBallGems ticks up: a ghost of the collected gem — its own shape + tier
--- tint via GemTypes/RoBallGemShape — pops and rises, a sparkle burst
+-- RoBallGems ticks up: a ghost of the collected gem — its own shape + tint
+-- via RoBallGemShape/RoBallGemColor — pops and rises, a sparkle burst
 -- scatters, and a neon ring flashes outward. All parts are client-local
 -- one-shots — zero replication cost.
 
@@ -157,6 +157,9 @@ local function burst(pts: number)
 	-- RoBallGemShape (stamped before the RoBallGems bump), tint resolves
 	-- from the point delta through the same tier table the streamer used.
 	local shape, size, tcolor = GemTypes.of(pts, player:GetAttribute("RoBallGemShape") :: string?)
+	-- RoBallGemColor carries the live pickup's own tint (styled worlds
+	-- like APE BALL's banana orbs differ from the tier ramp).
+	tcolor = player:GetAttribute("RoBallGemColor") or tcolor
 	popGem(pos, shape, size, tcolor)
 	sparkle(pos, color)
 	ring(pos, color)

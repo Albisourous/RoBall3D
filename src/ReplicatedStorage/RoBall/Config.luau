@@ -729,6 +729,10 @@ Config.Gems = {
 			},
 		},
 	},
+	-- "ball" pickup style (§18 world_sky / APE BALL): the world item's
+	-- gemStyle restyles every pickup as a banana-yellow capsule orb —
+	-- tier scale still sizes it so worth reads at speed.
+	BallStyleColor = Color3.fromRGB(255, 226, 92),
 }
 
 Config.Score = {
@@ -1368,6 +1372,20 @@ Config.Art = {
 	SkyCloudBob = 0.5, -- rad/s lazy bob
 	SkyCloudBobAmp = 2.5, -- studs
 	SkyCloudColor = Color3.fromRGB(255, 255, 255),
+	-- SKY COURT palms: the same grove machinery as MIAMI NIGHTS, dressed
+	-- in a day palette — brown trunks, green fronds, banana-yellow beads.
+	SkyPalmTrunk = Color3.fromRGB(146, 96, 52),
+	SkyPalmFrondA = Color3.fromRGB(58, 168, 76),
+	SkyPalmFrondB = Color3.fromRGB(28, 122, 56),
+	SkyPalmShade = Color3.fromRGB(20, 84, 40), -- outer-row dim target
+	SkyPalmBead = Color3.fromRGB(255, 226, 92), -- banana-yellow coconuts
+	-- CAPSULE skin (§18 ape): a glossy transparent shell with a toy
+	-- monkey riding inside on welds — it tumbles with the roll like the
+	-- arcade capsule. Generic primitive monkey: no borrowed character.
+	CapsuleAlpha = 0.55,
+	MonkeyFur = Color3.fromRGB(141, 90, 52),
+	MonkeyFace = Color3.fromRGB(236, 201, 156),
+	MonkeyEye = Color3.fromRGB(48, 30, 24),
 	-- PIXEL GLASS / SCANLINES (§18 "filter" slot): an LCD-style lattice
 	-- over the 3D view — gridlines at PixelPitch read as chunky pixels.
 	-- The overlay sits on a lower DisplayOrder than the HUD so every

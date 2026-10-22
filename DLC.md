@@ -37,7 +37,7 @@ the red seam is cut out of the reachable space on both ends.
 | COLOR LAB | your hues ×2 | ◊1500 | — (prestige) |
 | NULL | pitch core/ghost rings | ◊800 | null |
 | SUMMIT | sky-blue/white | ◊800 | peaks |
-| CAPSULE | white rings / warm plastic face | ◊800 | apeball |
+| CAPSULE | transparent shell / toy monkey inside | ◊800 | apeball |
 
 ### TRAIL — wake ribbon (19)
 
@@ -170,8 +170,10 @@ the preview can render the whole look and nothing in the box is filler.
 | 2X BANK | permanent 2× bank perk | 99 |
 
 **APE BALL** is the rolling-party-ball homage — bright midday sky,
-green/cream checkerboard below the deck, cartoon clouds, glossy capsule
-ball, banana-yellow accents. All-original set in the genre's spirit —
+green/cream checkerboard below the deck, cartoon clouds, a day-palm
+grove, a glossy transparent capsule ball with a toy monkey riding
+inside, and pickups restyled as banana-yellow orbs (the SKY COURT
+world's `gemStyle`). All-original set in the genre's spirit —
 no borrowed names, characters, art, or audio.
 
 Retired passes — no longer sold, but `Cosmetics.LegacyBundles` keeps

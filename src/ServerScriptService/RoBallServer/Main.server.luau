@@ -393,6 +393,10 @@ local function startRun(player: Player)
 	if onlyFeature then
 		print(string.format("[RoBall3D] debug-seed: every chunk is %s for %s", onlyFeature, player.Name))
 	end
+	-- Pickup restyle (§18): the equipped world item may restyle gems —
+	-- world_sky's "ball" style renders every pickup as a capsule orb.
+	local worldItem = Cosmetics.item(ShopService.equipped(player).world)
+	streamer.gemStyle = worldItem and worldItem.gemStyle
 	local run: Run = {
 		laneIndex = laneIndex,
 		streamer = streamer,
@@ -418,11 +422,12 @@ local function startRun(player: Player)
 	player:SetAttribute("RoBallDailyRank", 0)
 	player:SetAttribute("RoBallTopRank", 0)
 
-	streamer.onGem = function(hit, value, shape)
+	streamer.onGem = function(hit, value, shape, tint)
 		if run.ball and hit == run.ball then
 			-- Stamped BEFORE the RoBallGems bump so the client's pop ghost
-			-- reads the collected gem's shape in the same attr flush.
+			-- reads the collected gem's shape + tint in the same attr flush.
 			player:SetAttribute("RoBallGemShape", shape)
+			player:SetAttribute("RoBallGemColor", tint)
 			run.gemPts += value
 			writeScore(player, run)
 			-- Dual-purpose (§18 P2): the pickup is score AND banked currency —

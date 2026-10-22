@@ -36,6 +36,15 @@ function GemTypes.pick(value: number, startZ: number, t: number): (string, numbe
 	return unpack(tier, tier.shapes[i])
 end
 
+-- "ball" pickup style (§18 world_sky / APE BALL): every pickup becomes a
+-- banana-yellow capsule orb. The tier's lead size still scales it, so
+-- worth keeps telegraphing at speed even with one shape across tiers.
+function GemTypes.ball(value: number): (string, number, Color3)
+	local tier = tierOf(value)
+	local scale = tier.shapes[1].size or 1
+	return "orb", scale * Config.Gems.Size, Config.Gems.BallStyleColor
+end
+
 -- The recipe for a specific shape — GemFx resolves the collected gem's
 -- RoBallGemShape attribute through this so the pop ghost matches what
 -- was actually picked up. Unknown shapes fall back to the tier's first.
@@ -47,6 +56,10 @@ function GemTypes.of(value: number, shape: string?): (string, number, Color3)
 				return unpack(tier, r)
 			end
 		end
+		-- Styled pickups stamp shapes outside their tier's own list
+		-- (world_sky's "ball" style orbs every tier) — honor the stamped
+		-- silhouette at the tier's lead scale so the ghost still matches.
+		return shape, (tier.shapes[1].size or 1) * Config.Gems.Size, tier.color
 	end
 	return unpack(tier, tier.shapes[1])
 end

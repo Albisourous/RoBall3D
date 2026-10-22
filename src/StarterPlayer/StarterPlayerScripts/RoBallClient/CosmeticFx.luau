@@ -24,6 +24,8 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
+local BallDress = require(ReplicatedStorage.RoBall.BallDress)
+local GemTypes = require(ReplicatedStorage.RoBall.GemTypes)
 local Backdrop = require(script.Parent.Backdrop)
 local DeathFx = require(script.Parent.DeathFx)
 
@@ -106,6 +108,11 @@ local vpRingRots: { CFrame } = {}
 local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
 local vpGemCf: CFrame? = nil
+local vpGemSize = Config.Gems.Size
+local vpBallAlpha = 0 -- rest transparency (capsule skins aren't opaque)
+-- Capsule inhabitant preview bits: anchored spheres pinned to the roll
+-- CFrame each frame (welds can't ride the diorama's manual CFraming).
+local vpMonkey: { { part: BasePart, off: Vector3 } } = {}
 local vpDeathItem: any = nil
 local vpDead = false
 local vpHitPos: Vector3? = nil
@@ -245,6 +252,9 @@ function Fx.preview(items: { [string]: any })
 	vpBall = nil
 	vpGem = nil
 	vpGemCf = nil
+	vpGemSize = Config.Gems.Size
+	vpBallAlpha = 0
+	vpMonkey = {}
 	vpTrailSegs = {}
 	vpTrailGlow = {}
 	vpMotes = {}
@@ -282,7 +292,19 @@ function Fx.preview(items: { [string]: any })
 	local ringB = if skin then Cosmetics.colorOf(skin.ringB, PK, hues) else PK
 	local ball = vpart(Vector3.one * BALL_D, ballPos, if skin then Cosmetics.colorOf(skin.core, DK, hues) else DK)
 	ball.Shape = Enum.PartType.Ball
+	-- Capsule skins (§18 skin_capsule): transparent shell + the same toy
+	-- monkey spec the live ball welds on — pinned to the roll in step().
+	vpBallAlpha = if skin and skin.capsule then Art.CapsuleAlpha else 0
+	ball.Transparency = vpBallAlpha
 	vpBall = ball
+	if skin and skin.inhabitant == "monkey" then
+		for _, bit in ipairs(BallDress.monkeySpec(BALL_D)) do
+			local m = vpart(Vector3.one * bit.size, ballPos + bit.off, bit.color)
+			m.Shape = Enum.PartType.Ball
+			m.Material = Enum.Material.SmoothPlastic
+			table.insert(vpMonkey, { part = m, off = bit.off })
+		end
+	end
 	for i, rot in ipairs(RING_ROTS) do
 		local col = if i <= 3 then ringA else ringB
 		local segs = {}
@@ -333,12 +355,27 @@ function Fx.preview(items: { [string]: any })
 	end
 
 	-- Gem on the lane ahead — the real pickup: corner-balanced cube at
-	-- FloatY over the deck, tinted by the browsed GEM FX color.
+	-- FloatY over the deck, tinted by the browsed GEM FX color. Worlds
+	-- carrying a gemStyle (world_sky → "ball") restyle it the same way
+	-- TrackStreamer does live: banana orb, tier scale.
 	local gemPos = Vector3.new(-4, deckTopAt(-75) + Config.Gems.FloatY, -75)
-	local gem =
-		vpart(Vector3.one * Config.Gems.Size, gemPos, Cosmetics.colorOf(gemI and gemI.color, Config.Gems.Color, hues))
+	local gem: BasePart
+	if worldI and worldI.gemStyle == "ball" then
+		local shape, gsize, gcol = GemTypes.ball(10)
+		vpGemSize = gsize
+		gem = vpart(Vector3.one * gsize, gemPos, gcol)
+		gem.Shape = if shape == "orb" then Enum.PartType.Ball else Enum.PartType.Block
+		vpGemCf = CFrame.new(gemPos)
+	else
+		vpGemSize = Config.Gems.Size
+		gem = vpart(
+			Vector3.one * Config.Gems.Size,
+			gemPos,
+			Cosmetics.colorOf(gemI and gemI.color, Config.Gems.Color, hues)
+		)
+		vpGemCf = CFrame.new(gemPos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
+	end
 	gem.Material = Enum.Material.Neon
-	vpGemCf = CFrame.new(gemPos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
 	gem.CFrame = vpGemCf
 	vpGem = gem
 
@@ -448,6 +485,9 @@ local function step()
 				DeathFx.previewBurst(wmodel, vpHitPos :: Vector3, vpDeathItem)
 			end
 			vpBall.Transparency = 1
+			for _, b in ipairs(vpMonkey) do
+				b.part.Transparency = 1
+			end
 			for _, segs in ipairs(vpRings) do
 				for _, p in ipairs(segs) do
 					p.Transparency = 1
@@ -458,7 +498,10 @@ local function step()
 			-- Respawn wrap: re-dress the ball at the loop head.
 			vpDead = false
 			vpHitPos = nil
-			vpBall.Transparency = 0
+			vpBall.Transparency = vpBallAlpha
+			for _, b in ipairs(vpMonkey) do
+				b.part.Transparency = 0
+			end
 			for _, segs in ipairs(vpRings) do
 				for _, p in ipairs(segs) do
 					p.Transparency = 0
@@ -473,6 +516,9 @@ local function step()
 		local bc = CFrame.new(sway, deckTopAt(z) + BALL_D / 2, z)
 			* CFrame.Angles((-tt * ROLL_SPEED / (BALL_D / 2)) % TAU, 0, -lean)
 		vpBall.CFrame = bc
+		for _, b in ipairs(vpMonkey) do
+			b.part.CFrame = bc * CFrame.new(b.off)
+		end
 		for i, segs in ipairs(vpRings) do
 			local base = bc * vpRingRots[i] * RING_X
 			for j, p in ipairs(segs) do
@@ -550,9 +596,7 @@ local function step()
 	end
 	if vpGem and vpGemCf then
 		-- Beat pulse — same swell fraction live pickups use.
-		vpGem.Size = Vector3.one
-			* Config.Gems.Size
-			* (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
+		vpGem.Size = Vector3.one * vpGemSize * (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
 		vpGem.CFrame = vpGemCf
 	end
 	if vpFx and ANIM_FX[vpFx] then
