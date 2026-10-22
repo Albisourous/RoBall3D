@@ -2533,11 +2533,13 @@ function Ui.new(): Ui
 
 	-- HOLD column (§4): BOOST on top where the thumb rests, BRAKE the
 	-- smaller deck under it — the power meter's own boost/brake split.
-	-- Held flags ride the exact W/S path in the drive loop.
+	-- Held flags ride the exact W/S path in the drive loop. Anchored
+	-- left of the radar rail and above the TEMPO pill so the cluster
+	-- still fits a phone-width landscape screen.
 	local function holdButton(text: string, yOff: number, h: number, setter: (boolean) -> ())
 		local b = Instance.new("TextButton")
 		b.AnchorPoint = Vector2.new(1, 1)
-		b.Position = UDim2.new(1, -18, 1, yOff)
+		b.Position = UDim2.new(1, -90, 1, yOff)
 		b.Size = UDim2.fromOffset(150, h)
 		b.BackgroundColor3 = C_BG
 		b.BackgroundTransparency = 0.5
@@ -2577,10 +2579,10 @@ function Ui.new(): Ui
 		end)
 		return b
 	end
-	holdButton("BOOST", -116, 76, function(v)
+	holdButton("BOOST", -186, 74, function(v)
 		self.boostHeld = v
 	end)
-	holdButton("BRAKE", -26, 72, function(v)
+	holdButton("BRAKE", -102, 70, function(v)
 		self.brakeHeld = v
 	end)
 	local padHint = Instance.new("TextLabel")
@@ -2594,6 +2596,23 @@ function Ui.new(): Ui
 	padHint.TextTransparency = 0.35
 	padHint.Text = "drag to steer · tap-tap to dash"
 	padHint.Parent = zone
+
+	-- Narrow-screen shrink (§12): the power meter + TEMPO pills are
+	-- fixed-pixel chrome built for desktop — under ~900px viewport they
+	-- collide mid-screen. One shared UIScale shrinks both together so
+	-- the bracket pair stays symmetric.
+	local pillScale = Instance.new("UIScale")
+	pillScale.Parent = self.powerBar
+	local pillScale2 = Instance.new("UIScale")
+	pillScale2.Parent = self.bpmScope
+	local function fitPills()
+		local w = gui.AbsoluteSize.X
+		local s = if w < 900 then math.max(0.6, w / 1250) else 1
+		pillScale.Scale = s
+		pillScale2.Scale = s
+	end
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitPills)
+	fitPills()
 
 	return self
 end
