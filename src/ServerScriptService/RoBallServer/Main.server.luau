@@ -685,7 +685,7 @@ fnSetAudio.OnServerInvoke = function(player, ch, v)
 	return ShopService.setAudio(player, ch, v)
 end
 
--- Dash style (§4): "keys"|"tap"|"both" — a control pref, mirrored +
+-- Dash style (§4): "keys"|"tap" — a control pref, mirrored +
 -- saved like a mixer gain.
 fnSetDashMode.OnServerInvoke = function(player, m)
 	if typeof(m) ~= "string" then

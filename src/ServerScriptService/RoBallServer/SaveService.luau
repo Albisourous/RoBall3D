@@ -153,7 +153,7 @@ export type Profile = {
 	-- COLOR LAB (§18): custom hue channels a/b/c (0..1, band-clamped) for
 	-- the customA/B/C cosmetic params. Pure vanity — never gameplay.
 	hues: { a: number, b: number, c: number }?,
-	-- Dash style (§4): "keys"|"tap"|"both" — which input mapping dashes.
+	-- Dash style (§4): "keys"|"tap" — which input mapping dashes.
 	-- A control pref, never gameplay-affecting.
 	dashMode: string?,
 	-- Recent runs (§14): newest-first { s=score, d=dist, z=seed } entries,

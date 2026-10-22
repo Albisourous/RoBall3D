@@ -862,13 +862,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	-- Dash input map (§4): "keys" fires Q/E; "tap" fires on a second
-	-- press of the same steer key inside TapWindow; "both" allows either.
+	-- press of the same steer key inside TapWindow.
 	local dm = dashMode()
-	if (dm == "keys" or dm == "both") and input.KeyCode == Enum.KeyCode.Q then
+	if dm == "keys" and input.KeyCode == Enum.KeyCode.Q then
 		queueDash(-1)
-	elseif (dm == "keys" or dm == "both") and input.KeyCode == Enum.KeyCode.E then
+	elseif dm == "keys" and input.KeyCode == Enum.KeyCode.E then
 		queueDash(1)
-	elseif dm == "tap" or dm == "both" then
+	elseif dm == "tap" then
 		local dir = if input.KeyCode == Enum.KeyCode.A then -1 elseif input.KeyCode == Enum.KeyCode.D then 1 else 0
 		if dir ~= 0 then
 			local now = tick()

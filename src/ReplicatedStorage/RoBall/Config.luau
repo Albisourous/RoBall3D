@@ -69,12 +69,12 @@ Config.Dash = {
 	Cooldown = 0.35, -- seconds between dashes (the meter is the real limiter)
 	BufferWindow = 0.4, -- a press mid-burst/on cooldown stays armed this long — chains snap
 	-- Dash style (§4): a saved menu toggle picks the input mapping —
-	-- "keys" (Q/E), "tap" (double-tap the steer key), or "both".
+	-- "keys" (Q/E) or "tap" (double-tap the steer key).
 	-- Mirrored as RoBallDashMode; persisted in the profile like a mixer gain.
-	Modes = { "keys", "tap", "both" },
+	Modes = { "keys", "tap" },
 	TapWindow = 0.28, -- seconds between steer-key taps that read as a dash
-	ModeLabel = { keys = "‹ Q / E KEYS ›", tap = "‹ DOUBLE-TAP A / D ›", both = "‹ Q/E + DOUBLE-TAP ›" },
-	ModeHint = { keys = "Q/E dash", tap = "A·A / D·D dash", both = "Q/E or A·A·D·D dash" },
+	ModeLabel = { keys = "‹ Q / E KEYS ›", tap = "‹ DOUBLE-TAP A / D ›" },
+	ModeHint = { keys = "Q/E dash", tap = "A·A / D·D dash" },
 }
 
 -- Steering is force/momentum based (Super Monkey Ball feel), not snapping.
@@ -1342,6 +1342,13 @@ Config.Art = {
 	-- distance — the color flows continuously instead of banding per chunk.
 	GridEvery = 10,
 	GridValue = 0.5, -- palette value scale for grid lines (dimmer than edges)
+	-- Deck ribbon primitives (TrackStreamer; the garage preview's
+	-- real-scale mini-lane reads the same values so the two can't drift).
+	DeckColor = Color3.fromRGB(10, 6, 16), -- purple-black deck; the neon grid carries the read
+	EdgeW = 0.6, -- neon edge-rail width, studs
+	EdgeH = 0.25, -- neon edge-rail height above the deck surface
+	GridH = 0.08, -- grid/center neon strip thickness
+	CenterW = 0.35, -- longitudinal center-line width
 	-- Banked-deck continuity (§8.6): each slice pivots about the deck
 	-- centerline, so a roll change across it leaves a lip at the edge.
 	-- TrackStreamer halves rolling spans until the edge step fits this —

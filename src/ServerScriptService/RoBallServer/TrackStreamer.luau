@@ -15,11 +15,13 @@ local MoveWave = require(ReplicatedStorage.RoBall.MoveWave)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
-local DECK_COLOR = Color3.fromRGB(10, 6, 16) -- purple-black deck; the neon grid carries the read
-local EDGE_W = 0.6
-local EDGE_H = 0.25
-local GRID_H = 0.08
-local CENTER_W = 0.35 -- longitudinal grid line down the deck middle
+-- Deck primitives live in Config.Art — the garage preview's real-scale
+-- mini-lane reads the same values (no drift between menu and runtime).
+local DECK_COLOR = Config.Art.DeckColor
+local EDGE_W = Config.Art.EdgeW
+local EDGE_H = Config.Art.EdgeH
+local GRID_H = Config.Art.GridH
+local CENTER_W = Config.Art.CenterW
 
 local TrackStreamer = {}
 TrackStreamer.__index = TrackStreamer

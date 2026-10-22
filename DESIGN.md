@@ -131,7 +131,7 @@ explainable.
   menu toggle (`Dash.Modes`, `RoBallDashMode` attr, persisted in the
   profile like a mixer gain): `keys` = tap `Q`/`E`, `tap` = a second
   press of the same `A`/`D` steer key inside `TapWindow` (0.28s) dashes
-  that way, `both` = either mapping. First tap still steers — the dash
+  that way. First tap still steers — the dash
   only reads on the repeat press. Steering is ignored mid-burst — the
   dodge is a commitment.
   Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells —
@@ -228,13 +228,13 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
     color), one open at a time, so a purchase is never a guess.
   - **PREVIEW window** — pinned to the bottom of the garage rail: a
-    `ViewportFrame` diorama (mini lane + dressed ball + gem sample +
-    death shards) whose world + sun come from `Backdrop.diorama` — the
-    REAL scenery generation laid once around a synthetic anchor, then
-    shrunk to the window (§18). CosmeticFx rebuilds it from the
-    *browsed* item on every slot — unowned merch previews before the
-    buy (try-before-you-buy). The screen-filter cosmetic repaints
-    inside the window as a Gui overlay.
+    `ViewportFrame` playing a REAL-SCALE slice of the game (§18) — a
+    straight Flat ribbon, the dressed ball rolling down-grade at the
+    real opener speed, the live chase-cam transform, and world + sun
+    from `Backdrop.diorama`. CosmeticFx rebuilds it from the *browsed*
+    item on every slot — unowned merch previews before the buy
+    (try-before-you-buy). The screen-filter cosmetic repaints inside
+    the window as a Gui overlay.
   - **Leaderboard rail** — DAILY / TOP tabs (`name / score /
     seed`), DAILY left and selected by default to match the default run
     mode; the daily tab shows the shared seed + UTC reset countdown.
@@ -1288,18 +1288,31 @@ are the run itself and the **garage preview window** — a `ViewportFrame`
 diorama pinned to the bottom of the always-on garage rail (§6). CosmeticFx
 rebuilds it on every browse change from the *browsed* item — not just the
 equipped one — so cycling the catalog previews unowned merch before the
-buy (try-before-you-buy). It's drawn from real parts (mini lane, neon
-ring cage, trail, gem sample, orbiting death shards) since adornments
-don't render inside a ViewportFrame. The world is no sketch either:
-`Backdrop.diorama(parent, theme, sun, anchor)` lays ONE static window of
-the real theme into the diorama's Scene model — the same make/lay
-functions, tunables, and seeded lattice `Backdrop.update` runs live,
-frozen at a synthetic anchor instead of recycled behind the ball — plus
-the real `makeSun` strip stack. CosmeticFx then scales the whole window
-(uniform scale + a per-axis floor so wireframe strokes stay visible) and
-a fixed camera frames it. SelectionBox tower outlines can't draw in a
-ViewportFrame, so the diorama path traces laid tower segments with neon
-edge parts — same `layTower` math, only the stroke primitive swaps.
+buy (try-before-you-buy). Everything sits at REAL game studs — no
+shrink pass. The lane is a constant-profile straight Flat ribbon
+emitted with TrackStreamer's own recipe: a pitched deck slab tinted by
+`DeckTint`, neon edge rails + center line split into `GridEvery` pieces
+so each samples `Palette.neonAt`/`dimAt` at its own z, transverse grid
+on the same cadence — the shared deck primitives (`DeckColor`, `EdgeW`,
+`EdgeH`, `GridH`, `CenterW`) live in `Config.Art` so menu and runtime
+can't drift. The dressed ball (real `Ball.Diameter`, cage dims matching
+the adornments it stands in for — rings are cylinder parts since
+adornments don't render inside a ViewportFrame) rolls down-grade at
+`Config.Speed.Start`, so the trail — BallDress's own attachment pair +
+taper spec — streams exactly like a run; a ~150-stud loop wraps with a
+trail reset. The ViewportFrame camera re-aims each frame with the live
+chase-cam transform (`Camera.Offset` behind-above, `LookAhead`/
+`LookDrop` aim) at the real speed-ramped FOV. The world is no sketch
+either: `Backdrop.diorama(parent, theme, sun, anchor)` lays ONE static
+window of the real theme into the diorama's Scene model — the same
+make/lay functions, tunables, and seeded lattice `Backdrop.update` runs
+live, frozen at the ball's start anchor instead of recycled behind it —
+plus the real `makeSun` strip stack. SelectionBox tower outlines can't
+draw in a ViewportFrame, so the diorama path traces laid tower segments
+with neon edge parts — same `layTower` math, only the stroke primitive
+swaps. A real `Gems.Size`/`FloatY` pickup sits on the lane ahead and
+beat-pulses, and two shards orbit the ball in the browsed DEATH FX
+colors.
 Animated flags (`fx = "rainbow" | "pulse" | "strobe" | "wave"` on skins —
 strobe is a fast hue flicker, wave flows the run palette across the rings;
 `"rainbow"`/`"palette"` on trails/gemfx) are evaluated in the client

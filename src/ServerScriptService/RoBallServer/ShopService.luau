@@ -54,7 +54,7 @@ local audioVol: { [Player]: { [string]: number } } = {}
 -- Config.CustomHue). Mirrored as RoBallHue* attributes; persisted in
 -- profile.hues like the mixer gains.
 local customHues: { [Player]: { a: number, b: number, c: number } } = {}
--- Dash style (§4): "keys"|"tap"|"both" — a control pref mirrored as the
+-- Dash style (§4): "keys"|"tap" — a control pref mirrored as the
 -- RoBallDashMode attribute; persists in profile.dashMode like the mixer.
 local dashModes: { [Player]: string } = {}
 

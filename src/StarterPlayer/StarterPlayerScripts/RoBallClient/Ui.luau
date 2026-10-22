@@ -301,7 +301,7 @@ function Ui.new(): Ui
 	label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6).TextTransparency = 0.25
 
 	-- DASH button (§4): its own bordered chip right under PLAY — cycles
-	-- keys / double-tap / both; the server mirrors + saves the pick, so
+	-- keys / double-tap; the server mirrors + saves the pick, so
 	-- this button IS the whole pref.
 	local dash = Instance.new("TextButton")
 	dash.Name = "DashToggle"
@@ -1990,8 +1990,7 @@ function Ui.new(): Ui
 end
 
 -- Dash style (§4): the menu toggle label + the controls hint both track
--- the saved pick — "‹ Q / E KEYS ›" / "‹ DOUBLE-TAP A / D ›" /
--- "‹ Q/E + DOUBLE-TAP ›".
+-- the saved pick — "‹ Q / E KEYS ›" / "‹ DOUBLE-TAP A / D ›".
 function Ui:setDashMode(m: string)
 	self.dashToggle.Text = "DASH STYLE  " .. (Config.Dash.ModeLabel[m] or m)
 	self.dashHint.Text = "A/D steer   ·   W/S boost/brake   ·   "

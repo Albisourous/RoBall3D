@@ -1,15 +1,19 @@
 --!strict
 -- CosmeticFx (DESIGN.md §18): client-local vanity surfaces.
--- 1) Garage preview diorama — the try-before-you-buy window at the
---    bottom of the always-on garage rail: a mini deck + dressed ball +
---    sun + world motif inside a ViewportFrame, rebuilt on every browse
---    change (unowned items preview too — that's the conversion lever).
+-- 1) Garage preview — the try-before-you-buy window at the bottom of
+--    the always-on garage rail: a REAL-SCALE slice of the game. A
+--    straight Flat ribbon emitted with TrackStreamer's own part recipe,
+--    the dressed ball rolling down-grade at the real opener speed, the
+--    real Backdrop generators around it, framed by the live chase-cam
+--    transform. Rebuilt on every browse change (unowned items preview
+--    too — that's the conversion lever).
 -- 2) Animated skin/trail flags ("rainbow"/"pulse") applied to the live
 --    ball AND the diorama in the render loop.
 --
--- The diorama can't reuse BallDress: adornments/attachments inside a
--- ViewportFrame don't render like the live ball, so rings are real
--- cylinder parts here instead of CylinderHandleAdornments.
+-- The diorama can't reuse BallDress: adornments inside a ViewportFrame
+-- don't render like the live ball, so rings are real cylinder parts
+-- here instead of CylinderHandleAdornments — same dims as the
+-- adornments they stand in for.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -43,35 +47,55 @@ local function equipped()
 end
 
 --=================== DIORAMA (menu preview) ===================--
--- Diorama palette — the menu's own vaporwave swatches, kept local so
--- the world-theme motifs can borrow them without importing Ui.
+-- Diorama palette — the menu's own vaporwave swatches, used as fallback
+-- colors when the browsed skin doesn't override them.
 local CY = Color3.fromRGB(0, 230, 255)
 local PK = Color3.fromRGB(255, 64, 190)
 local DK = Color3.fromRGB(14, 7, 24)
 
-local VP_SCALE = 2.2
-local BALL_D = Config.Ball.Diameter * VP_SCALE
-local BALL_POS = Vector3.new(0, BALL_D / 2 + 0.8, 8)
-local GEM_POS = Vector3.new(0, 1.3, -18)
+local Gen = Config.Generation
+local Art = Config.Art
+local Cam = Config.Camera
+
+-- Everything in this window is at REAL game studs — no shrink pass.
+-- The lane is a constant-profile straight Flat: same slab/edge/center/
+-- grid recipe as TrackStreamer.emitDeck when every section sample is
+-- identical, so the mini-lane IS the game's straight line.
+local LANE_W = 44 -- tier-0 flat ribbon (Config.Tiers[1] spans 40..50)
+local LANE_Z0 = 40 -- lane runs a little behind the camera
+local LANE_Z1 = -430 -- ...and out past the scenery window
+local ROLL_Z0 = -30 -- ball loop head
+local ROLL_LEN = 150 -- studs per loop before the wrap reset
+local BALL_D = Config.Ball.Diameter
+local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
+local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
+
+local function deckTopAt(z: number): number
+	return Gen.Grade * z
+end
 
 local wmodel: WorldModel? = nil
+local vpCam: Camera? = nil
 local vpBall: BasePart? = nil
 local vpRings: { BasePart } = {}
 local vpRingRots: { CFrame } = {}
 local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
+local vpGemCf: CFrame? = nil
 local vpShards: { BasePart } = {}
 local vpTrail: Trail? = nil
+local vpLastRoll = 0
 local vpFx: string? = nil
 local vpRainbowTrail = false
 local vpPaletteTrail = false
 
+-- Same rotations as BallDress.RING_ROTS: 3 axial + 2 diagonal.
 local RING_ROTS = {
+	CFrame.Angles(0, 0, 0),
 	CFrame.Angles(math.rad(90), 0, 0),
-	CFrame.Angles(math.rad(60), 0, math.rad(35)),
-	CFrame.Angles(math.rad(60), 0, math.rad(-35)),
-	CFrame.Angles(0, math.rad(55), math.rad(30)),
-	CFrame.Angles(0, math.rad(-55), math.rad(30)),
+	CFrame.Angles(0, 0, math.rad(90)),
+	CFrame.Angles(math.rad(45), 0, math.rad(90)),
+	CFrame.Angles(math.rad(-45), 0, math.rad(90)),
 }
 local RING_X = CFrame.Angles(0, 0, math.rad(90)) -- part cylinder axis (X) → adornment axis (Y)
 
@@ -90,25 +114,69 @@ local function vpart(size: Vector3, pos: Vector3, col: Color3): BasePart
 	return p
 end
 
--- Scene scale: the real world layout (±320 studs out, ~1100 deep) shrunk
--- to the window. Wireframe lines would thin to invisibility at 0.25x, so
--- scaleScene clamps each axis to a floor — a rendering necessity, same
--- reason the rings are parts.
-local SCENE_SCALE = 0.25
-local MIN_DIM = 0.14
+-- Straight Flat ribbon at real scale — the same boxes TrackStreamer
+-- emits for a constant-profile chunk: a pitched deck slab tinted toward
+-- the palette, neon edge rails and center line split into GridEvery
+-- pieces so each samples the palette at its own z, transverse grid on
+-- the same cadence. Shares its dims through Config.Art so menu and
+-- runtime can't drift apart.
+local function makeLane()
+	local span = LANE_Z0 - LANE_Z1
+	local function orient(p: BasePart)
+		p.CFrame = p.CFrame * CFrame.Angles(DECK_PITCH, 0, 0)
+	end
 
-local function scaleScene(scene: Instance, k: number)
-	for _, d in ipairs(scene:GetDescendants()) do
-		if d:IsA("BasePart") then
-			local s = d.Size
-			d.Size = Vector3.new(math.max(s.X * k, MIN_DIM), math.max(s.Y * k, MIN_DIM), math.max(s.Z * k, MIN_DIM))
-			d.CFrame = CFrame.new(d.Position * k) * (d.CFrame - d.Position)
+	-- Deck slabs in chunk-length pieces so the DeckTint palette drift
+	-- lands the same way it does in a run.
+	local nSlab = math.max(1, math.ceil(span / Config.Generation.ChunkMaxLength))
+	local slabSpan = span / nSlab
+	for i = 0, nSlab - 1 do
+		local zm = LANE_Z0 - (i + 0.5) * slabSpan
+		local p = vpart(
+			Vector3.new(LANE_W, Gen.TrackThickness, slabSpan + 0.2),
+			Vector3.new(0, deckTopAt(zm) - Gen.TrackThickness / 2, zm),
+			Art.DeckColor:Lerp(Palette.neonAt(-zm), Art.DeckTint)
+		)
+		orient(p)
+	end
+
+	-- Longitudinal neon: edge rails + center line, segmented like
+	-- emitDeck's eachStripSeg so the palette flows down the course.
+	local nSeg = math.max(1, math.ceil(span / Art.GridEvery))
+	local sub = span / nSeg
+	for i = 0, nSeg - 1 do
+		local z0 = LANE_Z0 - (i + 0.5) * sub
+		local y0 = deckTopAt(z0)
+		local c = Palette.neonAt(-z0)
+		for _, x in ipairs({ -LANE_W / 2 + Art.EdgeW / 2, LANE_W / 2 - Art.EdgeW / 2 }) do
+			local e = vpart(Vector3.new(Art.EdgeW, Art.EdgeH, sub + 0.2), Vector3.new(x, y0 + Art.EdgeH / 2, z0), c)
+			e.Material = Enum.Material.Neon
+			orient(e)
 		end
+		local cs = vpart(
+			Vector3.new(Art.CenterW, Art.GridH, sub + 0.15),
+			Vector3.new(0, y0 + Art.GridH / 2 + 0.02, z0),
+			Palette.dimAt(-z0, Art.GridValue)
+		)
+		cs.Material = Enum.Material.Neon
+		orient(cs)
+	end
+
+	-- Transverse grid strips on the fixed GridEvery cadence.
+	for z = LANE_Z0 - Art.GridEvery, LANE_Z1 + 0.01, -Art.GridEvery do
+		local g = vpart(
+			Vector3.new(math.max(LANE_W - 1, 0.5), Art.GridH, 0.5),
+			Vector3.new(0, deckTopAt(z) + Art.GridH / 2 + 0.02, z),
+			Palette.dimAt(-z, Art.GridValue)
+		)
+		g.Material = Enum.Material.Neon
+		orient(g)
 	end
 end
 
--- Mount the garage's ViewportFrame: WorldModel for the diorama parts and
--- a fixed camera aimed down the mini lane toward the scaled sun.
+-- Mount the garage's ViewportFrame: WorldModel for the parts and a
+-- camera driven by the live chase-cam transform (step() re-aims it at
+-- the rolling ball every frame). FOV uses the real speed curve.
 function Fx.mountViewport(vp: ViewportFrame)
 	local wm = Instance.new("WorldModel")
 	wm.Parent = vp
@@ -116,8 +184,8 @@ function Fx.mountViewport(vp: ViewportFrame)
 	local cam = Instance.new("Camera")
 	cam.Parent = vp
 	vp.CurrentCamera = cam
-	cam.FieldOfView = 44
-	cam.CFrame = CFrame.lookAt(Vector3.new(0, 9, 26), Vector3.new(0, 5, -45))
+	cam.FieldOfView = Cam.FovMin + (Cam.FovMax - Cam.FovMin) * math.clamp(ROLL_SPEED / Config.Speed.Max, 0, 1)
+	vpCam = cam
 end
 
 -- Rebuild the diorama from the BROWSED items (one per cosmetic slot) —
@@ -130,7 +198,9 @@ function Fx.preview(items: { [string]: any })
 	wm:ClearAllChildren()
 	vpBall = nil
 	vpGem = nil
+	vpGemCf = nil
 	vpTrail = nil
+	vpLastRoll = 0
 	vpRings = {}
 	vpRingRots = {}
 	vpBases = {}
@@ -147,28 +217,21 @@ function Fx.preview(items: { [string]: any })
 	vpRainbowTrail = trailI ~= nil and trailI.color == "rainbow"
 	vpPaletteTrail = trailI ~= nil and trailI.color == "palette"
 
-	-- Mini lane: slim dark slab + neon rails + faint cross-grid, sized to
-	-- the scaled world's own proportions (real decks ~19.5 half-width,
-	-- real scenery starts ~55 out). The hero ball deliberately overhangs
-	-- it — the mannequin is the point.
-	vpart(Vector3.new(11, 1, 130), Vector3.new(0, -0.5, -45), DK)
-	local railL = vpart(Vector3.new(0.5, 0.7, 130), Vector3.new(-5.6, 0.1, -45), CY)
-	railL.Material = Enum.Material.Neon
-	local railR = vpart(Vector3.new(0.5, 0.7, 130), Vector3.new(5.6, 0.1, -45), PK)
-	railR.Material = Enum.Material.Neon
-	for i = 0, 7 do
-		vpart(Vector3.new(10.2, 0.22, 0.4), Vector3.new(0, 0.02, 12 - i * 15), Color3.fromRGB(30, 70, 90)).Material =
-			Enum.Material.Neon
-	end
+	-- The lane: a straight Flat ribbon built from the real deck recipe —
+	-- pitched slab + palette-sampled edge rails, center line, grid.
+	makeLane()
 
-	-- Dressed ball: SmoothPlastic core + five neon ring parts mirroring
-	-- BallDress's cage (ringA/ringB/custom hues all resolve via colorOf).
+	-- The ball sits at the loop head, rolling down-grade in step().
+	local ballPos = Vector3.new(0, deckTopAt(ROLL_Z0) + BALL_D / 2, ROLL_Z0)
+
+	-- Dressed ball: real scale, SmoothPlastic core + five neon ring parts
+	-- mirroring BallDress's cage (same rotations, same ring dims —
+	-- adornment Radius d/2+0.08, Height 0.14 → disc diameter d+0.3).
 	local ringA = if skin then Cosmetics.colorOf(skin.ringA, CY, hues) else CY
 	local ringB = if skin then Cosmetics.colorOf(skin.ringB, PK, hues) else PK
-	local ball = vpart(Vector3.one * BALL_D, BALL_POS, if skin then Cosmetics.colorOf(skin.core, DK, hues) else DK)
+	local ball = vpart(Vector3.one * BALL_D, ballPos, if skin then Cosmetics.colorOf(skin.core, DK, hues) else DK)
 	ball.Shape = Enum.PartType.Ball
 	vpBall = ball
-	local ringD = BALL_D + 0.7
 	for i, rot in ipairs(RING_ROTS) do
 		local r = Instance.new("Part")
 		r.Shape = Enum.PartType.Cylinder
@@ -178,64 +241,68 @@ function Fx.preview(items: { [string]: any })
 		r.CanTouch = false
 		r.CastShadow = false
 		r.Material = Enum.Material.Neon
-		r.Size = Vector3.new(0.5, ringD, ringD)
-		r.CFrame = CFrame.new(BALL_POS) * rot * RING_X
-		r.Color = if i % 2 == 1 then ringA else ringB
+		r.Size = Vector3.new(0.14, BALL_D + 0.3, BALL_D + 0.3)
+		r.CFrame = CFrame.new(ballPos) * rot * RING_X
+		r.Color = if i <= 3 then ringA else ringB
 		r.Parent = wm
 		vpRings[i] = r
 		vpRingRots[i] = rot
 		vpBases[i] = r.Color
 	end
 
-	-- Trail: real Trail + attachments on the ball — the ribbon swings as
-	-- the cage tumbles, same as it does in a live run. The tail anchor
-	-- drops below-behind the ball so the ribbon cuts diagonally through
-	-- the shot instead of streaming away edge-on, and FaceCamera keeps
-	-- the ribbon face readable at every tumble angle.
+	-- Trail: BallDress's own spec — ±0.3d vertical attachment pair,
+	-- 0.35→0.05 taper, half-fade transparency, TrailLifetime clock. The
+	-- ball really rolls, so the ribbon streams behind it exactly like a
+	-- run. FaceCamera stays on as a readability aid (the chase cam
+	-- otherwise sees the ribbon edge-on).
 	if trailI then
 		local a0 = Instance.new("Attachment")
-		a0.Position = Vector3.new(0, BALL_D / 2 + 0.5, 0)
+		a0.Position = Vector3.new(0, BALL_D * 0.3, 0)
 		a0.Parent = ball
 		local a1 = Instance.new("Attachment")
-		a1.Position = Vector3.new(-1.5, -BALL_D * 0.3, -2.2)
+		a1.Position = Vector3.new(0, -BALL_D * 0.3, 0)
 		a1.Parent = ball
 		local tr = Instance.new("Trail")
 		tr.Attachment0 = a0
 		tr.Attachment1 = a1
-		tr.Lifetime = 0.8
+		tr.Lifetime = Art.TrailLifetime
+		tr.LightEmission = 1
 		tr.MinLength = 0
 		tr.FaceCamera = true
-		tr.WidthScale = NumberSequence.new(BALL_D * 0.9)
+		tr.WidthScale = NumberSequence.new(0.35, 0.05)
+		tr.Transparency = NumberSequence.new(0.5, 1)
 		local col = Cosmetics.colorOf(trailI.color, PK, hues)
 		tr.Color = ColorSequence.new(col)
 		tr.Parent = ball
 		vpTrail = tr
 	end
 
-	-- Gem sample: a spinning neon gem mid-deck tinted by the browsed
-	-- GEM FX burst color.
-	local gem = vpart(Vector3.new(1.6, 1.6, 1.6), GEM_POS, Cosmetics.colorOf(gemI and gemI.color, CY, hues))
+	-- Gem on the lane ahead — the real pickup: corner-balanced cube at
+	-- FloatY over the deck, tinted by the browsed GEM FX color.
+	local gemPos = Vector3.new(-4, deckTopAt(-75) + Config.Gems.FloatY, -75)
+	local gem =
+		vpart(Vector3.one * Config.Gems.Size, gemPos, Cosmetics.colorOf(gemI and gemI.color, Config.Gems.Color, hues))
 	gem.Material = Enum.Material.Neon
+	vpGemCf = CFrame.new(gemPos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
+	gem.CFrame = vpGemCf
 	vpGem = gem
 
 	-- Death shards: two wedges orbiting the ball in the DEATH FX pair
 	-- colors — reads as "your burst, sampled" without a run.
 	for i, col in ipairs({ deathI and deathI.colorA, deathI and deathI.colorB }) do
-		local s = vpart(Vector3.new(1.1, 0.8, 0.5), BALL_POS + Vector3.new(6, 0, 0), col or PK)
+		local s = vpart(Vector3.new(1.1, 0.8, 0.5), ballPos + Vector3.new(4.5, 0, 0), col or PK)
 		s.Material = Enum.Material.Neon
 		vpShards[i] = s
 	end
 
 	-- World + sun: one static window of the REAL Backdrop generation —
 	-- same lay functions, same tunables, same seeded lattice as the live
-	-- scenery — laid into a Scene model at real scale, then shrunk to
-	-- the window. The preview shows the actual scenery a WORLD pass
-	-- buys, not a sketch of it.
+	-- scenery — anchored on the ball's start so deckEst lands the
+	-- scenery exactly where the lane's surface sits.
 	local scene = Instance.new("Model")
 	scene.Name = "Scene"
 	scene.Parent = wm
-	Backdrop.diorama(scene, worldI and worldI.theme or "city", sunI and sunI.sun or "classic", Vector3.new(0, 0, 0))
-	scaleScene(scene, SCENE_SCALE)
+	Backdrop.diorama(scene, worldI and worldI.theme or "city", sunI and sunI.sun or "classic", ballPos)
 end
 
 --=================== LIVE BALL ANIM ===================--
@@ -295,21 +362,45 @@ local function step()
 		end
 	end
 
-	-- Diorama anims: cage tumble, ring fx, gem spin, shard orbit.
+	-- Diorama anims: the ball really rolls down the straight at opener
+	-- speed (that's why the trail streams like a run), the chase cam
+	-- re-aims with the live transform, rings ride the roll, the gem
+	-- beat-pulses, shards orbit.
 	if vpBall then
-		local bc = CFrame.new(BALL_POS) * CFrame.Angles(tick() * 0.9, tick() * 0.5, 0)
+		local tt = tick()
+		local roll = (tt * ROLL_SPEED) % ROLL_LEN
+		local z = ROLL_Z0 - roll
+		local bc = CFrame.new(0, deckTopAt(z) + BALL_D / 2, z) * CFrame.Angles(-tt * ROLL_SPEED / (BALL_D / 2), 0, 0)
 		vpBall.CFrame = bc
 		for i, r in ipairs(vpRings) do
 			r.CFrame = bc * vpRingRots[i] * RING_X
 		end
+		if vpCam then
+			vpCam.CFrame = CFrame.lookAt(
+				bc.Position + Cam.Offset,
+				bc.Position
+					+ Gen.TravelAxis * Cam.LookAhead
+					- Vector3.new(0, Gen.Grade * Cam.LookAhead + Cam.LookDrop, 0)
+			)
+		end
+		if roll < vpLastRoll and vpTrail then
+			-- Loop wrap: drop the stale ribbon so it doesn't streak back.
+			vpTrail.Enabled = false
+			vpTrail.Enabled = true
+		end
+		vpLastRoll = roll
 	end
-	if vpGem then
-		vpGem.CFrame = CFrame.new(GEM_POS) * CFrame.Angles(0.5, tick() * 1.6, 0.7)
+	if vpGem and vpGemCf then
+		-- Beat pulse — same swell fraction live pickups use.
+		vpGem.Size = Vector3.one * Config.Gems.Size * (1 + Config.Gems.BeatPulse * math.max(0, math.sin(tick() * 4)))
+		vpGem.CFrame = vpGemCf
 	end
-	for i, s in ipairs(vpShards) do
-		local a = tick() * 1.1 + (i - 1) * math.pi
-		s.CFrame = CFrame.new(BALL_POS + Vector3.new(math.cos(a) * 6.5, 0.6, math.sin(a) * 6.5))
-			* CFrame.Angles(a, a * 1.3, 0)
+	if vpBall then
+		for i, s in ipairs(vpShards) do
+			local a = tick() * 1.1 + (i - 1) * math.pi
+			s.CFrame = CFrame.new(vpBall.Position + Vector3.new(math.cos(a) * 4.5, 0.4, math.sin(a) * 4.5))
+				* CFrame.Angles(a, a * 1.3, 0)
+		end
 	end
 	if vpFx and ANIM_FX[vpFx] then
 		for i, r in ipairs(vpRings) do
