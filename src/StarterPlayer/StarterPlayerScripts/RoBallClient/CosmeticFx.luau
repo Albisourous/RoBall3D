@@ -372,9 +372,11 @@ function Fx.preview(items: { [string]: any })
 	-- basis in step().
 	vpBallAlpha = if skin and skin.capsule then Art.CapsuleAlpha else 0
 	ball.Transparency = vpBallAlpha
-	if skin and skin.capsule then
-		ball.Material = Enum.Material.Glass
-	end
+	-- NOT Glass: the live shell is Enum.Material.Glass, but Glass renders
+	-- nearly invisible inside a ViewportFrame (no refraction pass), so the
+	-- preview fakes the capsule with plain alpha — the monkey inside is
+	-- the thing the pack is selling.
+	ball.Material = Enum.Material.SmoothPlastic
 	vpBall = ball
 	if skin and skin.inhabitant == "monkey" then
 		for _, bit in ipairs(BallDress.monkeySpec(BALL_D)) do
