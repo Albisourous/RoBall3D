@@ -21,6 +21,11 @@ never inline magic numbers in gameplay code.
 
 ## Workflow rules
 
+0. **Canonical Roblox first.** Before hand-rolling anything (VFX, UI,
+   physics, rendering, data), check how the platform/community does it —
+   Creator Docs, engine APIs (ParticleEmitter, ViewportFrame, atmosphere,
+   constraints), and proven devforum patterns. Prefer the idiomatic Roblox
+   technique over a custom simulation of it.
 1. **Design first.** If a change contradicts DESIGN.md, update DESIGN.md in the
    same commit — never let code and spec drift.
 2. **Logic via MCP, eyes via screenshots.** Agents write scripts/properties
