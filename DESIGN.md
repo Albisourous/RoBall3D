@@ -1303,14 +1303,17 @@ Name-click is the conversion funnel: a bundled item jumps to PACKS with
 its bundle unfolded, scrolled into view, and the buy chip flared — the
 open accordion still lists each member with its ◊price as the à-la-carte
 escape hatch (unbundled singles keep the direct name-click buy). The BANK
-page is the economy surface: a gold-bordered hero card carries the
-balance big (`today +◊N` / `day-N streak` right-aligned for context), a
-`TOP-UP` caption heads three gem-pack cards (◊ amount big, price small,
-SOON until product ids exist — the vault tags `★ BEST`, most gems per
-R$), a `TODAY'S FLOW` ledger shows banked today / open-mission rewards
-left / the next daily run's streak payout (repainted by `setQuests` +
-the streak attribute), then the 2X BANK row wired like a bundle pass.
-The death screen reads `◊ +N BANKED` — the payout visible on
+page is the economy surface: a gold-sheened hero card carries the
+balance huge behind a faceted gem icon (`today +◊N` / `day-N streak`
+right-aligned for context), a `TOP-UP` caption heads three gem-pack
+cards (icon + amount + price stack, SOON until product ids exist — the
+vault tags `★ BEST`, most gems per R$), a paneled `TODAY'S FLOW` ledger
+shows banked today / open-mission rewards left / the next daily run's
+streak payout (repainted by `setQuests` + the streak attribute), then
+the 2X BANK row wired like a bundle pass. The gem icon is drawn from
+rotated frames (body + darker cut facet + vertex glint — `gemIcon`),
+no image asset. The death screen reads `◊ +N BANKED` — the payout
+visible on
 every run end.
 
 **Show surfaces**: private lanes hide other players, so the flex surfaces
@@ -1329,7 +1332,13 @@ can't drift. The dressed ball (real `Ball.Diameter`, cage dims matching
 the adornments it stands in for — rings are cylinder parts since
 adornments don't render inside a ViewportFrame) rolls down-grade at
 `Config.Speed.Start`, so the trail — BallDress's own attachment pair +
-taper spec — streams exactly like a run; a ~150-stud loop wraps with a
+taper spec — streams exactly like a run; a ~150-stud loop ends at a
+lethal-style wall (near-black `Obstacles.FaceColor` slab, `LethalColor`
+neon edge frame — another stroke-swap for the SelectionBox outline): the
+ball slams face-first, the browsed DEATH FX's REAL burst plays into the
+WorldModel at the impact point (`DeathFx.previewBurst` — the same STYLES
+the run uses, parented to the diorama instead of workspace), the cam
+holds on the hit for ~0.85s, then the wrap respawns the ball with a
 trail reset. The ribbon itself is a stroke-swap like the ring cage:
 Trail objects can't draw inside a ViewportFrame, so thin Neon quads
 bridge the ball's recent positions — a boost-trail composite: a bright
@@ -1349,8 +1358,7 @@ plus the real `makeSun` strip stack. SelectionBox tower outlines can't
 draw in a ViewportFrame, so the diorama path traces laid tower segments
 with neon edge parts — same `layTower` math, only the stroke primitive
 swaps. A real `Gems.Size`/`FloatY` pickup sits on the lane ahead and
-beat-pulses, and two shards orbit the ball in the browsed DEATH FX
-colors.
+beat-pulses.
 Animated flags (`fx = "rainbow" | "pulse" | "strobe" | "wave"` on skins —
 strobe is a fast hue flicker, wave flows the run palette across the rings;
 `"rainbow"`/`"palette"` on trails/gemfx) are evaluated in the client

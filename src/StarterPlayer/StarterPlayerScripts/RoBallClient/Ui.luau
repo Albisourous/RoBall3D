@@ -76,6 +76,49 @@ local function label(parent, text, size, font, color, order)
 	return l
 end
 
+-- Vector gem: the ◊ currency mark as a real diamond — gold body with a
+-- darker cut facet and a vertex glint, drawn from rotated frames so no
+-- image asset is needed. Matches the wireframe look by being geometry.
+local function gemIcon(parent: Instance, size: number, color: Color3): Frame
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromOffset(size, size)
+	holder.Parent = parent
+	local dia = Instance.new("Frame")
+	dia.AnchorPoint = Vector2.new(0.5, 0.5)
+	dia.Position = UDim2.fromScale(0.5, 0.5)
+	dia.Size = UDim2.fromScale(0.72, 0.72)
+	dia.Rotation = 45
+	dia.BackgroundColor3 = color
+	dia.BorderSizePixel = 0
+	dia.Parent = holder
+	local sheen = Instance.new("UIGradient")
+	sheen.Rotation = 45
+	sheen.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(1, color:Lerp(Color3.new(0, 0, 0), 0.4)),
+	})
+	sheen.Parent = dia
+	local facet = Instance.new("Frame")
+	facet.AnchorPoint = Vector2.new(0.5, 0.5)
+	facet.Position = UDim2.fromScale(0.5, 0.56)
+	facet.Size = UDim2.fromScale(0.3, 0.3)
+	facet.Rotation = 45
+	facet.BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.5)
+	facet.BorderSizePixel = 0
+	facet.Parent = holder
+	local glint = Instance.new("Frame")
+	glint.AnchorPoint = Vector2.new(0.5, 0.5)
+	glint.Position = UDim2.fromScale(0.5, 0.24)
+	glint.Size = UDim2.fromScale(0.13, 0.13)
+	glint.Rotation = 45
+	glint.BackgroundColor3 = Color3.new(1, 1, 1)
+	glint.BackgroundTransparency = 0.2
+	glint.BorderSizePixel = 0
+	glint.Parent = holder
+	return holder
+end
+
 local function outlineButton(parent, text, size, order)
 	local b = Instance.new("TextButton")
 	b.BackgroundTransparency = 1
@@ -1183,42 +1226,63 @@ function Ui.new(): Ui
 	-- Everything degrades to SOON until the dashboard ids exist — the
 	-- buttons only arm via setGarage.
 	local pageBank = gPages.BANK
+	-- Section header: dim machine-voice caption + a hairline rule running
+	-- to the panel edge — the vaporwave section mark used across the page.
 	local function caption(text: string, y: number)
 		local c = label(pageBank, text, 10, F_DATA, C_DIM, 0)
 		c.Position = UDim2.fromOffset(14, y)
-		c.Size = UDim2.fromOffset(312, 14)
+		c.Size = UDim2.fromOffset(120, 14)
 		c.TextXAlignment = Enum.TextXAlignment.Left
 		c.TextTransparency = 0.35
+		local hairline = Instance.new("Frame")
+		hairline.BackgroundColor3 = C_DIM
+		hairline.BackgroundTransparency = 0.55
+		hairline.BorderSizePixel = 0
+		hairline.AnchorPoint = Vector2.new(0, 0.5)
+		hairline.Position = UDim2.fromOffset(110, y + 6)
+		hairline.Size = UDim2.fromOffset(216, 1)
+		hairline.Parent = pageBank
 		return c
 	end
 
 	label(pageBank, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 4)
 
-	-- Balance hero: the number the whole page is about — gold and huge,
-	-- with today's inflow + the streak on the right for context. The
+	-- Balance hero: gold card, the gem icon, and the number the whole
+	-- page is about — with today's inflow + the streak on the right for
+	-- context. A diagonal sheen keeps the card from reading flat. The
 	-- header's small ◊ stays (prices read against it everywhere).
 	local balCard = Instance.new("Frame")
 	balCard.BackgroundColor3 = C_BG
 	balCard.Position = UDim2.fromOffset(14, 26)
-	balCard.Size = UDim2.fromOffset(312, 56)
+	balCard.Size = UDim2.fromOffset(312, 58)
 	balCard.Parent = pageBank
 	local balCorner = Instance.new("UICorner")
 	balCorner.CornerRadius = UDim.new(0, 8)
 	balCorner.Parent = balCard
+	local balSheen = Instance.new("UIGradient")
+	balSheen.Rotation = 135
+	balSheen.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, C_BG:Lerp(C_GOLD, 0.16)),
+		ColorSequenceKeypoint.new(0.45, C_BG),
+		ColorSequenceKeypoint.new(1, C_BG),
+	})
+	balSheen.Parent = balCard
 	local balStroke = Instance.new("UIStroke")
 	balStroke.Color = C_GOLD
 	balStroke.Thickness = 1.5
 	balStroke.Parent = balCard
 
+	local heroGem = gemIcon(balCard, 30, C_GOLD)
+	heroGem.Position = UDim2.fromOffset(14, 14)
 	local hero = Instance.new("TextLabel")
 	hero.BackgroundTransparency = 1
 	hero.Font = F_DATA
 	hero.TextSize = 30
 	hero.TextColor3 = C_GOLD
 	hero.TextXAlignment = Enum.TextXAlignment.Left
-	hero.Position = UDim2.fromOffset(14, 0)
-	hero.Size = UDim2.fromOffset(160, 56)
-	hero.Text = "◊ 0"
+	hero.Position = UDim2.fromOffset(52, 0)
+	hero.Size = UDim2.fromOffset(120, 58)
+	hero.Text = "0"
 	hero.Parent = balCard
 	self.bankHero = hero
 	local bankToday = label(balCard, "", 11, F_DATA, C_DIM, 0)
@@ -1226,17 +1290,17 @@ function Ui.new(): Ui
 	bankToday.Size = UDim2.fromOffset(152, 16)
 	bankToday.TextXAlignment = Enum.TextXAlignment.Right
 	local bankStreak = label(balCard, "", 11, F_DATA, C_GOLD, 0)
-	bankStreak.Position = UDim2.fromOffset(150, 29)
+	bankStreak.Position = UDim2.fromOffset(150, 30)
 	bankStreak.Size = UDim2.fromOffset(152, 16)
 	bankStreak.TextXAlignment = Enum.TextXAlignment.Right
 	self.bankToday = bankToday
 	self.bankStreak = bankStreak
 
-	-- Gem packs: three equal cards — the ◊ amount reads big, the price
+	-- Gem packs: three equal cards — gem icon on top, amount big, price
 	-- small. Enabled state arrives via setGarage's gemPacks list (SOON
 	-- until product ids exist). The vault carries the BEST tag — most
 	-- gems per R$ of the three.
-	caption("TOP-UP", 92)
+	caption("TOP-UP", 94)
 	self.gemPackBtn = {}
 	self.gemPackStroke = {}
 	self.gemPackEnabled = {}
@@ -1248,8 +1312,8 @@ function Ui.new(): Ui
 		b.BackgroundTransparency = 0
 		b.AutoButtonColor = false
 		b.Text = ""
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 108, 108)
-		b.Size = UDim2.fromOffset(96, 58)
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 108, 110)
+		b.Size = UDim2.fromOffset(96, 64)
 		b.Parent = pageBank
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
@@ -1259,14 +1323,16 @@ function Ui.new(): Ui
 		stroke.Color = C_GOLD
 		stroke.Thickness = 1.5
 		stroke.Parent = b
+		local packGem = gemIcon(b, 16, C_GOLD)
+		packGem.Position = UDim2.fromOffset(40, 8)
 		local amt = Instance.new("TextLabel")
 		amt.BackgroundTransparency = 1
 		amt.Font = F_DATA
-		amt.TextSize = 17
+		amt.TextSize = 15
 		amt.TextColor3 = C_GOLD
-		amt.Text = "◊?"
-		amt.Position = UDim2.fromOffset(0, 8)
-		amt.Size = UDim2.new(1, 0, 0, 20)
+		amt.Text = "?"
+		amt.Position = UDim2.fromOffset(0, 26)
+		amt.Size = UDim2.new(1, 0, 0, 18)
 		amt.Parent = b
 		local prc = Instance.new("TextLabel")
 		prc.BackgroundTransparency = 1
@@ -1274,7 +1340,7 @@ function Ui.new(): Ui
 		prc.TextSize = 10
 		prc.TextColor3 = C_DIM
 		prc.Text = "SOON"
-		prc.Position = UDim2.fromOffset(0, 34)
+		prc.Position = UDim2.fromOffset(0, 45)
 		prc.Size = UDim2.new(1, 0, 0, 14)
 		prc.Parent = b
 		if i == #Config.Monetization.ProductOrder then
@@ -1284,7 +1350,7 @@ function Ui.new(): Ui
 			tag.TextSize = 8
 			tag.TextColor3 = C_CYAN
 			tag.Text = "★ BEST"
-			tag.Position = UDim2.fromOffset(0, -10)
+			tag.Position = UDim2.fromOffset(0, -11)
 			tag.Size = UDim2.new(1, 0, 0, 10)
 			tag.Parent = b
 		end
@@ -1310,28 +1376,41 @@ function Ui.new(): Ui
 	-- TODAY'S FLOW: the ledger — what today already paid, what the open
 	-- missions still owe, and what the next daily run's streak pays.
 	-- Painted by _paintBankFlow from RoBallQuests + the streak attribute.
-	caption("TODAY'S FLOW", 176)
+	caption("TODAY'S FLOW", 184)
+	local ledger = Instance.new("Frame")
+	ledger.BackgroundColor3 = C_BG
+	ledger.Position = UDim2.fromOffset(14, 200)
+	ledger.Size = UDim2.fromOffset(312, 56)
+	ledger.Parent = pageBank
+	local ledgerCorner = Instance.new("UICorner")
+	ledgerCorner.CornerRadius = UDim.new(0, 6)
+	ledgerCorner.Parent = ledger
+	local ledgerStroke = Instance.new("UIStroke")
+	ledgerStroke.Color = C_DIM
+	ledgerStroke.Transparency = 0.55
+	ledgerStroke.Thickness = 1
+	ledgerStroke.Parent = ledger
 	local function flowLine(y: number)
-		local name = label(pageBank, "", 11, F_DATA, C_DIM, 0)
-		name.Position = UDim2.fromOffset(14, y)
-		name.Size = UDim2.fromOffset(180, 15)
+		local name = label(ledger, "", 11, F_DATA, C_DIM, 0)
+		name.Position = UDim2.fromOffset(10, y)
+		name.Size = UDim2.fromOffset(170, 15)
 		name.TextXAlignment = Enum.TextXAlignment.Left
-		local amt = label(pageBank, "", 11, F_DATA, C_GOLD, 0)
-		amt.Position = UDim2.fromOffset(180, y)
-		amt.Size = UDim2.fromOffset(146, 15)
+		local amt = label(ledger, "", 11, F_DATA, C_GOLD, 0)
+		amt.Position = UDim2.fromOffset(170, y)
+		amt.Size = UDim2.fromOffset(132, 15)
 		amt.TextXAlignment = Enum.TextXAlignment.Right
 		return name, amt
 	end
-	self.flowBanked = { flowLine(194) }
-	self.flowMissions = { flowLine(210) }
-	self.flowStreak = { flowLine(226) }
+	self.flowBanked = { flowLine(4) }
+	self.flowMissions = { flowLine(20) }
+	self.flowStreak = { flowLine(36) }
 
 	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
 	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow(pageBank, "bank2x", "2X BANK", "every gem banks double", 250)
+	packRow(pageBank, "bank2x", "2X BANK", "every gem banks double", 266)
 
 	local hint = label(pageBank, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 296)
+	hint.Position = UDim2.fromOffset(0, 312)
 	hint.TextTransparency = 0.3
 
 	-- The streak only moves at run end — repaint the ledger when it does
@@ -2627,7 +2706,7 @@ function Ui:setGarage(state: GarageState)
 		local st = state.gemPacks[key]
 		local enabled = st ~= nil and st.enabled == true
 		local lines = string.split(if st then st.label else "SOON", "\n")
-		self.gemPackAmt[key].Text = lines[1] or ""
+		self.gemPackAmt[key].Text = string.gsub(lines[1] or "", "◊", "") -- card carries the icon
 		self.gemPackAmt[key].TextColor3 = enabled and C_GOLD or C_DIM
 		self.gemPackPrice[key].Text = lines[2] or ""
 		self.gemPackStroke[key].Color = enabled and C_GOLD or C_DIM
@@ -2635,7 +2714,7 @@ function Ui:setGarage(state: GarageState)
 		btn.TextColor3 = enabled and C_GOLD or C_DIM
 	end
 	self.bankLabel.Text = "◊ " .. tostring(state.bank)
-	self.bankHero.Text = "◊ " .. tostring(state.bank)
+	self.bankHero.Text = tostring(state.bank) -- icon carries the gem mark
 	-- COLOR LAB: visibility comes from ownership; the pushed hues re-seat
 	-- the knobs/swatches (writes only happen on release, so this never
 	-- fights a live drag).
