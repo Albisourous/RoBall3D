@@ -130,6 +130,7 @@ local function makeSeg(parent: Instance): Seg
 	p.CastShadow = false
 	p.Color = FACE_COLOR
 	p.Material = Enum.Material.SmoothPlastic
+	p.CFrame = PARK
 	p.Parent = parent
 	local box = Instance.new("SelectionBox")
 	box.Adornee = p
@@ -1141,10 +1142,22 @@ function Backdrop.setTheme(t: string)
 	theme = nt
 end
 
+-- Last anchor z: forward play only ever decreases z (speed is always
+-- +TravelAxis and dashes are lateral), so a +z jump means the anchor
+-- teleported — menu vista, run restart, death-to-menu. Every recycled
+-- field is then stranded ahead of the ball with no part able to cross
+-- the recycle gate, so the whole theme parks and re-seeds around the
+-- new anchor in one pass.
+local lastAnchorZ: number? = nil
+
 function Backdrop.update(anchor: Vector3)
 	if not root then
 		return
 	end
+	if lastAnchorZ and anchor.Z - lastAnchorZ > BACK_MARGIN then
+		parkers[theme]()
+	end
+	lastAnchorZ = anchor.Z
 	local dist = math.max(0, -anchor.Z)
 
 	-- The sun rides a fixed distance ahead and a fixed lift above the ball,
