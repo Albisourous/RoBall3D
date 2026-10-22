@@ -63,10 +63,14 @@ local METER_W = 220
 local METER_SEGS = 14
 local METER_PAD = 9
 
--- Waveform trace geometry (§12): the scope strip parked right of the BPM
--- digit — Music.WavePoints strips inside this footprint.
-local WAVE_W = 132
-local WAVE_H = 30
+-- TEMPO module geometry (§12): one tilted capsule bottom-right — the
+-- spectrum scope takes the lead slot (where the digit used to sit) and
+-- the chrome digit rides its right edge. Mirrors the power meter's pill
+-- on the opposite corner.
+local BPM_W = 246
+local BPM_H = 54
+local WAVE_W = 140
+local WAVE_H = 42
 
 local function label(parent, text, size, font, color, order)
 	local l = Instance.new("TextLabel")
@@ -1929,28 +1933,70 @@ function Ui.new(): Ui
 	unitGrad.Color = ColorSequence.new(C_DIM, C_PINK:Lerp(C_DIM, 0.35))
 	unitGrad.Parent = spdUnit
 
+	-- TEMPO module (§12): one tilted capsule — the spectrum scope takes
+	-- the lead slot where the digit used to sit; the chrome digit and
+	-- its BPM label ride the right edge. Same pill recipe as the power
+	-- meter opposite it: C_BG fill, full corner, cyan rim — the two
+	-- bottom corners bracket the screen as a set.
+	local scope = Instance.new("Frame")
+	scope.Name = "BpmScope"
+	scope.AnchorPoint = Vector2.new(1, 0.5)
+	scope.Position = UDim2.new(0.985, 0, 1, -46)
+	scope.Size = UDim2.fromOffset(BPM_W, BPM_H)
+	scope.Rotation = -4
+	scope.BackgroundColor3 = C_BG
+	scope.BackgroundTransparency = 0.25
+	scope.BorderSizePixel = 0
+	scope.Visible = false
+	scope.Parent = gui
+	self.bpmScope = scope
+	local sCorner = Instance.new("UICorner")
+	sCorner.CornerRadius = UDim.new(1, 0)
+	sCorner.Parent = scope
+	local sStroke = Instance.new("UIStroke")
+	sStroke.Color = C_CYAN
+	sStroke.Thickness = 1.5
+	sStroke.Transparency = 0.55
+	sStroke.Parent = scope
+	self.scopeStroke = sStroke
+	-- Digit + label move inside: the capsule's -4 degree supplies the
+	-- outrun slant, so their own rotations relax and positions go local.
+	spdNum.Parent = scope
+	spdNum.AnchorPoint = Vector2.new(1, 0.5)
+	spdNum.Position = UDim2.new(1, -10, 0.5, -7)
+	spdNum.Size = UDim2.fromOffset(78, 44)
+	spdNum.Rotation = -2
+	spdNum.Visible = true
+	spdUnit.Parent = scope
+	spdUnit.AnchorPoint = Vector2.new(1, 1)
+	spdUnit.Position = UDim2.new(1, -12, 1, -2)
+	spdUnit.Size = UDim2.fromOffset(70, 12)
+	spdUnit.Rotation = 0
+	spdUnit.TextSize = 10
+	spdUnit.Visible = true
+
 	-- Oscilloscope waveform (§12): the heard spectrum as a mirrored-
-	-- envelope trace beside the digit — one thin strip per bucket,
+	-- envelope trace in the lead slot — one thin strip per bucket,
 	-- centered on a dim hairline so a silent mix reads as a flatline.
 	-- Bass sits left, air right, ramping cyan→pink like the power strip.
 	local wWrap = Instance.new("Frame")
 	wWrap.Name = "Waveform"
-	wWrap.AnchorPoint = Vector2.new(1, 0.5)
-	wWrap.Position = UDim2.new(0.985, 0, 1, -49)
+	wWrap.AnchorPoint = Vector2.new(0, 0.5)
+	wWrap.Position = UDim2.new(0, 12, 0.5, 0)
 	wWrap.Size = UDim2.fromOffset(WAVE_W, WAVE_H)
 	wWrap.BackgroundTransparency = 1
 	wWrap.ClipsDescendants = true
-	wWrap.Visible = false
-	wWrap.Parent = gui
+	wWrap.Parent = scope
 	self.waveWrap = wWrap
 	local wBase = Instance.new("Frame")
 	wBase.AnchorPoint = Vector2.new(0, 0.5)
 	wBase.Position = UDim2.fromScale(0, 0.5)
 	wBase.Size = UDim2.new(1, 0, 0, 1)
 	wBase.BackgroundColor3 = C_DIM
-	wBase.BackgroundTransparency = 0.6
+	wBase.BackgroundTransparency = 0.8
 	wBase.BorderSizePixel = 0
 	wBase.Parent = wWrap
+	self.waveBase = wBase
 	self.waveSegs = {}
 	self._waveCache = {}
 	local nWave = Config.Music.WavePoints
@@ -1959,7 +2005,7 @@ function Ui.new(): Ui
 		local s = Instance.new("Frame")
 		s.AnchorPoint = Vector2.new(0, 0.5)
 		s.Position = UDim2.new(0, math.floor((i - 1) * waveStep + 0.5), 0.5, 0)
-		s.Size = UDim2.fromOffset(3, 2)
+		s.Size = UDim2.fromOffset(3, 3)
 		s.BackgroundColor3 = C_CYAN:Lerp(C_PINK, (i - 1) / (nWave - 1))
 		s.BackgroundTransparency = 0.06
 		s.BorderSizePixel = 0
@@ -2244,10 +2290,8 @@ function Ui:showMenu(best: number)
 	self.menu.Visible = true
 	self.death.Visible = false
 	self.hud.Visible = false
-	self.spdNum.Visible = false
-	self.spdUnit.Visible = false
+	self.bpmScope.Visible = false
 	self.powerBar.Visible = false
-	self.waveWrap.Visible = false
 	self.seedTag.Visible = false
 	self:setBest(best)
 end
@@ -2257,10 +2301,8 @@ function Ui:showHud()
 	self.death.Visible = false
 	self.bestFlash.Visible = false -- reset for the new run's own crossing
 	self.hud.Visible = true
-	self.spdNum.Visible = true
-	self.spdUnit.Visible = true
+	self.bpmScope.Visible = true
 	self.powerBar.Visible = true
-	self.waveWrap.Visible = true
 	self.seedTag.Visible = true
 end
 
@@ -2282,19 +2324,29 @@ end
 
 -- Oscilloscope trace (§12): spec is Music.spectrum()'s shared band buffer.
 -- Heights quantize to 2 px and writes gate on change — a steady mix costs
--- nothing, only real motion repaints.
+-- nothing, only real motion repaints. The heard pulse also swells the
+-- whole trace on the kick (amp = floor + (1-floor) x env) and flashes the
+-- hairline + capsule rim, so the module visibly pumps on the music.
 function Ui:setWave(spec: { number }?)
 	local segs = self.waveSegs
 	if not segs then
 		return
 	end
 	local cache = self._waveCache
+	local env = math.min(1, (self.pulse or 0) * Config.Music.WaveBeatGain)
+	local amp = Config.Music.WaveBeatFloor + (1 - Config.Music.WaveBeatFloor) * env
+	local e8 = math.floor(env * 8 + 0.5) / 8
+	if e8 ~= self._waveEnv then
+		self._waveEnv = e8
+		self.waveBase.BackgroundTransparency = 0.8 - 0.5 * e8
+		self.scopeStroke.Transparency = 0.55 - 0.3 * e8
+	end
 	local maxH = WAVE_H - 4
 	local gamma = Config.Music.WaveGamma
 	for i, s in ipairs(segs) do
 		local v = spec and spec[i] or 0
 		v = v ^ gamma
-		local h = math.max(2, math.floor(v * maxH / 2 + 0.5) * 2)
+		local h = math.max(3, math.floor(v * amp * maxH / 2 + 0.5) * 2)
 		if h ~= cache[i] then
 			cache[i] = h
 			s.Size = UDim2.fromOffset(3, h)
@@ -2330,7 +2382,7 @@ function Ui:setSpeedo(
 		self.spdGhostA.Text = num
 		self.spdGhostB.Text = num
 	end
-	local size = math.floor(56 + pulse * 5 + 0.5) -- beat thump: swell on the heard grid
+	local size = math.floor(40 + pulse * 6 + 0.5) -- beat thump: swell on the heard grid
 	if size ~= self._spdSize then
 		self._spdSize = size
 		self.spdNum.TextSize = size
@@ -2601,10 +2653,8 @@ function Ui:showDeath(
 )
 	self.menu.Visible = false
 	self.hud.Visible = false
-	self.spdNum.Visible = false
-	self.spdUnit.Visible = false
+	self.bpmScope.Visible = false
 	self.powerBar.Visible = false
-	self.waveWrap.Visible = false
 	self.seedTag.Visible = false
 	self.death.Visible = true
 

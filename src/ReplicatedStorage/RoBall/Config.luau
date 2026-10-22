@@ -952,10 +952,18 @@ Config.Music = {
 	-- noise-pumping the floor to full height.
 	WavePeakDecay = 0.985,
 	WaveFloor = 0.03,
-	WaveDecay = 0.8,
+	-- Band release per analyzer tick — lower drops peaks faster so the
+	-- trace reads jumpy, not syrupy.
+	WaveDecay = 0.68,
 	-- Perceptual lift applied in the HUD (v^WaveGamma): raises quiet
 	-- bands so mids/air register without flattening the bass crests.
 	WaveGamma = 0.55,
+	-- Beat envelope (§12): the heard pulse swells the whole trace on the
+	-- kick — amp = floor + (1-floor) x min(1, pulse x gain) — so the
+	-- scope visibly pumps on the music, not just on band energy. The
+	-- baseline hairline and capsule rim flash on the same envelope.
+	WaveBeatGain = 6.5,
+	WaveBeatFloor = 0.4,
 	-- Gem-chime voice pool (PERFORMANCE.md §3): playOneShot used to build
 	-- an AudioPlayer + Wire per pickup; this many pooled voices cover
 	-- even dense cluster runs, recycling the oldest when saturated.

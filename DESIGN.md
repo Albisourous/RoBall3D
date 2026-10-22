@@ -913,14 +913,20 @@ that caused them.
   It's dressed vaporwave: a chrome gradient band under the hue, a −6°
   outrun slant, and twin cyan/pink VHS-fringe ghosts that spread and
   flare with the audio pulse — the digit thumps on the heard beat.
-  Beside it a small **oscilloscope trace** draws the heard spectrum as a
+  The digit and its trace live in **one tilted capsule** (the `BpmScope`
+  module) — same pill recipe as the power meter opposite it, so the two
+  bottom corners bracket the screen as a set. Inside, an **oscilloscope
+  trace** takes the lead slot and draws the heard spectrum as a
   mirrored-envelope waveform: `Music.WavePoints` strips bucketed
   log-spaced off the same throttled `AudioAnalyzer` tap that feeds the
   thump (bass left, air right, cyan→pink ramp), attack-instant /
   decay-per-tick so a quiet passage flattens instead of snapping off.
   Bands are auto-gained against a decaying peak (`Music.WavePeakDecay`,
   floored at `WaveFloor`) so the trace breathes at any stem loudness,
-  and the HUD lifts them perceptually (`WaveGamma`).
+  the HUD lifts them perceptually (`WaveGamma`), and the heard pulse
+  swells the whole trace on the kick (`WaveBeatGain`/`WaveBeatFloor`)
+  while the hairline and capsule rim flash with it — the module pumps
+  on the music, not just the band energies.
   Bottom-left
   is a glanceable **power meter**: a tilted capsule of LED segments ramping
   cyan→magenta like a VU meter, diamond bead riding the lit edge,
