@@ -1356,6 +1356,15 @@ Config.Art = {
 			gap = 0.45,
 			scale = 0.9,
 		},
+		null = {
+			-- NULL pack: a dying sun — sparse ghost-grey strips, barely
+			-- holding together against the empty sky.
+			top = Color3.fromRGB(205, 205, 225),
+			bottom = Color3.fromRGB(70, 70, 95),
+			solid = 0.2,
+			gap = 0.7,
+			scale = 0.85,
+		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
 	RingA = Color3.fromRGB(0, 230, 255),
@@ -1450,6 +1459,7 @@ Config.Monetization = {
 		polaris = 0, -- POLARIS — phantom set + polar sky (~149)
 		acid = 0, -- TOXIC SLUDGE — acid set + peaks world (~149)
 		reef = 0, -- NEON REEF — lagoon set + reef world (~199)
+		null = 0, -- NULL — mono set + empty world (~149)
 		solstice = 0, -- SOLSTICE — seasonal frost set + polar sky (~149)
 		-- Retired ids: no longer sold, but already-owned passes keep
 		-- granting their contents through Cosmetics.LegacyBundles.
@@ -1476,6 +1486,7 @@ Config.Monetization = {
 		solstice = 149,
 		acid = 149,
 		reef = 199,
+		null = 149,
 		inferno = 149,
 		candy = 149,
 		colorlab = 249,

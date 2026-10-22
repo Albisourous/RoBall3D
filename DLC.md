@@ -12,9 +12,9 @@ the red seam is cut out of the reachable space on both ends.
 
 ---
 
-## Items (91 total)
+## Items (98 total)
 
-### SKIN — ringA/ringB cage + core (17)
+### SKIN — ringA/ringB cage + core (18)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -35,8 +35,9 @@ the red seam is cut out of the reachable space on both ends.
 | CHROMA | strobe fx | ◊1200 | — (prestige) |
 | IRIS | wave fx | ◊1100 | — (prestige) |
 | COLOR LAB | your hues ×2 | ◊1500 | — (prestige) |
+| NULL | pitch core/ghost rings | ◊800 | null |
 
-### TRAIL — wake ribbon (16)
+### TRAIL — wake ribbon (17)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -56,16 +57,17 @@ the red seam is cut out of the reachable space on both ends.
 | GHOST | white | ◊350 | — |
 | INFERNO | orange | ◊300 | — |
 | LAB WAKE | your accent hue | ◊1500 | — (prestige) |
+| DRIFT | pale grey | ◊450 | null |
 
-### GEM FX — pickup flourish (15)
+### GEM FX — pickup flourish (16)
 
 Same families/prices as trails: GOLD POP + COLD POP free; SUNSET→starter,
 JACKPOT→midas, PRISM→synthwave, AMETHYST→vip, AURORA→aurora,
-SPECTRE→polaris, FROST→solstice (◊200–500, bundled); VOLT→acid,
-MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500
-(prestige).
+SPECTRE→polaris, FROST→solstice, NULL POP→null (◊200–500, bundled);
+VOLT→acid, MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB
+POP ◊1500 (prestige).
 
-### DEATH FX — run-end burst (14)
+### DEATH FX — run-end burst (15)
 
 | Item | Style | Price | Bundle |
 |---|---|---|---|
@@ -83,8 +85,9 @@ MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500
 | ULTRAVIOLET | corona | ◊650 | synthwave |
 | PINK SLIP | pop | ◊500 | — |
 | LIMEWIRE | shatter | ◊550 | — |
+| FADE | pop | ◊550 | null |
 
-### WORLD — side-scenery theme (9)
+### WORLD — side-scenery theme (10)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -97,8 +100,9 @@ MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500
 | METEOR SHOWER | animated streaks | ◊900 | midas |
 | MIAMI NIGHTS | neon palm grove | ◊800 | starter |
 | NORTHERN LIGHTS | particle-canopy aurora + stars | ◊900 | polaris + solstice |
+| VOIDSPACE | empty — lane + sun only | ◊900 | null |
 
-### SUN — striped horizon disk (10)
+### SUN — striped horizon disk (11)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -112,8 +116,9 @@ MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500
 | POLAR CAP | frost→ice blue | ◊600 | solstice (seasonal) |
 | HALO RISE | thin spectral ring | ◊600 | polaris |
 | NEAP TIDE | cyan→deep blue | ◊600 | reef |
+| DEAD SUN | sparse ghost strips | ◊600 | null |
 
-### FILTER — screen overlay (10)
+### FILTER — screen overlay (11)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -127,10 +132,11 @@ MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500
 | TOXIN | lime grade | ◊500 | acid |
 | ABYSS | deep-ice grade | ◊550 | reef |
 | SNOWBLIND | frost grade | ◊550 | solstice (seasonal) |
+| SOOT | grey desat grade | ◊500 | null |
 
 ---
 
-## Bundle passes (9 + 1 perk)
+## Bundle passes (10 + 1 perk)
 
 Every pack is a complete outfit — exactly one item per STYLE slot, so
 the preview can render the whole look and nothing in the box is filler.
@@ -145,6 +151,7 @@ the preview can render the whole look and nothing in the box is filler.
 | POLARIS | PHANTOM · NORTHERN LIGHTS · SPECTRE trail · SPECTRE POP · STATIC · HALO RISE · PHOSPHOR | 149 |
 | TOXIC SLUDGE | ACID BATH · NEON PEAKS · VOLT trail · VOLT POP · MELTDOWN · ACID SUN · TOXIN | 149 |
 | NEON REEF | LAGOON · NEON REEF world · MINT trail · MINT POP · GEYSER · NEAP TIDE · ABYSS | 199 |
+| NULL | NULL · VOIDSPACE · DRIFT · NULL POP · FADE · DEAD SUN · SOOT | 149 |
 | SOLSTICE | FROSTBITE · NORTHERN LIGHTS · FROSTWAKE · FROST POP · AVALANCHE · POLAR CAP · SNOWBLIND (seasonal) | 149 |
 | 2X BANK | permanent 2× bank perk | 99 |
 
@@ -192,7 +199,7 @@ back to à-la-carte gem buys.
 
 ## Live-ops checklist
 
-1. Create the 9 passes + bank2x + 3 products on the Creator Dashboard
+1. Create the 10 passes + bank2x + 3 products on the Creator Dashboard
    at the prices above; drop ids into `Config.Monetization.Passes` /
    `.Products`.
 2. Flip `Config.Monetization.FreeForTesting` off.

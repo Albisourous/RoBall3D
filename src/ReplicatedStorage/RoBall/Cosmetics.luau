@@ -238,6 +238,16 @@ Cosmetics.Items = {
 		ringB = "customB",
 		core = Color3.fromRGB(8, 6, 12),
 	},
+	--==== NULL pack — the stark set for the empty world: a pitch ball,
+	-- ghost-pale rings, nothing chasing you but the sun.
+	skin_null = {
+		slot = "skin",
+		name = "NULL",
+		gemPrice = 800,
+		ringA = WHITE,
+		ringB = Color3.fromRGB(46, 48, 68),
+		core = Color3.fromRGB(1, 1, 3),
+	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
 	trail_none = { slot = "trail", name = "NONE", free = true, none = true },
@@ -256,6 +266,7 @@ Cosmetics.Items = {
 	trail_ghost = { slot = "trail", name = "GHOST", gemPrice = 350, color = WHITE },
 	trail_inferno = { slot = "trail", name = "INFERNO", gemPrice = 300, color = ORANGE },
 	trail_custom = { slot = "trail", name = "LAB WAKE", gemPrice = 1500, color = "customC" },
+	trail_null = { slot = "trail", name = "DRIFT", gemPrice = 450, color = SILVER },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -273,6 +284,7 @@ Cosmetics.Items = {
 	gemfx_ghost = { slot = "gemFx", name = "GHOST POP", gemPrice = 350, color = WHITE },
 	gemfx_inferno = { slot = "gemFx", name = "INFERNO POP", gemPrice = 300, color = ORANGE },
 	gemfx_custom = { slot = "gemFx", name = "LAB POP", gemPrice = 1500, color = "customC" },
+	gemfx_null = { slot = "gemFx", name = "NULL POP", gemPrice = 400, color = SILVER },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -387,6 +399,14 @@ Cosmetics.Items = {
 		colorA = LIME,
 		colorB = MINT,
 	},
+	deathfx_null = {
+		slot = "deathFx",
+		name = "FADE",
+		gemPrice = 550,
+		style = "pop",
+		colorA = WHITE,
+		colorB = SILVER,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -398,6 +418,7 @@ Cosmetics.Items = {
 	world_meteor = { slot = "world", name = "METEOR SHOWER", gemPrice = 900, theme = "meteor" },
 	world_palms = { slot = "world", name = "MIAMI NIGHTS", gemPrice = 800, theme = "palms" },
 	world_polar = { slot = "world", name = "NORTHERN LIGHTS", gemPrice = 900, theme = "polar" },
+	world_empty = { slot = "world", name = "VOIDSPACE", gemPrice = 900, theme = "empty" },
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -412,6 +433,7 @@ Cosmetics.Items = {
 	sun_frost = { slot = "sun", name = "POLAR CAP", gemPrice = 600, sun = "frost" },
 	sun_halo = { slot = "sun", name = "HALO RISE", gemPrice = 600, sun = "halo" },
 	sun_tide = { slot = "sun", name = "NEAP TIDE", gemPrice = 600, sun = "tide" },
+	sun_null = { slot = "sun", name = "DEAD SUN", gemPrice = 600, sun = "null" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
 	-- renders it under the HUD so text stays readable). One per bundle:
@@ -448,6 +470,13 @@ Cosmetics.Items = {
 		tint = FROST,
 		alpha = 0.16,
 	},
+	filter_soot = {
+		slot = "filter",
+		name = "SOOT",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(110, 110, 140),
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -470,6 +499,7 @@ Cosmetics.Order = {
 		"skin_chroma",
 		"skin_iris",
 		"skin_custom",
+		"skin_null",
 	},
 	trail = {
 		"trail_none",
@@ -488,6 +518,7 @@ Cosmetics.Order = {
 		"trail_ghost",
 		"trail_inferno",
 		"trail_custom",
+		"trail_null",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -505,6 +536,7 @@ Cosmetics.Order = {
 		"gemfx_ghost",
 		"gemfx_inferno",
 		"gemfx_custom",
+		"gemfx_null",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -521,6 +553,7 @@ Cosmetics.Order = {
 		"deathfx_violet",
 		"deathfx_pinkslip",
 		"deathfx_limewire",
+		"deathfx_null",
 	},
 	world = {
 		"world_city",
@@ -532,6 +565,7 @@ Cosmetics.Order = {
 		"world_meteor",
 		"world_palms",
 		"world_polar",
+		"world_empty",
 	},
 	sun = {
 		"sun_classic",
@@ -544,6 +578,7 @@ Cosmetics.Order = {
 		"sun_frost",
 		"sun_halo",
 		"sun_tide",
+		"sun_null",
 	},
 	filter = {
 		"filter_off",
@@ -556,6 +591,7 @@ Cosmetics.Order = {
 		"filter_toxin",
 		"filter_abyss",
 		"filter_snowblind",
+		"filter_soot",
 	},
 } :: { [string]: { string } }
 
@@ -686,6 +722,23 @@ Cosmetics.Bundles = {
 			"deathfx_geyser",
 			"sun_tide",
 			"filter_abyss",
+		},
+	},
+	{
+		-- The anti-pack: a stripped-down set for the empty world — pitch
+		-- ball, ghost rings, soot filter, dead sun. The scenery itself is
+		-- the product: nothing but the lane and the horizon.
+		id = "null",
+		name = "NULL",
+		desc = "full null set · empty world",
+		items = {
+			"skin_null",
+			"world_empty",
+			"trail_null",
+			"gemfx_null",
+			"deathfx_null",
+			"sun_null",
+			"filter_soot",
 		},
 	},
 	{

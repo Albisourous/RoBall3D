@@ -53,7 +53,7 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms" | "polar"
+type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms" | "polar" | "empty"
 local theme: Theme = "city"
 
 -- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
@@ -1043,6 +1043,7 @@ local parkers: { [Theme]: () -> () } = {
 	meteor = parkMeteors,
 	palms = parkPalms,
 	polar = parkPolar,
+	empty = function() end,
 }
 
 local THEMES: { [string]: Theme } = {
@@ -1054,6 +1055,7 @@ local THEMES: { [string]: Theme } = {
 	meteor = "meteor",
 	palms = "palms",
 	polar = "polar",
+	empty = "empty",
 }
 
 function Backdrop.setTheme(t: string)
@@ -1257,6 +1259,12 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
+	-- VOIDSPACE (§18 "empty"): no scenery at all — just the lane, the sun
+	-- on the horizon, and the skybox. The silence IS the product.
+	if theme == "empty" then
+		return
+	end
+
 	if not seeded then
 		seeded = true
 		-- Seed each row's frontier behind the anchor spread across the span,
@@ -1325,6 +1333,10 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 	makeSun(parent, st, false):PivotTo(CFrame.new(anchor.X, anchor.Y + Art.SunLift, anchor.Z - Art.SunDist))
 
 	local t: Theme = THEMES[themeKey] or "city"
+	if t == "empty" then
+		-- Nothing to lay — the sun above is the whole set dressing.
+		return
+	end
 	if t == "peaks" then
 		-- Same first pass as update(): each side's tiles seeded back from
 		-- the keep margin so the whole window fills in one lay.

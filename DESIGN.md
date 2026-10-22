@@ -1216,12 +1216,12 @@ lattice modes (PIXEL GLASS grid / SCANLINES·PHOSPHOR raster) plus wash
 modes (GOLD HOUR·VERDANT VEIL·TOXIN·ABYSS·SNOWBLIND color grades and the
 VIGNETTE dark-edge falloff) — while HUD text renders above it and stays
 crisp. **Every bundle is a complete look**: exactly one item per slot,
-nine packs total — STARTER NEON (sunset set + palms), SYNTHWAVE (prism +
+ten packs total — STARTER NEON (sunset set + palms), SYNTHWAVE (prism +
 grid), MIDAS (gold + meteor), VOID VIP (void + star well + eclipse),
 AURORA (borealis + aurora sky), POLARIS (phantom + polar sky + HALO
 RISE), TOXIC SLUDGE (acid + peaks), NEON REEF (lagoon + reef + NEAP
-TIDE), and seasonal SOLSTICE (frost set + POLAR CAP + the shared
-NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
+TIDE), NULL (mono set + the empty world), and seasonal SOLSTICE (frost
+set + POLAR CAP + the shared NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
 `Cosmetics.LegacyBundles` — already-owned passes keep granting their
 original contents forever.
 
@@ -1348,7 +1348,9 @@ system takes over — in the menu it shows up as the diorama's scene.
 Every world theme anchors exactly one bundle (§18's complete-set rule):
 `world_palms` → STARTER NEON, `world_grid` → SYNTHWAVE, `world_meteor` →
 MIDAS, `world_void` → VOID VIP, `world_aurora` → AURORA, `world_peaks` →
-TOXIC SLUDGE, `world_reef` → NEON REEF, and `world_polar` is shared —
+TOXIC SLUDGE, `world_reef` → NEON REEF, `world_empty` → NULL (the
+`"empty"` theme draws no scenery at all — lane, sun, skybox; the silence
+is the product), and `world_polar` is shared —
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for
 the winter window (`Cosmetics.bundleOf` resolves shared membership to
 the non-seasonal pack, so the sky never inherits the seasonal gate).
