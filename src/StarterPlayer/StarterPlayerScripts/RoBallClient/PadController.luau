@@ -107,10 +107,13 @@ function PadController.init(ballGetter: () -> BasePart?)
 				if math.abs(pos.Z - p.Position.Z) <= half.Z + ballR + 1 then
 					-- Sphere vs strip in pad-local space (the strip carries
 					-- the deck's pitch/roll, so world-axis AABBs would lie).
+					-- The trigger reaches GrabH above the strip top: a
+					-- "grounded" ball can ride ContactPad off the deck at
+					-- speed and would sail over the 0.35-stud band.
 					local lp = p.CFrame:PointToObjectSpace(pos)
 					local near = Vector3.new(
 						math.clamp(lp.X, -half.X, half.X),
-						math.clamp(lp.Y, -half.Y, half.Y),
+						math.clamp(lp.Y, -half.Y, half.Y + Config.Pads.GrabH),
 						math.clamp(lp.Z, -half.Z, half.Z)
 					)
 					if (lp - near).Magnitude <= ballR then

@@ -454,7 +454,11 @@ narrow. Then the seeded generator takes over.
   velocity): GD pads as terrain, not a jump button. Contact is
   `Touched` plus a per-frame sphere-vs-strip overlap test in
   `PadController` — a pad the ball visibly crosses always fires; the
-  0.35-stud strip can't be tunneled or grazed past unseen. PadHop rolls
+  0.35-stud strip can't be tunneled or grazed past unseen. The trigger
+  reaches `Pads.GrabH` above the strip top rather than testing literal
+  surface contact — a "grounded" ball can ride up to
+  `Landing.ContactPad` off the deck at speed (a seam pop takes ~0.2s to
+  settle back down), enough to sail over a shallow band unseen. PadHop rolls
   the pad's lane offset inside ±width/5 capped at `Pads.MaxOffset`, so
   wide decks can't park the pad outside readable-steer range.
 - `ChunkSpec.dim` (Blackout) dims grid/center neon to `Blackout.GridScale`
@@ -1258,10 +1262,13 @@ track, not just owned ones; songs aren't purchases, they're the level
 picker.
 
 **Garage (P2)**: arrows browse the WHOLE catalog, not just owned items —
-owned items equip as they pass, unowned ones park showing their ◊price and
-buy on name-click. The BANK block shows the balance, three gem-pack
-buttons (SOON until product ids exist), and the 2X BANK row wired like a
-bundle pass. The death screen reads `◊ +N BANKED` — the payout visible on
+owned items equip as they pass, unowned ones park showing their ◊price.
+Name-click is the conversion funnel: a bundled item jumps to PACKS with
+its bundle unfolded, scrolled into view, and the buy chip flared — the
+open accordion still lists each member with its ◊price as the à-la-carte
+escape hatch (unbundled singles keep the direct name-click buy). The BANK
+block shows the balance, three gem-pack buttons (SOON until product ids
+exist), and the 2X BANK row wired like a bundle pass. The death screen reads `◊ +N BANKED` — the payout visible on
 every run end.
 
 **Show surfaces**: private lanes hide other players, so the flex surfaces

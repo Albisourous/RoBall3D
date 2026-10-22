@@ -365,6 +365,11 @@ Config.Pads = {
 	-- readable-steer range at speed, not a hidden coin flip. The strip
 	-- is still the punish for ignoring the pad.
 	MaxOffset = 7,
+	-- The strip is a TRIGGER, not a ledge: a ball crossing its footprint
+	-- kicks from this far above the strip top. Must exceed Landing's
+	-- ContactPad — a "grounded" ball can float that far over the deck at
+	-- speed, and a grab band below it reads as the pad not working.
+	GrabH = 1.5,
 	StripH = 2.5, -- lethal strip height the PadHop arc must clear
 	StripMin = 5,
 	StripMax = 10,
