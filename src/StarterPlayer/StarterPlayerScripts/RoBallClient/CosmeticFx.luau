@@ -69,6 +69,10 @@ local ROLL_LEN = 150 -- studs per loop before the wrap reset
 local BALL_D = Config.Ball.Diameter
 local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
+-- tick() is ~1.8e9 seconds — raw tick-derived angles hit ~4e10 radians,
+-- where CFrame.Angles' trig quantizes and the rotation FREEZES (the ball
+-- slides without rolling). Always wrap angles into [0, tau) first.
+local TAU = math.pi * 2
 
 local function deckTopAt(z: number): number
 	return Gen.Grade * z
@@ -77,7 +81,7 @@ end
 local wmodel: WorldModel? = nil
 local vpCam: Camera? = nil
 local vpBall: BasePart? = nil
-local vpRings: { BasePart } = {}
+local vpRings: { { BasePart } } = {}
 local vpRingRots: { CFrame } = {}
 local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
@@ -97,6 +101,22 @@ local RING_ROTS = {
 	CFrame.Angles(math.rad(45), 0, math.rad(90)),
 	CFrame.Angles(math.rad(-45), 0, math.rad(90)),
 }
+
+-- The ring cage is built from segment boxes forming true wireframe
+-- rings at the real adornment radius — a solid cylinder part spinning
+-- at roll speed strobes as a flickering plate, while segments read as
+-- the game's actual wireframe cage at any spin rate.
+local RING_R = BALL_D / 2 + 0.08 -- real CylinderHandleAdornment radius
+local RING_SEGS = 16
+local SEG_T = 0.11
+local SEG_LEN = (2 * math.pi * RING_R / RING_SEGS) * 1.12
+local SEG_CFS: { CFrame } = {}
+for j = 0, RING_SEGS - 1 do
+	local th = j * math.pi * 2 / RING_SEGS
+	-- Circle in the YZ plane (axis X, same convention as a cylinder
+	-- part): each box's long Z runs tangent to the ring.
+	SEG_CFS[j + 1] = CFrame.new(0, RING_R * math.cos(th), RING_R * math.sin(th)) * CFrame.Angles(th, 0, 0)
+end
 local RING_X = CFrame.Angles(0, 0, math.rad(90)) -- part cylinder axis (X) → adornment axis (Y)
 
 local function vpart(size: Vector3, pos: Vector3, col: Color3): BasePart
@@ -233,21 +253,25 @@ function Fx.preview(items: { [string]: any })
 	ball.Shape = Enum.PartType.Ball
 	vpBall = ball
 	for i, rot in ipairs(RING_ROTS) do
-		local r = Instance.new("Part")
-		r.Shape = Enum.PartType.Cylinder
-		r.Anchored = true
-		r.CanCollide = false
-		r.CanQuery = false
-		r.CanTouch = false
-		r.CastShadow = false
-		r.Material = Enum.Material.Neon
-		r.Size = Vector3.new(0.14, BALL_D + 0.3, BALL_D + 0.3)
-		r.CFrame = CFrame.new(ballPos) * rot * RING_X
-		r.Color = if i <= 3 then ringA else ringB
-		r.Parent = wm
-		vpRings[i] = r
+		local col = if i <= 3 then ringA else ringB
+		local segs = {}
+		for j = 1, RING_SEGS do
+			local r = Instance.new("Part")
+			r.Anchored = true
+			r.CanCollide = false
+			r.CanQuery = false
+			r.CanTouch = false
+			r.CastShadow = false
+			r.Material = Enum.Material.Neon
+			r.Size = Vector3.new(SEG_T, SEG_T, SEG_LEN)
+			r.CFrame = CFrame.new(ballPos) * rot * RING_X * SEG_CFS[j]
+			r.Color = col
+			r.Parent = wm
+			segs[j] = r
+		end
+		vpRings[i] = segs
 		vpRingRots[i] = rot
-		vpBases[i] = r.Color
+		vpBases[i] = col
 	end
 
 	-- Trail: BallDress's own spec — ±0.3d vertical attachment pair,
@@ -290,7 +314,7 @@ function Fx.preview(items: { [string]: any })
 	-- Death shards: two wedges orbiting the ball in the DEATH FX pair
 	-- colors — reads as "your burst, sampled" without a run.
 	for i, col in ipairs({ deathI and deathI.colorA, deathI and deathI.colorB }) do
-		local s = vpart(Vector3.new(1.1, 0.8, 0.5), ballPos + Vector3.new(4.5, 0, 0), col or PK)
+		local s = vpart(Vector3.new(1.1, 0.8, 0.5), ballPos + Vector3.new(5.2, 0, 0), col or PK)
 		s.Material = Enum.Material.Neon
 		vpShards[i] = s
 	end
@@ -370,10 +394,14 @@ local function step()
 		local tt = tick()
 		local roll = (tt * ROLL_SPEED) % ROLL_LEN
 		local z = ROLL_Z0 - roll
-		local bc = CFrame.new(0, deckTopAt(z) + BALL_D / 2, z) * CFrame.Angles(-tt * ROLL_SPEED / (BALL_D / 2), 0, 0)
+		local bc = CFrame.new(0, deckTopAt(z) + BALL_D / 2, z)
+			* CFrame.Angles((-tt * ROLL_SPEED / (BALL_D / 2)) % TAU, 0, 0)
 		vpBall.CFrame = bc
-		for i, r in ipairs(vpRings) do
-			r.CFrame = bc * vpRingRots[i] * RING_X
+		for i, segs in ipairs(vpRings) do
+			local base = bc * vpRingRots[i] * RING_X
+			for j, p in ipairs(segs) do
+				p.CFrame = base * SEG_CFS[j]
+			end
 		end
 		if vpCam then
 			vpCam.CFrame = CFrame.lookAt(
@@ -392,19 +420,24 @@ local function step()
 	end
 	if vpGem and vpGemCf then
 		-- Beat pulse — same swell fraction live pickups use.
-		vpGem.Size = Vector3.one * Config.Gems.Size * (1 + Config.Gems.BeatPulse * math.max(0, math.sin(tick() * 4)))
+		vpGem.Size = Vector3.one
+			* Config.Gems.Size
+			* (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
 		vpGem.CFrame = vpGemCf
 	end
 	if vpBall then
 		for i, s in ipairs(vpShards) do
-			local a = tick() * 1.1 + (i - 1) * math.pi
-			s.CFrame = CFrame.new(vpBall.Position + Vector3.new(math.cos(a) * 4.5, 0.4, math.sin(a) * 4.5))
+			local a = (tick() * 1.1 + (i - 1) * math.pi) % TAU
+			s.CFrame = CFrame.new(vpBall.Position + Vector3.new(math.cos(a) * 5.2, 0.4, math.sin(a) * 5.2))
 				* CFrame.Angles(a, a * 1.3, 0)
 		end
 	end
 	if vpFx and ANIM_FX[vpFx] then
-		for i, r in ipairs(vpRings) do
-			r.Color = fxColor(vpFx, i, h, k, vpBases[i])
+		for i, segs in ipairs(vpRings) do
+			local col = fxColor(vpFx, i, h, k, vpBases[i])
+			for _, p in ipairs(segs) do
+				p.Color = col
+			end
 		end
 	end
 	if vpRainbowTrail and vpTrail then
