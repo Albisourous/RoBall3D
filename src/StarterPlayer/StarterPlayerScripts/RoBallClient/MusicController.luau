@@ -60,6 +60,7 @@ local specRaw: { number } = {} -- per-band means before auto-gain normalization
 local specEdges: { number }? = nil -- log-spaced bucket edges, sized on first real spectrum
 local specLen = 0 -- the spectrum length specEdges was built for
 local specPeak = 0 -- decaying band maximum — the auto-gain reference
+local pulsePeak = 0 -- decaying heard-level max — normalizes the beat envelope
 local sampleAt = 0 -- os.clock() deadline for the next analyzer re-read
 -- Pooled chime voices (PERFORMANCE.md §3): { player, busyUntil } — the
 -- gem chime was building an AudioPlayer + Wire per pickup before.
@@ -676,8 +677,14 @@ function Music.sample(): number
 			-- dead air flat instead of boosting the noise floor to full.
 			specPeak = math.max(specPeak * Config.Music.WavePeakDecay, bandMax)
 			local denom = math.max(specPeak, Config.Music.WaveFloor)
+			-- Log curve (§12): band means are ~1e-3 vs a ~3e-2 peak, so a
+			-- linear normalize buries every quiet band under the bass. The
+			-- log lift compresses the range — mids/highs rise into view
+			-- while true dead air still reads flat (log(1) = 0).
+			local k = Config.Music.WaveCurveK
+			local ldenom = math.log(1 + denom * k)
 			for i = 1, n do
-				local v = math.min(1, specRaw[i] / denom)
+				local v = math.clamp(math.log(1 + specRaw[i] * k) / ldenom, 0, 1)
 				specBuf[i] = math.max(specBuf[i] * Config.Music.WaveDecay, v)
 			end
 		elseif #specBuf > 0 then
@@ -690,8 +697,13 @@ function Music.sample(): number
 		end
 		-- attack fast, release slow — reads as a thump not a strobe
 		pulseSmooth = math.max(pulseSmooth, energy)
+		-- Beat-envelope reference: RmsLevel magnitudes are tiny (~0.02)
+		-- and track-dependent, so a fixed gain pins the envelope low
+		-- forever. Track a decaying peak instead — kicks swing the
+		-- envelope 0..1 on any mix (WaveFloor keeps dead air at 0).
+		pulsePeak = math.max(pulsePeak * Config.Music.WavePeakDecay, energy)
 	end
-	return pulseSmooth
+	return math.clamp(pulseSmooth / math.max(pulsePeak, Config.Music.WaveFloor), 0, 1)
 end
 
 -- HUD waveform (§12): the BPM cluster's scope trace — WavePoints entries,
