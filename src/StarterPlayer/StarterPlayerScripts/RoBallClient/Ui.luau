@@ -808,7 +808,8 @@ function Ui.new(): Ui
 		end)
 	end
 
-	local browseHint = label(pageStyle, "cycle equips owned · click a locked item to open its pack", 10, F_DATA, C_DIM, 0)
+	local browseHint =
+		label(pageStyle, "cycle equips owned · click a locked item to open its pack", 10, F_DATA, C_DIM, 0)
 	browseHint.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 6)
 	browseHint.TextTransparency = 0.35
 

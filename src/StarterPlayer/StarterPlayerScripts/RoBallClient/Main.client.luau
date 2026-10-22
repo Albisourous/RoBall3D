@@ -389,19 +389,38 @@ end
 player:GetAttributeChangedSignal("RoBallDashMode"):Connect(syncDashModeUi)
 syncDashModeUi()
 
--- Click a priced item name: buy it with banked gems (§18 P2). The server
--- owns the answer — success auto-equips and lands via attribute refresh.
+-- Click a locked item name (§18): a bundled item jumps to its PACK —
+-- the bundle pitch + contents accordion is the conversion surface, and
+-- the open pack still offers the single's ◊price à-la-carte. Unbundled
+-- priced items keep the direct gem buy; the server owns the answer.
 ui.onItemSlot = function(slot)
 	local id = browseId(slot)
 	local item = Cosmetics.item(id)
-	if not id or not item or item.gemPrice == nil then
+	if not id or not item or Cosmetics.owns(ownedSet(), id) then
 		return
 	end
-	if Cosmetics.owns(ownedSet(), id) then
+	local bundleId = Cosmetics.bundleOf(id)
+	if bundleId then
+		ui:focusPack(bundleId)
+		return
+	end
+	if item.gemPrice == nil then
 		return
 	end
 	pcall(function()
 		fnBuyItem:InvokeServer(id)
+	end)
+end
+
+-- "Buy just this" inside an open pack's contents list — the à-la-carte
+-- gem path for a single, same server-side validation as the name click.
+ui.onBuyItem = function(itemId)
+	local item = Cosmetics.item(itemId)
+	if not item or item.gemPrice == nil or Cosmetics.owns(ownedSet(), itemId) then
+		return
+	end
+	pcall(function()
+		fnBuyItem:InvokeServer(itemId)
 	end)
 end
 
