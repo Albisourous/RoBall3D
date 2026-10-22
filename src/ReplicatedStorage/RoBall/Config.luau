@@ -163,8 +163,12 @@ Config.Landing = {
 	-- vector is projected onto the probe's plane so the ball pushes
 	-- itself down hills instead of launching off crests (Monkey Ball
 	-- feel). SlopeSmooth eases the read normal (seconds, τ) so slice
-	-- seams don't pop Y velocity; airborne balls ignore it and fall free.
+	-- seams don't pop the input; SlopeVelSmooth eases the resulting vY
+	-- while contact persists so inflection points don't pop the output —
+	-- a real touchdown still snaps (residual fall has to die instantly).
+	-- Airborne balls ignore both and fall free.
 	SlopeSmooth = 0.05,
+	SlopeVelSmooth = 0.09,
 }
 
 -- Danger vignette (§12): a red screen-frame stroke that tightens as the

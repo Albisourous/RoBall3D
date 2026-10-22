@@ -909,20 +909,20 @@ RunService.Heartbeat:Connect(function(dt)
 	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
 	local grounded = drop ~= nil
 		and bp.Y - (drop :: RaycastResult).Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad
+	-- Eased surface normal for everything that reads the deck: raw probe
+	-- normals pop at slice seams and slope inflections — banking, pull and
+	-- the Y projection all ride this relaxed read instead.
+	local wantN = if grounded and drop then drop.Normal else Vector3.yAxis
+	surfNormal = (surfNormal + (wantN - surfNormal) * (1 - math.exp(-dt / Config.Landing.SlopeSmooth))).Unit
 	local bankPull = 0
 	bankRollRad = 0
 	if grounded and drop then
-		bankPull = drop.Normal.X * steer.BankPull
+		bankPull = surfNormal.X * steer.BankPull
 		-- Deck roll for the camera: normal.X = -sin(roll) on a banked
 		-- surface — same read the pull uses, kept as an angle for the
 		-- horizon lean.
-		bankRollRad = -math.asin(math.clamp(drop.Normal.X, -1, 1))
+		bankRollRad = -math.asin(math.clamp(surfNormal.X, -1, 1))
 	end
-	-- Eased surface normal for slope tracking: seam/facet pops in the
-	-- raw read would pop Y velocity — relax toward the live normal (or
-	-- straight up when airborne) so the projection below flows.
-	local wantN = if grounded and drop then drop.Normal else Vector3.yAxis
-	surfNormal = (surfNormal + (wantN - surfNormal) * (1 - math.exp(-dt / Config.Landing.SlopeSmooth))).Unit
 	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
 	-- — the target pins to dash Speed and the accel is ~13x, so the dart
@@ -1165,7 +1165,15 @@ RunService.Heartbeat:Connect(function(dt)
 	local kicked = vY > 0 and now - kickAt <= Config.Landing.KickGrace
 	if not inFlip and now >= unstickUntil and grounded and not kicked then
 		local drive = Vector3.new(lateralVel, 0, -fwdSpeed)
-		vY = (drive - surfNormal * drive:Dot(surfNormal)).Y
+		local surfY = (drive - surfNormal * drive:Dot(surfNormal)).Y
+		-- Ease toward the surface speed while contact persists
+		-- (SlopeVelSmooth τ) — but a real fall outrunning the ground
+		-- snaps straight to surfY instead of easing through the deck.
+		if vY < surfY - Config.Landing.ImpactPad then
+			vY = surfY
+		else
+			vY += (surfY - vY) * (1 - math.exp(-dt / Config.Landing.SlopeVelSmooth))
+		end
 	-- Zero-bounce landing (§11): arriving harder than the deck's own
 	-- descent pops the ball back up even at elasticity 0 — the solver's
 	-- impact response is the bounce. Stage one: the lane probe looks
