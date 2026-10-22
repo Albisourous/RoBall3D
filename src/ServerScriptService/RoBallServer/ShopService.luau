@@ -73,18 +73,17 @@ function ShopService.ownsPass(player: Player, key: string): boolean
 end
 
 function ShopService.ownsItem(player: Player, itemId: string): boolean
-	local item = Cosmetics.Items[itemId]
-	if not item then
-		return false
+	-- Cosmetics.owns is the single oracle: free + gem ids + live bundles +
+	-- retired LegacyBundles (§18 — a sunset pass keeps granting its items).
+	-- Merge the two session tables into the mixed key/item-id set it wants.
+	local set = owned[player] or {}
+	if items[player] then
+		set = table.clone(set)
+		for id in pairs(items[player]) do
+			set[id] = true
+		end
 	end
-	if item.free then
-		return true
-	end
-	if items[player] and items[player][itemId] then
-		return true
-	end
-	local b = Cosmetics.bundleOf(itemId)
-	return b ~= nil and ShopService.ownsPass(player, b)
+	return Cosmetics.owns(set, itemId)
 end
 
 function ShopService.equipped(player: Player): { [string]: string }
