@@ -191,6 +191,9 @@ slot automatically).
 
 **Client** (`CosmeticFx.makeLane`): reads `items.floor` — same recipe:
 flat recolor or the same checker sub-tiling, `plain`/`edge` applied.
+Checker tiles are laid at each row's own z on the pitched preview lane
+(`deckTopAt(tileZ)` — the same pitch composition `emitDeck` uses), so
+the board sits flush on the slope rather than stepping per row.
 
 **Catalog** (14 items — every pack gets one):
 

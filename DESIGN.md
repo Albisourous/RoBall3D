@@ -1454,7 +1454,12 @@ emitted with TrackStreamer's own recipe: a pitched deck slab tinted by
 so each samples `Palette.neonAt`/`dimAt` at its own z, transverse grid
 on the same cadence — the shared deck primitives (`DeckColor`, `EdgeW`,
 `EdgeH`, `GridH`, `CenterW`) live in `Config.Art` so menu and runtime
-can't drift. The dressed ball (real `Ball.Diameter`, cage dims matching
+can't drift. The browsed FLOOR item restyles this same lane: `deck`
+re-bases the tint, `deckB`+`deckCell` split each slab into pure
+two-tone tiles alternating on `(row + col)` parity — every tile laid
+at its own z so the board rides the deck pitch flush like `emitDeck`'s
+`topY − tan(pitch)·(z0 − zMid)` composition — `edge` re-colors the
+rails, `plain` drops the grid + center line. The dressed ball (real `Ball.Diameter`, cage dims matching
 the adornments it stands in for — rings are cylinder parts since
 adornments don't render inside a ViewportFrame) rolls down-grade at
 `Config.Speed.Start`, so the trail — BallDress's own attachment pair +
