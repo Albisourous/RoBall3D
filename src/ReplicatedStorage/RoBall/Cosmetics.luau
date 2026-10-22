@@ -90,6 +90,7 @@ local DEEP_ICE = Color3.fromRGB(70, 150, 255)
 local LIME = Color3.fromRGB(170, 255, 60) -- toxic/acid family
 local MINT = Color3.fromRGB(140, 255, 220)
 local PEACH = Color3.fromRGB(255, 196, 140)
+local BANANA = Color3.fromRGB(255, 226, 92) -- ape-ball toy family
 
 Cosmetics.Items = {
 	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball face
@@ -258,6 +259,16 @@ Cosmetics.Items = {
 		ringB = WHITE,
 		core = Color3.fromRGB(4, 8, 18),
 	},
+	--==== APE BALL pack — the arcade-toy set for the sky court world:
+	-- a glossy capsule ball — warm plastic face under clean white rings.
+	skin_capsule = {
+		slot = "skin",
+		name = "CAPSULE",
+		gemPrice = 800,
+		ringA = WHITE,
+		ringB = BANANA,
+		core = Color3.fromRGB(255, 138, 36),
+	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
 	trail_none = { slot = "trail", name = "NONE", free = true, none = true },
@@ -278,6 +289,7 @@ Cosmetics.Items = {
 	trail_custom = { slot = "trail", name = "LAB WAKE", gemPrice = 1500, color = "customC" },
 	trail_null = { slot = "trail", name = "DRIFT", gemPrice = 450, color = SILVER },
 	trail_ridgeline = { slot = "trail", name = "RIDGELINE", gemPrice = 450, color = AURORA_B },
+	trail_banana = { slot = "trail", name = "BANANA WAKE", gemPrice = 450, color = BANANA },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -297,6 +309,7 @@ Cosmetics.Items = {
 	gemfx_custom = { slot = "gemFx", name = "LAB POP", gemPrice = 1500, color = "customC" },
 	gemfx_null = { slot = "gemFx", name = "NULL POP", gemPrice = 400, color = SILVER },
 	gemfx_peak = { slot = "gemFx", name = "PEAK POP", gemPrice = 400, color = AURORA_B },
+	gemfx_banana = { slot = "gemFx", name = "BANANA POP", gemPrice = 400, color = BANANA },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -427,6 +440,14 @@ Cosmetics.Items = {
 		colorA = AURORA_B,
 		colorB = WHITE,
 	},
+	deathfx_party = {
+		slot = "deathFx",
+		name = "PARTY POP",
+		gemPrice = 550,
+		style = "pop",
+		colorA = BANANA,
+		colorB = WHITE,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -440,6 +461,7 @@ Cosmetics.Items = {
 	world_polar = { slot = "world", name = "NORTHERN LIGHTS", gemPrice = 900, theme = "polar" },
 	world_empty = { slot = "world", name = "VOIDSPACE", gemPrice = 900, theme = "empty" },
 	world_toxic = { slot = "world", name = "TOXIC WASTES", gemPrice = 800, theme = "toxic" },
+	world_sky = { slot = "world", name = "SKY COURT", gemPrice = 900, theme = "sky" },
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -456,6 +478,7 @@ Cosmetics.Items = {
 	sun_tide = { slot = "sun", name = "NEAP TIDE", gemPrice = 600, sun = "tide" },
 	sun_null = { slot = "sun", name = "DEAD SUN", gemPrice = 600, sun = "null" },
 	sun_alpine = { slot = "sun", name = "ALPINE SUN", gemPrice = 600, sun = "alpine" },
+	sun_noon = { slot = "sun", name = "HIGH NOON", gemPrice = 600, sun = "noon" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
 	-- renders it under the HUD so text stays readable). One per bundle:
@@ -506,6 +529,13 @@ Cosmetics.Items = {
 		filter = "tint",
 		tint = Color3.fromRGB(140, 190, 255),
 	},
+	filter_day = {
+		slot = "filter",
+		name = "DAY GLOW",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(150, 200, 255),
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -530,6 +560,7 @@ Cosmetics.Order = {
 		"skin_custom",
 		"skin_null",
 		"skin_summit",
+		"skin_capsule",
 	},
 	trail = {
 		"trail_none",
@@ -550,6 +581,7 @@ Cosmetics.Order = {
 		"trail_custom",
 		"trail_null",
 		"trail_ridgeline",
+		"trail_banana",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -569,6 +601,7 @@ Cosmetics.Order = {
 		"gemfx_custom",
 		"gemfx_null",
 		"gemfx_peak",
+		"gemfx_banana",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -587,6 +620,7 @@ Cosmetics.Order = {
 		"deathfx_limewire",
 		"deathfx_null",
 		"deathfx_landslide",
+		"deathfx_party",
 	},
 	world = {
 		"world_city",
@@ -600,6 +634,7 @@ Cosmetics.Order = {
 		"world_polar",
 		"world_empty",
 		"world_toxic",
+		"world_sky",
 	},
 	sun = {
 		"sun_classic",
@@ -614,6 +649,7 @@ Cosmetics.Order = {
 		"sun_tide",
 		"sun_null",
 		"sun_alpine",
+		"sun_noon",
 	},
 	filter = {
 		"filter_off",
@@ -628,6 +664,7 @@ Cosmetics.Order = {
 		"filter_snowblind",
 		"filter_soot",
 		"filter_thinair",
+		"filter_day",
 	},
 } :: { [string]: { string } }
 
@@ -809,6 +846,23 @@ Cosmetics.Bundles = {
 			"deathfx_avalanche",
 			"sun_frost",
 			"filter_snowblind",
+		},
+	},
+	{
+		-- The arcade homage: a glossy toy look for the bright sky court —
+		-- capsule ball, banana wake, checker floor, noon sun. An original
+		-- set in the rolling-party-ball spirit; no borrowed IP or assets.
+		id = "apeball",
+		name = "APE BALL",
+		desc = "full capsule set · sky court world",
+		items = {
+			"skin_capsule",
+			"world_sky",
+			"trail_banana",
+			"gemfx_banana",
+			"deathfx_party",
+			"sun_noon",
+			"filter_day",
 		},
 	},
 }

@@ -1295,6 +1295,31 @@ Config.Art = {
 	PalmSwayDeg = 3.5, -- crown rustle amplitude
 	PalmSwayRate = 1.1, -- rad/s breeze
 	PalmValue = 0.9, -- neon brightness for fronds
+	-- SKY COURT (§18 "sky" world, APE BALL pack): the day-shift look —
+	-- the client re-times Lighting to midday so the skybox goes blue
+	-- with a real sun, a bright checkerboard floor rides the descent
+	-- below the deck, and chunky cartoon clouds drift beside the track.
+	SkyClockTime = 14.2,
+	SkyAmbient = Color3.fromRGB(120, 132, 160),
+	SkyOutdoorAmbient = Color3.fromRGB(170, 180, 205),
+	SkyAtmoColor = Color3.fromRGB(150, 195, 245),
+	SkyAtmoDecay = Color3.fromRGB(115, 160, 215),
+	SkyAtmoHaze = 2.5,
+	SkyFloorDrop = 110, -- checkerboard depth below the deck
+	SkyFloorCell = 26, -- checker tile studs
+	SkyFloorCols = 9, -- tiles across the corridor
+	SkyFloorRows = 18, -- tile rows covering the window
+	SkyFloorA = Color3.fromRGB(118, 228, 102), -- arcade green
+	SkyFloorB = Color3.fromRGB(252, 247, 235), -- warm cream
+	SkyClouds = 14, -- drifting puffs in flight
+	SkyCloudMinX = 46, -- closest drift from lane center
+	SkyCloudDX = 110, -- lateral spread beyond MinX
+	SkyCloudAltMin = -35, -- lowest drift below deck grade
+	SkyCloudAltMax = 90, -- highest drift above
+	SkyCloudSpan = 500, -- z window a recycled cloud re-enters inside
+	SkyCloudBob = 0.5, -- rad/s lazy bob
+	SkyCloudBobAmp = 2.5, -- studs
+	SkyCloudColor = Color3.fromRGB(255, 255, 255),
 	-- PIXEL GLASS / SCANLINES (§18 "filter" slot): an LCD-style lattice
 	-- over the 3D view — gridlines at PixelPitch read as chunky pixels.
 	-- The overlay sits on a lower DisplayOrder than the HUD so every
@@ -1409,6 +1434,15 @@ Config.Art = {
 			gap = 0.45,
 			scale = 0.9,
 		},
+		noon = {
+			-- APE BALL pack: a high warm sun for the day-shift sky —
+			-- dense golden dome, stripes barely visible at the rim.
+			top = Color3.fromRGB(255, 246, 185),
+			bottom = Color3.fromRGB(255, 200, 70),
+			solid = 0.85,
+			gap = 0.4,
+			scale = 1,
+		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
 	RingA = Color3.fromRGB(0, 230, 255),
@@ -1507,6 +1541,7 @@ Config.Monetization = {
 		reef = 0, -- NEON REEF — lagoon set + reef world (~199)
 		null = 0, -- NULL — mono set + empty world (~149)
 		solstice = 0, -- SOLSTICE — seasonal frost set + polar sky (~149)
+		apeball = 0, -- APE BALL — capsule set + sky court world (~199)
 		-- Retired ids: no longer sold, but already-owned passes keep
 		-- granting their contents through Cosmetics.LegacyBundles.
 		phantom = 0,
@@ -1529,6 +1564,7 @@ Config.Monetization = {
 		phantom = 199,
 		deepspace = 149,
 		solstice = 149,
+		apeball = 199,
 		acid = 149,
 		reef = 199,
 		null = 149,

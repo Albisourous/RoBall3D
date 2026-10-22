@@ -56,7 +56,19 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms" | "polar" | "empty" | "toxic"
+type Theme =
+	"city"
+	| "peaks"
+	| "void"
+	| "grid"
+	| "aurora"
+	| "reef"
+	| "meteor"
+	| "palms"
+	| "polar"
+	| "empty"
+	| "toxic"
+	| "sky"
 local theme: Theme = "city"
 
 -- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
@@ -114,6 +126,18 @@ type Palm = {
 local palms: { Palm } = {}
 local palmFrontZ: { [string]: number } = {}
 local palmSeeded = false
+
+-- SKY COURT (§18 "sky", APE BALL): checker tile rows ride the descent
+-- below the deck (recycled on a shared frontier like the grid wires)
+-- while chunky puff clouds drift beside the track and re-enter ahead.
+-- `offs` caches each lobe's offset so the per-frame bob only rewrites
+-- Position — no per-frame allocation.
+type SkyRow = { tiles: { Part }, z: number }
+type SkyCloud = { parts: { Part }, offs: { Vector3 }, x: number, y: number, z: number, phase: number }
+local skyRows: { SkyRow } = {}
+local skyClouds: { SkyCloud } = {}
+local skyFrontZ = 0
+local skySeeded = false
 
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
 local WHITE = Color3.fromRGB(245, 238, 255) -- star glints in the void theme
@@ -866,6 +890,113 @@ local function layPalm(palm: Palm, x: number, baseY: number, z: number)
 	end
 end
 
+--============================ SKY COURT (§18 "sky") ============================--
+-- Built lazily on first activation — non-owners never pay for the parts.
+local function ensureSky()
+	if #skyRows > 0 then
+		return
+	end
+	for _ = 1, Art.SkyFloorRows do
+		local tiles: { Part } = {}
+		for _ = 1, Art.SkyFloorCols do
+			table.insert(tiles, makePeakPart(root, false))
+		end
+		table.insert(skyRows, { tiles = tiles, z = 0 })
+	end
+	for _ = 1, Art.SkyClouds do
+		local parts: { Part } = {}
+		for _ = 1, 4 do
+			local puff = makePeakPart(root, false)
+			puff.Shape = Enum.PartType.Ball
+			puff.Color = Art.SkyCloudColor
+			table.insert(parts, puff)
+		end
+		table.insert(
+			skyClouds,
+			{ parts = parts, offs = {}, x = 0, y = 0, z = 0, phase = rng:NextNumber(0, math.pi * 2) }
+		)
+	end
+end
+
+-- Re-lay a checker row at z: SkyFloorCols solid tiles across the lane,
+-- green/cream alternating. Row-slot parity keeps the pattern checked
+-- both across and along the descent; the row keeps it through recycles.
+local function laySkyRow(row: SkyRow, rowIdx: number, anchor: Vector3, z: number)
+	row.z = z
+	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+	local y = deckEst(anchor, z) - Art.SkyFloorDrop
+	local x0 = laneX + (0.5 - Art.SkyFloorCols / 2) * Art.SkyFloorCell
+	for i, tile in ipairs(row.tiles) do
+		tile.Size = Vector3.new(Art.SkyFloorCell, 1.5, Art.SkyFloorCell)
+		tile.Position = Vector3.new(x0 + (i - 1) * Art.SkyFloorCell, y, z)
+		tile.Color = if (i + rowIdx) % 2 == 0 then Art.SkyFloorA else Art.SkyFloorB
+	end
+end
+
+-- Re-lay a puff cloud: a 4-lobe blob drifting beside the lane at a
+-- random side/altitude band. Lobe offsets + sizes are re-rolled here
+-- once; the per-frame bob then only rewrites Position.
+local CLOUD_SIZE = { 16, 11, 10, 8 }
+local function laySkyCloud(c: SkyCloud, anchor: Vector3, z: number)
+	c.z = z
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	c.x = anchor.X + side * (Art.SkyCloudMinX + rng:NextNumber(0, Art.SkyCloudDX))
+	c.y = deckEst(anchor, z) + rng:NextNumber(Art.SkyCloudAltMin, Art.SkyCloudAltMax)
+	local s = rng:NextNumber(0.7, 1.6)
+	c.offs[1] = Vector3.new(0, 0, 0)
+	c.offs[2] = Vector3.new(9, -2, 3) * s
+	c.offs[3] = Vector3.new(-8, -1, -4) * s
+	c.offs[4] = Vector3.new(2, -5, 1) * s
+	for i, p in ipairs(c.parts) do
+		local d = CLOUD_SIZE[i] * s
+		p.Size = Vector3.new(d, d * 0.72, d)
+		p.Position = Vector3.new(c.x + c.offs[i].X, c.y + c.offs[i].Y, c.z + c.offs[i].Z)
+	end
+end
+
+-- Day-shift lighting (§18 "sky" only): the world slot is the one thing
+-- allowed to re-time the sky. First activation snapshots the server's
+-- night rig; swapping to any other world restores it verbatim.
+local skyLightSaved: { [string]: any }? = nil
+local function applyThemeLight(nt: Theme)
+	local lighting = game:GetService("Lighting")
+	local atmo = lighting:FindFirstChildOfClass("Atmosphere")
+	if nt == "sky" then
+		if not skyLightSaved then
+			local saved: { [string]: any } = {
+				ClockTime = lighting.ClockTime,
+				Ambient = lighting.Ambient,
+				OutdoorAmbient = lighting.OutdoorAmbient,
+				ExposureCompensation = lighting.ExposureCompensation,
+			}
+			if atmo then
+				saved.atmo = { Color = atmo.Color, Decay = atmo.Decay, Haze = atmo.Haze }
+			end
+			skyLightSaved = saved
+		end
+		lighting.ClockTime = Art.SkyClockTime
+		lighting.Ambient = Art.SkyAmbient
+		lighting.OutdoorAmbient = Art.SkyOutdoorAmbient
+		if atmo then
+			atmo.Color = Art.SkyAtmoColor
+			atmo.Decay = Art.SkyAtmoDecay
+			atmo.Haze = Art.SkyAtmoHaze
+		end
+	elseif skyLightSaved then
+		local s = skyLightSaved
+		skyLightSaved = nil
+		lighting.ClockTime = s.ClockTime
+		lighting.Ambient = s.Ambient
+		lighting.OutdoorAmbient = s.OutdoorAmbient
+		lighting.ExposureCompensation = s.ExposureCompensation
+		if atmo and s.atmo then
+			atmo.Color = s.atmo.Color
+			atmo.Decay = s.atmo.Decay
+			atmo.Haze = s.atmo.Haze
+		end
+	end
+end
+
 -- The synthwave sun is built as a stack of horizontal strips:
 -- chord width follows the disk's circle, color slides style.top ->
 -- style.bottom top to bottom (Config.Art.SunStyles — the §18 "sun" slot
@@ -1109,6 +1240,20 @@ local function parkPolar()
 	polarSeeded = false
 end
 
+local function parkSky()
+	for _, row in ipairs(skyRows) do
+		for _, t in ipairs(row.tiles) do
+			parkPart(t)
+		end
+	end
+	for _, c in ipairs(skyClouds) do
+		for _, p in ipairs(c.parts) do
+			parkPart(p)
+		end
+	end
+	skySeeded = false
+end
+
 local parkers: { [Theme]: () -> () } = {
 	city = parkTowers,
 	peaks = parkPeaks,
@@ -1121,6 +1266,7 @@ local parkers: { [Theme]: () -> () } = {
 	polar = parkPolar,
 	empty = function() end,
 	toxic = parkToxic,
+	sky = parkSky,
 }
 
 local THEMES: { [string]: Theme } = {
@@ -1134,6 +1280,7 @@ local THEMES: { [string]: Theme } = {
 	polar = "polar",
 	empty = "empty",
 	toxic = "toxic",
+	sky = "sky",
 }
 
 function Backdrop.setTheme(t: string)
@@ -1144,6 +1291,7 @@ function Backdrop.setTheme(t: string)
 	-- Park whatever was showing — the incoming theme lazily builds.
 	parkers[theme]()
 	theme = nt
+	applyThemeLight(nt)
 end
 
 -- Last anchor z: forward play only ever decreases z (speed is always
@@ -1346,6 +1494,42 @@ function Backdrop.update(anchor: Vector3)
 			end
 		end
 		stepPolar(anchor, os.clock())
+		return
+	end
+
+	-- SKY COURT (§18 "sky"): checker rows recycle on a shared frontier
+	-- like the grid wires; clouds re-enter ahead on a random span and
+	-- bob lazily on wall-clock sine (Position rewrite only — offs fixed).
+	if theme == "sky" then
+		ensureSky()
+		if not skySeeded then
+			skySeeded = true
+			skyFrontZ = math.ceil((anchor.Z + BACK_MARGIN) / Art.SkyFloorCell) * Art.SkyFloorCell
+			for i, row in ipairs(skyRows) do
+				laySkyRow(row, i, anchor, skyFrontZ - (i - 1) * Art.SkyFloorCell)
+			end
+			for _, c in ipairs(skyClouds) do
+				laySkyCloud(c, anchor, anchor.Z - rng:NextNumber(0, Art.SkyCloudSpan))
+			end
+			return
+		end
+		for i, row in ipairs(skyRows) do
+			if row.z > anchor.Z + BACK_MARGIN then
+				skyFrontZ -= Art.SkyFloorCell
+				laySkyRow(row, i, anchor, skyFrontZ)
+			end
+		end
+		local bob = os.clock() * Art.SkyCloudBob
+		for _, c in ipairs(skyClouds) do
+			if c.z > anchor.Z + BACK_MARGIN then
+				laySkyCloud(c, anchor, anchor.Z - rng:NextNumber(30, Art.SkyCloudSpan))
+			end
+			local cy = c.y + math.sin(bob + c.phase) * Art.SkyCloudBobAmp
+			for i, p in ipairs(c.parts) do
+				local off = c.offs[i]
+				p.Position = Vector3.new(c.x + off.X, cy + off.Y, c.z + off.Z)
+			end
+		end
 		return
 	end
 
@@ -1638,6 +1822,32 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			s.Size = Vector3.new(1, 1, 1) * rng:NextNumber(0.5, 1.6)
 			s.Parent = parent
 			layPolarStar(s, anchor)
+		end
+		return
+	end
+	if t == "sky" then
+		-- Same lay math frozen: one checker window + a few puffs.
+		local front = math.ceil((anchor.Z + BACK_MARGIN) / Art.SkyFloorCell) * Art.SkyFloorCell
+		for i = 1, Art.SkyFloorRows do
+			local tiles: { Part } = {}
+			for _ = 1, Art.SkyFloorCols do
+				table.insert(tiles, makePeakPart(parent, false))
+			end
+			laySkyRow({ tiles = tiles, z = 0 }, i, anchor, front - (i - 1) * Art.SkyFloorCell)
+		end
+		for _ = 1, 5 do
+			local parts: { Part } = {}
+			for _ = 1, 4 do
+				local puff = makePeakPart(parent, false)
+				puff.Shape = Enum.PartType.Ball
+				puff.Color = Art.SkyCloudColor
+				table.insert(parts, puff)
+			end
+			laySkyCloud(
+				{ parts = parts, offs = {}, x = 0, y = 0, z = 0, phase = 0 },
+				anchor,
+				front - rng:NextNumber(30, Art.SkyCloudSpan * 0.7)
+			)
 		end
 		return
 	end

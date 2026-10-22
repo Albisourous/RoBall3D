@@ -12,9 +12,9 @@ the red seam is cut out of the reachable space on both ends.
 
 ---
 
-## Items (105 total)
+## Items (112 total)
 
-### SKIN — ringA/ringB cage + core (19)
+### SKIN — ringA/ringB cage + core (20)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -37,8 +37,9 @@ the red seam is cut out of the reachable space on both ends.
 | COLOR LAB | your hues ×2 | ◊1500 | — (prestige) |
 | NULL | pitch core/ghost rings | ◊800 | null |
 | SUMMIT | sky-blue/white | ◊800 | peaks |
+| CAPSULE | white rings / warm plastic face | ◊800 | apeball |
 
-### TRAIL — wake ribbon (18)
+### TRAIL — wake ribbon (19)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -60,16 +61,17 @@ the red seam is cut out of the reachable space on both ends.
 | LAB WAKE | your accent hue | ◊1500 | — (prestige) |
 | DRIFT | pale grey | ◊450 | null |
 | RIDGELINE | sky blue | ◊450 | peaks |
+| BANANA WAKE | banana yellow | ◊450 | apeball |
 
-### GEM FX — pickup flourish (17)
+### GEM FX — pickup flourish (18)
 
 Same families/prices as trails: GOLD POP + COLD POP free; SUNSET→starter,
 JACKPOT→midas, PRISM→synthwave, AMETHYST→vip, AURORA→aurora,
-SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks
-(◊200–500, bundled); VOLT→acid, MINT→reef; PEACH/GHOST/INFERNO
-(◊250–350, à-la-carte); LAB POP ◊1500 (prestige).
+SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks,
+BANANA POP→apeball (◊200–500, bundled); VOLT→acid, MINT→reef;
+PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500 (prestige).
 
-### DEATH FX — run-end burst (16)
+### DEATH FX — run-end burst (17)
 
 | Item | Style | Price | Bundle |
 |---|---|---|---|
@@ -89,8 +91,9 @@ SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks
 | LIMEWIRE | shatter | ◊550 | — |
 | FADE | pop | ◊550 | null |
 | LANDSLIDE | shatter | ◊550 | peaks |
+| PARTY POP | pop | ◊550 | apeball |
 
-### WORLD — side-scenery theme (11)
+### WORLD — side-scenery theme (12)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -105,8 +108,9 @@ SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks
 | NORTHERN LIGHTS | particle-canopy aurora + stars | ◊900 | polaris + solstice |
 | VOIDSPACE | empty — lane + sun only | ◊900 | null |
 | TOXIC WASTES | rising acid bubbles | ◊800 | acid |
+| SKY COURT | day sky + checker floor + clouds | ◊900 | apeball |
 
-### SUN — striped horizon disk (12)
+### SUN — striped horizon disk (13)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -122,8 +126,9 @@ SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks
 | NEAP TIDE | cyan→deep blue | ◊600 | reef |
 | DEAD SUN | sparse ghost strips | ◊600 | null |
 | ALPINE SUN | cyan→violet strips | ◊600 | peaks |
+| HIGH NOON | solid warm noon disk | ◊600 | apeball |
 
-### FILTER — screen overlay (12)
+### FILTER — screen overlay (13)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -139,10 +144,11 @@ SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks
 | SNOWBLIND | frost grade | ◊550 | solstice (seasonal) |
 | SOOT | grey desat grade | ◊500 | null |
 | THIN AIR | pale blue grade | ◊500 | peaks |
+| DAY GLOW | pale-sky grade | ◊500 | apeball |
 
 ---
 
-## Bundle passes (11 + 1 perk)
+## Bundle passes (12 + 1 perk)
 
 Every pack is a complete outfit — exactly one item per STYLE slot, so
 the preview can render the whole look and nothing in the box is filler.
@@ -160,7 +166,13 @@ the preview can render the whole look and nothing in the box is filler.
 | NEON REEF | LAGOON · NEON REEF world · MINT trail · MINT POP · GEYSER · NEAP TIDE · ABYSS | 199 |
 | NULL | NULL · VOIDSPACE · DRIFT · NULL POP · FADE · DEAD SUN · SOOT | 149 |
 | SOLSTICE | FROSTBITE · NORTHERN LIGHTS · FROSTWAKE · FROST POP · AVALANCHE · POLAR CAP · SNOWBLIND (seasonal) | 149 |
+| APE BALL | CAPSULE · SKY COURT world · BANANA WAKE · BANANA POP · PARTY POP · HIGH NOON · DAY GLOW | 199 |
 | 2X BANK | permanent 2× bank perk | 99 |
+
+**APE BALL** is the rolling-party-ball homage — bright midday sky,
+green/cream checkerboard below the deck, cartoon clouds, glossy capsule
+ball, banana-yellow accents. All-original set in the genre's spirit —
+no borrowed names, characters, art, or audio.
 
 Retired passes — no longer sold, but `Cosmetics.LegacyBundles` keeps
 every already-sold pass granting its original contents forever:
@@ -208,7 +220,7 @@ and get the whole outfit.)
 
 ## Live-ops checklist
 
-1. Create the 11 passes + bank2x + 3 products on the Creator Dashboard
+1. Create the 12 passes + bank2x + 3 products on the Creator Dashboard
    at the prices above; drop ids into `Config.Monetization.Passes` /
    `.Products`.
 2. Flip `Config.Monetization.FreeForTesting` off.
