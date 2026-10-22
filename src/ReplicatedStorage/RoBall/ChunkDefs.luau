@@ -49,7 +49,6 @@ export type Section = {
 	cutout: number?,
 	cutoutOff: number?, -- lane-local center of the cutout (Fork); 0 = centered
 	wallH: number?,
-	roofH: number?, -- TunnelSlot: dark ceiling ribbon this high above deck
 }
 
 export type ChunkSpec = {
@@ -64,10 +63,6 @@ export type ChunkSpec = {
 	orbs: { Orb }?, -- OrbHop (flag: Features.JumpOrbs)
 	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
-	openTop: boolean?, -- PressRow/TunnelSlot: keep roofH as the hang
-	-- anchor but skip the ceiling ribbon — open sky reads on approach
-	arches: { { t: number, gapX: number, gapW: number } }?, -- TunnelSlot:
-	-- neon gatehouse frames + lit doorway strip (decor, non-collide)
 	debut: boolean?, -- set by GenCore when this chunk is the feature's gentle showcase
 	hoop: { t: number }?, -- RampGap: neon ring at the gap's flight apex — threading it pays gems (§10)
 }
@@ -81,7 +76,7 @@ export type Obstacle = {
 	w: number,
 	h: number,
 	d: number,
-	hang: boolean?, -- top anchors to section's roofH (tunnel slabs)
+	hang: boolean?, -- top anchors to the press hang height (press plates)
 	motion: Motion?, -- beat-locked movement (Pacer/Rotor)
 }
 
@@ -671,7 +666,7 @@ local function gateRow(
 	depth: number,
 	lead: number,
 	speed: number
-): ({ Obstacle }, number?, number?)
+): ({ Obstacle }, number?)
 	local gapMax = math.min(Config.Obstacles.CorridorMin * 1.8, 2 * halfW - 5)
 	if gapMax < Config.Obstacles.CorridorMin then
 		return {}, nil
@@ -699,7 +694,7 @@ local function gateRow(
 	if rw >= 1.5 then
 		table.insert(out, { t = t, xOff = gx + gap / 2 + rw / 2, w = rw, h = height, d = depth })
 	end
-	return out, gx, gap
+	return out, gx
 end
 
 local function flatSection(st: GenState): (t: number) -> Section
@@ -883,7 +878,6 @@ local MinEntryWidth = {
 	Pacer = 26,
 	Rotor = 23, -- center-post windmill needs arm half >= 3 with both rim lanes
 	Fork = 24,
-	TunnelSlot = 18,
 	PressRow = 21, -- MinSpan press + a debut-wide side lane
 }
 
@@ -1340,59 +1334,6 @@ function ChunkDefs.PadVoid(rng: Random, st: GenState, _tier, debut: boolean?): C
 	return s
 end
 
--- TunnelSlot (open gatehouse): a tall neon arch frames a hanging wall
--- that leaves ONE doorway — the same exit-line rule as gate rows, read
--- against open sky instead of inside a dark tube. A lit floor strip +
--- beam gem mark the door. No roof, no teeth: the wall silhouettes clean.
-function ChunkDefs.TunnelSlot(rng: Random, st: GenState, _tier, _debut): ChunkSpec
-	local length = rng:NextInteger(55, 75)
-	local roofH = Config.Tunnel.RoofH
-	local halfW = st.width / 2
-	local obstacles = {}
-	local gems = {}
-	local arches = {}
-	local tWall = rng:NextNumber(0.45, 0.6)
-	local row, gx, gap = gateRow(
-		rng,
-		halfW,
-		tWall,
-		roofH - 0.5,
-		Config.Obstacles.WallDepth,
-		tWall * length,
-		Tiers.speedAt(st.dist + 100)
-	)
-	for _, ob in ipairs(row) do
-		ob.hang = true
-		table.insert(obstacles, ob)
-	end
-	if gx then
-		table.insert(arches, { t = tWall, gapX = gx, gapW = gap or Config.Obstacles.CorridorMin })
-		table.insert(gems, { t = tWall, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
-	end
-	appendAll(
-		gems,
-		gemRhythmLine(
-			rng,
-			Tiers.speedAt(st.dist),
-			length,
-			0.25,
-			0.4,
-			0,
-			Config.Gems.ValueSafe,
-			nil,
-			energyOf(st),
-			bpmOf(st)
-		)
-	)
-	local s = spec("TunnelSlot", st, length, function(_t)
-		-- roofH is only the hang anchor — openTop emits no ceiling.
-		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH }
-	end, { centerX = st.centerX, width = st.width, y = st.y }, obstacles, gems)
-	s.openTop = true
-	s.arches = arches
-	return s
-end
-
 -- DropGate: a full-width wall whose gap threads ON a drop downbeat —
 -- canRun gates it to accent hits at high energy, so the geometry slams
 -- exactly when the music does. Breadcrumb gems lead into the gap early.
@@ -1440,7 +1381,7 @@ function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): C
 	local spacingZ = speed * Config.Obstacles.ReactionTime * (if debut then 1 else 0.75)
 	local length = chainLength(if debut then 1 else rng:NextInteger(2, 3), spacingZ, 55, 130)
 	local rows = chainRows(length, spacingZ, if debut then 1 else 3)
-	local roofH = Config.Press.RoofH
+	local hangH = Config.Press.HangH
 	local liftClear = Config.Press.LiftClear
 	local map = st.map or SongMap
 	local beatSec = 60 / (map.bpm * MusicGrid.playbackSpeedAt(tier.speed))
@@ -1480,7 +1421,7 @@ function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): C
 				t = t,
 				xOff = -side * gapW / 2, -- plate covers everything but the side lane
 				w = pw,
-				h = roofH - liftClear,
+				h = hangH - liftClear,
 				d = Config.Obstacles.WallDepth,
 				hang = true,
 				motion = {
@@ -1506,10 +1447,8 @@ function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): C
 		end
 	end
 	local s = spec("PressRow", st, length, function(_t)
-		-- roofH is only the hang anchor now — no roof fades on an open top.
-		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH }
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0 }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, obstacles, gems)
-	s.openTop = true
 	return s
 end
 

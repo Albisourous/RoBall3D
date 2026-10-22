@@ -43,9 +43,9 @@ leaderboard is the replay hook; a seed system lets players run identical maps.
   exactly: `LethalColor` is reserved for kill geometry and is *never*
   palette-shifted — edges, gems and scenery may hue-cycle, lethal red may not.
 - **Obstacles are the mid-track threat; edges are the ambient one.** Slope's
-  atlas: static blocks, walls with one opening, moving blocks, tunnels, gaps,
+  atlas: static blocks, walls with one opening, moving blocks, gaps,
   ramps, narrow lanes. MVP adds `BlockGate`/`BlockField`/`WallSlot`; moving
-  blocks and tunnels are post-MVP.
+  blocks are post-MVP.
 - **Speed is continuous**, not stepped — pressure comes from reaction windows
   shrinking. Our eased tier targets approximate the same curve; keep `Accel`
   smooth so no "step" is felt.
@@ -360,10 +360,9 @@ narrow. Then the seeded generator takes over.
 | `Fork` | Asymmetric split: thin gem-loaded rail / wide bare rail | Route choice | 4+ |
 | `PadHop` | LaunchPad (cyan strip) kicks ball ballistic over a lethal strip | Computed arc | 4+ |
 | `PadVoid` | LaunchPad launch across a void — pad supplies airtime, not speed | Early gap spectacle | 5+ |
-| `TunnelSlot` | Open gatehouse: a tall neon arch frames a hanging wall leaving one doorway — lit floor strip + beam gem mark the slot (no roof, no teeth; `openTop`) | Gated corridor | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
-| `PressRow` | Open-air crushers: each ceiling press hangs in a neon gantry frame (no roof — `openTop`), slamming on a trapezoid wave; a ghost-red footprint marks each plate's kill zone on the deck and the plate's wireframe fills solid as it slams; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut; the lane is rail-pinned, so the lead grows until a worst-case far-rail entry can afford the `2·halfW − gapW` transit — `canRun` declines decks where that runway would be degenerate | Vertical timing | 6+ |
+| `PressRow` | Open-air crushers: each ceiling press hangs in a neon gantry frame under open sky, slamming on a trapezoid wave; a ghost-red footprint marks each plate's kill zone on the deck and the plate's wireframe fills solid as it slams; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut; the lane is rail-pinned, so the lead grows until a worst-case far-rail entry can afford the `2·halfW − gapW` transit — `canRun` declines decks where that runway would be degenerate | Vertical timing | 6+ |
 | `Rotor` | Near-center post + neon spinning blade; swept disc can't reach either rim — both rails are always-clear lanes, and a translucent danger disc tints the swept zone | Timing + bait gems | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
@@ -383,14 +382,9 @@ narrow. Then the seeded generator takes over.
 
 **Feature chunks (§8.6) extend the contract**
 - `Section.cutoutOff` shifts a cutout's center off the deck axis (Fork).
-- `Section.roofH` anchors `hang` slabs and (when a chunk isn't openTop)
-  emits a dark ceiling ribbon + neon ribs — currently unused; every
-  roofed chunk went open-air for readability. `ChunkSpec.openTop`
-  (PressRow, TunnelSlot) keeps `roofH` as the hang anchor but skips the
-  ribbon + ribs — open sky, each feature carries its own frame instead
-  (press gantries + ghost footprints / gatehouse arches + lit doorway
-  strips via `ChunkSpec.arches`).
-- `Obstacle.hang` anchors a slab's top to `roofH` — hanging gate columns.
+- `Obstacle.hang` anchors a slab's top to `Config.Press.HangH` —
+  PressRow's plates hang from their gantry frames under open sky; the
+  red `PressZone` footprint marks each kill zone on the deck.
 - `Obstacle.motion` (`slideX`/`spin`/`dropY` + periodSec/phase) —
   beat-locked movers; periods are whole-note counts of the heard tempo
   so the hazard cycle IS the music. `dropY` runs a trapezoid pulse —
@@ -476,7 +470,7 @@ banner: the `NEW ▸ LABEL` flash was cut as screen clutter.
 
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
 Blackout 900m · Chicane 1300m · Fork 1500m · PadHop 1700m · PadVoid 2100m
-· TunnelSlot 2200m · DropGate 2300m · PressRow 2600m · Pacer 2700m ·
+· DropGate 2300m · PressRow 2600m · Pacer 2700m ·
 Rotor 2900m · OrbHop
 3300m\* · FlipRide 3500m\* (\*flag-off stretches). Early
 game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
@@ -636,7 +630,7 @@ beat spacing all saturate at it).
 
 Hazards: **falling off the deck** and **touching `LethalColor` geometry** —
 both instant death, per the Slope model (§2 REA). Moving hazards and
-tunnels landed via `Obstacle.motion` and `Section.roofH` (§8.6).
+hanging plates land via `Obstacle.motion` and `Obstacle.hang` (§8.6).
 
 ## 10. Scoring
 
@@ -648,8 +642,8 @@ seals the score.
 `Score.NearMiss.Points` (3) if the pass hugged the geometry — interpolated
 crossing-x within `NearMiss.Range` (4 studs, ball-surface to face) of a static
 block's edge, or anywhere inside a rotor's translucent sweep disc (the disc
-already marks risk honestly). One award per obstacle; hanging roof slabs never
-count (a lateral graze under a ceiling isn't a dodge) — except PressRow's
+already marks risk honestly). One award per obstacle; hanging slabs never
+count (a lateral graze under a plate isn't a dodge) — except PressRow's
 `dropY` plates, where the dodge is vertical: crossing the plane *inside the
 plate's span* (the guaranteed lane sits outside it) while the plate is
 ≥`Press.ThreadMinDrop` into its travel pays `Press.ThreadBonus` — a free

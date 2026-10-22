@@ -220,11 +220,11 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	local sB = spec.section(tB)
 	local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * spec.length, 0.001))
 	local roll = math.rad(mid.rollDeg)
-	-- Hanging slabs (TunnelSlot) anchor their top to the roof height
-	-- instead of standing on the deck.
+	-- Hanging slabs (press plates) anchor their top to the press hang
+	-- height instead of standing on the deck.
 	local yBase = mid.y
 	if ob.hang then
-		yBase = mid.y + (mid.roofH or Config.Tunnel.RoofH) - ob.h
+		yBase = mid.y + Config.Press.HangH - ob.h
 	end
 	local b = Instance.new("Part")
 	b.Name = "LethalBlock"
@@ -269,7 +269,7 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 		zone.Parent = parent
 
 		local gw = Config.Press.GantryW
-		local hangTop = mid.y + (mid.roofH or Config.Press.RoofH)
+		local hangTop = mid.y + Config.Press.HangH
 		local gantryColor = Palette.dimAt(-z, Config.Art.GridValue)
 		for _, px in ipairs({ -mid.width / 2 + gw / 2, mid.width / 2 - gw / 2 }) do
 			local post = Instance.new("Part")
@@ -526,47 +526,6 @@ local function emitFlipZone(
 	zone.Parent = holder
 end
 
--- TunnelSlot gatehouse (§8.6 open design): a neon arch per wall row —
--- rim posts + crossbeam showing what the slab hangs from — plus a lit
--- floor strip under the gap so the one legal doorway reads from render
--- distance. All scenery, all non-collide.
-local function emitGateArch(holder: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, arch)
-	local len = spec.length
-	local mid = spec.section(arch.t)
-	local z = spec.startZ - arch.t * len
-	local tA = math.max(arch.t - 0.02, 0)
-	local tB = math.min(arch.t + 0.02, 1)
-	local sA = spec.section(tA)
-	local sB = spec.section(tB)
-	local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
-	local roll = math.rad(mid.rollDeg)
-	local roofH = mid.roofH or Config.Tunnel.RoofH
-	local gw = Config.Tunnel.FrameW
-	local cX = laneX + mid.centerX
-	local c = Palette.neonAt(-z)
-	local function frame(name, size, x, y)
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.Neon
-		p.Color = c
-		p.Size = size
-		p.CFrame = CFrame.new(x, y, z) * CFrame.Angles(pitch, 0, roll)
-		p.Parent = holder
-	end
-	for _, sx in ipairs({ -1, 1 }) do
-		frame("GatePost", Vector3.new(gw, roofH, gw), cX + sx * (mid.width / 2 - gw / 2), mid.y + roofH / 2)
-	end
-	frame("GateBeam", Vector3.new(mid.width, gw, gw), cX, mid.y + roofH + gw / 2)
-	-- Lit doorway: a floor stripe across the gap — NOT lethal red, this is
-	-- the "go here" marker, same neon language as edge rails.
-	frame("GateDoor", Vector3.new(arch.gapW, 0.12, gw), cX + arch.gapX, mid.y + 0.06)
-end
-
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	local holder = Instance.new("Folder")
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
@@ -644,7 +603,6 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			and math.abs((a.cutout or 0) - (b.cutout or 0)) <= 0.06
 			and math.abs((a.cutoutOff or 0) - (b.cutoutOff or 0)) <= 0.06
 			and math.abs((a.wallH or 0) - (b.wallH or 0)) <= 0.06
-			and math.abs((a.roofH or 0) - (b.roofH or 0)) <= 0.06
 	end
 
 	-- One straight deck box (or twin rails for a cutout) spanning tA..tB.
@@ -721,22 +679,6 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			makeWall(holder, centerX - width / 2 + 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
 			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
 		end
-
-		-- TunnelSlot roof (§8.6): a dark ceiling ribbon with neon
-		-- edge lines enclosing the deck. Non-collide — a pad-launched ball
-		-- sails through the ribbon instead of landing on the ceiling.
-		-- PressRow is openTop: roofH is only the presses' hang anchor and
-		-- per-press gantries carry the enclosure read instead.
-		if mid.roofH and mid.roofH > 0.1 and not spec.openTop then
-			local roofY = topY + mid.roofH
-			local roof = makeSlicePart(holder, centerX, roofY, zMid, width, span, pitch, roll, spec.type, deckColor)
-			roof.CanCollide = false
-			roof.CanQuery = false
-			roof.CanTouch = false
-			local c = Palette.dimAt(-zMid, Config.Art.GridValue * gridScale)
-			makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, roofY, zMid, span, pitch, roll, spec.type, c)
-			makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, roofY, zMid, span, pitch, roll, spec.type, c)
-		end
 	end
 
 	local k = 1
@@ -804,20 +746,6 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				end
 			else
 				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, stripColor)
-			end
-			-- TunnelSlot rib: a neon line across the ceiling sells the tube.
-			if mid.roofH and mid.roofH > 1 and not spec.openTop then
-				makeGridStrip(
-					holder,
-					centerX,
-					mid.y + mid.roofH - 0.05,
-					zMid,
-					mid.width,
-					pitch,
-					roll,
-					spec.type,
-					stripColor
-				)
 			end
 		end
 	end
@@ -937,12 +865,6 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	if spec.orbs then
 		for _, orb in ipairs(spec.orbs) do
 			makeOrb(holder, self.laneX, spec, orb)
-		end
-	end
-
-	if spec.arches then
-		for _, arch in ipairs(spec.arches) do
-			emitGateArch(holder, self.laneX, spec, arch)
 		end
 	end
 

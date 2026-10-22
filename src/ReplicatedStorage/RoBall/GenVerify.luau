@@ -109,9 +109,8 @@ end
 local function rowCorridor(row: { ChunkDefs.Obstacle }, halfW: number): number
 	local spans = {}
 	for _, ob in ipairs(row) do
-		local isTooth = ob.hang == true and ob.motion == nil and ob.h <= Config.Tunnel.ToothMax + 0.01
 		local isArm = ob.motion ~= nil and ob.motion.kind == "spin"
-		if not isTooth and not isArm then
+		if not isArm then
 			table.insert(spans, { lo = ob.xOff - ob.w / 2, hi = ob.xOff + ob.w / 2 })
 		end
 	end
@@ -175,21 +174,12 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		end
 		prevEnd = spec.endState
 
-		-- Flat-exit contract: roll, cutout, walls and roof are chunk-internal —
+		-- Flat-exit contract: roll, cutout and walls are chunk-internal —
 		-- every chunk must hand the next a level, open seam. A non-flat entry
-		-- means the previous chunk's exit broke the convention. openTop chunks
-		-- (PressRow) keep roofH as the presses' hang anchor only — no roof
-		-- geometry exists at the seam, so it can't break the contract.
-		local entryRoof = if spec.openTop then 0 else s0.roofH or 0
-		if math.abs(s0.rollDeg) > 0.5 or (s0.cutout or 0) > 0.5 or (s0.wallH or 0) > 0.5 or entryRoof > 0.5 then
+		-- means the previous chunk's exit broke the convention.
+		if math.abs(s0.rollDeg) > 0.5 or (s0.cutout or 0) > 0.5 or (s0.wallH or 0) > 0.5 then
 			bad(
-				string.format(
-					"non-flat entry: roll %.2f cut %.2f wall %.2f roof %.2f",
-					s0.rollDeg,
-					s0.cutout or 0,
-					s0.wallH or 0,
-					s0.roofH or 0
-				),
+				string.format("non-flat entry: roll %.2f cut %.2f wall %.2f", s0.rollDeg, s0.cutout or 0, s0.wallH or 0),
 				spec,
 				i
 			)
@@ -208,7 +198,7 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		-- what the next chunk must survive. Spin arms audit as their whole
 		-- swept disc — the guaranteed lane is the always-clear corridor,
 		-- threading the arm is bonus skill, not the required read. slideX
-		-- movers and tunnel teeth stay timing/decoration, and pad chunks
+		-- movers stay timing, and pad chunks
 		-- exempt their strip — the crossing is airborne (kick audit owns it).
 		-- dropY press plates DO audit: their x-span never moves, so the
 		-- guaranteed line is the permanent side lane around the plate.
@@ -216,10 +206,9 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		if spec.obstacles then
 			local stripHMax = Config.Pads.StripH + 0.01
 			for _, ob in ipairs(spec.obstacles) do
-				local isTooth = ob.hang == true and ob.motion == nil and ob.h <= Config.Tunnel.ToothMax + 0.01
 				local isMover = ob.motion ~= nil and ob.motion.kind == "slideX"
 				local isStrip = spec.pads ~= nil and ob.h <= stripHMax
-				if not (isTooth or isMover or isStrip) then
+				if not (isMover or isStrip) then
 					-- (depth + ball diameter)/2L: the ball's center collides
 					-- over that z-window — also keeps thin rows on a sample.
 					local zHalf = (ob.d + Config.Ball.Diameter) / (2 * spec.length)
@@ -370,22 +359,11 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 			end
 			local prevT: number? = nil
 			for _, row in ipairs(rows) do
-				-- Rows that are ALL decorative tunnel teeth are overhead
-				-- dressing (bottom edge hangs above the ball's reach) —
-				-- not a navigational read, so they exempt corridor+spacing.
-				local allTeeth = true
 				local stripRow = true
 				for _, ob in ipairs(row) do
-					local isTooth = ob.hang == true and ob.motion == nil and ob.h <= Config.Tunnel.ToothMax + 0.01
-					if not isTooth then
-						allTeeth = false
-					end
 					if ob.h > Config.Pads.StripH + 0.01 then
 						stripRow = false
 					end
-				end
-				if allTeeth then
-					continue
 				end
 				local t = row[1].t
 				local s = spec.section(math.clamp(t, 0, 1))

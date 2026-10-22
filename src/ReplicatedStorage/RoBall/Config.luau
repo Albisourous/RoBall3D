@@ -265,7 +265,6 @@ Config.Features = {
 		Fork = 1500,
 		PadHop = 1700,
 		PadVoid = 2100,
-		TunnelSlot = 2200,
 		DropGate = 2300,
 		PressRow = 2600,
 		Pacer = 2700,
@@ -282,7 +281,6 @@ Config.Features = {
 		"Fork",
 		"PadHop",
 		"PadVoid",
-		"TunnelSlot",
 		"DropGate",
 		"PressRow",
 		"Pacer",
@@ -319,7 +317,6 @@ Config.Features = {
 		Fork = "FORK",
 		PadHop = "PAD HOP",
 		PadVoid = "PAD VOID",
-		TunnelSlot = "TUNNEL",
 		DropGate = "DROP GATE",
 		PressRow = "PRESS ROW",
 		Pacer = "PACERS",
@@ -400,7 +397,7 @@ Config.Movers = {
 -- Each press row leaves one permanent side lane; under the plate is a
 -- timed shortcut, not the guaranteed line.
 Config.Press = {
-	RoofH = 8, -- gantry/hang height
+	HangH = 8, -- gantry hang height — press plates' tops anchor here
 	LiftClear = 5.5, -- raised bottom edge: 2.5 studs over the ball —
 	-- the under-route must read as a real gap, not a skim
 	SlamGap = 0.4, -- slammed bottom edge — always a touch
@@ -416,14 +413,6 @@ Config.Press = {
 	-- it's dropped into the under-route — a timed dodge, not a lane take.
 	ThreadBonus = 6,
 	ThreadMinDrop = 0.2, -- plate must be ≥20% into its travel to count
-}
-
-Config.Tunnel = {
-	RoofH = 12, -- gatehouse arch height — tall enough to silhouette the
-	-- hanging wall against open sky
-	FrameW = 0.6, -- arch post/crossbeam/doorway-strip thickness
-	ToothMin = 2, -- decorative ceiling teeth…
-	ToothMax = 3.5, -- …bottom stays >4.5 above deck: lethal, unreachable
 }
 
 Config.Blackout = {
@@ -552,7 +541,6 @@ Config.Tiers = {
 			"Fork",
 			"PadHop",
 			"PadVoid",
-			"TunnelSlot",
 			"DropGate",
 		},
 		widthMin = 14,
@@ -580,7 +568,6 @@ Config.Tiers = {
 			"Fork",
 			"PadHop",
 			"PadVoid",
-			"TunnelSlot",
 			"DropGate",
 			"PressRow",
 			"Pacer",
@@ -955,7 +942,6 @@ Config.MusicSync = {
 		WallSlot = "lethal",
 		SnakeField = "lethal",
 		Chicane = "lethal",
-		TunnelSlot = "lethal",
 		DropGate = "lethal",
 		PressRow = "lethal",
 		Pacer = "lethal",
