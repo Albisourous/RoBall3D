@@ -96,6 +96,13 @@ explainable.
 
 - **Steering**: `A`/`D` or `Left`/`Right` apply lateral acceleration
   (momentum — the ball keeps drifting when released, damped slightly when idle).
+- **Bank pull** (`Config.Steering.BankPull`): a rolled deck pulls the ball
+  toward its low edge — the under-ball surface normal carries the bank, so
+  `sin(roll)·BankPull` biases the lateral velocity target whenever the ball
+  is grounded. Idle drifts downhill; counter-steer still wins but pays the
+  pull out of `MaxLateralSpeed`, and a downhill steer exceeds it (gravity
+  assist). Airborne reads no surface — jumps stay clean. This is what makes
+  Tilt/Sway a verb instead of scenery.
 - **Power meter** (`Config.Power`): one shared resource bar driving all
   three verbs — hold `W`/`↑` = ×`Mult` (1.5) boost, hold `S`/`↓` = ÷`Mult`
   brake, tap `Q`/`E` = dash (below). The ~1.2s charge drains while a held
@@ -343,7 +350,7 @@ narrow. Then the seeded generator takes over.
 | `Slalom` | Ribbon, centerline sways via sine | Steering warmup | 1+ |
 | `Narrow` | Width lerps down over the chunk | Precision | 2+ |
 | `Widen` | Deck opens to the tier window's upper half in ~35%, then holds; twin edge-margin gem lines | Relief + lateral reach (dash's job) | 5+ |
-| `Tilt` | Ribbon rolls around its long axis ±(8–20°) | Momentum management | 3+ |
+| `Tilt` | Ribbon rolls around its long axis ±(8–20°) — bank pull drags the ball toward the low edge | Momentum management | 3+ |
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
 | `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
@@ -353,7 +360,7 @@ narrow. Then the seeded generator takes over.
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
 | `Terrace` | Deck descends in soft lips — each tread is one whole cosine ease: flat at both seams, steepest mid-tread. No up-slopes, no lip edge, no foot-V — a flying ball only ever meets surfaces sloping away | Free ballistic spectacle | 2+ |
 | `Swell` | Full-width ribbon undulating in y — rolling hills, up and down 3–6 times a chunk (amp 2–7); integer sine periods land the exit on the entry height, and `Swell.SlopeMax` keeps crests as air-popping hops, never walls | Kinesthetic rest | 2+ |
-| `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave | Hold the line | 2+ |
+| `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave, and bank pull surfs the ball with each crest | Hold the line | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |
 | `Blackout` | Flat geometry, grid/center neon dims to rails+gems only — break sections only | Atmosphere | 3+ |
 | `Chicane` | Wall rows with gaps pinned to alternating rails | S-steer combo | 4+ |

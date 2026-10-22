@@ -881,6 +881,19 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 
 	local steer = Config.Steering
+	-- Bank pull (§4): a rolled deck nudges the ball toward its low edge —
+	-- the lane probe's surface normal carries the bank (-normal.X = sin
+	-- roll), so the pull rides the same velocity-ease as steering: idle
+	-- drifts downhill, counter-steer still wins but pays the pull out of
+	-- MaxLateralSpeed. Airborne reads no surface — pull stays zero.
+	local bp = b.Position
+	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
+	local grounded = drop ~= nil
+		and bp.Y - (drop :: RaycastResult).Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad
+	local bankPull = 0
+	if grounded and drop then
+		bankPull = -drop.Normal.X * steer.BankPull
+	end
 	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
 	-- — the target pins to dash Speed and the accel is ~13x, so the dart
@@ -896,10 +909,10 @@ RunService.Heartbeat:Connect(function(dt)
 		dashBuffered = nil
 	end
 	local dashing = now < dashUntil
-	local targetLat = intent * steer.MaxLateralSpeed
+	local targetLat = intent * steer.MaxLateralSpeed + bankPull
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	if dashing then
-		targetLat = dashDir * (if inFlip then -1 else 1) * Config.Dash.Speed
+		targetLat = dashDir * (if inFlip then -1 else 1) * Config.Dash.Speed + bankPull
 		accel = Config.Dash.Accel
 	end
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
@@ -1067,16 +1080,14 @@ RunService.Heartbeat:Connect(function(dt)
 	-- folder counts as support (backdrop towers and ghost echoes can't
 	-- fake ground); blocks and walls inside it support honestly.
 	local E = Config.EdgeWarn
-	local bp = b.Position
 	local lp = workspace:Raycast(bp + Vector3.new(-E.ProbeSide, 0, 0), EDGE_DOWN * E.ProbeDown, edgeParams)
 	local rp = workspace:Raycast(bp + Vector3.new(E.ProbeSide, 0, 0), EDGE_DOWN * E.ProbeDown, edgeParams)
 	ui:setEdgeWarn(lp == nil, rp == nil)
 
-	-- Airtime stat (§11): a lane-only probe straight down decides
-	-- grounded vs airborne — the death card turns it into "air N%" of
-	-- run time.
-	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
-	if drop and bp.Y - drop.Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad then
+	-- Airtime stat (§11): the same lane probe that drives bank pull
+	-- decides grounded vs airborne — the death card turns it into "air
+	-- N%" of run time.
+	if grounded then
 		statGroundT += dt
 	else
 		statAirT += dt

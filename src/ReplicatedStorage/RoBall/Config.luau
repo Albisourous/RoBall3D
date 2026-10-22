@@ -82,6 +82,9 @@ Config.Steering = {
 	MaxLateralSpeed = 26, -- studs/s
 	LateralAccel = 90, -- studs/s^2
 	IdleLateralDamping = 6, -- extra damping when no steer key held (kills drift)
+	BankPull = 30, -- downhill drift speed at sin(bank)=1 — a banked deck
+	-- nudges the ball toward its low edge (Sway/Tilt); counter-steer still
+	-- wins but pays the pull out of MaxLateralSpeed
 	SettleSeconds = 0.8, -- "rolling…" settle: steering locked this long after RunStarted (§6)
 	-- Unstick hop (§11): grounded + real forward speed under 15% of target
 	-- for UnstickTime = wedged on a seam lip — pop one Y impulse to clear it.
