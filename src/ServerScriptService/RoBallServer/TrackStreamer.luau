@@ -248,6 +248,61 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	outline.SurfaceTransparency = 1
 	outline.Parent = b
 	b.Parent = parent
+	-- PressRow plate (§8.6 open crusher): the read kit that replaces the
+	-- roof — a ghost-red deck footprint marking the kill zone, and a thin
+	-- neon gantry (rim posts + crossbeam) showing what the plate hangs
+	-- from. All scenery: non-collide, can't snag or wedge.
+	if ob.motion and ob.motion.kind == "dropY" then
+		local z = spec.startZ - ob.t * spec.length
+		local zone = Instance.new("Part")
+		zone.Name = "PressZone"
+		zone.Anchored = true
+		zone.CanCollide = false
+		zone.CanQuery = false
+		zone.CanTouch = false
+		zone.CastShadow = false
+		zone.Material = Enum.Material.Neon
+		zone.Color = Config.LethalColor
+		zone.Transparency = Config.Press.ZoneTrans
+		zone.Size = Vector3.new(ob.w, 0.12, ob.d)
+		zone.CFrame = CFrame.new(laneX + mid.centerX + ob.xOff, mid.y + 0.06, z) * CFrame.Angles(pitch, 0, roll)
+		zone.Parent = parent
+
+		local gw = Config.Press.GantryW
+		local hangTop = mid.y + (mid.roofH or Config.Press.RoofH)
+		local gantryColor = Palette.dimAt(-z, Config.Art.GridValue)
+		for _, px in ipairs({ -mid.width / 2 + gw / 2, mid.width / 2 - gw / 2 }) do
+			local post = Instance.new("Part")
+			post.Name = "PressGantry"
+			post.Anchored = true
+			post.CanCollide = false
+			post.CanQuery = false
+			post.CanTouch = false
+			post.CastShadow = false
+			post.Material = Enum.Material.Neon
+			post.Color = gantryColor
+			post.Size = Vector3.new(gw, hangTop - mid.y, gw)
+			post.CFrame = CFrame.new(laneX + mid.centerX + px, mid.y + (hangTop - mid.y) / 2, z)
+				* CFrame.Angles(pitch, 0, roll)
+			post.Parent = parent
+		end
+		local beam = Instance.new("Part")
+		beam.Name = "PressGantry"
+		beam.Anchored = true
+		beam.CanCollide = false
+		beam.CanQuery = false
+		beam.CanTouch = false
+		beam.CastShadow = false
+		beam.Material = Enum.Material.Neon
+		beam.Color = gantryColor
+		beam.Size = Vector3.new(mid.width, gw, gw)
+		beam.CFrame = CFrame.new(laneX + mid.centerX, hangTop + gw / 2, z) * CFrame.Angles(pitch, 0, roll)
+		beam.Parent = parent
+		-- Slam telegraph: the plate's outline fills toward solid as the
+		-- wave drops — MoverController drives SurfaceTransparency off the
+		-- shared pulse each frame.
+		outline.SurfaceColor3 = Config.LethalColor
+	end
 	-- Spin arms (Rotor): the moving hazard gets the loudest read — a neon
 	-- blade, plus a translucent disc tinting exactly the swept zone so the
 	-- always-clear rim lanes read from render distance.
@@ -626,11 +681,12 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
 		end
 
-		-- TunnelSlot/PressRow roof (§8.6): a dark ceiling ribbon with neon
+		-- TunnelSlot roof (§8.6): a dark ceiling ribbon with neon
 		-- edge lines enclosing the deck. Non-collide — a pad-launched ball
-		-- sails through the ribbon instead of landing on the ceiling or
-		-- wedging under PressRow's roof fade ramps.
-		if mid.roofH and mid.roofH > 0.1 then
+		-- sails through the ribbon instead of landing on the ceiling.
+		-- PressRow is openTop: roofH is only the presses' hang anchor and
+		-- per-press gantries carry the enclosure read instead.
+		if mid.roofH and mid.roofH > 0.1 and not spec.openTop then
 			local roofY = topY + mid.roofH
 			local roof = makeSlicePart(holder, centerX, roofY, zMid, width, span, pitch, roll, spec.type, deckColor)
 			roof.CanCollide = false
@@ -709,7 +765,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 				makeGridStrip(holder, centerX, mid.y, zMid, mid.width, pitch, roll, spec.type, stripColor)
 			end
 			-- TunnelSlot rib: a neon line across the ceiling sells the tube.
-			if mid.roofH and mid.roofH > 1 then
+			if mid.roofH and mid.roofH > 1 and not spec.openTop then
 				makeGridStrip(
 					holder,
 					centerX,

@@ -64,6 +64,8 @@ export type ChunkSpec = {
 	orbs: { Orb }?, -- OrbHop (flag: Features.JumpOrbs)
 	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
+	openTop: boolean?, -- PressRow: keep roofH as the hang anchor but skip
+	-- the ceiling ribbon — open sky so the presses read on approach
 	debut: boolean?, -- set by GenCore when this chunk is the feature's gentle showcase
 	hoop: { t: number }?, -- RampGap: neon ring at the gap's flight apex — threading it pays gems (§10)
 }
@@ -1428,11 +1430,13 @@ function ChunkDefs.DropGate(rng: Random, st: GenState, _tier, debut: boolean?): 
 	)
 end
 
--- PressRow: a low roof over the deck and ceiling presses that slam on
--- the beat (dropY motion). Each press plate spans all but one side
--- lane — the lane is the guaranteed line; rolling under the plate
--- during its lift window is the shortcut. The side zigzags per row so
--- the safe line still costs lateral commitment.
+-- PressRow: ceiling presses slam on the beat (dropY motion), each
+-- hanging in a neon gantry frame under an open sky — no roof ribbon, so
+-- the rows read from render distance. Each plate spans all but one side
+-- lane — the lane is the guaranteed line (a translucent red footprint on
+-- the deck marks the kill zone); rolling under the plate during its lift
+-- window is the shortcut. The side zigzags per row so the safe line still
+-- costs lateral commitment.
 function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): ChunkSpec
 	local halfW = st.width / 2
 	-- Chained timing rows: each press needs its own reaction window —
@@ -1504,10 +1508,12 @@ function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): C
 			end
 		end
 	end
-	return spec("PressRow", st, length, function(t)
-		local e = math.min(t / 0.18, (1 - t) / 0.18, 1)
-		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH * e }
+	local s = spec("PressRow", st, length, function(_t)
+		-- roofH is only the hang anchor now — no roof fades on an open top.
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, obstacles, gems)
+	s.openTop = true
+	return s
 end
 
 -- Pacer: a wall PAIR whose fixed-width gap slides side-to-side on a

@@ -28,6 +28,7 @@ type MoverRec = {
 	period: number,
 	phase: number,
 	epoch: number,
+	outline: SelectionBox?, -- dropY press plates: slam telegraph surface
 }
 
 local active: { [BasePart]: MoverRec } = {}
@@ -86,7 +87,19 @@ function MoverController.init(ballGetter: () -> BasePart?)
 					p.Position = Vector3.new(m.base.X + m.amp * math.sin(ang), m.base.Y, m.base.Z)
 				elseif m.kind == "dropY" then
 					local x = (ang / (math.pi * 2)) % 1
-					p.Position = Vector3.new(m.base.X, m.base.Y - m.amp * MoveWave.pressPulse(x), m.base.Z)
+					local pulse = MoveWave.pressPulse(x)
+					p.Position = Vector3.new(m.base.X, m.base.Y - m.amp * pulse, m.base.Z)
+					-- Slam telegraph (PressRow readability): the wireframe
+					-- plate fills toward solid as the wave drops — wireframe
+					-- = raised/safe, filled = armed.
+					local sb = m.outline
+					if sb == nil then
+						sb = p:FindFirstChildOfClass("SelectionBox")
+						m.outline = sb
+					end
+					if sb then
+						sb.SurfaceTransparency = 1 - (1 - Config.Press.SlamFill) * pulse
+					end
 				else -- spin
 					p.CFrame = CFrame.new(m.base) * CFrame.Angles(0, ang, 0)
 				end

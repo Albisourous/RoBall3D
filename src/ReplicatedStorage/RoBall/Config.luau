@@ -399,10 +399,15 @@ Config.Movers = {
 -- Each press row leaves one permanent side lane; under the plate is a
 -- timed shortcut, not the guaranteed line.
 Config.Press = {
-	RoofH = 7, -- low ceiling — tighter than Tunnel.RoofH
-	LiftClear = 3.6, -- raised bottom edge: the 3-stud ball rolls under
+	RoofH = 7, -- gantry/hang height — tighter than Tunnel.RoofH
+	LiftClear = 4.5, -- raised bottom edge: 1.5 studs over the ball —
+	-- the under-route must read as a real gap, not a skim
 	SlamGap = 0.4, -- slammed bottom edge — always a touch
 	MinSpan = 8, -- narrowest press plate that still reads as a press
+	ZoneTrans = 0.75, -- ghost red deck slab marking each plate's lethal footprint
+	SlamFill = 0.35, -- plate outline surface transparency when fully slammed
+	-- (raised = pure wireframe; filling in IS the slam telegraph)
+	GantryW = 0.55, -- rim post/crossbeam thickness of each press's frame
 	-- Thread bonus (§10): crossing under the plate inside its span while
 	-- it's dropped into the under-route — a timed dodge, not a lane take.
 	ThreadBonus = 6,

@@ -363,7 +363,7 @@ narrow. Then the seeded generator takes over.
 | `TunnelSlot` | Roof ribbon + hanging slabs leaving one corridor + decor teeth | Enclosed corridor | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
-| `PressRow` | Low roof + ceiling presses slamming on a trapezoid wave; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut; the lane is rail-pinned, so the lead grows until a worst-case far-rail entry can afford the `2·halfW − gapW` transit — `canRun` declines decks where that runway would be degenerate | Vertical timing | 6+ |
+| `PressRow` | Open-air crushers: each ceiling press hangs in a neon gantry frame (no roof — `openTop`), slamming on a trapezoid wave; a ghost-red footprint marks each plate's kill zone on the deck and the plate's wireframe fills solid as it slams; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut; the lane is rail-pinned, so the lead grows until a worst-case far-rail entry can afford the `2·halfW − gapW` transit — `canRun` declines decks where that runway would be degenerate | Vertical timing | 6+ |
 | `Rotor` | Near-center post + neon spinning blade; swept disc can't reach either rim — both rails are always-clear lanes, and a translucent danger disc tints the swept zone | Timing + bait gems | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
@@ -383,16 +383,22 @@ narrow. Then the seeded generator takes over.
 
 **Feature chunks (§8.6) extend the contract**
 - `Section.cutoutOff` shifts a cutout's center off the deck axis (Fork).
-- `Section.roofH` emits a dark ceiling ribbon + neon ribs (TunnelSlot,
-  PressRow). Non-collide — a launched ball sails through it rather than
-  riding the roof (a collidable roof fade ramp scooped PadHop landings
-  onto the ceiling and pinned slow rollers under the exit wedge).
+- `Section.roofH` emits a dark ceiling ribbon + neon ribs (TunnelSlot)
+  and anchors `hang` slabs. Non-collide — a launched ball sails through
+  it rather than riding the roof (a collidable roof fade ramp scooped
+  PadHop landings onto the ceiling and pinned slow rollers under the
+  exit wedge). `ChunkSpec.openTop` (PressRow) keeps `roofH` as the hang
+  anchor but skips the ribbon + ribs — open sky, and each press carries
+  its own gantry frame + ghost footprint instead.
 - `Obstacle.hang` anchors a slab's top to `roofH` — hanging gate columns.
 - `Obstacle.motion` (`slideX`/`spin`/`dropY` + periodSec/phase) —
   beat-locked movers; periods are whole-note counts of the heard tempo
   so the hazard cycle IS the music. `dropY` runs a trapezoid pulse —
   raised, fast slam, hold, rise — driven by `Config.Movers.Press*Frac`
-  (shape shared via `MoveWave.pressPulse`). Mover parts carry the whole
+  (shape shared via `MoveWave.pressPulse`), and `MoverController` fills
+  the plate's outline surface toward `Press.SlamFill` as the pulse rises —
+  the wireframe going solid IS the slam telegraph. Mover parts carry the
+  whole
   waveform as `Mover*` attributes + a `RoBallMover` tag; the server's
   `StepHz` writes feed only its own hazard bookkeeping while the
   client's `MoverController` re-evaluates the wave every frame on the
