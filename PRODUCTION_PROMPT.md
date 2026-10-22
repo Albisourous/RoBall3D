@@ -52,9 +52,9 @@ entirely.
       speed at `padT × initial length` while the pad rides `padT` of the
       *grown* chunk — sub-stud under the old log tail, ~4 studs under the
       linear tail. Re-sweep after any ChunkDefs/Tiers touch).
-- [ ] Purity check: no `math.random`, no Instance creation in
-      `GenCore`/`ChunkDefs` — grep before tagging the build.
-- [ ] `StreamingEnabled` off, `CharacterAutoLoads` off,
+- [x] Purity check: no `math.random`, no Instance creation in
+      `GenCore`/`ChunkDefs` — grep clean.
+- [x] `StreamingEnabled` off, `CharacterAutoLoads` off,
       `FallenPartsDestroyHeight` stays declarative in
       `default.project.json` (-50000), never set from a script.
 

@@ -768,8 +768,13 @@ function ShopService.init()
 	-- Dev-product receipts (§18 P2 gem packs): the ONLY ProcessReceipt
 	-- handler in the game — it must answer every product id the client can
 	-- prompt. Unknown/unfinished work returns NotProcessedYet so Roblox
-	-- retries instead of silently eating a purchase.
+	-- retries instead of silently eating a purchase. PurchaseId dedup
+	-- covers same-session redelivery (a retry that lands after grant).
+	local seenReceipts = {}
 	MarketplaceService.ProcessReceipt = function(receipt)
+		if seenReceipts[receipt.PurchaseId] then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
 		local productKey = nil
 		for key, id in pairs(Config.Monetization.Products) do
 			if id > 0 and id == receipt.ProductId then
@@ -795,6 +800,7 @@ function ShopService.init()
 		end
 		local granted = Config.Monetization.ProductGems[productKey] or 0
 		ShopService.grantGems(player, granted)
+		seenReceipts[receipt.PurchaseId] = true
 		print("[RoBall3D] gem pack", productKey, "+", granted, "->", player.Name)
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
