@@ -232,13 +232,14 @@ local function makeLane(floorI: any)
 			local tileZ = slabSpan / nRow
 			local tileX = LANE_W / nCol
 			for row = 0, nRow - 1 do
+				local tileZPos = zm + slabSpan / 2 - (row + 0.5) * tileZ
 				for col = 0, nCol - 1 do
 					local p = vpart(
 						Vector3.new(tileX + 0.2, Gen.TrackThickness, tileZ + 0.2),
 						Vector3.new(
 							-LANE_W / 2 + (col + 0.5) * tileX,
-							deckTopAt(zm) - Gen.TrackThickness / 2,
-							zm + slabSpan / 2 - (row + 0.5) * tileZ
+							deckTopAt(tileZPos) - Gen.TrackThickness / 2,
+							tileZPos
 						),
 						if (row + col) % 2 == 0 then deckBase else floorI.deckB
 					)
