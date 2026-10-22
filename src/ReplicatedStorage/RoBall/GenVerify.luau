@@ -177,8 +177,11 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 
 		-- Flat-exit contract: roll, cutout, walls and roof are chunk-internal —
 		-- every chunk must hand the next a level, open seam. A non-flat entry
-		-- means the previous chunk's exit broke the convention.
-		if math.abs(s0.rollDeg) > 0.5 or (s0.cutout or 0) > 0.5 or (s0.wallH or 0) > 0.5 or (s0.roofH or 0) > 0.5 then
+		-- means the previous chunk's exit broke the convention. openTop chunks
+		-- (PressRow) keep roofH as the presses' hang anchor only — no roof
+		-- geometry exists at the seam, so it can't break the contract.
+		local entryRoof = if spec.openTop then 0 else s0.roofH or 0
+		if math.abs(s0.rollDeg) > 0.5 or (s0.cutout or 0) > 0.5 or (s0.wallH or 0) > 0.5 or entryRoof > 0.5 then
 			bad(
 				string.format(
 					"non-flat entry: roll %.2f cut %.2f wall %.2f roof %.2f",

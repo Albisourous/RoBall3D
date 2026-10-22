@@ -382,7 +382,8 @@ Config.Movers = {
 	RotorDiscTrans = 0.8, -- ghost tint marking the swept zone's edge
 	PressBeats = 4, -- slam cycle length in beats (debut runs it 1.5x)
 	PressDownFrac = 0.12, -- cycle share spent slamming down
-	PressHoldFrac = 0.28, -- cycle share held on the deck (lethal window)
+	PressHoldFrac = 0.2, -- cycle share held on the deck (lethal window)
+	-- shorter hold = longer raised window = more time under
 	PressUpFrac = 0.22, -- cycle share rising back
 	-- Replication thrift (PERFORMANCE.md §2): every Position/CFrame write
 	-- goes to every client — stepping movers at frame rate was the
@@ -399,11 +400,14 @@ Config.Movers = {
 -- Each press row leaves one permanent side lane; under the plate is a
 -- timed shortcut, not the guaranteed line.
 Config.Press = {
-	RoofH = 7, -- gantry/hang height — tighter than Tunnel.RoofH
-	LiftClear = 4.5, -- raised bottom edge: 1.5 studs over the ball —
+	RoofH = 8, -- gantry/hang height
+	LiftClear = 5.5, -- raised bottom edge: 2.5 studs over the ball —
 	-- the under-route must read as a real gap, not a skim
 	SlamGap = 0.4, -- slammed bottom edge — always a touch
 	MinSpan = 8, -- narrowest press plate that still reads as a press
+	LaneMul = 1.45, -- safe-lane width × CorridorMin — a far-rail entry owes
+	-- (2·halfW − lane) of lateral transit; wider lane = beatable dash
+	DebutLaneMul = 1.8, -- same, on the debut showcase
 	ZoneTrans = 0.75, -- ghost red deck slab marking each plate's lethal footprint
 	SlamFill = 0.35, -- plate outline surface transparency when fully slammed
 	-- (raised = pure wireframe; filling in IS the slam telegraph)

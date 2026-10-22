@@ -882,7 +882,7 @@ local MinEntryWidth = {
 	Rotor = 23, -- center-post windmill needs arm half >= 3 with both rim lanes
 	Fork = 24,
 	TunnelSlot = 18,
-	PressRow = 20, -- MinSpan press + a debut-wide side lane
+	PressRow = 21, -- MinSpan press + a debut-wide side lane
 }
 
 -- Eligibility gate for pool + debut picks (§8.6): features that need a
@@ -925,7 +925,7 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 		-- (Rotor's standard): row spacing + tail are the chain's own
 		-- length, which feature chunks may legitimately exceed.
 		local halfW = st.width / 2
-		local gapW = math.min(Config.Obstacles.CorridorMin * 1.15, st.width - Config.Press.MinSpan)
+		local gapW = math.min(Config.Obstacles.CorridorMin * Config.Press.LaneMul, st.width - Config.Press.MinSpan)
 		if gapW < Config.Obstacles.CorridorMin then
 			return true -- plates can't spawn: the roof-only run is all lane
 		end
@@ -1453,8 +1453,10 @@ function ChunkDefs.PressRow(rng: Random, st: GenState, tier, debut: boolean?): C
 	local dropAmp = liftClear - Config.Press.SlamGap
 	-- The side lane honors CorridorMin; the press keeps at least MinSpan
 	-- of plate or it reads as a pillar, not a press.
-	local gapW =
-		math.min(Config.Obstacles.CorridorMin * (if debut then 1.6 else 1.15), 2 * halfW - Config.Press.MinSpan)
+	local gapW = math.min(
+		Config.Obstacles.CorridorMin * (if debut then Config.Press.DebutLaneMul else Config.Press.LaneMul),
+		2 * halfW - Config.Press.MinSpan
+	)
 	local obstacles = {}
 	local gems = {}
 	if gapW >= Config.Obstacles.CorridorMin then
