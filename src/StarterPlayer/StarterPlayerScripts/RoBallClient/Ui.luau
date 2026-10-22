@@ -186,7 +186,7 @@ function Ui.new(): Ui
 	-- permanent zones: left GARAGE rail (the shop is zero clicks away —
 	-- conversion needs the merch always visible + a try-before-you-buy
 	-- preview), center poster column (title / PLAY / dash / seed /
-	-- track / best / missions ticker), right LEADERBOARD rail. The
+	-- track / best), right LEADERBOARD rail. The
 	-- missions card rides the bottom edge permanently — today's quests
 	-- are part of the poster, not a pop-up.
 
@@ -229,7 +229,7 @@ function Ui.new(): Ui
 	local menuCol = Instance.new("Frame")
 	menuCol.Name = "Hero"
 	menuCol.BackgroundTransparency = 1
-	menuCol.Size = UDim2.fromOffset(560, 500) -- poster column: title, PLAY, run controls, best, ticker
+	menuCol.Size = UDim2.fromOffset(560, 500) -- poster column: title, PLAY, run controls, best
 	menuCol.Position = UDim2.fromScale(0.5, 0.44)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
@@ -425,11 +425,6 @@ function Ui.new(): Ui
 	end)
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 10)
-
-	-- Missions ticker: one dim line under BEST — the poster's one-line
-	-- summary; the card itself is already up, so this is read-only.
-	self.missionTicker = label(menuCol, "missions ›", 13, F_DATA, C_DIM, 11)
-	self.missionTicker.AutomaticSize = Enum.AutomaticSize.X
 
 	-- Missions card (§14): today's three seeded missions — ✓ gold when
 	-- done, ◇ dim while open; the bank quest shows today's running
@@ -2227,23 +2222,9 @@ function Ui:toast(text: string)
 	end)
 end
 
--- Achievement tally on the menu (§14): "awards n/total".
--- Hero ticker ("missions 2/3 · awards 4/8"): the poster's one-line
--- summary of the always-on missions card — setQuests/setAchievements
--- keep it current.
-function Ui:paintMissionTicker()
-	self.missionTicker.Text = string.format(
-		"missions %d/%d · awards %d/%d",
-		self._questDone or 0,
-		self._questTotal or #Daily.quests(),
-		self._achDone or 0,
-		#Config.Monetization.Achievements
-	)
-end
-
+-- Achievement tally on the menu (§14): "awards n/total" in the
+-- always-on missions card's footer.
 function Ui:setAchievements(unlocked: number)
-	self._achDone = unlocked
-	self:paintMissionTicker()
 	self.achLine.Text = string.format("awards %d/%d", unlocked, #Config.Monetization.Achievements)
 end
 
@@ -2254,9 +2235,7 @@ function Ui:setQuests(csv: string)
 	self.missionCsv = csv
 	local parts = string.split(csv, ",")
 	local banked = tonumber(parts[#parts]) or 0
-	local doneCount = 0
 	for i, q in ipairs(Daily.quests()) do
-		doneCount += if parts[i] == "1" then 1 else 0
 		local line = self.questLines[i]
 		if line then
 			local done = parts[i] == "1"
@@ -2268,9 +2247,6 @@ function Ui:setQuests(csv: string)
 			line.TextColor3 = done and C_GOLD or C_DIM
 		end
 	end
-	self._questDone = doneCount
-	self._questTotal = #Daily.quests()
-	self:paintMissionTicker()
 end
 
 -- Live mission tracker (§14): snapshot the bank balance at run start so

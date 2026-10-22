@@ -200,7 +200,7 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   Three permanent zones: a left **GARAGE rail** (always open — the shop
   is zero clicks away, conversion needs the merch visible), a center
   **poster column** (title `ROBALL3D` over a hairline cyan→pink horizon
-  rule, PLAY, dash, seed, track, best, missions ticker), and a right
+  rule, PLAY, dash, seed, track, best), and a right
   **LEADERBOARD rail** (always open — your rank is the ad for the rerun
   loop). The missions card is the only pop-up: a deck card over the
   bottom caption row (`dashHint` keymap).
@@ -216,10 +216,10 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     today (a rolled seed is never mirrored into the box).
   - **TRACK row** — under the seed row; `‹ name ›` cycler picks the
     run's song (AUDIO.md §3).
-  - **Missions ticker** — one dim line under BEST (`missions n/3 ·
-    awards n/N`), fed by `setQuests`/`setAchievements`; the missions
-    card itself rides the bottom edge permanently (`◇` open / `✓`
-    done quests + award tally, §14) — no click to reveal it.
+  - **Missions card** — rides the bottom edge permanently (`◇` open /
+    `✓` done quests + award tally, §14), fed by `setQuests`/
+    `setAchievements` — no click to reveal it and no duplicate
+    summary line under BEST.
   - **GARAGE rail** — tabbed `STYLE | PACKS | BANK | AUDIO`: equip
     cyclers, bundle passes, the gem bank, and the audio mixer (§18).
     The bank balance lives in the garage header — spendable gems sit
