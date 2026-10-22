@@ -134,8 +134,12 @@ MusicController for a future multi-stem upload. The run's seed picks
 from `Config.Music.ActiveTracklist` — Tracklist order minus ids that
 can't play (no master `AssetId` AND no complete `Stems` set), so an
 undecodable track can never be seeded — via `SongMap.trackIdFor`:
-**same seed → same track + same map + same musical pacing** — the
-leaderboard row becomes a replayable "level" exactly like a GD ID.
+**same seed → same track + same heard audio**. The generator does NOT
+follow it — `GenCore` clocks its beat grid on the fixed `MenuTrack`
+reference map so gem spacing, mover periods, section energy, and accent
+quantization are identical for every song (fairness: the track pick
+skins the audio, never the level; `ps(v)` still scales the grid with
+ball speed). The leaderboard row stays a replayable "level" like a GD ID.
 Every current track is master-only and plays a single player (the stem
 watchdog path already tolerates that). Grow the canon by adding a
 `TRACKS` spec in

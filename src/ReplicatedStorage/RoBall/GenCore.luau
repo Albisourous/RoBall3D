@@ -29,11 +29,13 @@ function GenCore.new(seed: number): Gen
 	}
 	-- Musical clock (AUDIO.md §5.2): song-beats elapsed at st.dist on the
 	-- nominal speed schedule, accumulated incrementally per chunk so the
-	-- integral stays O(chunk) instead of re-summing from zero. The run's
-	-- track is the seeded pick the runtime shares (AUDIO.md §3), and it
-	-- opens on a seed-rotated accent (§6) — start the clock there so
-	-- stamped sections match what the player hears from beat one.
-	self.map = SongMap.forTrack(SongMap.trackIdFor(seed, Config.Music.ActiveTracklist))
+	-- integral stays O(chunk) instead of re-summing from zero. The clock
+	-- is pinned to ONE reference map — the seeded track pick only chooses
+	-- what the player HEARS (MusicController does its own trackIdFor),
+	-- never what the run rolls: gem spacing, mover periods, section
+	-- energy and accent quantization are identical for every song, and
+	-- PlaybackSpeed still scales the grid with ball speed.
+	self.map = SongMap.forTrack(Config.Music.MenuTrack)
 	-- Seed flavor (§8.7): one mutator record, rolled on a salted stream so
 	-- the flavor pick never shifts the chunk roll sequence.
 	self.mutator = Mutator.forSeed(seed)

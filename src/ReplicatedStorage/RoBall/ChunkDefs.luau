@@ -213,9 +213,9 @@ end
 -- ===================== rhythmic gem clusters =====================
 -- Cluster sizes are note groupings: 8 = sixteenths, 4 = eighths,
 -- 2 = quarters, 1 = single accent. Spacing scales with ball speed so the
--- pickup INTERVAL is a constant note value at any pace — the heard BPM is
--- Music.BaseBpm * PlaybackSpeed, and PlaybackSpeed ramps with the same
--- speed curve the ball uses.
+-- pickup INTERVAL is a constant note value at any pace — the grid BPM is
+-- the reference map's bpm * PlaybackSpeed, and PlaybackSpeed ramps with
+-- the same speed curve the ball uses (song-independent by design).
 
 local GEM_BOUND = 0.92 -- keep lines off the last sliver of deck
 
@@ -297,7 +297,8 @@ local function energyOf(st: GenState): number
 	return (st.section and st.section.energy) or 0.5
 end
 
--- Run track's tempo for gem spacing — falls back to the default map's bpm.
+-- Reference grid tempo for gen math — pinned to Config.Music.MenuTrack's
+-- map by GenCore so every song generates identical geometry (AUDIO.md §5.2).
 local function bpmOf(st: GenState): number
 	return (st.map and st.map.bpm) or Config.Music.BaseBpm
 end
