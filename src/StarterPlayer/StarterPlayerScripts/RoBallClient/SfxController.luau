@@ -195,29 +195,9 @@ function Sfx.dangerPing(intensity: number)
 	end)
 end
 
--- Menu hitsounds (MENU.md §5): UI kicks quantized to the heard grid —
--- the gem-chime trick on quieter voices. Activate lands a low kick
--- that knocks the bed — osu!'s percussion-menu feel. No hover tick —
--- it read as noise, not percussion.
-function Sfx.uiTick()
-	local cfg = Config.Menu.UiTick
-	local delay = Music.nextGridDelay(cfg.Subdiv, cfg.Cap)
-	task.delay(delay, function()
-		local s = Instance.new("Sound")
-		s.Name = "UiTick"
-		s.SoundId = assetUri(Config.DashSfx)
-		s.Volume = cfg.ClickVol * AudioMix.gain("dash")
-		local ps = Instance.new("PitchShiftSoundEffect")
-		ps.Octave = cfg.ClickOct
-		ps.Parent = s
-		s.Parent = SoundService
-		s:Play()
-		s.Ended:Connect(function()
-			s:Destroy()
-		end)
-	end)
-	Music.duck(cfg.ClickDuck, cfg.ClickRelease) -- the kick punches the bed
-end
+-- Menu audio (MENU.md §5): the menu is deliberately silent — no
+-- hitsounds anywhere on the chrome; the bed and the track audition are
+-- the only voices. Grid-snapping stays a gameplay instrument (gem chime).
 
 function Sfx.init()
 	Music.preloadSfx(assetUri(Config.GemSfx)) -- warm the decode so the first pickup isn't late

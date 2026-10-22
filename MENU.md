@@ -27,10 +27,9 @@ Stripped to mechanisms, the osu! menu is seven things:
    slot-machine spin through the same physics, not a jump. Choosing is
    *play*, pre-play.
 3. **Chrome breathes on the beat.** The cookie thumps to the song,
-   panels settle with spring overshoot, every activate lands a kick —
-   and the hitsounds are quantized to the heard grid, so every
-   interaction reads as percussion on the track, not UI noise. (Hover
-   stays silent — a per-mouse-over tick read as noise, not rhythm.)
+   panels settle with spring overshoot — and that's the whole voice:
+   the menu is deliberately silent of SFX (§5). All the rhythm comes
+   from the music itself.
 4. **Selection re-skins the room.** The picked beatmap's art fades in
    behind everything, dimmed — the pick owns the frame before it owns
    the level. The choice is ambient.
@@ -49,7 +48,7 @@ Stripped to mechanisms, the osu! menu is seven things:
 | Beatmap audio plays in menus; play commits the same stream | The picker auditions — the start is a lift, not a cut | `Music.preview(id)` — the TRACK row swaps the muffled menu bed to the browsed song; PLAY opens the filter on it (§3) |
 | Carousel with inertia, snap, tilt | The picker is a toy; browsing is fun itself | A 1-DOF spring on the TRACK row and STYLE cyclers — every cycle overshoots and settles; wheel/drag feeds velocity (§4) |
 | All chrome thumps on the beat | The menu is a rhythm instrument | `Music.sample()` already lands on `self.pulse` every frame — spend it on PLAY + the horizon rule while the menu is up (§2) |
-| Activate hitsounds quantized to the grid | UI noise becomes percussion on the song | `Sfx.uiTick` — a click kick snapped via `Music.nextGridDelay`, exactly like the gem chime (§5; hover stays silent) |
+| Menu hitsounds quantized to the grid | — cut: reads as noise under a quiet bed | Divergence kept: the menu is deliberately SFX-free — bed + audition only (§5); grid-snapping stays a gameplay instrument |
 | Picked map's art owns the frame | The choice is ambient before it's played | Divergence kept: the opaque shop floor stands — the pick re-skins the room through the diorama + accent tint, not a live backdrop (§6) |
 | Grade stamp + one-key retry | The report card has weight; the loop is free | Score hero + `★ NEW BEST` stamp in on a Back ease with a duck punch; retry stays `R` (§7) |
 | Menu visualizer / idle motion | Idle is never dead | `Music.spectrum()` scope strip under the horizon rule — menu-mode only, write-gated like `setWave` (§8) |
@@ -169,41 +168,15 @@ end
 Bonus density (REA #6): under the jacket, `map.bpm` · `loopSeconds` ·
 section count — the picker's stat line, one caption row.
 
-## 5. Grid-snapped ticks — browsing plays the track
+## 5. Menu silence — the bed is the only voice
 
-The gem chime already proved the trick: `Music.nextGridDelay` snaps a
-sound onto the heard grid so it lands *on* the track, capped so it never
-adds latency. Menu sounds are the same play with a quieter voice —
-click/confirm = a low kick plus a duck. Hover is deliberately SILENT:
-a per-mouse-over tick reads as noise, not percussion. Wire `Activated`
-→ kick on PLAY, the arrows, and the tabs.
-
-```luau
--- SfxController.luau — MENU.md §5: UI hitsounds quantized to the heard
--- grid (the gem-chime trick, quieter). Click lands as a kick that
--- knocks the bed — osu!'s percussion-menu feel; hover stays silent.
-function Sfx.uiTick()
-	local cfg = Config.Menu.UiTick
-	local delay = Music.nextGridDelay(cfg.Subdiv, cfg.Cap)
-	task.delay(delay, function()
-		local s = Instance.new("Sound")
-		s.Name = "UiTick"
-		s.SoundId = assetUri(Config.DashSfx)
-		s.Volume = cfg.ClickVol * AudioMix.gain("dash")
-		local ps = Instance.new("PitchShiftSoundEffect")
-		ps.Octave = cfg.ClickOct
-		ps.Parent = s
-		s.Parent = SoundService
-		s:Play()
-		s.Ended:Connect(function()
-			s:Destroy()
-		end)
-	end)
-	Music.duck(cfg.ClickDuck, cfg.ClickRelease) -- the kick punches the bed
-end
-```
-
-Reuses `assetUri`, the dash mixer channel, the duck bus — no new graph.
+The menu plays NO sound effects: no hover tick, no click kick, nothing.
+osu!'s percussion-menu was tried here (grid-snapped `Sfx.uiTick` —
+first a hover hat + click kick, then click-only) and the verdict was
+that under a quiet bed every chrome noise reads as *noise*, not
+rhythm. The song is the menu's whole sound identity: the parked bed,
+and the §3 audition swap when you browse TRACK. `Music.nextGridDelay`
+stays — but as a gameplay instrument (the gem chime), not a UI one.
 
 ## 6. The room wears the pick — accents, not backdrops
 
@@ -295,16 +268,7 @@ Config.Menu = {
 	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
 	SpringDtMax = 1 / 20, -- §4 frame dt cap — a hitch must not slingshot
 	JacketPx = 40, -- §4 cycler overshoot amplitude in px
-	UiTick = { -- §5 grid-snapped menu hitsounds
-		Subdiv = 4, -- 16th-note snap, same as the gem chime
-		Cap = 0.09, -- max added latency before playing raw
-		HoverVol = 0.15,
-		ClickVol = 0.4,
-		HoverOct = 2.0, -- flattened blip, high and thin
-		ClickOct = 0.5, -- low kick
-		ClickDuck = 0.3, -- the click knocks the bed
-		ClickRelease = 0.3,
-	},
+	-- §5: no UiTick block — the menu is deliberately SFX-free.
 	StampSec = 0.25, -- §7 death-hero stamp duration
 	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
 	StampDuck = 0.3, -- §7 duck depth when the card lands

@@ -13,7 +13,6 @@ local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
 local AudioMix = require(script.Parent.AudioMix)
-local Sfx = require(script.Parent.SfxController)
 
 local Ui = {}
 Ui.__index = Ui
@@ -200,16 +199,9 @@ local function spring(pos: number, vel: number, target: number, dt: number): (nu
 	return pos + vel * dt, vel
 end
 
--- Grid-snapped UI hitsounds (MENU.md §5): activate lands a kick — the
--- gem-chime trick on a quieter voice. Activated covers mouse click AND
--- gamepad A (the menu buttons are Selectable), so one pass arms both
--- input paths. No hover tick — it read as noise, not percussion.
-local function wireTick(b: GuiButton)
-	b.Activated:Connect(function()
-		Sfx.uiTick()
-	end)
-end
-
+-- Menu audio (MENU.md §5): the menu is deliberately silent — the bed
+-- and the track audition are the only voices, no hitsounds on any
+-- chrome. Selectable buttons still serve the gamepad cursor.
 export type Ui = typeof(setmetatable({} :: any, Ui))
 
 function Ui.new(): Ui
@@ -411,7 +403,6 @@ function Ui.new(): Ui
 		playStroke.Transparency = 0.55
 	end)
 	self.playBtn = play
-	wireTick(play)
 
 	self.playHint = label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6)
 	self.playHint.TextTransparency = 0.25
@@ -450,7 +441,6 @@ function Ui.new(): Ui
 		dashStroke.Color = C_GOLD
 	end)
 	self.dashToggle = dash
-	wireTick(dash)
 
 	-- SEED row: empty means "daily" — the placeholder IS the default, no
 	-- chip to flip; typed text seeds the map (keywords stay live, §14).
@@ -533,7 +523,6 @@ function Ui.new(): Ui
 	self._trkSpring = { pos = 0, vel = 0, target = 0 }
 	self._trkPos = trkName.Position
 	self._trkKick = 0
-	wireTick(trkName)
 
 	local trkLeft = arrowButton(trkRow, "<", 64, 2)
 	trkLeft.Name = "TrackPrev"
@@ -544,7 +533,6 @@ function Ui.new(): Ui
 			self.onTrackCycle(-1)
 		end
 	end)
-	wireTick(trkLeft)
 	local trkRight = arrowButton(trkRow, ">", 258, 2)
 	trkRight.Name = "TrackNext"
 	trkRight.Selectable = true
@@ -554,7 +542,6 @@ function Ui.new(): Ui
 			self.onTrackCycle(1)
 		end
 	end)
-	wireTick(trkRight)
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 10)
 
@@ -634,7 +621,6 @@ function Ui.new(): Ui
 		b.Position = UDim2.fromOffset(x, 10)
 		b.Size = UDim2.fromOffset(96, 26)
 		b.Parent = board
-		wireTick(b)
 		return b
 	end
 	-- DAILY leads: the menu's default run is today's shared seed, so its
@@ -835,7 +821,6 @@ function Ui.new(): Ui
 		b.MouseButton1Click:Connect(function()
 			setGarageTab(name)
 		end)
-		wireTick(b)
 	end
 	setGarageTab("STYLE")
 
@@ -2514,8 +2499,6 @@ function Ui.new(): Ui
 	end)
 	self.retryBtn = retry
 	self.toMenuBtn = toMenu
-	wireTick(retry)
-	wireTick(toMenu)
 	self.deathHint = label(dCol, "press R", 13, F_DATA, C_DIM, 8)
 	self.deathHint.TextTransparency = 0.25
 

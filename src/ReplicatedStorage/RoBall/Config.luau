@@ -1605,21 +1605,14 @@ Config.CustomHue = {
 }
 
 -- Menu feel (MENU.md): osu!-informed chrome — poster thump on the bed,
--- spring pickers, grid-snapped hitsounds, death stamp, menu scope strip.
+-- spring pickers, death stamp, menu scope strip. No hitsounds (§5).
 Config.Menu = {
 	ChromePulse = 0.04, -- §2 poster swell per pulse unit
 	SpringStiff = 170, -- §4 cycler spring stiffness
 	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
 	SpringDtMax = 1 / 20, -- §4 frame dt cap — a hitch must not slingshot the spring
 	JacketPx = 40, -- §4 cycler overshoot amplitude in px
-	UiTick = { -- §5 grid-snapped menu hitsounds (click only — the hover tick read as noise)
-		Subdiv = 4, -- 16th-note snap, same as the gem chime
-		Cap = 0.09, -- max added latency before playing raw
-		ClickVol = 0.4,
-		ClickOct = 0.5, -- low kick
-		ClickDuck = 0.3, -- the click knocks the bed
-		ClickRelease = 0.3,
-	},
+	-- §5: no menu hitsounds — deliberate silence; the bed + audition only.
 	StampSec = 0.25, -- §7 death-hero stamp duration
 	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
 	StampDuck = 0.3, -- §7 duck depth when the card lands
