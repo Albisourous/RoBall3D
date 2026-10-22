@@ -1306,12 +1306,17 @@ RunService.RenderStepped:Connect(function(dt)
 		camera.FieldOfView = cam.FovMin + (camera.FieldOfView - cam.FovMin) * (1 - ease)
 		camera.CFrame = CFrame.lookAt(lastBallPos + Vector3.new(rx, off.Y, rz), lastBallPos)
 		Backdrop.update(lastBallPos)
-	else
+	elseif mode == "menu" then
 		-- Menu vista: slow orbit toward the track start
 		local t = tick() * 0.12
 		local p = Vector3.new(math.sin(t) * 55, 40, 30 + math.cos(t) * 25)
 		camera.CFrame = CFrame.lookAt(p, Vector3.new(0, Config.Generation.StartY - 15, -120))
 		Backdrop.update(Vector3.new(0, Config.Generation.StartY, -60))
+	else
+		-- Transitional frames: ball gone but RunEnded hasn't flipped mode
+		-- yet — hold the anchor on the last ball spot so the backdrop
+		-- never sees a phantom teleport to the vista and re-seeds.
+		Backdrop.update(lastBallPos)
 	end
 end)
 

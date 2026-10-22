@@ -47,6 +47,9 @@ local sun: Model
 type Seg = { part: Part, outline: SelectionBox }
 type Tower = { segs: { Seg }, side: number, row: number }
 local towers: { Tower } = {}
+-- Outlines ramp in after a re-lay so a recycled tower materializes on
+-- the horizon instead of popping in at full brightness.
+local towerFades: { [Tower]: number } = {}
 -- Per (side,row) frontier: the z where the next recycled tower goes.
 local frontZ: { [string]: number } = {}
 
@@ -1021,6 +1024,7 @@ local function parkTowers()
 		end
 	end
 	seeded = false
+	table.clear(towerFades)
 end
 
 local function parkPeaks()
@@ -1362,10 +1366,13 @@ function Backdrop.update(anchor: Vector3)
 	if not seeded then
 		seeded = true
 		-- Seed each row's frontier behind the anchor spread across the span,
-		-- so the first frame fills the whole window at once.
+		-- so the first frame fills the whole window at once. Each (side,row)
+		-- chain takes its own lattice phase — otherwise all four chains cross
+		-- the recycle gate on the same frame and the skyline regenerates in
+		-- synchronized bursts on the horizon.
 		for side = -1, 1, 2 do
 			for row = 1, Art.CityRows do
-				frontZ[side .. ":" .. row] = anchor.Z + Art.CitySpacing
+				frontZ[side .. ":" .. row] = anchor.Z + Art.CitySpacing * (1 - rng:NextNumber(0, 0.5))
 			end
 		end
 	end
@@ -1386,6 +1393,22 @@ function Backdrop.update(anchor: Vector3)
 			local tint =
 				Palette.dimAt(dist + ahead * 0.5 + rng:NextNumber(0, 300), Art.CityValue / (1 + (tower.row - 1) * 0.35))
 			layTower(tower, x, baseY, z, tint)
+			for _, seg in ipairs(tower.segs) do
+				seg.outline.Transparency = 1
+			end
+			towerFades[tower] = os.clock()
+		end
+	end
+
+	-- Advance outline fades: parked segs ride along harmlessly — they're
+	-- invisible at PARK either way.
+	for tower, t0 in pairs(towerFades) do
+		local k = 1 - (os.clock() - t0) / Art.CityFadeIn
+		for _, seg in ipairs(tower.segs) do
+			seg.outline.Transparency = math.max(k, 0)
+		end
+		if k <= 0 then
+			towerFades[tower] = nil
 		end
 	end
 end

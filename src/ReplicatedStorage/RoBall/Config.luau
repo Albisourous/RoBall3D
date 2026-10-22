@@ -1114,6 +1114,7 @@ Config.Art = {
 	CityMinD = 30,
 	CityMaxD = 90,
 	CitySegsMax = 3, -- stacked block segments per tower (1..SegsMax)
+	CityFadeIn = 0.7, -- seconds a recycled tower's outline ramps in
 	CityValue = 0.7, -- palette value scale for tower outlines
 	CityFaceValue = 0.10, -- near-black face fill
 	LineThickness = 0.12, -- SelectionBox edge thickness
