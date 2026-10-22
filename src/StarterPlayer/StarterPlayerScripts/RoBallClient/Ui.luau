@@ -150,6 +150,7 @@ function Ui.new(): Ui
 	self.onDashMode = nil :: (() -> ())? -- menu dash-style toggle
 	self.onBuy = nil :: ((bundleId: string) -> ())?
 	self.onGemPack = nil :: ((productKey: string) -> ())?
+	self.onBuyItem = nil :: ((itemId: string) -> ())? -- à-la-carte inside an open pack
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "RoBallGui"
@@ -807,7 +808,7 @@ function Ui.new(): Ui
 		end)
 	end
 
-	local browseHint = label(pageStyle, "cycle equips owned · click a ◊ price to buy", 10, F_DATA, C_DIM, 0)
+	local browseHint = label(pageStyle, "cycle equips owned · click a locked item to open its pack", 10, F_DATA, C_DIM, 0)
 	browseHint.Position = UDim2.fromOffset(0, 6 + #Cosmetics.Slots * 30 + 6)
 	browseHint.TextTransparency = 0.35
 
@@ -951,6 +952,7 @@ function Ui.new(): Ui
 	self.packBtn = {}
 	self.packStroke = {}
 	self.packEnabled = {}
+	self.packRows = {}
 
 	local function itemTint(it: any): Color3
 		local c = it.color or it.ringA or it.colorA
@@ -958,6 +960,28 @@ function Ui.new(): Ui
 	end
 
 	local openPack: Frame? = nil
+	-- One accordion open at a time — shared by the header tap and by
+	-- focusPack (the locked-item funnel landing on a specific bundle).
+	local function setPackOpen(row: Frame, open: boolean)
+		local contents = row:FindFirstChild("Contents")
+		if not contents then
+			return
+		end
+		if open then
+			if openPack and openPack ~= row then
+				setPackOpen(openPack, false)
+			end
+			openPack = row
+			contents.Visible = true
+			row.Size = UDim2.new(1, 0, 0, 40 + row:GetAttribute("ItemCount") * 15)
+		else
+			if openPack == row then
+				openPack = nil
+			end
+			contents.Visible = false
+			row.Size = UDim2.new(1, 0, 0, 36)
+		end
+	end
 	local function packRow(
 		parent: Instance,
 		id: string,
@@ -972,10 +996,12 @@ function Ui.new(): Ui
 		row.BackgroundTransparency = 1
 		row.Size = UDim2.new(1, 0, 0, 36)
 		row.LayoutOrder = order or 0
+		row:SetAttribute("ItemCount", #(items or {}))
 		if y then
 			row.Position = UDim2.fromOffset(0, y)
 		end
 		row.Parent = parent
+		self.packRows[id] = row
 
 		local nl = Instance.new("TextLabel")
 		nl.BackgroundTransparency = 1
@@ -1050,11 +1076,30 @@ function Ui.new(): Ui
 			for j, iid in ipairs(items) do
 				local it = Cosmetics.item(iid)
 				if it then
-					local il = label(contents, "", 10, F_DATA, itemTint(it), 0)
+					-- "buy just this": the à-la-carte escape hatch inside
+					-- the bundle pitch — a locked row click lands on the
+					-- pack, and the gem price still sells the single.
+					local il = Instance.new("TextButton")
+					il.BackgroundTransparency = 1
+					il.AutoButtonColor = false
+					il.Font = F_DATA
+					il.TextSize = 10
+					il.TextColor3 = itemTint(it)
 					il.TextXAlignment = Enum.TextXAlignment.Left
 					il.Position = UDim2.fromOffset(24, (j - 1) * 15)
 					il.Size = UDim2.fromOffset(290, 15)
-					il.Text = string.format("%-8s %s", Cosmetics.SlotName[it.slot], it.name)
+					il.Text = string.format(
+						"%-8s %s%s",
+						Cosmetics.SlotName[it.slot],
+						it.name,
+						if it.gemPrice then string.format("  ◊%d", it.gemPrice) else ""
+					)
+					il.Parent = contents
+					il.MouseButton1Click:Connect(function()
+						if self.onBuyItem then
+							self.onBuyItem(iid)
+						end
+					end)
 				end
 			end
 
@@ -1066,22 +1111,7 @@ function Ui.new(): Ui
 			hit.Size = UDim2.fromOffset(226, 36)
 			hit.Parent = row
 			hit.MouseButton1Click:Connect(function()
-				if openPack == row then
-					openPack = nil
-					contents.Visible = false
-					row.Size = UDim2.new(1, 0, 0, 36)
-					return
-				end
-				if openPack then
-					local oc = openPack:FindFirstChild("Contents")
-					if oc then
-						oc.Visible = false
-					end
-					openPack.Size = UDim2.new(1, 0, 0, 36)
-				end
-				openPack = row
-				contents.Visible = true
-				row.Size = UDim2.new(1, 0, 0, 40 + #items * 15)
+				setPackOpen(row, openPack ~= row)
 			end)
 		end
 	end
@@ -1116,6 +1146,41 @@ function Ui.new(): Ui
 	for i, b in ipairs(Cosmetics.Bundles) do
 		local desc = if b.id == Config.Monetization.Seasonal.Bundle then seasonalDesc(b.desc) else b.desc
 		packRow(scroll, b.id, b.name, desc, nil, i, b.items)
+	end
+
+	-- Locked-item funnel (§18): clicking an unowned STYLE row lands the
+	-- player on the bundle that unlocks it — PACKS opens, the accordion
+	-- unfolds, the scroll snaps the row into view, and the buy chip
+	-- flares cyan so the eye lands on the purchase.
+	local packFlash = 0
+	self._focusPack = function(id: string)
+		local row = self.packRows[id]
+		if not row then
+			return
+		end
+		setGarageTab("PACKS")
+		setPackOpen(row, true)
+		-- Measure after the accordion relayout settles — opening one row
+		-- can close another and shift every offset below it.
+		task.delay(0.1, function()
+			scroll.CanvasPosition = Vector2.new(
+				0,
+				math.max(0, scroll.CanvasPosition.Y + row.AbsolutePosition.Y - scroll.AbsolutePosition.Y - 6)
+			)
+		end)
+		packFlash += 1
+		local tk = packFlash
+		local st = self.packStroke[id]
+		task.spawn(function()
+			for i = 1, 6 do
+				if packFlash ~= tk or not st or not st.Parent then
+					return
+				end
+				st.Color = if i % 2 == 1 then C_CYAN else C_PINK
+				task.wait(0.12)
+			end
+			st.Color = if self.packEnabled[id] then C_PINK else C_DIM
+		end)
 	end
 
 	--=========== BANK (§18 P2) ===========--
@@ -1947,6 +2012,15 @@ function Ui:setDashMode(m: string)
 	self.dashHint.Text = "A/D steer   ·   W/S boost/brake   ·   "
 		.. (Config.Dash.ModeHint[m] or "Q/E dash")
 		.. "   ·   R restart"
+end
+
+-- Locked-item funnel (§18): clicking an unowned STYLE row calls here with
+-- the bundle that unlocks it. The plumbing (tab swap, accordion, scroll
+-- snap, buy-chip flare) is a closure in Ui.new; this is just the door.
+function Ui:focusPack(id: string)
+	if self._focusPack then
+		self._focusPack(id)
+	end
 end
 
 function Ui:showMenu(best: number)

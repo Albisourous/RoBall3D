@@ -1151,7 +1151,12 @@ RunService.Heartbeat:Connect(function(dt)
 		unstickAfter = now + steer.UnstickCooldown
 		unstickUntil = now + 0.14
 	end
-	local vY = if inFlip then Config.Flip.Lift elseif now < unstickUntil then steer.UnstickHop else v.Y
+	-- The kick stamp reads physics v.Y, not the overridden vY below — an
+	-- unstick window that fires the same frame as a pad must not swallow
+	-- the launch (the pad's KickY is inviolable, §8.6).
+	local kickAt = b:GetAttribute("KickAt") or 0
+	local kicked = v.Y > 0 and now - kickAt <= Config.Landing.KickGrace
+	local vY = if inFlip then Config.Flip.Lift elseif now < unstickUntil and not kicked then steer.UnstickHop else v.Y
 	-- Inside a flip zone vY is pinned to +Lift so gravity can't pull the
 	-- ball off the ceiling; at the zone edge the pin drops and gravity
 	-- takes over — the ball falls ClearH back to the deck.
@@ -1161,8 +1166,6 @@ RunService.Heartbeat:Connect(function(dt)
 	-- pushes itself down hills and carries over crests instead of
 	-- launching (Monkey Ball feel). Fresh pad/orb kicks and genuine
 	-- airtime keep physics Y — gravity owns a real fall.
-	local kickAt = b:GetAttribute("KickAt") or 0
-	local kicked = vY > 0 and now - kickAt <= Config.Landing.KickGrace
 	if not inFlip and now >= unstickUntil and grounded and not kicked then
 		local drive = Vector3.new(lateralVel, 0, -fwdSpeed)
 		local surfY = (drive - surfNormal * drive:Dot(surfNormal)).Y

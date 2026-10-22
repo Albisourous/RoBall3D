@@ -360,6 +360,11 @@ Config.Pads = {
 	Width = 6, -- studs across
 	DebutWidth = 11, -- debut pad is nearly unmissable
 	Length = 4, -- studs along travel
+	-- PadHop rolls padX inside ±width/5 but capped here: on max-width
+	-- decks an uncapped roll parks the pad ~10 studs off the run line —
+	-- readable-steer range at speed, not a hidden coin flip. The strip
+	-- is still the punish for ignoring the pad.
+	MaxOffset = 7,
 	StripH = 2.5, -- lethal strip height the PadHop arc must clear
 	StripMin = 5,
 	StripMax = 10,

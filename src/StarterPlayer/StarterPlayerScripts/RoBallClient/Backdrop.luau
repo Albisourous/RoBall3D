@@ -655,7 +655,7 @@ type SunStyle = { top: Color3, bottom: Color3, solid: number, gap: number, scale
 local SUN_STYLES: { [string]: SunStyle } = Art.SunStyles
 local sunStyle = "classic"
 
-local function makeSun(parent: Instance, st: SunStyle): Model
+local function makeSun(parent: Instance, st: SunStyle, collect: boolean): Model
 	local model = Instance.new("Model")
 	model.Name = "Sun"
 	local r = Art.SunRadius * (st.scale or 1)
@@ -684,7 +684,11 @@ local function makeSun(parent: Instance, st: SunStyle): Model
 		strip.Size = Vector3.new(halfChord * 2, h, Art.SunDepth)
 		strip.Position = Vector3.new(0, y, 0)
 		strip.Parent = model
-		table.insert(sunParts, { part = strip, base = strip.Size })
+		if collect then
+			-- Only the LIVE sun registers for the audio pulse — diorama
+			-- suns would dangle destroyed parts in the table.
+			table.insert(sunParts, { part = strip, base = strip.Size })
+		end
 	end
 	model.Parent = parent
 	return model
@@ -694,7 +698,7 @@ function Backdrop.init()
 	root = Instance.new("Folder")
 	root.Name = "RoBallBackdrop"
 	root.Parent = workspace
-	sun = makeSun(root, SUN_STYLES[sunStyle])
+	sun = makeSun(root, SUN_STYLES[sunStyle], true)
 	-- Mid-band bloom punch — bind the server's named WorldBloom first (a stale
 	-- authored Bloom may sit earlier in child order with hot defaults), keeping
 	-- its tuned intensity as the pulse baseline.
@@ -759,7 +763,7 @@ function Backdrop.setSun(name: string)
 	if sun then
 		sun:Destroy()
 	end
-	sun = makeSun(root, st)
+	sun = makeSun(root, st, true)
 end
 
 local seeded = false
@@ -1096,6 +1100,185 @@ function Backdrop.update(anchor: Vector3)
 			local tint =
 				Palette.dimAt(dist + ahead * 0.5 + rng:NextNumber(0, 300), Art.CityValue / (1 + (tower.row - 1) * 0.35))
 			layTower(tower, x, baseY, z, tint)
+		end
+	end
+end
+
+--=========================== DIORAMA (§18 preview) ===========================--
+-- The garage preview window lays ONE static window of the real theme
+-- geometry into a caller's container (the ViewportFrame's WorldModel):
+-- the same ensure/lay/make functions and tunables as the live scenery,
+-- frozen at a synthetic anchor instead of recycled behind the ball.
+-- CosmeticFx scales the window down to frame size afterward.
+--
+-- SelectionBox adornments can't draw inside a ViewportFrame — the
+-- diorama traces each laid tower segment with neon edge PARTS instead.
+-- The layout is the real layTower math; only the stroke primitive swaps.
+local function edgeCage(p: BasePart, color: Color3, parent: Instance)
+	local s = p.Size
+	local hx, hy, hz = s.X / 2, s.Y / 2, s.Z / 2
+	local th = 1.2
+	local function bar(size: Vector3, off: Vector3)
+		local b = makePeakPart(parent, true)
+		b.Size = size
+		b.CFrame = p.CFrame * CFrame.new(off)
+		b.Color = color
+	end
+	for sxn = -1, 1, 2 do
+		for szn = -1, 1, 2 do
+			bar(Vector3.new(th, s.Y + th, th), Vector3.new(sxn * hx, 0, szn * hz))
+		end
+		-- Top rim: one bar along X on each z edge + one along Z on each x
+		-- edge — the SelectionBox cage's readable skeleton.
+		bar(Vector3.new(s.X + th, th, th), Vector3.new(0, hy, sxn * hz))
+		bar(Vector3.new(th, th, s.Z + th), Vector3.new(sxn * hx, hy, 0))
+	end
+end
+
+function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, anchor: Vector3)
+	-- Sun: the real strip stack, parked at the real offset from the lane.
+	local st = SUN_STYLES[sunKey] or SUN_STYLES.classic
+	makeSun(parent, st, false):PivotTo(CFrame.new(anchor.X, anchor.Y + Art.SunLift, anchor.Z - Art.SunDist))
+
+	local t: Theme = THEMES[themeKey] or "city"
+	if t == "peaks" then
+		-- Same first pass as update(): each side's tiles seeded back from
+		-- the keep margin so the whole window fills in one lay.
+		local nLines = (Art.PeaksCols + 1) * Art.PeaksRows + Art.PeaksCols * (Art.PeaksRows + 1)
+		local tileLen = Art.PeaksRows * Art.PeaksCellZ
+		local back = math.ceil((anchor.Z + BACK_MARGIN) / Art.PeaksCellZ) * Art.PeaksCellZ
+		for side = -1, 1, 2 do
+			for slot = 1, Art.PeaksTiles do
+				local model = Instance.new("Model")
+				model.Name = "Peaks"
+				model.Parent = parent
+				local lines: { Part } = {}
+				local plates: { Part } = {}
+				for _ = 1, nLines do
+					table.insert(lines, makePeakPart(model, true))
+				end
+				for _ = 1, Art.PeaksCols * Art.PeaksRows do
+					table.insert(plates, makePeakPart(model, false))
+				end
+				layTile({
+					slot = slot,
+					side = side,
+					z0 = back - slot * tileLen,
+					lines = lines,
+					plates = plates,
+					slab = makePeakPart(model, false),
+				}, anchor)
+			end
+		end
+		return
+	end
+	if t == "void" then
+		for _ = 1, Art.VoidStars do
+			local mote = Instance.new("Part")
+			mote.Anchored = true
+			mote.CanCollide = false
+			mote.CanQuery = false
+			mote.CastShadow = false
+			mote.Material = Enum.Material.Neon
+			mote.Shape = Enum.PartType.Ball
+			mote.Size = Vector3.new(Art.VoidSize, Art.VoidSize, Art.VoidSize) * rng:NextNumber(0.5, 1.9)
+			mote.Parent = parent
+			layVoidMote(mote, anchor)
+		end
+		return
+	end
+	if t == "grid" then
+		local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+		local front = math.ceil((anchor.Z + BACK_MARGIN) / Art.GridFloorCellZ) * Art.GridFloorCellZ
+		for i = 1, Art.GridFloorRows do
+			layGridWire(makePeakPart(parent, true), anchor, front - i * Art.GridFloorCellZ, laneX)
+		end
+		for i = 1, Art.GridFloorCols do
+			local x = laneX - Art.GridFloorHalfX + (i - 0.5) * (2 * Art.GridFloorHalfX / Art.GridFloorCols)
+			layGridRay(makePeakPart(parent, true), anchor, front, x)
+		end
+		return
+	end
+	if t == "aurora" then
+		for side = -1, 1, 2 do
+			local z = anchor.Z + BACK_MARGIN
+			for _ = 1, Art.AuroraCount do
+				z -= Art.AuroraSpacing
+				local p = Instance.new("Part")
+				p.Anchored = true
+				p.CanCollide = false
+				p.CanQuery = false
+				p.CastShadow = false
+				p.Material = Enum.Material.Neon
+				p.Transparency = Art.AuroraFade
+				p.Parent = parent
+				local c: Curtain = { part = p, side = side, x = 0, z = 0, alt = 0, phase = 0, huePhase = 0 }
+				layCurtain(c, anchor, z)
+				-- One static frame of the sway loop's pose/color math.
+				p.Position = Vector3.new(c.x, deckEst(anchor, c.z) + c.alt, c.z)
+				p.Color = Color3.fromHSV(
+					Art.AuroraHueA + (Art.AuroraHueB - Art.AuroraHueA) * (0.5 + 0.5 * math.sin(c.huePhase * 6.283)),
+					0.85,
+					Art.AuroraValue
+				)
+			end
+		end
+		return
+	end
+	if t == "reef" then
+		for side = -1, 1, 2 do
+			local z = anchor.Z + BACK_MARGIN
+			for _ = 1, Art.ReefCount do
+				z -= Art.ReefSpacing
+				layStrand({ part = makePeakPart(parent, true), side = side }, anchor, z)
+			end
+		end
+		return
+	end
+	if t == "meteor" then
+		for _ = 1, Art.MeteorCount do
+			layMeteor({ part = makePeakPart(parent, true), vel = Vector3.new(0, -1, 0), speed = 0 }, anchor)
+		end
+		return
+	end
+	if t == "palms" then
+		for side = -1, 1, 2 do
+			for row = 1, Art.PalmRows do
+				local z = anchor.Z + Art.PalmSpacing
+				for _ = 1, math.floor(Art.PalmSpan / Art.PalmSpacing) do
+					z -= Art.PalmSpacing
+					local x = anchor.X + side * (Art.PalmMinX + (row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
+					local baseY = anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0) - rng:NextNumber(4, 10)
+					layPalm(makePalm(parent, side, row), x, baseY, z)
+				end
+			end
+		end
+		return
+	end
+
+	-- NEON CITY (default): lay each (side,row) frontier across the span —
+	-- the same seeded-window math update() runs on its first frame.
+	local dist = math.max(0, -anchor.Z)
+	for side = -1, 1, 2 do
+		for row = 1, Art.CityRows do
+			local z = anchor.Z + Art.CitySpacing
+			for _ = 1, math.floor(Art.CitySpan / Art.CitySpacing) do
+				z -= Art.CitySpacing
+				local tower = makeTower(parent, side, row)
+				local x = anchor.X + side * (Art.CityMinX + (row - 1) * Art.CityRowDX + rng:NextNumber(0, 40))
+				local ahead = math.max(anchor.Z - z, 0)
+				local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(8, 30)
+				local tint = Palette.dimAt(
+					dist + ahead * 0.5 + rng:NextNumber(0, 300),
+					Art.CityValue / (1 + (row - 1) * 0.35)
+				)
+				layTower(tower, x, baseY, z, tint)
+				for _, seg in ipairs(tower.segs) do
+					if seg.part.CFrame ~= PARK then
+						edgeCage(seg.part, seg.outline.Color3, parent)
+					end
+				end
+			end
 		end
 	end
 end

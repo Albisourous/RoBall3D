@@ -228,10 +228,12 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
     color), one open at a time, so a purchase is never a guess.
   - **PREVIEW window** — pinned to the bottom of the garage rail: a
-    `ViewportFrame` diorama (mini deck + dressed ball + sun + world
-    motif + gem sample + death shards) that CosmeticFx rebuilds from
-    the *browsed* item on every slot — unowned merch previews before
-    the buy (try-before-you-buy). The screen-filter cosmetic repaints
+    `ViewportFrame` diorama (mini lane + dressed ball + gem sample +
+    death shards) whose world + sun come from `Backdrop.diorama` — the
+    REAL scenery generation laid once around a synthetic anchor, then
+    shrunk to the window (§18). CosmeticFx rebuilds it from the
+    *browsed* item on every slot — unowned merch previews before the
+    buy (try-before-you-buy). The screen-filter cosmetic repaints
     inside the window as a Gui overlay.
   - **Leaderboard rail** — DAILY / TOP tabs (`name / score /
     seed`), DAILY left and selected by default to match the default run
@@ -449,7 +451,12 @@ narrow. Then the seeded generator takes over.
   exactly what the player sees.
 - `ChunkSpec.pads` — LaunchPad strips (cyan, tagged `RoBallPad`,
   `KickY` attribute). The client applies the kick (it owns the ball's
-  velocity): GD pads as terrain, not a jump button.
+  velocity): GD pads as terrain, not a jump button. Contact is
+  `Touched` plus a per-frame sphere-vs-strip overlap test in
+  `PadController` — a pad the ball visibly crosses always fires; the
+  0.35-stud strip can't be tunneled or grazed past unseen. PadHop rolls
+  the pad's lane offset inside ±width/5 capped at `Pads.MaxOffset`, so
+  wide decks can't park the pad outside readable-steer range.
 - `ChunkSpec.dim` (Blackout) dims grid/center neon to `Blackout.GridScale`
   — edges + gems stay lit.
 - `ChunkSpec.hoop` — `RampGap` carries a faceted neon ring at the void's
@@ -1132,7 +1139,10 @@ src/
     CosmeticFx.luau                -- menu preview ball + animated skin/trail fx
                                    --   (rainbow/pulse), all client-local
     PadController.luau             -- LaunchPad kicks: applies KickY to the
-                                   --   client-owned ball on pad touch (§8.6)
+                                   --   client-owned ball — Touched fast path
+                                   --   + per-frame sphere-vs-strip overlap
+                                   --   backstop so grazes/tunnels can't drop
+                                   --   the launch (§8.6)
     OrbController.luau             -- JumpOrb taps: Space/touch within Radius
                                    --   re-kicks vY (§8.6, flag-off)
     FatalController.luau           -- client-authoritative lethal contact:
@@ -1259,15 +1269,24 @@ are the run itself and the **garage preview window** — a `ViewportFrame`
 diorama pinned to the bottom of the always-on garage rail (§6). CosmeticFx
 rebuilds it on every browse change from the *browsed* item — not just the
 equipped one — so cycling the catalog previews unowned merch before the
-buy (try-before-you-buy). It's drawn from real parts (mini deck, neon
-ring cage, trail, strip-stack sun, world motif, gem sample, orbiting
-death shards) since adornments don't render inside a ViewportFrame.
+buy (try-before-you-buy). It's drawn from real parts (mini lane, neon
+ring cage, trail, gem sample, orbiting death shards) since adornments
+don't render inside a ViewportFrame. The world is no sketch either:
+`Backdrop.diorama(parent, theme, sun, anchor)` lays ONE static window of
+the real theme into the diorama's Scene model — the same make/lay
+functions, tunables, and seeded lattice `Backdrop.update` runs live,
+frozen at a synthetic anchor instead of recycled behind the ball — plus
+the real `makeSun` strip stack. CosmeticFx then scales the whole window
+(uniform scale + a per-axis floor so wireframe strokes stay visible) and
+a fixed camera frames it. SelectionBox tower outlines can't draw in a
+ViewportFrame, so the diorama path traces laid tower segments with neon
+edge parts — same `layTower` math, only the stroke primitive swaps.
 Animated flags (`fx = "rainbow" | "pulse" | "strobe" | "wave"` on skins —
 strobe is a fast hue flicker, wave flows the run palette across the rings;
 `"rainbow"`/`"palette"` on trails/gemfx) are evaluated in the client
 render loop. The `world` slot rides the same plumbing: `RoBallEq_world`
 lands on the client and `Backdrop.setTheme` re-seeds whichever scenery
-system takes over — in the menu it shows up as the diorama's motif.
+system takes over — in the menu it shows up as the diorama's scene.
 `world_peaks` sells as its own bundle pass (`Passes.peaks`) or à-la-carte
 for ◊800 — the flagship grind target. **DEEP SPACE** (`Passes.deepspace`)
 packs three world themes — `world_void` (STAR WELL), `world_grid`

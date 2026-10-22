@@ -18,6 +18,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
+local Backdrop = require(script.Parent.Backdrop)
 
 local player = Players.LocalPlayer
 
@@ -47,15 +48,11 @@ end
 local CY = Color3.fromRGB(0, 230, 255)
 local PK = Color3.fromRGB(255, 64, 190)
 local DK = Color3.fromRGB(14, 7, 24)
-local ICE = Color3.fromRGB(160, 230, 255)
-local ORG = Color3.fromRGB(255, 140, 40)
-local LIM = Color3.fromRGB(120, 255, 120)
 
 local VP_SCALE = 2.2
 local BALL_D = Config.Ball.Diameter * VP_SCALE
 local BALL_POS = Vector3.new(0, BALL_D / 2 + 0.8, 8)
-local GEM_POS = Vector3.new(8.5, 4, -7)
-local SUN_POS = Vector3.new(0, 15, -56)
+local GEM_POS = Vector3.new(0, 1.3, -18)
 
 local wmodel: WorldModel? = nil
 local vpBall: BasePart? = nil
@@ -93,93 +90,25 @@ local function vpart(size: Vector3, pos: Vector3, col: Color3): BasePart
 	return p
 end
 
--- World-theme motif: a few simple props that gesture at the full
--- Backdrop look (§18) without dragging the whole scene into the window.
-local MOTIFS: { [string]: () -> () } = {
-	city = function()
-		for i, t in ipairs({ { -22, 14, -34 }, { -27, 21, -40 }, { 24, 17, -32 }, { 19, 11, -38 } }) do
-			local x, h, z = t[1], t[2], t[3]
-			vpart(Vector3.new(4, h, 4), Vector3.new(x, h / 2, z), DK)
-			vpart(Vector3.new(4.3, 0.6, 4.3), Vector3.new(x, h - 2 - i, z), if i % 2 == 0 then CY else PK)
+-- Scene scale: the real world layout (±320 studs out, ~1100 deep) shrunk
+-- to the window. Wireframe lines would thin to invisibility at 0.25x, so
+-- scaleScene clamps each axis to a floor — a rendering necessity, same
+-- reason the rings are parts.
+local SCENE_SCALE = 0.25
+local MIN_DIM = 0.14
+
+local function scaleScene(scene: Instance, k: number)
+	for _, d in ipairs(scene:GetDescendants()) do
+		if d:IsA("BasePart") then
+			local s = d.Size
+			d.Size = Vector3.new(math.max(s.X * k, MIN_DIM), math.max(s.Y * k, MIN_DIM), math.max(s.Z * k, MIN_DIM))
+			d.CFrame = CFrame.new(d.Position * k) * (d.CFrame - d.Position)
 		end
-	end,
-	peaks = function()
-		-- Outline ridges: thin neon bars zig-zagged into mountain
-		-- silhouettes — a dark wedge melts into the dark window, but a
-		-- bright ridge reads at diorama scale.
-		local function ridge(cx: number, z: number, w: number, h: number, col: Color3)
-			local len = math.sqrt((w / 2) ^ 2 + h * h)
-			local ang = math.atan2(h, w / 2)
-			local l = vpart(Vector3.new(len, 0.6, 0.6), Vector3.new(cx - w / 4, h / 2, z), col)
-			l.Material = Enum.Material.Neon
-			l.CFrame = CFrame.new(l.Position) * CFrame.Angles(0, 0, ang)
-			local r = vpart(Vector3.new(len, 0.6, 0.6), Vector3.new(cx + w / 4, h / 2, z), col)
-			r.Material = Enum.Material.Neon
-			r.CFrame = CFrame.new(r.Position) * CFrame.Angles(0, 0, -ang)
-		end
-		ridge(-19, -28, 18, 12, CY)
-		ridge(22, -22, 13, 9, PK)
-		ridge(3, -36, 22, 15, Color3.fromRGB(150, 80, 220))
-	end,
-	void = function()
-		local rng = Random.new(7)
-		for _ = 1, 14 do
-			vpart(
-				Vector3.one * rng:NextNumber(0.3, 0.8),
-				Vector3.new(rng:NextNumber(-26, 26), rng:NextNumber(2, 20), rng:NextNumber(-46, -18)),
-				Color3.new(1, 1, 1)
-			).Material =
-				Enum.Material.Neon
-		end
-	end,
-	grid = function()
-		for i = -2, 2 do
-			vpart(Vector3.new(0.5, 0.24, 90), Vector3.new(i * 9, 0.05, -14), Color3.fromRGB(0, 120, 140)).Material =
-				Enum.Material.Neon
-		end
-	end,
-	aurora = function()
-		local a = vpart(Vector3.new(3, 26, 1), Vector3.new(-26, 13, -30), LIM)
-		a.Transparency = 0.35
-		a.Material = Enum.Material.Neon
-		local b = vpart(Vector3.new(3, 30, 1), Vector3.new(27, 15, -36), ICE)
-		b.Transparency = 0.4
-		b.Material = Enum.Material.Neon
-	end,
-	reef = function()
-		for i, s in ipairs({ { -22, 6, -22, PK }, { 24, 9, -28, CY }, { -26, 4, -34, ORG }, { 20, 5, -18, LIM } }) do
-			local c = vpart(Vector3.new(1.6, s[2], 1.6), Vector3.new(s[1], s[2] / 2, s[3]), s[4])
-			c.Material = Enum.Material.Neon
-			if i % 2 == 1 then
-				vpart(Vector3.new(3.4, 0.8, 0.8), Vector3.new(s[1], s[2] - 0.6, s[3]), s[4]).Material =
-					Enum.Material.Neon
-			end
-		end
-	end,
-	meteor = function()
-		for i = 1, 4 do
-			local s = vpart(Vector3.new(0.5, 7, 0.5), Vector3.new(-18 + i * 11, 16 + i, -30 - i * 4), ORG)
-			s.Material = Enum.Material.Neon
-			s.CFrame = CFrame.new(s.Position) * CFrame.Angles(math.rad(50), 0, math.rad(30))
-		end
-	end,
-	palms = function()
-		for _, x in ipairs({ -24, 25 }) do
-			local t = vpart(Vector3.new(1, 9, 1), Vector3.new(x, 4.5, -18), Color3.fromRGB(80, 40, 120))
-			t.Material = Enum.Material.Neon
-			for k = 0, 3 do
-				local f = vpart(Vector3.new(4.4, 0.5, 0.9), Vector3.new(x, 9, -18), if x < 0 then CY else PK)
-				f.Material = Enum.Material.Neon
-				f.CFrame = CFrame.new(Vector3.new(x, 9, -18))
-					* CFrame.Angles(0, math.rad(k * 90 + 30), math.rad(-18))
-					* CFrame.new(1.6, 0, 0)
-			end
-		end
-	end,
-}
+	end
+end
 
 -- Mount the garage's ViewportFrame: WorldModel for the diorama parts and
--- a fixed camera aimed down the mini deck toward the sun.
+-- a fixed camera aimed down the mini lane toward the scaled sun.
 function Fx.mountViewport(vp: ViewportFrame)
 	local wm = Instance.new("WorldModel")
 	wm.Parent = vp
@@ -187,8 +116,8 @@ function Fx.mountViewport(vp: ViewportFrame)
 	local cam = Instance.new("Camera")
 	cam.Parent = vp
 	vp.CurrentCamera = cam
-	cam.FieldOfView = 36
-	cam.CFrame = CFrame.lookAt(Vector3.new(0, 8.5, 27), Vector3.new(0, 6, -14))
+	cam.FieldOfView = 44
+	cam.CFrame = CFrame.lookAt(Vector3.new(0, 9, 26), Vector3.new(0, 5, -45))
 end
 
 -- Rebuild the diorama from the BROWSED items (one per cosmetic slot) —
@@ -218,15 +147,17 @@ function Fx.preview(items: { [string]: any })
 	vpRainbowTrail = trailI ~= nil and trailI.color == "rainbow"
 	vpPaletteTrail = trailI ~= nil and trailI.color == "palette"
 
-	-- Mini deck: dark slab + neon rails + faint cross-grid, so trail and
-	-- world items read "in gameplay context" rather than floating.
-	vpart(Vector3.new(42, 1, 90), Vector3.new(0, -0.5, -14), DK)
-	local railL = vpart(Vector3.new(0.7, 0.3, 90), Vector3.new(-21, 0.1, -14), CY)
+	-- Mini lane: slim dark slab + neon rails + faint cross-grid, sized to
+	-- the scaled world's own proportions (real decks ~19.5 half-width,
+	-- real scenery starts ~55 out). The hero ball deliberately overhangs
+	-- it — the mannequin is the point.
+	vpart(Vector3.new(11, 1, 130), Vector3.new(0, -0.5, -45), DK)
+	local railL = vpart(Vector3.new(0.5, 0.7, 130), Vector3.new(-5.6, 0.1, -45), CY)
 	railL.Material = Enum.Material.Neon
-	local railR = vpart(Vector3.new(0.7, 0.3, 90), Vector3.new(21, 0.1, -14), PK)
+	local railR = vpart(Vector3.new(0.5, 0.7, 130), Vector3.new(5.6, 0.1, -45), PK)
 	railR.Material = Enum.Material.Neon
-	for i = 0, 4 do
-		vpart(Vector3.new(42, 0.22, 0.5), Vector3.new(0, 0.02, 4 - i * 16), Color3.fromRGB(30, 70, 90)).Material =
+	for i = 0, 7 do
+		vpart(Vector3.new(10.2, 0.22, 0.4), Vector3.new(0, 0.02, 12 - i * 15), Color3.fromRGB(30, 70, 90)).Material =
 			Enum.Material.Neon
 	end
 
@@ -291,29 +222,16 @@ function Fx.preview(items: { [string]: any })
 		vpShards[i] = s
 	end
 
-	-- Sun: the §18 strip-stack silhouette, shrunk — solid/gap params give
-	-- classic/contiguous domes, grid slats, and the eclipse disc.
-	local style = Config.Art.SunStyles[sunI and sunI.sun or "classic"] or Config.Art.SunStyles.classic
-	local r = 14 * (style.scale or 1)
-	for i = 1, 16 do
-		local frac = i / 16
-		local yo = r - frac * 2 * r
-		if frac <= style.solid or i % 2 == 0 then
-			local half = math.sqrt(math.max(r * r - yo * yo, 0.6))
-			local s = vpart(
-				Vector3.new(half * 2, (2 * r / 16) * (if frac <= style.solid then 0.95 else 0.5), 0.6),
-				SUN_POS + Vector3.new(0, yo, 0),
-				style.top:Lerp(style.bottom, frac)
-			)
-			s.Material = Enum.Material.Neon
-		end
-	end
-
-	-- World motif: gestural props per theme.
-	local motif = MOTIFS[worldI and worldI.theme or "city"]
-	if motif then
-		motif()
-	end
+	-- World + sun: one static window of the REAL Backdrop generation —
+	-- same lay functions, same tunables, same seeded lattice as the live
+	-- scenery — laid into a Scene model at real scale, then shrunk to
+	-- the window. The preview shows the actual scenery a WORLD pass
+	-- buys, not a sketch of it.
+	local scene = Instance.new("Model")
+	scene.Name = "Scene"
+	scene.Parent = wm
+	Backdrop.diorama(scene, worldI and worldI.theme or "city", sunI and sunI.sun or "classic", Vector3.new(0, 0, 0))
+	scaleScene(scene, SCENE_SCALE)
 end
 
 --=================== LIVE BALL ANIM ===================--

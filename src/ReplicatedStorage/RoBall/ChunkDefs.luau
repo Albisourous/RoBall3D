@@ -1313,7 +1313,12 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	local stripD = if debut then 5 else rng:NextNumber(Config.Pads.StripMin, Config.Pads.StripMax)
 	local stripH = Config.Pads.StripH
 	local padW = if debut then Config.Pads.DebutWidth else Config.Pads.Width
-	local padX = if debut then 0 else rng:NextNumber(-st.width / 5, st.width / 5)
+	-- ±width/5 keeps the pad off the obvious line (the pad line is the
+	-- solve), but MaxOffset caps it: on a max-width deck an uncapped roll
+	-- can park the 6-stud pad ~10 studs out — outside readable-steer
+	-- range at tier speed, which reads as "the pad didn't work".
+	local padReach = math.min(st.width / 5, Config.Pads.MaxOffset)
+	local padX = if debut then 0 else rng:NextNumber(-padReach, padReach)
 	local h = stripH + Config.Pads.ArcMargin
 	local span = stripD + Config.Pads.Length + 2
 	local rLo = Config.Pads.SlowCrossFrac
