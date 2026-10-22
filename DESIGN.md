@@ -233,21 +233,24 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
   then control handed over.
 - **Death**: pitch drop on music, death-cam orbit (§11), then the death
-  screen shows
-  `SCORE / DISTANCE / BEST / SEED`, `[R]` or the `RETRY` button = instant
+  screen lands as a **crash-log report card**: a `SIGNAL LOST` rail
+  banner, a one-line verdict (`lost at N m — the VOID · inside FORK`),
+  then a bordered mono readout panel — `RUN <seed>` header, hero `score`
+  row, `best`, a `gems / banked` payout row, and the telemetry rows —
+  with `[R]` or the `RETRY` button = instant
   restart on the seed box's pick (`daily` by default — a run's rolled
   seed is mirrored into the box, so it names the map you just played).
-  A gold `★ NEW BEST!` line appears under the title when the run beat the
+  A gold `★ NEW BEST!` rides the score row when the run beat the
   stored record — the flag is computed server-side since attribute
-  replication races make a client-side compare unreliable. A dim stats
-  line closes the card: `top N s/s · M gates · P% boost · air A% ·
-  margin X` — top forward speed, lethal planes crossed, share of
-  distance spent boosting, share of run time airborne (the landing
+  replication races make a client-side compare unreliable. The
+  telemetry rows: `top` forward speed, `gates` lethal planes crossed,
+  `boost` share of distance spent boosting, `air` share of run time
+  airborne (the landing
   probe counts contact when the ball's underside is within
-  `Landing.ContactPad` of lane ground), and the tightest near-miss
-  margin of the run (`in-disc` when the closest call was inside a
-  rotor's sweep). A second dim trailer, `at the fall: PB +38 ·
-  champion42 -142`, closes the card when echoes replayed — the last
+  `Landing.ContactPad` of lane ground), and `margin` the tightest
+  near-miss of the run (`in-disc` when the closest call was inside a
+  rotor's sweep). A dim trailer under the panel, `at the fall: PB +38 ·
+  champion42 -142`, closes the report when echoes replayed — the last
   pace delta vs each ghost, signed by your lead, so the race result
   survives the run that ended it.
 - **PB ghost**: on run start a translucent magenta `BEST n` gate floats on
@@ -863,7 +866,7 @@ that caused them.
 - **Type**: three voices, one job each (`Ui.luau` font constants).
   `F_HERO` = Garamond in letterspaced caps — the Floral Shoppe
   "A E S T H E T I C" serif, reserved for hero titles (menu name,
-  RUN OVER). `F_DISPLAY` = Michroma — geometric retro-future caps for
+  SIGNAL LOST). `F_DISPLAY` = Michroma — geometric retro-future caps for
   chrome headers and action buttons (TOP RUNS, GARAGE, PACKS/BANK,
   PLAY/RETRY). `F_DATA` = Code — the machine voice for every number,
   tag and readout (score, BPM digit, rows, seed, popups; the server

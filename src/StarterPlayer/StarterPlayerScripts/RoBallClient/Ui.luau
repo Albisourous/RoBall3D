@@ -1691,6 +1691,10 @@ function Ui.new(): Ui
 	self.seedTag = seedTag
 
 	--============================ DEATH =============================--
+	-- "Crash log" report card (§11): a SIGNAL LOST banner over a one-line
+	-- verdict (distance + executioner), then a bordered mono readout —
+	-- key/value rows in the machine voice — then the gold payout ticker,
+	-- late-arriving ranks, ghost margins, and the action row.
 	local death = Instance.new("Frame")
 	death.Name = "Death"
 	death.Size = UDim2.fromScale(1, 1)
@@ -1700,62 +1704,137 @@ function Ui.new(): Ui
 	death.Visible = false
 	death.Parent = gui
 	self.death = death
+	self._dailyRank = 0
+	self._topRank = 0
 
 	local dCol = Instance.new("Frame")
 	dCol.BackgroundTransparency = 1
-	dCol.Size = UDim2.fromOffset(460, 340)
-	dCol.Position = UDim2.fromScale(0.5, 0.42)
+	dCol.Size = UDim2.fromOffset(540, 0)
+	dCol.AutomaticSize = Enum.AutomaticSize.Y
+	dCol.Position = UDim2.fromScale(0.5, 0.44)
 	dCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	dCol.Parent = death
-	vlist(dCol, 12)
+	vlist(dCol, 10)
 
-	label(dCol, spaced("RUN OVER"), 48, F_HERO, C_PINK, 1)
-	-- NEW BEST! only shows when the run beat the stored record — gold,
-	-- placed right under the title so it's the first thing read.
-	self.dNewBest = label(dCol, "★ NEW BEST!", 20, F_DATA, C_GOLD, 2)
-	self.dNewBest.Visible = false
-	-- The bare number is the hero — no "SCORE" prefix needed.
-	self.dScore = label(dCol, "0", 40, F_DATA, C_CYAN, 3)
-	-- One quiet stats line: distance + gem pts + the ◊+N banked payout
-	-- (§18 P2) folded in via RichText so the screen stays minimal.
-	self.dBreakdown = label(dCol, "", 16, F_DATA, C_DIM, 4)
-	self.dBreakdown.RichText = true
-	self.dBest = label(dCol, "", 14, F_DATA, C_DIM, 5)
-	-- Daily-streak payoff line (§14): only when a daily-seeded run counted
-	-- the day — "day-3 streak · ◊+30 banked", gold like NEW BEST.
-	self.dStreak = label(dCol, "", 15, F_DATA, C_GOLD, 6)
-	self.dStreak.Visible = false
-	-- Daily quests completed this run (§14): "2 quests done · ◊ +90 banked".
-	self.dQuest = label(dCol, "", 15, F_DATA, C_GOLD, 7)
-	self.dQuest.Visible = false
-	-- Daily rank (§14): the board slot lands a beat after the card —
-	-- setDailyRank fills this late via the RoBallDailyRank attribute.
-	self.dRank = label(dCol, "", 14, F_DATA, C_CYAN, 8)
-	self.dRank.Visible = false
-	-- All-time rank (§14): the record submit's board slot, same late fill.
-	self.tRank = label(dCol, "", 14, F_DATA, C_CYAN, 8)
-	self.tRank.Visible = false
+	-- Banner: thin rails flanking the letterspaced serif title.
+	local banner = Instance.new("Frame")
+	banner.BackgroundTransparency = 1
+	banner.Size = UDim2.new(1, 0, 0, 46)
+	banner.LayoutOrder = 1
+	banner.Parent = dCol
+	local railL = Instance.new("Frame")
+	railL.AnchorPoint = Vector2.new(0, 0.5)
+	railL.Position = UDim2.fromScale(0, 0.5)
+	railL.Size = UDim2.fromOffset(72, 1)
+	railL.BackgroundColor3 = C_PINK
+	railL.BackgroundTransparency = 0.4
+	railL.BorderSizePixel = 0
+	railL.Parent = banner
+	local railR = railL:Clone()
+	railR.AnchorPoint = Vector2.new(1, 0.5)
+	railR.Position = UDim2.fromScale(1, 0.5)
+	railR.Parent = banner
+	local bannerTitle = label(banner, spaced("SIGNAL LOST"), 38, F_HERO, C_PINK, 0)
+	bannerTitle.AnchorPoint = Vector2.new(0.5, 0.5)
+	bannerTitle.Position = UDim2.fromScale(0.5, 0.5)
+	bannerTitle.Size = UDim2.fromScale(1, 1)
 
-	-- Run-stats card (§11): one quiet dim line — top speed, gates passed,
-	-- boost share, closest call. Display-only; never score.
-	self.dStats = label(dCol, "", 13, F_DATA, C_DIM, 9)
-	self.dStats.RichText = true
-	self.dStats.Visible = false
-	local retry = outlineButton(dCol, "RETRY", 30, 10)
+	-- Verdict line: "lost at 1646 m — the VOID · inside FORK".
+	self.dVerdict = label(dCol, "", 15, F_DATA, C_PINK, 2)
+
+	-- Bordered report panel — left-aligned rows so the keys line up like a
+	-- printout. Code is monospace, so %-Ns format widths align the columns.
+	local panel = Instance.new("Frame")
+	panel.Name = "Report"
+	panel.BackgroundColor3 = C_PANEL
+	panel.BackgroundTransparency = 0.3
+	panel.BorderSizePixel = 0
+	panel.Size = UDim2.fromScale(1, 0)
+	panel.AutomaticSize = Enum.AutomaticSize.Y
+	panel.LayoutOrder = 3
+	panel.Parent = dCol
+	local pStroke = Instance.new("UIStroke")
+	pStroke.Color = C_DIM
+	pStroke.Thickness = 1
+	pStroke.Transparency = 0.35
+	pStroke.Parent = panel
+	local pCorner = Instance.new("UICorner")
+	pCorner.CornerRadius = UDim.new(0, 4)
+	pCorner.Parent = panel
+	local pPad = Instance.new("UIPadding")
+	pPad.PaddingTop = UDim.new(0, 12)
+	pPad.PaddingBottom = UDim.new(0, 12)
+	pPad.PaddingLeft = UDim.new(0, 16)
+	pPad.PaddingRight = UDim.new(0, 16)
+	pPad.Parent = panel
+	local pLayout = Instance.new("UIListLayout")
+	pLayout.FillDirection = Enum.FillDirection.Vertical
+	pLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	pLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	pLayout.Padding = UDim.new(0, 4)
+	pLayout.Parent = panel
+	local function prow(text, order, rich, color)
+		local l = label(panel, text, 15, F_DATA, color or C_DIM, order)
+		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.RichText = rich == true
+		return l
+	end
+	self.dPanelTitle = prow("", 1)
+	self.dScore = prow("", 2, true)
+	self.dScore.Size = UDim2.new(1, 0, 0, 40) -- inline 30px hero number
+	self.dBest = prow("", 3)
+	local pDiv = Instance.new("Frame")
+	pDiv.Size = UDim2.new(1, 0, 0, 1)
+	pDiv.BackgroundColor3 = C_DIM
+	pDiv.BackgroundTransparency = 0.6
+	pDiv.BorderSizePixel = 0
+	pDiv.LayoutOrder = 4
+	pDiv.Parent = panel
+	self.dLoot = prow("", 5, true)
+	-- Run telemetry (§11): top speed, lethal planes crossed, boost/air
+	-- share, tightest near-miss margin. Display-only; never score.
+	self.dTele1 = prow("", 6)
+	self.dTele2 = prow("", 7)
+	self.dTele3 = prow("", 8)
+
+	-- Gold payout ticker (§14): streak + daily-quest bonuses, one line.
+	self.dTicker = label(dCol, "", 14, F_DATA, C_GOLD, 4)
+	self.dTicker.Visible = false
+	-- Board slots (§14): "daily #3 · all-time #7" — fills a beat after the
+	-- card via the rank attributes; both share this one line.
+	self.dRanks = label(dCol, "", 14, F_DATA, C_CYAN, 5)
+	self.dRanks.Visible = false
+	-- Ghost margins (§14): where each echo stood at the fall.
+	self.dMargins = label(dCol, "", 13, F_DATA, C_DIM, 6)
+	self.dMargins.Visible = false
+
+	-- Action row: RETRY primary, menu (garage access, §18) secondary.
+	local actions = Instance.new("Frame")
+	actions.BackgroundTransparency = 1
+	actions.Size = UDim2.new(1, 0, 0, 56)
+	actions.LayoutOrder = 7
+	actions.Parent = dCol
+	local aLayout = Instance.new("UIListLayout")
+	aLayout.FillDirection = Enum.FillDirection.Horizontal
+	aLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	aLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	aLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	aLayout.Padding = UDim.new(0, 28)
+	aLayout.Parent = actions
+	local retry = outlineButton(actions, "RETRY", 30, 1)
 	retry.Size = UDim2.fromOffset(300, 56)
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
-	label(dCol, "R retry", 13, F_DATA, C_DIM, 11).TextTransparency = 0.25
-	-- Back to the menu = garage access (§18): the shop lives on the menu.
-	local toMenu = ghostButton(dCol, "menu", 15, 12)
+	local toMenu = ghostButton(actions, "menu", 15, 2)
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
 		end
 	end)
+	label(dCol, "press R", 13, F_DATA, C_DIM, 8).TextTransparency = 0.25
 
 	return self
 end
@@ -2082,59 +2161,71 @@ function Ui:showDeath(
 	self.powerBar.Visible = false
 	self.seedTag.Visible = false
 	self.death.Visible = true
-	self.dScore.Text = tostring(score)
-	self.dBreakdown.Text =
-		string.format('%d m  ·  +%d gem pts    <font color="#FFD440">◊ +%d BANKED</font>', dist, gems, banked or 0)
-	self.dBest.Text = string.format("BEST %d   ·   seed %d", best, seed)
-	self.dNewBest.Visible = newBest == true
-	local n = streak or 0
-	local bonus = streakBonus or 0
-	-- Same-day replays show the streak without a re-paid bonus.
-	self.dStreak.Text = if bonus > 0
-		then string.format("day-%d streak · ◊ +%d banked", n, bonus)
-		else string.format("day-%d streak", n)
-	self.dStreak.Visible = n > 0
-	local qb = questBonus or 0
-	local hits = questHits or 0
-	self.dQuest.Text = string.format("%s done · ◊ +%d banked", hits == 1 and "quest" or hits .. " quests", qb)
-	self.dQuest.Visible = hits > 0
-	self.dRank.Visible = false -- daily rank fills in late via setDailyRank
-	self.tRank.Visible = false -- all-time rank fills in late via setTopRank
-	-- Run-stats card: "top 148 s/s · 214 gates · 41% boost · margin 0.9"
-	-- — closest < 0 means the ball ran inside a rotor's sweep disc.
+
+	-- Verdict: distance + executioner (§11) — the chunk type that killed
+	-- the run, or the backstop that fired: VOID for falls, STALL for
+	-- wedges. Backstops also name WHERE (causeLoc): "inside PRESS ROW" is
+	-- the debug lead for stuck-death reports.
+	local verdict = string.format("lost at %d m", dist)
+	if stats and (stats.cause or stats.causeLoc) then
+		local c = stats.cause
+		local name = if c == "VOID"
+			then "the VOID"
+			elseif c == "STALL" then "wedged geometry"
+			elseif c then Config.Features.Label[c] or string.upper(c)
+			else "the track"
+		local loc = stats.causeLoc and (Config.Features.Label[stats.causeLoc] or stats.causeLoc:gsub("_", " "))
+		verdict ..= " — " .. name
+		if loc then
+			verdict ..= string.format(" · inside %s", loc)
+		end
+	end
+	self.dVerdict.Text = verdict
+
+	-- Report rows: score is the hero (NEW BEST rides its line, gold); the
+	-- rest print as key/value pairs — left column padded %-6s/%-13s so
+	-- the second key column lines up in the mono font.
+	self.dPanelTitle.Text = string.format("RUN %d", seed)
+	self.dScore.Text = string.format(
+		'score    <font size="30" color="#00E6FF">%s</font>%s',
+		spaced(tostring(score)),
+		newBest == true and '      <font color="#FFD440">★ NEW BEST!</font>' or ""
+	)
+	self.dBest.Text = string.format("%-6s   %s", "best", spaced(tostring(best)))
+	self.dLoot.Text = string.format(
+		'%-6s   %-13s  %-6s  <font color="#FFD440">◊ +%d</font>',
+		"gems",
+		string.format("+%d pts", gems),
+		"banked",
+		banked or 0
+	)
 	if stats then
 		local boostPct = if dist > 0 then math.floor(100 * stats.boost / dist) else 0
+		-- closest < 0 means the ball ran inside a rotor's sweep disc.
 		local margin = if stats.closest
-			then (stats.closest <= 0 and "in-disc" or string.format("%.1fs", stats.closest))
+			then (stats.closest <= 0 and "in-disc" or string.format("%.1f s", stats.closest))
 			else "—"
-		self.dStats.Text = string.format(
-			"top %d s/s · %d gates · %d%% boost · air %d%% · margin %s",
-			math.floor(stats.top),
-			stats.hazards or 0,
-			boostPct,
-			math.floor(100 * (stats.air or 0)),
-			margin
+		self.dTele1.Text = string.format(
+			"%-6s   %-13s  %-6s  %d",
+			"top",
+			string.format("%d s/s", math.floor(stats.top)),
+			"gates",
+			stats.hazards or 0
 		)
-		-- Death cause (§11): the chunk type that killed the run, or the
-		-- backstop that fired — VOID for falls, STALL for wedges. The
-		-- backstops also name WHERE (causeLoc): "inside PRESS ROW" is the
-		-- debug lead for stuck-death reports.
-		if stats.cause or stats.causeLoc then
-			local c = stats.cause
-			local name = if c == "VOID"
-				then "the VOID"
-				elseif c == "STALL" then "wedged geometry"
-				elseif c then Config.Features.Label[c] or string.upper(c)
-				else "the track"
-			local loc = stats.causeLoc and Config.Features.Label[stats.causeLoc] or stats.causeLoc
-			self.dStats.Text ..= string.format(
-				'\n<font color="#FF40BE">felled by %s%s</font>',
-				name,
-				if loc then string.format(" — inside %s", loc) else ""
-			)
-		end
+		self.dTele2.Text = string.format(
+			"%-6s   %-13s  %-6s  %s",
+			"boost",
+			string.format("%d %%", boostPct),
+			"air",
+			string.format("%d %%", math.floor(100 * (stats.air or 0)))
+		)
+		self.dTele3.Text = string.format("%-6s   %s", "margin", margin)
+		self.dTele1.Visible = true
+		self.dTele2.Visible = true
+		self.dTele3.Visible = true
 		-- Ghost margins (§14): where each echo stood at the fall — the
-		-- last pace deltas, signed by your lead. Dim like the stats line.
+		-- last pace deltas, signed by your lead, so the race result
+		-- survives the run that ended it.
 		local margins = {}
 		if stats.pbDelta then
 			table.insert(margins, string.format("PB %+d", math.floor(stats.pbDelta + 0.5)))
@@ -2145,37 +2236,65 @@ function Ui:showDeath(
 				string.format("%s %+d", stats.rivalName or "CHAMP", math.floor(stats.rivalDelta + 0.5))
 			)
 		end
-		if #margins > 0 then
-			self.dStats.Text ..= string.format(
-				'\n<font color="#9678B9">at the fall: %s</font>',
-				table.concat(margins, " · ")
-			)
-		end
-		self.dStats.Visible = true
+		self.dMargins.Text = string.format("at the fall: %s", table.concat(margins, " · "))
+		self.dMargins.Visible = #margins > 0
 	else
-		self.dStats.Visible = false
+		self.dTele1.Visible = false
+		self.dTele2.Visible = false
+		self.dTele3.Visible = false
+		self.dMargins.Visible = false
 	end
+
+	-- Payout ticker (§14): streak keeps its own bonus (same-day replays
+	-- show the streak without a re-paid bonus), quests list their hits.
+	local ticker = {}
+	local n = streak or 0
+	local bonus = streakBonus or 0
+	if n > 0 then
+		table.insert(
+			ticker,
+			if bonus > 0 then string.format("day-%d streak ◊ +%d", n, bonus) else string.format("day-%d streak", n)
+		)
+	end
+	local hits = questHits or 0
+	if hits > 0 then
+		table.insert(ticker, string.format("%s ◊ +%d", hits == 1 and "quest" or hits .. " quests", questBonus or 0))
+	end
+	self.dTicker.Text = table.concat(ticker, "  ·  ")
+	self.dTicker.Visible = #ticker > 0
+	-- Board slots may already be sitting on the player (the attrs can land
+	-- during the death-cam orbit, before this card opens) — read them now;
+	-- anything later still fills via setDailyRank/setTopRank.
+	local lp = Players.LocalPlayer
+	self._dailyRank = (lp and lp:GetAttribute("RoBallDailyRank")) or 0
+	self._topRank = (lp and lp:GetAttribute("RoBallTopRank")) or 0
+	self:_renderRanks()
 end
 
--- Daily rank (§14): "daily #3" on the death card — the server publishes
--- it a beat after RunEnded (submit → fetch → attr), so this slots into
--- an already-visible card. 0 hides it (off the TopCount window).
+-- Board-slot line (§14): "daily #3 · all-time #7" — the server publishes
+-- each a beat after RunEnded (submit → fetch → attr), so the setters
+-- re-render the shared line on an already-visible card. 0 hides that
+-- half (off the TopCount window).
+function Ui:_renderRanks()
+	local parts = {}
+	if (self._dailyRank or 0) > 0 then
+		table.insert(parts, string.format("daily #%d", self._dailyRank))
+	end
+	if (self._topRank or 0) > 0 then
+		table.insert(parts, string.format("all-time #%d", self._topRank))
+	end
+	self.dRanks.Text = table.concat(parts, "  ·  ")
+	self.dRanks.Visible = #parts > 0
+end
+
 function Ui:setDailyRank(rank: number?)
-	local n = rank or 0
-	self.dRank.Visible = n > 0
-	if n > 0 then
-		self.dRank.Text = string.format("daily #%d today", n)
-	end
+	self._dailyRank = rank or 0
+	self:_renderRanks()
 end
 
--- All-time rank (§14): "all-time #7" — same late-arriving attr shape as
--- the daily line, published only on session records.
 function Ui:setTopRank(rank: number?)
-	local n = rank or 0
-	self.tRank.Visible = n > 0
-	if n > 0 then
-		self.tRank.Text = string.format("all-time #%d", n)
-	end
+	self._topRank = rank or 0
+	self:_renderRanks()
 end
 
 -- Garage state push (§18): one table per refresh — slot row text/afford,
