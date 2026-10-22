@@ -1171,6 +1171,31 @@ Config.Art = {
 	AuroraHueB = 0.72, -- violet end
 	AuroraValue = 0.85, -- neon brightness
 	AuroraFade = 0.55, -- base transparency
+	-- NORTHERN LIGHTS (§18 world "polar"): the overhead aurora — wide
+	-- translucent ribbons slung ACROSS the lane high in the night sky
+	-- (BOREALIS SKY's curtains flank the lane; these arc over it), each
+	-- seeded with a slash yaw and undulating on slow sines in the same
+	-- green→violet window. A sparse star field rides the band with them.
+	PolarCount = 8, -- ribbons covering the window
+	PolarSpacing = 140, -- z spacing per ribbon
+	PolarSpan = 380, -- ribbon length across x
+	PolarDepth = 34, -- ribbon width along z
+	PolarThick = 1.4, -- ribbon thickness
+	PolarAlt = 190, -- center height above the deck plane, ± AltJitter
+	PolarAltJitter = 40,
+	PolarYawMax = 0.5, -- seeded slash angle across the sky (rad)
+	PolarRollMax = 0.22, -- live roll wobble amplitude (rad)
+	PolarWaveAmp = 18, -- y bob amplitude
+	PolarWaveF = 0.45, -- bob frequency (scaled by tick)
+	PolarHueA = 0.33, -- polar green end of the cycle
+	PolarHueB = 0.75, -- violet end (never red — color law)
+	PolarValue = 0.9, -- neon brightness
+	PolarFade = 0.6, -- base transparency
+	PolarStars = 45, -- star motes scattered through the night band
+	PolarStarAltMin = 30, -- star heights above the deck plane
+	PolarStarAltMax = 280,
+	PolarStarX = 320, -- star lateral scatter half-width
+	PolarStarZSpan = 1100, -- z window the field covers
 	-- Neon reed field (§18 world "reef"): dense thin neon strands rising
 	-- out of the void beside the deck — kelp on a wireframe reef. Static
 	-- parts recycled on a frontier like the towers.
@@ -1391,6 +1416,7 @@ Config.Monetization = {
 		sunkissed = 0, -- SUNKISSED — eclipse + 24k noon + wireframe suns (~149)
 		miami = 0, -- MIAMI NIGHTS — palm-grove world + prism sun (~149)
 		vhs = 0, -- VHS DECK — pixel glass + scanline screen filters (~99)
+		polaris = 0, -- POLARIS — overhead northern-lights world + pale moon (~149)
 	},
 	Price = {
 		starter = 49,
@@ -1411,6 +1437,7 @@ Config.Monetization = {
 		sunkissed = 149,
 		miami = 149,
 		vhs = 99,
+		polaris = 149,
 	},
 	-- Seasonal slot (§18): ONE rotating bundle gated on a yearly UTC
 	-- window so the garage always has something coming or going. The

@@ -18,6 +18,10 @@
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
+--   "polar" — NORTHERN LIGHTS: the real aurora — wide translucent
+--             ribbons slung ACROSS the lane high overhead, seeded with a
+--             slash yaw and undulating on slow sines in the green→violet
+--             window; a sparse star field rides the night band with them.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -47,7 +51,7 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms"
+type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms" | "polar"
 local theme: Theme = "city"
 
 -- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
@@ -72,6 +76,13 @@ type Meteor = { part: Part, vel: Vector3, speed: number }
 local meteors: { Meteor } = {}
 local meteorSeeded = false
 local meteorClock = os.clock() -- dt source for real streak motion
+
+-- POLAR (§18): overhead ribbons + a star band, same lazy/park contract.
+type PolarBand = { part: Part, x: number, z: number, alt: number, yaw: number, phase: number, huePhase: number }
+local polarBands: { PolarBand } = {}
+local polarStars: { Part } = {}
+local polarFrontZ = 0
+local polarSeeded = false
 
 -- PALMS (§18): same lazy-build / park-on-swap contract. A palm is a trunk
 -- part + a fan of drooping frond blades + two coconut beads; `crown`
@@ -455,6 +466,99 @@ local function stepAurora(anchor: Vector3, t: number)
 		local h = Art.AuroraHueA
 			+ (Art.AuroraHueB - Art.AuroraHueA) * (0.5 + 0.5 * math.sin(t * 0.23 + c.huePhase * 6.283))
 		c.part.Color = Color3.fromHSV(h, 0.85, Art.AuroraValue)
+	end
+end
+
+--========================= NORTHERN LIGHTS (polar) =========================--
+-- The real aurora: wide translucent ribbons slung ACROSS the lane high
+-- overhead — where BOREALIS SKY flanks the road with curtains, this arcs
+-- over it. Each ribbon seeds a slash yaw + size jitter, then undulates in
+-- place (y bob + roll wobble + the green→violet hue window); z recycles
+-- on a single frontier. Sparse star motes fill the band so it reads as
+-- night sky, not a ceiling.
+
+local STAR_BLUE = Color3.fromRGB(170, 190, 255)
+local STAR_GREEN = Color3.fromRGB(150, 255, 210)
+
+local function ensurePolar()
+	if #polarBands > 0 then
+		return
+	end
+	for _ = 1, Art.PolarCount do
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CastShadow = false
+		p.Material = Enum.Material.Neon
+		p.Transparency = Art.PolarFade
+		p.CFrame = PARK
+		p.Parent = root
+		table.insert(polarBands, { part = p, x = 0, z = 0, alt = 0, yaw = 0, phase = 0, huePhase = 0 })
+	end
+	for _ = 1, Art.PolarStars do
+		local s = Instance.new("Part")
+		s.Anchored = true
+		s.CanCollide = false
+		s.CanQuery = false
+		s.CastShadow = false
+		s.Material = Enum.Material.Neon
+		s.Shape = Enum.PartType.Ball
+		s.Size = Vector3.new(1, 1, 1) * rng:NextNumber(0.5, 1.6)
+		s.CFrame = PARK
+		s.Parent = root
+		table.insert(polarStars, s)
+	end
+end
+
+local function layBand(b: PolarBand, anchor: Vector3, z: number)
+	b.z = z
+	b.x = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing + rng:NextNumber(-60, 60)
+	b.alt = Art.PolarAlt + rng:NextNumber(-Art.PolarAltJitter, Art.PolarAltJitter)
+	b.yaw = rng:NextNumber(-Art.PolarYawMax, Art.PolarYawMax)
+	b.phase = rng:NextNumber(0, math.pi * 2)
+	b.huePhase = rng:NextNumber()
+	local p = b.part
+	p.Size = Vector3.new(
+		Art.PolarSpan * rng:NextNumber(0.75, 1.15),
+		Art.PolarThick,
+		Art.PolarDepth * rng:NextNumber(0.7, 1.4)
+	)
+end
+
+local function layPolarStar(s: Part, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(0, Art.PolarStarZSpan)
+	s.Position = Vector3.new(
+		anchor.X + rng:NextNumber(-Art.PolarStarX, Art.PolarStarX),
+		deckEst(anchor, z) + rng:NextNumber(Art.PolarStarAltMin, Art.PolarStarAltMax),
+		z
+	)
+	-- Mostly white glints, a few tinted to the aurora family.
+	local r = rng:NextNumber()
+	s.Color = if r < 0.7 then WHITE elseif r < 0.85 then STAR_BLUE else STAR_GREEN
+end
+
+-- Per-frame undulation: y bob + roll wobble + hue cycle + a slow shimmer
+-- on transparency. ~8 bands + 45 motes — cheap.
+local function stepPolar(anchor: Vector3, t: number)
+	for _, b in ipairs(polarBands) do
+		if b.z > anchor.Z + BACK_MARGIN then
+			polarFrontZ -= Art.PolarSpacing
+			layBand(b, anchor, polarFrontZ)
+		end
+		local sway = math.sin(t * Art.PolarWaveF + b.phase)
+		local roll = math.sin(t * 0.27 + b.phase * 1.3) * Art.PolarRollMax
+		local p = b.part
+		p.CFrame = CFrame.new(b.x, deckEst(anchor, b.z) + b.alt + sway * Art.PolarWaveAmp, b.z)
+			* CFrame.Angles(0, b.yaw, roll)
+		local h = Art.PolarHueA + (Art.PolarHueB - Art.PolarHueA) * (0.5 + 0.5 * math.sin(t * 0.2 + b.huePhase * 6.283))
+		p.Color = Color3.fromHSV(h, 0.85, Art.PolarValue)
+		p.Transparency = Art.PolarFade + 0.1 * math.sin(t * 0.9 + b.phase * 2)
+	end
+	for _, s in ipairs(polarStars) do
+		if s.Position.Z > anchor.Z + BACK_MARGIN then
+			layPolarStar(s, anchor)
+		end
 	end
 end
 
@@ -854,6 +958,16 @@ local function parkPalms()
 	palmSeeded = false
 end
 
+local function parkPolar()
+	for _, b in ipairs(polarBands) do
+		parkPart(b.part)
+	end
+	for _, s in ipairs(polarStars) do
+		parkPart(s)
+	end
+	polarSeeded = false
+end
+
 local parkers: { [Theme]: () -> () } = {
 	city = parkTowers,
 	peaks = parkPeaks,
@@ -863,6 +977,7 @@ local parkers: { [Theme]: () -> () } = {
 	reef = parkReef,
 	meteor = parkMeteors,
 	palms = parkPalms,
+	polar = parkPolar,
 }
 
 local THEMES: { [string]: Theme } = {
@@ -873,6 +988,7 @@ local THEMES: { [string]: Theme } = {
 	reef = "reef",
 	meteor = "meteor",
 	palms = "palms",
+	polar = "polar",
 }
 
 function Backdrop.setTheme(t: string)
@@ -1073,6 +1189,25 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
+	-- NORTHERN LIGHTS (§18 "polar"): ribbons recycle on one frontier,
+	-- then every frame undulates overhead; stars re-scatter as they pass.
+	if theme == "polar" then
+		ensurePolar()
+		if not polarSeeded then
+			polarSeeded = true
+			polarFrontZ = anchor.Z + BACK_MARGIN
+			for _, b in ipairs(polarBands) do
+				polarFrontZ -= Art.PolarSpacing
+				layBand(b, anchor, polarFrontZ)
+			end
+			for _, s in ipairs(polarStars) do
+				layPolarStar(s, anchor)
+			end
+		end
+		stepPolar(anchor, os.clock())
+		return
+	end
+
 	if not seeded then
 		seeded = true
 		-- Seed each row's frontier behind the anchor spread across the span,
@@ -1252,6 +1387,42 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 					layPalm(makePalm(parent, side, row), x, baseY, z)
 				end
 			end
+		end
+		return
+	end
+	if t == "polar" then
+		local z = anchor.Z + BACK_MARGIN
+		for _ = 1, Art.PolarCount do
+			z -= Art.PolarSpacing
+			local p = Instance.new("Part")
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CastShadow = false
+			p.Material = Enum.Material.Neon
+			p.Transparency = Art.PolarFade
+			p.Parent = parent
+			local b: PolarBand = { part = p, x = 0, z = 0, alt = 0, yaw = 0, phase = 0, huePhase = 0 }
+			layBand(b, anchor, z)
+			-- One static frame of the undulation loop's pose/color math.
+			p.CFrame = CFrame.new(b.x, deckEst(anchor, b.z) + b.alt, b.z) * CFrame.Angles(0, b.yaw, 0)
+			p.Color = Color3.fromHSV(
+				Art.PolarHueA + (Art.PolarHueB - Art.PolarHueA) * (0.5 + 0.5 * math.sin(b.huePhase * 6.283)),
+				0.85,
+				Art.PolarValue
+			)
+		end
+		for _ = 1, Art.PolarStars do
+			local s = Instance.new("Part")
+			s.Anchored = true
+			s.CanCollide = false
+			s.CanQuery = false
+			s.CastShadow = false
+			s.Material = Enum.Material.Neon
+			s.Shape = Enum.PartType.Ball
+			s.Size = Vector3.new(1, 1, 1) * rng:NextNumber(0.5, 1.6)
+			s.Parent = parent
+			layPolarStar(s, anchor)
 		end
 		return
 	end

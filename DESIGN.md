@@ -835,7 +835,13 @@ that caused them.
   the plane, tips poke above it, like kelp on a wireframe reef;
   **METEOR SHOWER** (`meteor`) is the one animated sky — thin neon
   streaks on real velocities (wall-clock dt), respawning ahead once they
-  fall below the deck or slip behind. All follow the same contract:
+  fall below the deck or slip behind. **NORTHERN LIGHTS** (`polar`) is
+  the overhead aurora — where BOREALIS SKY flanks the lane with
+  curtains, wide translucent ribbons sling ACROSS the lane high in the
+  night sky, each seeded with a slash yaw and undulating on slow sines
+  (y bob + roll wobble + the same green→violet hue window + a shimmer on
+  transparency); a sparse star field scatters through the band so it
+  reads as night sky, not a ceiling. All follow the same contract:
   lazy-built on first equip, client-local, non-collidable, parked below
   the void on theme swap, recycled on frontiers so they stream forever.
 - **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe
@@ -1184,8 +1190,8 @@ All have designed-for extension points (chunk features, `datamodel` hooks)
 **Phase 1 = cosmetics only.** The leaderboard is the replay hook, so v1
 sells looks, never power. Death stays final — revives were considered and
 explicitly rejected (a paid continue is just buying board position). Every
-item is a pure visual in one of seven slots: `skin`, `trail`, `gemFx`,
-`deathFx`, `world`, `sun`, `filter` — `world` swaps the entire
+item is a pure visual in one of seven slots: `skin`, `world`, `trail`,
+`gemFx`, `deathFx`, `sun`, `filter` — `world` swaps the entire
 side-scenery theme (§12: city canyon ↔ NEON PEAKS ridge field ↔ MIAMI
 NIGHTS palm grove), the first environment-tier DLC; `sun` restyles the
 horizon disk the run chases (§12 `Art.SunStyles`), the second. `filter`
@@ -1194,7 +1200,8 @@ a dedicated low-DisplayOrder ScreenGui — the whole 3D view pixelates
 while HUD text renders above it and stays crisp. The **SUNKISSED**
 bundle packs ECLIPSE + 24K NOON + WIREFRAME; **POLAR CAP** rides the
 seasonal SOLSTICE window; **MIAMI NIGHTS** bundles the palm grove with
-PRISM RISE; **VHS DECK** bundles both filters.
+PRISM RISE; **POLARIS** bundles the overhead-aurora world (NORTHERN
+LIGHTS) with PALE MOON; **VHS DECK** bundles both filters.
 
 **Catalog**: items live in `Cosmetics.luau` (ReplicatedStorage) — each is a
 data record `{ slot, name, ...colors/params }`, so a new look is config,
@@ -1325,6 +1332,8 @@ The wave-2 drop widens every slot à-la-carte: five more skin families
 inferno), six death-fx styles, and three new world themes —
 `world_aurora` (BOREALIS SKY), `world_reef` (NEON REEF), `world_meteor`
 (METEOR SHOWER) at ◊800–900; `world_aurora` also joins the AURORA bundle.
+`world_palms` (MIAMI NIGHTS) anchors the miami pass and `world_polar`
+(NORTHERN LIGHTS, ◊900) anchors polaris with `sun_moon` (PALE MOON).
 
 **COLOR LAB**: `skin_custom`/`trail_custom`/`gemfx_custom` take the
 string params `customA`/`customB`/`customC`, resolved client-side through

@@ -12,7 +12,7 @@ the red seam is cut out of the reachable space on both ends.
 
 ---
 
-## Items (68 total)
+## Items (81 total)
 
 ### SKIN — ringA/ringB cage + core (17)
 
@@ -81,7 +81,7 @@ GHOST/INFERNO (◊250–350); LAB POP ◊1500 (colorlab).
 | PINK SLIP | pop | ◊500 | candy |
 | LIMEWIRE | shatter | ◊550 | — |
 
-### WORLD — side-scenery theme (7)
+### WORLD — side-scenery theme (9)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -92,10 +92,12 @@ GHOST/INFERNO (◊250–350); LAB POP ◊1500 (colorlab).
 | BOREALIS SKY | aurora curtains | ◊900 | aurora |
 | NEON REEF | strand field | ◊800 | reef |
 | METEOR SHOWER | animated streaks | ◊900 | deepspace |
+| MIAMI NIGHTS | neon palm grove | ◊800 | miami |
+| NORTHERN LIGHTS | overhead aurora ribbons + stars | ◊900 | polaris |
 
 ---
 
-## Bundle passes (14 + 1 perk)
+## Bundle passes (18 + 1 perk)
 
 | Pass | Contents | Suggested R$ |
 |---|---|---|
@@ -113,6 +115,10 @@ GHOST/INFERNO (◊250–350); LAB POP ◊1500 (colorlab).
 | INFERNO | ember set + corona | 149 |
 | CANDY GLOSS | candy set + pink slip | 149 |
 | COLOR LAB | custom-hue skin+trail+pop + sliders | 249 |
+| SUNKISSED | eclipse + 24k noon + wireframe suns | 149 |
+| MIAMI NIGHTS | palm-grove world + prism sun | 149 |
+| VHS DECK | pixel glass + scanline filters | 99 |
+| POLARIS | northern-lights world + pale moon | 149 |
 | 2X BANK | permanent 2× bank perk | 99 |
 
 ## Gem packs (dev products)
@@ -146,7 +152,7 @@ GHOST/INFERNO (◊250–350); LAB POP ◊1500 (colorlab).
 
 ## Live-ops checklist
 
-1. Create the 14 passes + bank2x + 3 products on the Creator Dashboard
+1. Create the 18 passes + bank2x + 3 products on the Creator Dashboard
    at the prices above; drop ids into `Config.Monetization.Passes` /
    `.Products`.
 2. Flip `Config.Monetization.FreeForTesting` off.

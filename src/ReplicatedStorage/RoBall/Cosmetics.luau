@@ -17,7 +17,7 @@ local Cosmetics = {}
 
 export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world" | "sun" | "filter"
 
-Cosmetics.Slots = { "skin", "trail", "gemFx", "deathFx", "world", "sun", "filter" } :: { Slot }
+Cosmetics.Slots = { "skin", "world", "trail", "gemFx", "deathFx", "sun", "filter" } :: { Slot }
 Cosmetics.SlotName = {
 	skin = "SKIN",
 	trail = "TRAIL",
@@ -36,8 +36,8 @@ Cosmetics.SlotName = {
 --   gemFx:   color = Color3 | "rainbow" (per-burst hue cycle)
 --   deathFx: style "pop"|"shatter"|"nova"|"implode"|"geyser"|"corona",
 --            colorA/colorB accents
---   world:   theme "city"|"peaks"|"void"|"grid"|"aurora"|"reef"|"meteor" —
---            picks the side scenery Backdrop draws
+--   world:   theme "city"|"peaks"|"void"|"grid"|"aurora"|"reef"|"meteor"|
+--            "palms"|"polar" — picks the scenery Backdrop draws
 --   sun:     sun = a key into Config.Art.SunStyles — restyles the striped
 --            horizon disk Backdrop parks down the slope
 --   filter:  filter = "off"|"scan"|"pixel" — a screen overlay the
@@ -390,6 +390,7 @@ Cosmetics.Items = {
 	world_reef = { slot = "world", name = "NEON REEF", gemPrice = 800, theme = "reef" },
 	world_meteor = { slot = "world", name = "METEOR SHOWER", gemPrice = 900, theme = "meteor" },
 	world_palms = { slot = "world", name = "MIAMI NIGHTS", gemPrice = 800, theme = "palms" },
+	world_polar = { slot = "world", name = "NORTHERN LIGHTS", gemPrice = 900, theme = "polar" },
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -489,6 +490,8 @@ Cosmetics.Order = {
 		"world_aurora",
 		"world_reef",
 		"world_meteor",
+		"world_palms",
+		"world_polar",
 	},
 	sun = {
 		"sun_classic",
@@ -615,6 +618,14 @@ Cosmetics.Bundles = {
 		name = "MIAMI NIGHTS",
 		desc = "palm-grove world + prism sun",
 		items = { "world_palms", "sun_prism" },
+	},
+	{
+		-- The overhead aurora (§18 "polar" world): ribbons slung across
+		-- the night sky + a pale moon — BOREALIS SKY's cousin, overhead.
+		id = "polaris",
+		name = "POLARIS",
+		desc = "northern-lights sky + pale moon",
+		items = { "world_polar", "sun_moon" },
 	},
 	{
 		-- Screen filters (§18 "filter" slot): the whole 3D view goes
