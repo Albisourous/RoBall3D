@@ -57,8 +57,10 @@ function Tiers.forDistance(dist: number): TierDef
 		end
 	end
 	-- Endless mode (DESIGN.md §9): past the last listed tier, the width
-	-- window keeps shrinking toward its floors. Speed needs no tail
-	-- clause — the log curve already climbs forever.
+	-- floor keeps tightening toward its floor — the ceiling never does:
+	-- widthMax stays pinned so the deep game always spans the full
+	-- floor-to-full-width window. Speed needs no tail clause — the log
+	-- curve already climbs forever.
 	local last = Config.Tiers[#Config.Tiers] :: TierDef
 	local out = table.clone(best :: any)
 	out.speed = Tiers.speedAt(dist)
@@ -66,7 +68,6 @@ function Tiers.forDistance(dist: number): TierDef
 		local over = dist - last.dist
 		local s = Config.Speed
 		out.widthMin = math.max(s.EndlessWidthMinFloor, last.widthMin - over * s.EndlessWidthShrink)
-		out.widthMax = math.max(s.EndlessWidthMaxFloor, last.widthMax - over * s.EndlessWidthShrink)
 	end
 	return out
 end

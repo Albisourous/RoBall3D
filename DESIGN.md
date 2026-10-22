@@ -37,7 +37,8 @@ leaderboard is the replay hook; a seed system lets players run identical maps.
 
 - **The track is a wide slope face, not a ribbon.** Generous width is core to
   the feel — most deaths come from obstacles, not edges. We widened
-  `BaseWidth` to match (~16 ball-diameters early, narrowing per tier).
+  `BaseWidth` to match (~16 ball-diameters — the width ceiling never
+  shrinks; only the floor ratchets with tiers).
 - **Red = lethal, always.** Slope's one-color hazard language means zero
   ambiguity: players budget clearance the instant red is visible. We adopt it
   exactly: `LethalColor` is reserved for kill geometry and is *never*
@@ -306,7 +307,8 @@ generation frontier, spawning the ball under the world.
 
 Track = ordered sequence of **chunks**, each
 30–90 studs long, forming a **wide descending slope face** (Slope model —
-width is generous early and narrows with tiers; it is not a narrow ribbon).
+width is generous and stays reachable — the floor tightens with tiers
+but the ceiling never shrinks; it is not a narrow ribbon).
 The generator keeps `AheadDistance = 400` studs of track
 alive ahead of the ball and destroys anything `BehindDistance = 250` studs
 behind it. Each player's run lives in a private lane offset `600` studs apart
@@ -611,14 +613,17 @@ toward the curve at `Accel` = `6 studs/s²`.
 
 Crossing a tier threshold:
 - new chunk types join the RNG pool
-- allowed width range tightens (24 → 4 min)
+- the width floor tightens (34 → 10 min) — the ceiling NEVER does:
+  `widthMax` is pinned at 50 on every tier, so the window itself is the
+  difficulty and deep runs span razor-thin to full-width
 
 Within a tier the deck width isn't monotonic: `Narrow` ratchets down
 toward `widthMin`, `Flat` re-rolls the width anywhere in the window
 (tiers 1–3 and back from tier 5 — it converges an over-wide deck down
 into the window too), and from tier 5 `Widen` opens back toward
 `widthMax` — so the deep game sawtooths between cramped precision
-stretches and reopened fields instead of parking in one extreme.
+stretches and full-width reopened fields instead of parking in one
+extreme.
 `canRun` gates `Widen` to ≥4 studs of headroom under the tier ceiling,
 and its edge-margin gems make the lateral reach (Q/E dash, §4) pay off
 while the field is wide.
@@ -626,12 +631,14 @@ while the field is wide.
 **Endless mode** — there is no speed cap. Past the last listed tier
 (2000m), `Tiers.forDistance` extrapolates: the log curve keeps climbing
 (unbounded but decelerating — ~142 s/s at 5km vs ~174 at 10km, so the
-marginal squeeze shrinks the deeper you get) and the width window eases
-toward `EndlessWidth*Floor` (12/18) — floored where a gate row + rim
+marginal squeeze shrinks the deeper you get) and the width floor eases
+toward `EndlessWidthMinFloor` (12) — floored where a gate row + rim
 margin still fits, since below ~12 studs lethal rows can't generate and
-the run would paradoxically get easier. The chunk pool stays tier-6's;
+the run would paradoxically get easier. The ceiling stays pinned at 50
+forever — variance itself is the late-game texture. The chunk pool
+stays tier-6's;
 **speed is still the difficulty driver** — collapsing reaction time plus
-the narrowing deck do the work, not new hazards or razor lanes.
+the tightening floor do the work, not new hazards or razor lanes.
 `Config.Speed.Max` only normalizes presentation (FOV, music ramp, gem
 beat spacing all saturate at it).
 

@@ -31,13 +31,13 @@ Config.Speed = {
 	-- spacing) — those saturate at Max. Actual speed is UNCAPPED: the log
 	-- curve keeps growing (slowly) forever.
 	Max = 110,
-	-- Track keeps narrowing gently: widthMin/widthMax shrink by this per
-	-- meter past the last tier, floored so lethal rows can always spawn —
-	-- below ~12 studs gateRow/BlockField have no room and the run would go
-	-- obstacle-free = EASIER. Speed is the difficulty driver, not width.
+	-- Past the last tier the width FLOOR keeps tightening by this per
+	-- meter, floored so lethal rows can always spawn — below ~12 studs
+	-- gateRow/BlockField have no room and the run would go obstacle-free
+	-- = EASIER. widthMax never shrinks: the deck can always reopen to
+	-- full width, so late game variance is the whole [floor, 50] window.
 	EndlessWidthShrink = 0.002, -- studs per meter
 	EndlessWidthMinFloor = 12, -- min gap (7) + rim margin (~5) fits a block row
-	EndlessWidthMaxFloor = 18,
 }
 
 -- Power meter (DESIGN.md §4): one resource bar for all three verbs —
@@ -468,15 +468,17 @@ Config.Flip = {
 }
 
 -- Difficulty tiers. Crossing `dist` (meters) activates the tier: speed
--- target rises, new chunk types join the pool, width range tightens.
--- `chunkPool` entries must exist in ChunkDefs.
+-- target rises, new chunk types join the pool, the width floor tightens.
+-- widthMax is pinned at 50 forever — the ceiling never shrinks, so deep
+-- runs sawtooth across the WHOLE floor-to-full-width window instead of
+-- camping narrow. `chunkPool` entries must exist in ChunkDefs.
 Config.Tiers = {
 	{ dist = 0, chunkPool = { "Flat", "Slalom" }, widthMin = 40, widthMax = 50 },
 	{
 		dist = 200,
 		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate", "Terrace", "Swell", "Sway" },
 		widthMin = 34,
-		widthMax = 48,
+		widthMax = 50,
 	},
 	{
 		dist = 500,
@@ -495,7 +497,7 @@ Config.Tiers = {
 			"Blackout",
 		},
 		widthMin = 26,
-		widthMax = 44,
+		widthMax = 50,
 	},
 	{
 		dist = 900,
@@ -520,7 +522,7 @@ Config.Tiers = {
 			"PadHop",
 		},
 		widthMin = 20,
-		widthMax = 38,
+		widthMax = 50,
 	},
 	{
 		dist = 1400,
@@ -547,7 +549,7 @@ Config.Tiers = {
 			"DropGate",
 		},
 		widthMin = 14,
-		widthMax = 32,
+		widthMax = 50,
 	},
 	{
 		dist = 2000,
@@ -581,7 +583,7 @@ Config.Tiers = {
 			"FlipRide",
 		},
 		widthMin = 10,
-		widthMax = 26,
+		widthMax = 50,
 	},
 }
 

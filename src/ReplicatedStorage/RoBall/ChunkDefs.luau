@@ -407,7 +407,11 @@ end
 function ChunkDefs.Narrow(rng: Random, st: GenState, tier): ChunkSpec
 	local upper = math.min(st.width, tier.widthMax)
 	local lower = math.max(tier.widthMin, Config.Generation.MinWidth)
-	local target = rng:NextNumber(lower, math.max(lower, upper))
+	-- Bias the target into the window's lower half (x^1.6 ≈ 62% of mass
+	-- below mid): a "narrow" that lands a stud under the entry width is a
+	-- no-op — with widthMax pinned at 50 this is the chunk that makes the
+	-- deep deck actually sawtooth instead of camping wide.
+	local target = lower + (math.max(lower, upper) - lower) * rng:NextNumber() ^ 1.6
 	-- Same lateral-honesty rule as Flat: the closing edge can't outrun a
 	-- braked ball coming in from the far edge.
 	local length = math.max(
