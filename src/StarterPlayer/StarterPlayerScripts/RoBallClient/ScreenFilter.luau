@@ -142,7 +142,10 @@ local function apply(item: any)
 		relayout()
 	elseif live == "tint" then
 		-- Color grade: a flat wash at the item's alpha — reads as a lens.
-		local f = gradeAt(1, 0, { NumberSequenceKeypoint.new(0, 0) })
+		local f = gradeAt(1, 0, {
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 0),
+		})
 		f.BackgroundColor3 = if liveItem.tint then liveItem.tint else Art.PixelColor
 		f.BackgroundTransparency = 1 - (if liveItem.alpha then liveItem.alpha else 0.12)
 	elseif live == "vignette" then
