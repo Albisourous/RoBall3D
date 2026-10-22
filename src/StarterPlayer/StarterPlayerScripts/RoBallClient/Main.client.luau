@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local CollectionService = game:GetService("CollectionService")
+local HapticService = game:GetService("HapticService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Tiers = require(ReplicatedStorage.RoBall.Tiers)
@@ -91,6 +92,22 @@ local padSteer = 0
 local padBoost = false
 local padBrake = false
 local tutShown = false -- first-run coach line, once per session
+
+-- Gamepad rumble (§4): SetMotor is idempotent-cheap — no reason to gate
+-- callers on GamepadEnabled, a missing pad just no-ops the motor write.
+local function rumble(pack: { number })
+	local r = Config.Controls.Rumble
+	if not r.Enabled then
+		return
+	end
+	local gp = Enum.UserInputType.Gamepad1
+	HapticService:SetMotor(gp, Enum.VibrationMotor.Large, pack[1])
+	HapticService:SetMotor(gp, Enum.VibrationMotor.Small, pack[2])
+	task.delay(pack[3], function()
+		HapticService:SetMotor(gp, Enum.VibrationMotor.Large, 0)
+		HapticService:SetMotor(gp, Enum.VibrationMotor.Small, 0)
+	end)
+end
 local lastDashAt = 0
 -- "tap" dash style (§4): last press time per steer direction — a second
 -- tap inside Dash.TapWindow dashes instead of just steering.
@@ -913,6 +930,7 @@ evRunEnded.OnClientEvent:Connect(
 		ui:setThreat("")
 		ui:setRadarGhosts(nil, nil)
 		CosmeticFx.onMode("dead")
+		rumble(Config.Controls.Rumble.Death)
 		DeathFx.burst(lastBallPos)
 		-- Ghost echo (§14): this run's frames become the stored ghost only
 		-- when the run is the new PB — the server holds a one-shot
@@ -979,6 +997,7 @@ local function tryDash(dir: number): string
 	if powerCharge < math.max(Config.Power.RechargeGate, Config.Dash.Cost) then
 		dashDeniedAt = now
 		Sfx.dashDenied()
+		rumble(Config.Controls.Rumble.Denied)
 		return "denied"
 	end
 	powerCharge = math.max(0, powerCharge - Config.Dash.Cost)
@@ -987,6 +1006,7 @@ local function tryDash(dir: number): string
 	dashUntil = now + Config.Dash.Time
 	lastDashAt = now
 	Sfx.dash(dir)
+	rumble(Config.Controls.Rumble.Dash)
 	return "fired"
 end
 

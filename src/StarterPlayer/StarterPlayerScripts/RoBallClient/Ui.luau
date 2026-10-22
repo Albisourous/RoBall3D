@@ -477,12 +477,13 @@ function Ui.new(): Ui
 	seedBox.Font = F_DATA
 	seedBox.TextSize = 16
 	seedBox.TextColor3 = C_PINK
-	seedBox.PlaceholderText = "daily"
+	seedBox.PlaceholderText = "daily #" .. Daily.seed() -- today's shared seed, readable at the launch point
 	seedBox.PlaceholderColor3 = C_DIM
 	seedBox.Text = "" -- blank = today's shared seed; anything typed is a seeded run
 	seedBox.Position = UDim2.fromOffset(60, 0)
 	seedBox.Size = UDim2.fromOffset(278, 32)
 	seedBox.ClearTextOnFocus = false
+	seedBox.Selectable = true -- console: A focuses the box, platform OSK types the seed
 	local seedStroke = Instance.new("UIStroke")
 	seedStroke.Color = C_DIM
 	seedStroke.Transparency = 0.5
@@ -512,6 +513,7 @@ function Ui.new(): Ui
 
 	local trkName = Instance.new("TextButton")
 	trkName.Name = "TrackName"
+	trkName.Selectable = true -- gamepad cursor cycles the track pick
 	trkName.BackgroundTransparency = 1
 	trkName.AutoButtonColor = false
 	trkName.Font = F_DATA
@@ -526,6 +528,7 @@ function Ui.new(): Ui
 
 	local trkLeft = arrowButton(trkRow, "<", 64, 2)
 	trkLeft.Name = "TrackPrev"
+	trkLeft.Selectable = true
 	trkLeft.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
 			self.onTrackCycle(-1)
@@ -533,6 +536,7 @@ function Ui.new(): Ui
 	end)
 	local trkRight = arrowButton(trkRow, ">", 258, 2)
 	trkRight.Name = "TrackNext"
+	trkRight.Selectable = true
 	trkRight.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
 			self.onTrackCycle(1)
@@ -608,6 +612,7 @@ function Ui.new(): Ui
 	self.onBoardTab = nil :: ((board: string) -> ())?
 	local function boardTab(text, x)
 		local b = Instance.new("TextButton")
+		b.Selectable = true -- gamepad cursor can reach the board tabs
 		b.BackgroundTransparency = 1
 		b.AutoButtonColor = false
 		b.Font = F_DISPLAY
@@ -656,6 +661,7 @@ function Ui.new(): Ui
 	self.onFriendsReady = nil :: (() -> ())?
 	local friendsBtn = Instance.new("TextButton")
 	friendsBtn.Name = "FriendsBtn"
+	friendsBtn.Selectable = true -- gamepad cursor reaches the board filter
 	friendsBtn.BackgroundTransparency = 1
 	friendsBtn.AutoButtonColor = false
 	friendsBtn.Font = F_DATA

@@ -110,6 +110,15 @@ Config.Controls = {
 	ZoneW = 0.44, -- touch steer zone: left screen fraction, bottom-anchored
 	ZoneH = 0.62, -- …and height fraction from the bottom edge up
 	TutHintSec = 6, -- first-run coach line stays up this long, then hides
+	-- Gamepad rumble (§4): Large = the low thump, Small = the zip. Every
+	-- entry is {large, small, seconds}; 0/0 entries still pulse Small so
+	-- a denied tap reads in the hand, not just the ear.
+	Rumble = {
+		Enabled = true,
+		Dash = { 0.15, 0.45, 0.14 }, -- burst fires — a high zing, not a thud
+		Denied = { 0, 0.12, 0.10 }, -- latched-out tap — a faint click
+		Death = { 0.95, 0.8, 0.5 }, -- the wreck — the only big shake
+	},
 }
 
 Config.Camera = {
