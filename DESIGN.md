@@ -219,7 +219,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   rule, PLAY, dash, seed, track, best), and a right
   **LEADERBOARD rail** (always open — your rank is the ad for the rerun
   loop). The missions card is the only pop-up: a deck card over the
-  bottom caption row (`dashHint` keymap).
+  bottom caption row (`dashHint` keymap). Feel spec — beat-thumped
+  chrome, auditioning TRACK row, spring pickers — lives in MENU.md
+  (osu! REA).
   - **PLAY** — the only filled element on the screen (solid pink slab,
     cyan rim on hover); `ENTER`/`R` also start. Everything else is chrome.
   - **DASH button** — its own bordered gold chip directly under PLAY;
@@ -931,10 +933,14 @@ that caused them.
   APE BALL) is the day-shift look: the client re-times `Lighting` to
   midday (`SkyClockTime` + day ambience/atmosphere — the only theme
   allowed to touch the sky, and it snapshots the server's night rig on
-  first equip so any swap restores it verbatim), a green/cream
+  first equip so any swap restores it verbatim), a two-green grass
   checkerboard floor rides the descent `SkyFloorDrop` studs below the
   deck as solid SmoothPlastic tile rows recycled on a shared frontier,
-  chunky four-lobe puff clouds drift beside the track on a lazy
+  a tropical sea spreads to the horizon `SkySeaDrop` studs under deck
+  grade (wide flat slabs re-parked on the descent each frame), sandy
+  grass-domed **islets** each crowned with a lone palm recycle past on
+  the water like the cloud field, chunky four-lobe puff clouds drift
+  beside the track on a lazy
   sine bob, re-entering ahead once they slip behind, and a **day-palm
   grove** lines the course — the same palm pool/frontier as MIAMI
   NIGHTS, re-dressed at lay time in the `SkyPalm*` palette (brown
@@ -1503,8 +1509,9 @@ deck — each sphere climbs on its own phase and pops back, a perpetual
 simmer beside the lane), `world_reef` → NEON REEF, `world_empty` → NULL
 (the `"empty"` theme draws no scenery at all — lane, sun, skybox; the
 silence is the product), `world_sky` → APE BALL (the day-shift world —
-SKY COURT re-times Lighting to midday, lays a green/cream checkerboard
-below the deck, and drifts puff clouds beside the track), and
+SKY COURT re-times Lighting to midday, lays a two-green checkerboard
+below the deck over a tropical sea dotted with palm-topped islets, and
+drifts puff clouds beside the track), and
 `world_polar` is shared —
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for
 the winter window (`Cosmetics.bundleOf` resolves shared membership to
@@ -1512,7 +1519,7 @@ the non-seasonal pack, so the sky never inherits the seasonal gate).
 The `floor` slot rides the `gemStyle` plumbing the other way: Main stamps
 the equipped item onto `streamer.deckItem` at run start and
 `TrackStreamer.emitDeck` tiles/recolors slabs per chunk (APEBALL.md §5)
-— CHECKER DECK turns the lane itself into the green/cream board. Skins
+— CHECKER DECK turns the lane itself into the green/dark-green board. Skins
 pin `gemShape` the same direction — one pickup silhouette per run (§8.4).
 Wave 2 also fills the acid/lagoon/ember/candy/chrome families, the
 animated **CHROMA** (strobe) and **IRIS** (wave) prestige skins, and the

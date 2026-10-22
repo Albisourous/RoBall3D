@@ -239,5 +239,5 @@ All other bundles append their floor item (8 items each).
   two screenshots a beat apart show the shell/rings rotated while the
   monkey is still upright and camera-facing; steer → visible lean.
 - Garage preview: monkey upright mid-roll, leans onto the gem line;
-  `floor_check` lane renders as green/cream checker.
+  `floor_check` lane renders as green/dark-green checker.
 - Equip another skin mid-run: glass/monkey removed cleanly (retint).

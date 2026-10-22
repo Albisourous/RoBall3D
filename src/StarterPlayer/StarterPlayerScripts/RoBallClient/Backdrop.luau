@@ -24,6 +24,12 @@
 --             mid-flight by drag, fanned across the upper sky from
 --             emitters re-anchored ahead of the ball; a sparse star
 --             field rides the night band with it.
+--   "sky"   — SKY COURT (APE BALL): the day-shift homage — midday
+--             lighting, a two-green grass checkerboard riding the
+--             descent below the deck, a tropical sea tiled to the
+--             horizon under it, palm-topped islets drifting past on
+--             the water, cartoon clouds, and the shared grove in a
+--             day palette.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -134,8 +140,15 @@ local palmSeeded = false
 -- Position — no per-frame allocation.
 type SkyRow = { tiles: { Part }, z: number }
 type SkyCloud = { parts: { Part }, offs: { Vector3 }, x: number, y: number, z: number, phase: number }
+-- The stage-over-water read: flat sea slabs re-park on the descent
+-- every frame; each islet is a sandy mass + grass dome + one static
+-- palm (own Palm record — never in the grove pool, so stepPalms won't
+-- recycle it), laid once per re-entry.
+type SkyIsland = { dome: Part, base: Part, palm: Palm, z: number }
 local skyRows: { SkyRow } = {}
 local skyClouds: { SkyCloud } = {}
+local skySeaParts: { Part } = {}
+local skyIslands: { SkyIsland } = {}
 local skyFrontZ = 0
 local skySeeded = false
 
@@ -981,11 +994,27 @@ local function ensureSky()
 			{ parts = parts, offs = {}, x = 0, y = 0, z = 0, phase = rng:NextNumber(0, math.pi * 2) }
 		)
 	end
+	for _ = 1, Art.SkySeaSlabs do
+		local slab = makePeakPart(root, false)
+		slab.Size = Vector3.new(Art.SkySeaWidth, 1, Art.SkySeaSpan)
+		slab.Color = Art.SkySeaColor
+		table.insert(skySeaParts, slab)
+	end
+	for _ = 1, Art.SkyIslands do
+		local base = makePeakPart(root, false)
+		base.Shape = Enum.PartType.Ball
+		base.Color = Art.SkyIslandSide
+		local dome = makePeakPart(root, false)
+		dome.Shape = Enum.PartType.Ball
+		dome.Color = Art.SkyIslandTop
+		table.insert(skyIslands, { dome = dome, base = base, palm = makePalm(root, 0, 1), z = math.huge })
+	end
 end
 
 -- Re-lay a checker row at z: SkyFloorCols solid tiles across the lane,
--- green/cream alternating. Row-slot parity keeps the pattern checked
--- both across and along the descent; the row keeps it through recycles.
+-- two greens alternating (SMB's grass board). Row-slot parity keeps the
+-- pattern checked both across and along the descent; the row keeps it
+-- through recycles.
 local function laySkyRow(row: SkyRow, rowIdx: number, anchor: Vector3, z: number)
 	row.z = z
 	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
@@ -1016,6 +1045,41 @@ local function laySkyCloud(c: SkyCloud, anchor: Vector3, z: number)
 		local d = CLOUD_SIZE[i] * s
 		p.Size = Vector3.new(d, d * 0.72, d)
 		p.Position = Vector3.new(c.x + c.offs[i].X, c.y + c.offs[i].Y, c.z + c.offs[i].Z)
+	end
+end
+
+-- Re-lay an islet at z: a sand mass pokes through the sea surface, the
+-- grass dome caps it, and the islet's own palm stands on top — the
+-- horizon islands the arcade course sails past. The palm is laid once
+-- here (static at this distance — no breeze step).
+local function laySkyIsland(isl: SkyIsland, anchor: Vector3, z: number)
+	isl.z = z
+	local seaY = deckEst(anchor, z) - Art.SkySeaDrop
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local x = anchor.X + side * (Art.SkyIslandMinX + rng:NextNumber(0, Art.SkyIslandDX))
+	local r = rng:NextNumber(Art.SkyIslandMinR, Art.SkyIslandMaxR)
+	isl.base.Size = Vector3.new(r * 2.3, r * 0.8, r * 2.3)
+	isl.base.Position = Vector3.new(x, seaY + r * 0.18, z)
+	isl.dome.Size = Vector3.new(r * 2, r * 0.95, r * 2)
+	isl.dome.Position = Vector3.new(x, seaY + r * 0.42, z)
+	layPalm(
+		isl.palm,
+		x + rng:NextNumber(-r * 0.3, r * 0.3),
+		seaY + r * 0.85,
+		z + rng:NextNumber(-r * 0.2, r * 0.2),
+		SKY_PALM
+	)
+end
+
+-- Park a single palm record (grove or islet) — the same three piece
+-- sets parkPalms walks.
+local function parkPalm(palm: Palm)
+	parkPart(palm.trunk)
+	for _, f in ipairs(palm.fronds) do
+		parkPart(f.part)
+	end
+	for _, b in ipairs(palm.beads) do
+		parkPart(b)
 	end
 end
 
@@ -1291,13 +1355,7 @@ end
 
 local function parkPalms()
 	for _, palm in ipairs(palms) do
-		parkPart(palm.trunk)
-		for _, f in ipairs(palm.fronds) do
-			parkPart(f.part)
-		end
-		for _, b in ipairs(palm.beads) do
-			parkPart(b)
-		end
+		parkPalm(palm)
 	end
 	palmSeeded = false
 end
@@ -1323,6 +1381,14 @@ local function parkSky()
 		for _, p in ipairs(c.parts) do
 			parkPart(p)
 		end
+	end
+	for _, slab in ipairs(skySeaParts) do
+		parkPart(slab)
+	end
+	for _, isl in ipairs(skyIslands) do
+		parkPart(isl.dome)
+		parkPart(isl.base)
+		parkPalm(isl.palm)
 	end
 	-- Sky shares the palm pool — park the grove too or the next theme
 	-- inherits palms standing where SKY COURT left them.
@@ -1555,10 +1621,17 @@ function Backdrop.update(anchor: Vector3)
 	-- SKY COURT (§18 "sky"): checker rows recycle on a shared frontier
 	-- like the grid wires; clouds re-enter ahead on a random span and
 	-- bob lazily on wall-clock sine (Position rewrite only — offs fixed).
-	-- The day-palm grove runs the same step as MIAMI NIGHTS, day palette.
+	-- The sea slabs re-park on the descent every frame so the water
+	-- level stays glued under the checker corridor, and the islets
+	-- recycle past on it like the cloud field. The day-palm grove runs
+	-- the same step as MIAMI NIGHTS, day palette.
 	if theme == "sky" then
 		ensureSky()
 		stepPalms(anchor, SKY_PALM)
+		for i, slab in ipairs(skySeaParts) do
+			local cz = anchor.Z + BACK_MARGIN - (i - 0.5) * Art.SkySeaSpan
+			slab.Position = Vector3.new(anchor.X, deckEst(anchor, cz) - Art.SkySeaDrop, cz)
+		end
 		if not skySeeded then
 			skySeeded = true
 			skyFrontZ = math.ceil((anchor.Z + BACK_MARGIN) / Art.SkyFloorCell) * Art.SkyFloorCell
@@ -1568,12 +1641,24 @@ function Backdrop.update(anchor: Vector3)
 			for _, c in ipairs(skyClouds) do
 				laySkyCloud(c, anchor, anchor.Z - rng:NextNumber(0, Art.SkyCloudSpan))
 			end
+			for _, isl in ipairs(skyIslands) do
+				laySkyIsland(isl, anchor, anchor.Z - rng:NextNumber(60, Art.SkyIslandZMin + Art.SkyIslandZSpan))
+			end
 			return
 		end
 		for i, row in ipairs(skyRows) do
 			if row.z > anchor.Z + BACK_MARGIN then
 				skyFrontZ -= Art.SkyFloorCell
 				laySkyRow(row, i, anchor, skyFrontZ)
+			end
+		end
+		for _, isl in ipairs(skyIslands) do
+			if isl.z > anchor.Z + Art.SkyIslandBack then
+				laySkyIsland(
+					isl,
+					anchor,
+					anchor.Z - rng:NextNumber(Art.SkyIslandZMin, Art.SkyIslandZMin + Art.SkyIslandZSpan)
+				)
 			end
 		end
 		local bob = os.clock() * Art.SkyCloudBob
@@ -1906,6 +1991,12 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				front - rng:NextNumber(30, Art.SkyCloudSpan * 0.7)
 			)
 		end
+		-- And the sea under it — one wide slab fills the frame's floor.
+		local sea = makePeakPart(parent, false)
+		sea.Size = Vector3.new(Art.SkySeaWidth, 1, Art.SkySeaSpan)
+		sea.Color = Art.SkySeaColor
+		local seaZ = anchor.Z - Art.SkySeaSpan / 2
+		sea.Position = Vector3.new(anchor.X, deckEst(anchor, seaZ) - Art.SkySeaDrop, seaZ)
 		-- A few day palms flanking the lane — same lay math as the live
 		-- grove's first pass, dressed in the SKY_PALM palette.
 		for side = -1, 1, 2 do

@@ -135,7 +135,7 @@ the read and lethal red stays singular.
 | SLUDGE | dark lime | ◊300 | acid |
 | TRENCH | deep sea blue | ◊350 | reef |
 | BLACKOUT | pitch | ◊350 | null |
-| CHECKER DECK | green/cream checker + dark-green rails, no grid | ◊450 | apeball |
+| CHECKER DECK | green/dark-green checker + dark-green rails, no grid | ◊450 | apeball |
 
 ### SUN — striped horizon disk (13)
 
@@ -197,8 +197,10 @@ the preview can render the whole look and nothing in the box is filler.
 | 2X BANK | permanent 2× bank perk | 99 |
 
 **APE BALL** is the rolling-party-ball homage — bright midday sky,
-green/cream checkerboard below the deck AND under the ball (CHECKER
-DECK tiles the lane itself), cartoon clouds, a day-palm grove, a
+green/dark-green grass checkerboard below the deck AND under the ball
+(CHECKER
+DECK tiles the lane itself), a tropical sea with palm-topped islets
+under it, cartoon clouds, a day-palm grove, a
 50/50-clear glass capsule ball with a toy monkey riding UPRIGHT inside
 (it yaws to face velocity like the arcade original — the WebMonkeyBall
 decomp's `updateApeOrientation` ported to an AlignOrientation rig,
