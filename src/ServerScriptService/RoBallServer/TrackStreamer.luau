@@ -526,6 +526,47 @@ local function emitFlipZone(
 	zone.Parent = holder
 end
 
+-- TunnelSlot gatehouse (§8.6 open design): a neon arch per wall row —
+-- rim posts + crossbeam showing what the slab hangs from — plus a lit
+-- floor strip under the gap so the one legal doorway reads from render
+-- distance. All scenery, all non-collide.
+local function emitGateArch(holder: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, arch)
+	local len = spec.length
+	local mid = spec.section(arch.t)
+	local z = spec.startZ - arch.t * len
+	local tA = math.max(arch.t - 0.02, 0)
+	local tB = math.min(arch.t + 0.02, 1)
+	local sA = spec.section(tA)
+	local sB = spec.section(tB)
+	local pitch = math.atan((sB.y - sA.y) / math.max((tB - tA) * len, 0.001))
+	local roll = math.rad(mid.rollDeg)
+	local roofH = mid.roofH or Config.Tunnel.RoofH
+	local gw = Config.Tunnel.FrameW
+	local cX = laneX + mid.centerX
+	local c = Palette.neonAt(-z)
+	local function frame(name, size, x, y)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Material = Enum.Material.Neon
+		p.Color = c
+		p.Size = size
+		p.CFrame = CFrame.new(x, y, z) * CFrame.Angles(pitch, 0, roll)
+		p.Parent = holder
+	end
+	for _, sx in ipairs({ -1, 1 }) do
+		frame("GatePost", Vector3.new(gw, roofH, gw), cX + sx * (mid.width / 2 - gw / 2), mid.y + roofH / 2)
+	end
+	frame("GateBeam", Vector3.new(mid.width, gw, gw), cX, mid.y + roofH + gw / 2)
+	-- Lit doorway: a floor stripe across the gap — NOT lethal red, this is
+	-- the "go here" marker, same neon language as edge rails.
+	frame("GateDoor", Vector3.new(arch.gapW, 0.12, gw), cX + arch.gapX, mid.y + 0.06)
+end
+
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	local holder = Instance.new("Folder")
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
@@ -896,6 +937,12 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	if spec.orbs then
 		for _, orb in ipairs(spec.orbs) do
 			makeOrb(holder, self.laneX, spec, orb)
+		end
+	end
+
+	if spec.arches then
+		for _, arch in ipairs(spec.arches) do
+			emitGateArch(holder, self.laneX, spec, arch)
 		end
 	end
 

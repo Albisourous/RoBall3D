@@ -64,8 +64,10 @@ export type ChunkSpec = {
 	orbs: { Orb }?, -- OrbHop (flag: Features.JumpOrbs)
 	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
-	openTop: boolean?, -- PressRow: keep roofH as the hang anchor but skip
-	-- the ceiling ribbon — open sky so the presses read on approach
+	openTop: boolean?, -- PressRow/TunnelSlot: keep roofH as the hang
+	-- anchor but skip the ceiling ribbon — open sky reads on approach
+	arches: { { t: number, gapX: number, gapW: number } }?, -- TunnelSlot:
+	-- neon gatehouse frames + lit doorway strip (decor, non-collide)
 	debut: boolean?, -- set by GenCore when this chunk is the feature's gentle showcase
 	hoop: { t: number }?, -- RampGap: neon ring at the gap's flight apex — threading it pays gems (§10)
 }
@@ -669,7 +671,7 @@ local function gateRow(
 	depth: number,
 	lead: number,
 	speed: number
-): ({ Obstacle }, number?)
+): ({ Obstacle }, number?, number?)
 	local gapMax = math.min(Config.Obstacles.CorridorMin * 1.8, 2 * halfW - 5)
 	if gapMax < Config.Obstacles.CorridorMin then
 		return {}, nil
@@ -697,7 +699,7 @@ local function gateRow(
 	if rw >= 1.5 then
 		table.insert(out, { t = t, xOff = gx + gap / 2 + rw / 2, w = rw, h = height, d = depth })
 	end
-	return out, gx
+	return out, gx, gap
 end
 
 local function flatSection(st: GenState): (t: number) -> Section
@@ -1338,44 +1340,34 @@ function ChunkDefs.PadVoid(rng: Random, st: GenState, _tier, debut: boolean?): C
 	return s
 end
 
--- TunnelSlot: a dark roof ribbon + neon ribs enclose the deck; hanging
--- slabs drop from the ceiling leaving one lateral corridor (the same
--- exit-line rule, read upside-down). Short decorative teeth stay well
--- above the ball — lethal to touch, unreachable by physics.
-function ChunkDefs.TunnelSlot(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+-- TunnelSlot (open gatehouse): a tall neon arch frames a hanging wall
+-- that leaves ONE doorway — the same exit-line rule as gate rows, read
+-- against open sky instead of inside a dark tube. A lit floor strip +
+-- beam gem mark the door. No roof, no teeth: the wall silhouettes clean.
+function ChunkDefs.TunnelSlot(rng: Random, st: GenState, _tier, _debut): ChunkSpec
 	local length = rng:NextInteger(55, 75)
 	local roofH = Config.Tunnel.RoofH
 	local halfW = st.width / 2
 	local obstacles = {}
 	local gems = {}
-	if not debut then -- debut tube is empty: the enclosure alone is the read
-		local tWall = rng:NextNumber(0.45, 0.6)
-		local row, gx = gateRow(
-			rng,
-			halfW,
-			tWall,
-			roofH - 0.5,
-			Config.Obstacles.WallDepth,
-			tWall * length,
-			Tiers.speedAt(st.dist + 100)
-		)
-		for _, ob in ipairs(row) do
-			ob.hang = true
-			table.insert(obstacles, ob)
-		end
-		if gx then
-			table.insert(gems, { t = tWall, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
-		end
-		for _ = 1, rng:NextInteger(2, 4) do
-			table.insert(obstacles, {
-				t = rng:NextNumber(0.2, 0.85),
-				xOff = rng:NextNumber(-halfW + 3, halfW - 3),
-				w = rng:NextNumber(2, 4),
-				h = rng:NextNumber(Config.Tunnel.ToothMin, Config.Tunnel.ToothMax),
-				d = 2,
-				hang = true,
-			})
-		end
+	local arches = {}
+	local tWall = rng:NextNumber(0.45, 0.6)
+	local row, gx, gap = gateRow(
+		rng,
+		halfW,
+		tWall,
+		roofH - 0.5,
+		Config.Obstacles.WallDepth,
+		tWall * length,
+		Tiers.speedAt(st.dist + 100)
+	)
+	for _, ob in ipairs(row) do
+		ob.hang = true
+		table.insert(obstacles, ob)
+	end
+	if gx then
+		table.insert(arches, { t = tWall, gapX = gx, gapW = gap or Config.Obstacles.CorridorMin })
+		table.insert(gems, { t = tWall, xOff = gx, value = Config.Gems.ValueBeam, yOff = 2.5 })
 	end
 	appendAll(
 		gems,
@@ -1392,10 +1384,13 @@ function ChunkDefs.TunnelSlot(rng: Random, st: GenState, _tier, debut: boolean?)
 			bpmOf(st)
 		)
 	)
-	return spec("TunnelSlot", st, length, function(t)
-		local e = math.min(t / 0.18, (1 - t) / 0.18, 1)
-		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH * e }
+	local s = spec("TunnelSlot", st, length, function(_t)
+		-- roofH is only the hang anchor — openTop emits no ceiling.
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = 0, roofH = roofH }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, obstacles, gems)
+	s.openTop = true
+	s.arches = arches
+	return s
 end
 
 -- DropGate: a full-width wall whose gap threads ON a drop downbeat —

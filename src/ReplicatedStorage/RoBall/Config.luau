@@ -419,7 +419,9 @@ Config.Press = {
 }
 
 Config.Tunnel = {
-	RoofH = 8, -- studs of headroom inside TunnelSlot
+	RoofH = 12, -- gatehouse arch height — tall enough to silhouette the
+	-- hanging wall against open sky
+	FrameW = 0.6, -- arch post/crossbeam/doorway-strip thickness
 	ToothMin = 2, -- decorative ceiling teeth…
 	ToothMax = 3.5, -- …bottom stays >4.5 above deck: lethal, unreachable
 }
