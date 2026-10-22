@@ -1369,27 +1369,34 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 		return
 	end
 	if t == "aurora" then
+		-- ParticleEmitters don't render inside a ViewportFrame — same
+		-- stroke-swap as the tower outlines: the fan layout below uses the
+		-- real AuroraFanX/Z/Y anchor math, drawn as seeded translucent
+		-- curtains flanking the lane so the preview still sells the sky.
+		local curtainColors = {
+			Color3.fromRGB(120, 255, 170),
+			Color3.fromRGB(160, 235, 255),
+			Color3.fromRGB(170, 160, 255),
+			Color3.fromRGB(255, 160, 230),
+		}
 		for side = -1, 1, 2 do
-			local z = anchor.Z + BACK_MARGIN
-			for _ = 1, Art.AuroraCount do
-				z -= Art.AuroraSpacing
-				local p = Instance.new("Part")
-				p.Anchored = true
-				p.CanCollide = false
-				p.CanQuery = false
-				p.CastShadow = false
-				p.Material = Enum.Material.Neon
-				p.Transparency = Art.AuroraFade
-				p.Parent = parent
-				local c: Curtain = { part = p, side = side, x = 0, z = 0, alt = 0, phase = 0, huePhase = 0 }
-				layCurtain(c, anchor, z)
-				-- One static frame of the sway loop's pose/color math.
-				p.Position = Vector3.new(c.x, deckEst(anchor, c.z) + c.alt, c.z)
-				p.Color = Color3.fromHSV(
-					Art.AuroraHueA + (Art.AuroraHueB - Art.AuroraHueA) * (0.5 + 0.5 * math.sin(c.huePhase * 6.283)),
-					0.85,
-					Art.AuroraValue
-				)
+			for i = 1, 5 do
+				local v = Instance.new("Part")
+				v.Anchored = true
+				v.CanCollide = false
+				v.CanQuery = false
+				v.CanTouch = false
+				v.CastShadow = false
+				v.Material = Enum.Material.Neon
+				v.Transparency = 0.45 + rng:NextNumber(0, 0.25)
+				v.Size = Vector3.new(1.4, 60 + rng:NextNumber(0, 70), 90 + rng:NextNumber(0, 90))
+				local x = anchor.X + side * (Art.AuroraFanX + rng:NextNumber(0, Art.AuroraFanXJitter))
+				local z = anchor.Z - Art.AuroraFanZ - (i - 1) * (Art.AuroraFanZGap / 4) + rng:NextNumber(-20, 20)
+				local y = anchor.Y + Art.AuroraFanY + rng:NextNumber(-15, 30)
+				v.CFrame = CFrame.new(x, y, z)
+					* CFrame.Angles(rng:NextNumber(-0.15, 0.15), rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.25, 0.25))
+				v.Color = curtainColors[(i - 1) % #curtainColors + 1]
+				v.Parent = parent
 			end
 		end
 		return
@@ -1436,7 +1443,10 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			Color3.fromRGB(233, 255, 241),
 			Color3.fromRGB(247, 255, 174),
 		}
-		for i = 1, 8 do
+		-- The live canopy sweeps the whole sky; in the chase-cam window
+		-- only the horizon band is on-frame, so the veils hang in an arc
+		-- over the sun line — where the real fan sprites read.
+		for i = 1, 12 do
 			local v = Instance.new("Part")
 			v.Anchored = true
 			v.CanCollide = false
@@ -1444,16 +1454,17 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			v.CanTouch = false
 			v.CastShadow = false
 			v.Material = Enum.Material.Neon
-			v.Transparency = 0.5 + rng:NextNumber(0, 0.25)
-			v.Size = Vector3.new(Art.PolarSpan, 20 + rng:NextNumber(0, 45), Art.PolarThick)
-			local arc = (i - 1) / 7 -- 0..1 down-course
-			local z = anchor.Z - Art.PolarFanZ - (arc - 0.5) * Art.PolarFanZGap + rng:NextNumber(-40, 40)
-			local y = anchor.Y + 60 + math.sin(arc * math.pi) * 110 + rng:NextNumber(-15, 15)
-			v.CFrame = CFrame.new(anchor.X, y, z)
+			v.Transparency = 0.45 + rng:NextNumber(0, 0.25)
+			v.Size = Vector3.new(60 + rng:NextNumber(0, 80), 14 + rng:NextNumber(0, 30), 1.4)
+			local arc = (i - 1) / 11 -- 0..1 across the sky band
+			local x = anchor.X + (arc - 0.5) * 320 + rng:NextNumber(-15, 15)
+			local z = anchor.Z - 150 - arc * 240 + rng:NextNumber(-30, 30)
+			local y = anchor.Y + 18 + math.sin(arc * math.pi) * 50 + rng:NextNumber(-8, 8)
+			v.CFrame = CFrame.new(x, y, z)
 				* CFrame.Angles(
-					rng:NextNumber(-0.3, 0.3),
+					rng:NextNumber(-0.15, 0.15),
 					rng:NextNumber(-Art.PolarFanYaw, Art.PolarFanYaw),
-					rng:NextNumber(-0.35, 0.35)
+					(arc - 0.5) * 0.6 + rng:NextNumber(-0.1, 0.1)
 				)
 			v.Color = veilColors[(i - 1) % #veilColors + 1]
 			v.Parent = parent
