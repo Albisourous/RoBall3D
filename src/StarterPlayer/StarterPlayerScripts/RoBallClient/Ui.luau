@@ -7,11 +7,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
 local AudioMix = require(script.Parent.AudioMix)
+local Sfx = require(script.Parent.SfxController)
 
 local Ui = {}
 Ui.__index = Ui
@@ -67,6 +69,11 @@ local METER_SEGS = 14
 local METER_PAD = 9
 local WAVE_W = 140
 local WAVE_H = 42
+
+-- Menu feel (MENU.md): cycler springs ride the menu's own frame tick —
+-- a hitch (window drag, load stall) must not slingshot them, so dt caps.
+local SPRING_DT_MAX = 1 / 20
+local STAMP_KICK = 1.35 -- §7: the death hero slams in past 100%, then settles
 
 local function label(parent, text, size, font, color, order)
 	local l = Instance.new("TextLabel")
@@ -184,6 +191,27 @@ local function vlist(parent, padding)
 	l.SortOrder = Enum.SortOrder.LayoutOrder
 	l.Padding = UDim.new(0, padding or 10)
 	l.Parent = parent
+end
+
+-- One-DOF spring (MENU.md §4): pos/vel integrate toward target each
+-- frame; a cycle moves the target, drag/wheel adds vel directly.
+local function spring(pos: number, vel: number, target: number, dt: number): (number, number)
+	local c = Config.Menu
+	vel += (c.SpringStiff * (target - pos) - c.SpringDamp * vel) * dt
+	return pos + vel * dt, vel
+end
+
+-- Grid-snapped UI hitsounds (MENU.md §5): hover lands a tick, activate
+-- lands a kick — the gem-chime trick on quieter voices. Activated covers
+-- mouse click AND gamepad A (the menu buttons are Selectable), so one
+-- pass arms both input paths.
+local function wireTick(b: GuiButton)
+	b.MouseEnter:Connect(function()
+		Sfx.uiTick("hover")
+	end)
+	b.Activated:Connect(function()
+		Sfx.uiTick("click")
+	end)
 end
 
 export type Ui = typeof(setmetatable({} :: any, Ui))
@@ -315,8 +343,31 @@ function Ui.new(): Ui
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	ruleGrad.Parent = rule
+	self.ruleGrad = ruleGrad
 
-	label(menuCol, "", 8, F_DATA, C_DIM, 4)
+	-- MENU.md §8: a second, thinner scope strip under the horizon rule —
+	-- the menu's heartbeat monitor, sharing setWave's discipline
+	-- (2px-quantized heights, per-seg cache, repaint on change only).
+	local mScope = Instance.new("Frame")
+	mScope.BackgroundTransparency = 1
+	mScope.Size = UDim2.fromOffset(280, 14)
+	mScope.LayoutOrder = 4
+	mScope.Parent = menuCol
+	self.menuScopeSegs = {}
+	self._menuScopeCache = {}
+	local nScope = Config.Music.WavePoints
+	local scopeStep = 280 / nScope
+	for i = 1, nScope do
+		local s = Instance.new("Frame")
+		s.AnchorPoint = Vector2.new(0, 1)
+		s.Position = UDim2.new(0, math.floor((i - 1) * scopeStep + 0.5), 1, 0)
+		s.Size = UDim2.fromOffset(2, 2)
+		s.BackgroundColor3 = C_CYAN:Lerp(C_PINK, (i - 1) / (nScope - 1))
+		s.BackgroundTransparency = 0.25
+		s.BorderSizePixel = 0
+		s.Parent = mScope
+		self.menuScopeSegs[i] = s
+	end
 
 	-- PLAY is the single solid element on the menu — a filled neon slab,
 	-- not another ghosted outline, so the one action that matters reads
@@ -332,6 +383,10 @@ function Ui.new(): Ui
 	play.Size = UDim2.fromOffset(300, 74)
 	play.LayoutOrder = 5
 	play.Parent = menuCol
+	local playScale = Instance.new("UIScale") -- MENU.md §2: the poster's beat swell rides this
+	playScale.Scale = 1
+	playScale.Parent = play
+	self.playScale = playScale
 	local playCorner = Instance.new("UICorner")
 	playCorner.CornerRadius = UDim.new(0, 12)
 	playCorner.Parent = play
@@ -2597,6 +2652,24 @@ function Ui.new(): Ui
 	padHint.Text = "drag to steer · tap-tap to dash"
 	padHint.Parent = zone
 
+	-- First-run coach line (§6): one device-aware sentence mid-screen,
+	-- shown only on a fresh profile's first run (Main decides — best==0),
+	-- self-hiding after TutHintSec so it never outlives the lesson.
+	local runHint = Instance.new("TextLabel")
+	runHint.Name = "RunHint"
+	runHint.AnchorPoint = Vector2.new(0.5, 0)
+	runHint.Position = UDim2.fromScale(0.5, 0.6)
+	runHint.Size = UDim2.fromOffset(560, 40)
+	runHint.BackgroundTransparency = 1
+	runHint.Font = F_DATA
+	runHint.TextSize = 15
+	runHint.TextColor3 = C_WHITE
+	runHint.TextStrokeTransparency = 0.6
+	runHint.TextTransparency = 0.2
+	runHint.Visible = false
+	runHint.Parent = gui
+	self.runHint = runHint
+
 	-- Narrow-screen shrink (§12): the power meter + TEMPO pills are
 	-- fixed-pixel chrome built for desktop — under ~900px viewport they
 	-- collide mid-screen. One shared UIScale shrinks both together so
@@ -2635,9 +2708,21 @@ function Ui:setDashMode(m: string)
 	end
 end
 
+-- First-run coach (§6): Main calls this on a fresh profile's first run;
+-- the line self-hides after TutHintSec and re-shows replace cleanly.
+function Ui:setRunHint(text: string)
+	local tag = tick()
+	self._runHintAt = tag
+	self.runHint.Text = text
+	self.runHint.Visible = true
+	task.delay(Config.Controls.TutHintSec, function()
+		if self._runHintAt == tag then
+			self.runHint.Visible = false
+		end
+	end)
+end
+
 -- Input device (§4): Main feeds UserInputService.LastInputType so the
--- menu's hints + gamepad SelectedObject follow whatever the player last
--- touched — "keys" | "pad" | "touch".
 function Ui:setDeviceInput(kind: string)
 	self._deviceHint = kind
 	if self._dashMode then
@@ -2652,6 +2737,10 @@ function Ui:setDeviceInput(kind: string)
 	if self.deathHint then
 		self.deathHint.Text = if kind == "pad" then "press A" elseif kind == "touch" then "" else "press R"
 	end
+end
+
+function Ui:deviceHintKind(): string
+	return self._deviceHint or "keys"
 end
 
 -- Locked-item funnel (§18): clicking an unowned STYLE row calls here with
@@ -2701,6 +2790,7 @@ function Ui:showHud()
 	self.powerBar.Visible = true
 	self.seedTag.Visible = true
 	self.touchUi.Visible = self.touchEnabled
+	self.runHint.Visible = false -- Main re-arms it on a fresh profile
 	GuiService.SelectedObject = nil -- no menu selection inside a run
 end
 
@@ -2718,6 +2808,53 @@ end
 -- slight swell, brighter face, and the chromatic ghosts spread wider.
 function Ui:setPulse(v: number)
 	self.pulse = v
+end
+
+-- MENU.md §2: the poster thumps on the menu bed — PLAY swells a few
+-- percent and the horizon rule's mid keypoint dips (the menu's only
+-- filled element is the one that breathes). setWave's discipline:
+-- quantized envelope, write only on change, menu-only.
+function Ui:pulseMenu()
+	if not self.menu.Visible then
+		return
+	end
+	local e8 = math.floor((self.pulse or 0) * 8 + 0.5) / 8
+	if e8 == self._menuEnv then
+		return
+	end
+	self._menuEnv = e8
+	self.playScale.Scale = 1 + Config.Menu.ChromePulse * e8
+	self.ruleGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0.3 * e8),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+end
+
+-- MENU.md §8: a second, thinner scope under the horizon rule — setWave's
+-- loop over a second seg set (quantized heights, per-seg cache, repaint
+-- on change), gated on the menu being up.
+function Ui:menuScope(spec: { number }?)
+	if not self.menu.Visible then
+		return
+	end
+	local segs = self.menuScopeSegs
+	if not segs then
+		return
+	end
+	local cache = self._menuScopeCache
+	local env = math.min(1, (self.pulse or 0) * Config.Music.WaveBeatGain)
+	local amp = Config.Music.WaveBeatFloor + (1 - Config.Music.WaveBeatFloor) * env
+	local gamma = Config.Music.WaveGamma
+	for i, s in ipairs(segs) do
+		local v = spec and spec[i] or 0
+		v = v ^ gamma
+		local h = math.max(2, math.floor(v * amp * 12 / 2 + 0.5) * 2)
+		if h ~= cache[i] then
+			cache[i] = h
+			s.Size = UDim2.fromOffset(2, h)
+		end
+	end
 end
 
 -- Oscilloscope trace (§12): spec is Music.spectrum()'s shared band buffer.

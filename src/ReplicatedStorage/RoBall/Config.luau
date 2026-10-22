@@ -109,6 +109,7 @@ Config.Controls = {
 	PadTapPx = 14, -- release under this travel counts as a tap (dash pair)
 	ZoneW = 0.44, -- touch steer zone: left screen fraction, bottom-anchored
 	ZoneH = 0.62, -- …and height fraction from the bottom edge up
+	TutHintSec = 6, -- first-run coach line stays up this long, then hides
 }
 
 Config.Camera = {
@@ -1350,8 +1351,10 @@ Config.Art = {
 	PalmValue = 0.9, -- neon brightness for fronds
 	-- SKY COURT (§18 "sky" world, APE BALL pack): the day-shift look —
 	-- the client re-times Lighting to midday so the skybox goes blue
-	-- with a real sun, a bright checkerboard floor rides the descent
-	-- below the deck, and chunky cartoon clouds drift beside the track.
+	-- with a real sun, a two-green grass checkerboard rides the descent
+	-- below the deck, a tropical sea spreads to the horizon under that,
+	-- palm-topped islets drift past on it, and chunky cartoon clouds
+	-- hang beside the track.
 	SkyClockTime = 14.2,
 	SkyAmbient = Color3.fromRGB(120, 132, 160),
 	SkyOutdoorAmbient = Color3.fromRGB(170, 180, 205),
@@ -1362,8 +1365,27 @@ Config.Art = {
 	SkyFloorCell = 26, -- checker tile studs
 	SkyFloorCols = 9, -- tiles across the corridor
 	SkyFloorRows = 18, -- tile rows covering the window
-	SkyFloorA = Color3.fromRGB(118, 228, 102), -- arcade green
-	SkyFloorB = Color3.fromRGB(252, 247, 235), -- warm cream
+	SkyFloorA = Color3.fromRGB(158, 206, 80), -- arcade grass, light tile
+	SkyFloorB = Color3.fromRGB(50, 130, 54), -- arcade grass, dark tile
+	-- Tropical sea + islets (SMB's stage-over-water read): wide flat
+	-- slabs tile the horizon under the checker corridor, re-parked on
+	-- the descent every frame; grass-domed motes with a lone palm
+	-- recycle past on it like the cloud field.
+	SkySeaDrop = 230, -- ocean depth below deck grade
+	SkySeaSpan = 2048, -- z-length per slab (engine part-axis cap)
+	SkySeaWidth = 2048, -- every slab spans the whole horizon window
+	SkySeaSlabs = 2, -- ~4k studs of sea coverage down-course
+	SkySeaColor = Color3.fromRGB(58, 170, 212),
+	SkyIslands = 6, -- grass-domed islets afloat on the sea
+	SkyIslandMinX = 260, -- closest drift from lane center (checker corridor ends ~117)
+	SkyIslandDX = 380, -- lateral spread beyond MinX
+	SkyIslandZMin = 350, -- nearest re-entry ahead of the ball
+	SkyIslandZSpan = 1600, -- re-entry window beyond ZMin
+	SkyIslandBack = 150, -- recycle once this far behind the anchor
+	SkyIslandMinR = 34, -- dome radius band
+	SkyIslandMaxR = 92,
+	SkyIslandTop = Color3.fromRGB(66, 152, 62),
+	SkyIslandSide = Color3.fromRGB(202, 166, 108), -- sandy cliff mass under the dome
 	SkyClouds = 14, -- drifting puffs in flight
 	SkyCloudMinX = 46, -- closest drift from lane center
 	SkyCloudDX = 110, -- lateral spread beyond MinX
@@ -1571,6 +1593,31 @@ Config.CustomHue = {
 	Sat = 0.92,
 	Value = 1.0,
 	Defaults = { a = 0.52, b = 0.9, c = 0.5 }, -- cyan / magenta / cyan
+}
+
+-- Menu feel (MENU.md): osu!-informed chrome — poster thump on the bed,
+-- spring pickers, grid-snapped hitsounds, death stamp, menu scope strip.
+Config.Menu = {
+	ChromePulse = 0.04, -- §2 poster swell per pulse unit
+	SpringStiff = 170, -- §4 cycler spring stiffness
+	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
+	JacketPx = 40, -- §4 cycler overshoot amplitude in px
+	UiTick = { -- §5 grid-snapped menu hitsounds
+		Subdiv = 4, -- 16th-note snap, same as the gem chime
+		Cap = 0.09, -- max added latency before playing raw
+		HoverVol = 0.15,
+		ClickVol = 0.4,
+		HoverOct = 2.0, -- flattened blip, high and thin
+		ClickOct = 0.5, -- low kick
+		ClickDuck = 0.3, -- the click knocks the bed
+		ClickRelease = 0.3,
+	},
+	StampSec = 0.25, -- §7 death-hero stamp duration
+	StampDuck = 0.3, -- §7 duck depth when the card lands
+	StampDuckRelease = 0.5,
+	MenuSpecBars = 24, -- §8 scope segments
+	MenuSpecH = 14, -- §8 scope strip max height px
+	ParallaxPx = 0, -- §9 optional cursor drift; 0 = off
 }
 
 Config.Leaderboard = {
