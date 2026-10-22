@@ -1268,10 +1268,8 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				local x = anchor.X + side * (Art.CityMinX + (row - 1) * Art.CityRowDX + rng:NextNumber(0, 40))
 				local ahead = math.max(anchor.Z - z, 0)
 				local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(8, 30)
-				local tint = Palette.dimAt(
-					dist + ahead * 0.5 + rng:NextNumber(0, 300),
-					Art.CityValue / (1 + (row - 1) * 0.35)
-				)
+				local tint =
+					Palette.dimAt(dist + ahead * 0.5 + rng:NextNumber(0, 300), Art.CityValue / (1 + (row - 1) * 0.35))
 				layTower(tower, x, baseY, z, tint)
 				for _, seg in ipairs(tower.segs) do
 					if seg.part.CFrame ~= PARK then
