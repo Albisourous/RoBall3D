@@ -1307,7 +1307,9 @@ the adornments it stands in for — rings are cylinder parts since
 adornments don't render inside a ViewportFrame) rolls down-grade at
 `Config.Speed.Start`, so the trail — BallDress's own attachment pair +
 taper spec — streams exactly like a run; a ~150-stud loop wraps with a
-trail reset. The ball weaves ±8 studs with a slight steer-lean so the
+trail reset. The ribbon itself is a stroke-swap like the ring cage:
+Trail objects can't draw inside a ViewportFrame, so thin Neon quads
+bridge the ball's recent positions on the same taper/fade curve. The ball weaves ±8 studs with a slight steer-lean so the
 ribbon draws a visible S instead of a dead-straight line. The
 ViewportFrame camera re-aims each frame with the live
 chase-cam transform (`Camera.Offset` behind-above, `LookAhead`/

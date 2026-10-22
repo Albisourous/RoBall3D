@@ -69,6 +69,9 @@ local ROLL_LEN = 150 -- studs per loop before the wrap reset
 local SWAY_AMP = 8 -- studs of lateral weave — sells the trail's stream
 local SWAY_W = 1.1 -- weave rate (rad/s): ~1 lazy S per loop
 local SWAY_BANK = 0.3 -- steer lean into the weave (rad)
+-- Ribbon: one quad per sampled position — ~0.4 s of history at the
+-- opener pace, same coverage as TrailLifetime × ROLL_SPEED.
+local TRAIL_SEGS = 24
 local BALL_D = Config.Ball.Diameter
 local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
@@ -90,7 +93,9 @@ local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
 local vpGemCf: CFrame? = nil
 local vpShards: { BasePart } = {}
-local vpTrail: Trail? = nil
+local vpTrailSegs: { BasePart } = {}
+local vpTrailPts: { Vector3 } = {}
+local vpTrailColor = PK
 local vpLastRoll = 0
 local vpFx: string? = nil
 local vpRainbowTrail = false
@@ -222,7 +227,8 @@ function Fx.preview(items: { [string]: any })
 	vpBall = nil
 	vpGem = nil
 	vpGemCf = nil
-	vpTrail = nil
+	vpTrailSegs = {}
+	vpTrailPts = {}
 	vpLastRoll = 0
 	vpRings = {}
 	vpRingRots = {}
@@ -277,31 +283,19 @@ function Fx.preview(items: { [string]: any })
 		vpBases[i] = col
 	end
 
-	-- Trail: BallDress's own spec — ±0.3d vertical attachment pair,
-	-- 0.35→0.05 taper, half-fade transparency, TrailLifetime clock. The
-	-- ball really rolls, so the ribbon streams behind it exactly like a
-	-- run. FaceCamera stays on as a readability aid (the chase cam
-	-- otherwise sees the ribbon edge-on).
+	-- Ribbon: a Trail can't draw inside a ViewportFrame — the same
+	-- stroke-swap as the ring cage. Thin Neon quads bridge the ball's
+	-- recent positions, tapering and fading on the real spec's curve
+	-- (WidthScale 0.35→0.05, Transparency 0.5→1, Lifetime × speed long);
+	-- the widths are bumped ~2× for readability at this window size.
 	if trailI and not trailI.none then
-		local a0 = Instance.new("Attachment")
-		a0.Position = Vector3.new(0, BALL_D * 0.3, 0)
-		a0.Parent = ball
-		local a1 = Instance.new("Attachment")
-		a1.Position = Vector3.new(0, -BALL_D * 0.3, 0)
-		a1.Parent = ball
-		local tr = Instance.new("Trail")
-		tr.Attachment0 = a0
-		tr.Attachment1 = a1
-		tr.Lifetime = Art.TrailLifetime
-		tr.LightEmission = 1
-		tr.MinLength = 0
-		tr.FaceCamera = true
-		tr.WidthScale = NumberSequence.new(0.35, 0.05)
-		tr.Transparency = NumberSequence.new(0.5, 1)
-		local col = Cosmetics.colorOf(trailI.color, PK, hues)
-		tr.Color = ColorSequence.new(col)
-		tr.Parent = ball
-		vpTrail = tr
+		vpTrailColor = Cosmetics.colorOf(trailI.color, PK, hues)
+		for i = 1, TRAIL_SEGS do
+			local s = vpart(Vector3.one * 0.1, ballPos, vpTrailColor)
+			s.Material = Enum.Material.Neon
+			s.Transparency = 1
+			vpTrailSegs[i] = s
+		end
 	end
 
 	-- Gem on the lane ahead — the real pickup: corner-balanced cube at
@@ -418,12 +412,35 @@ local function step()
 					- Vector3.new(0, Gen.Grade * Cam.LookAhead + Cam.LookDrop, 0)
 			)
 		end
-		if roll < vpLastRoll and vpTrail then
+		if roll < vpLastRoll then
 			-- Loop wrap: drop the stale ribbon so it doesn't streak back.
-			vpTrail.Enabled = false
-			vpTrail.Enabled = true
+			vpTrailPts = {}
 		end
 		vpLastRoll = roll
+		if vpTrailSegs[1] then
+			table.insert(vpTrailPts, 1, bc.Position)
+			if #vpTrailPts > TRAIL_SEGS + 1 then
+				table.remove(vpTrailPts)
+			end
+			local tcol = vpTrailColor
+			if vpRainbowTrail then
+				tcol = Color3.fromHSV(h, 0.95, 1)
+			elseif vpPaletteTrail then
+				tcol = Palette.neonAt(tick() * 40)
+			end
+			for i, s in ipairs(vpTrailSegs) do
+				local a, b = vpTrailPts[i], vpTrailPts[i + 1]
+				if a and b then
+					local f = i / TRAIL_SEGS
+					s.CFrame = CFrame.lookAt((a + b) / 2, b)
+					s.Size = Vector3.new(1.5 * (1 - f) + 0.2, 0.07, (a - b).Magnitude + 0.01)
+					s.Transparency = 0.3 + 0.7 * f
+					s.Color = tcol
+				else
+					s.Transparency = 1
+				end
+			end
+		end
 	end
 	if vpGem and vpGemCf then
 		-- Beat pulse — same swell fraction live pickups use.
@@ -446,11 +463,6 @@ local function step()
 				p.Color = col
 			end
 		end
-	end
-	if vpRainbowTrail and vpTrail then
-		vpTrail.Color = ColorSequence.new(Color3.fromHSV(h, 0.95, 1))
-	elseif vpPaletteTrail and vpTrail then
-		vpTrail.Color = ColorSequence.new(Palette.neonAt(tick() * 40))
 	end
 end
 
