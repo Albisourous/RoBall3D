@@ -63,6 +63,11 @@ local METER_W = 220
 local METER_SEGS = 14
 local METER_PAD = 9
 
+-- Waveform trace geometry (§12): the scope strip parked right of the BPM
+-- digit — Music.WavePoints strips inside this footprint.
+local WAVE_W = 132
+local WAVE_H = 30
+
 local function label(parent, text, size, font, color, order)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
@@ -1924,6 +1929,44 @@ function Ui.new(): Ui
 	unitGrad.Color = ColorSequence.new(C_DIM, C_PINK:Lerp(C_DIM, 0.35))
 	unitGrad.Parent = spdUnit
 
+	-- Oscilloscope waveform (§12): the heard spectrum as a mirrored-
+	-- envelope trace beside the digit — one thin strip per bucket,
+	-- centered on a dim hairline so a silent mix reads as a flatline.
+	-- Bass sits left, air right, ramping cyan→pink like the power strip.
+	local wWrap = Instance.new("Frame")
+	wWrap.Name = "Waveform"
+	wWrap.AnchorPoint = Vector2.new(1, 0.5)
+	wWrap.Position = UDim2.new(0.985, 0, 1, -49)
+	wWrap.Size = UDim2.fromOffset(WAVE_W, WAVE_H)
+	wWrap.BackgroundTransparency = 1
+	wWrap.ClipsDescendants = true
+	wWrap.Visible = false
+	wWrap.Parent = gui
+	self.waveWrap = wWrap
+	local wBase = Instance.new("Frame")
+	wBase.AnchorPoint = Vector2.new(0, 0.5)
+	wBase.Position = UDim2.fromScale(0, 0.5)
+	wBase.Size = UDim2.new(1, 0, 0, 1)
+	wBase.BackgroundColor3 = C_DIM
+	wBase.BackgroundTransparency = 0.6
+	wBase.BorderSizePixel = 0
+	wBase.Parent = wWrap
+	self.waveSegs = {}
+	self._waveCache = {}
+	local nWave = Config.Music.WavePoints
+	local waveStep = WAVE_W / nWave
+	for i = 1, nWave do
+		local s = Instance.new("Frame")
+		s.AnchorPoint = Vector2.new(0, 0.5)
+		s.Position = UDim2.new(0, math.floor((i - 1) * waveStep + 0.5), 0.5, 0)
+		s.Size = UDim2.fromOffset(3, 2)
+		s.BackgroundColor3 = C_CYAN:Lerp(C_PINK, (i - 1) / (nWave - 1))
+		s.BackgroundTransparency = 0.06
+		s.BorderSizePixel = 0
+		s.Parent = wWrap
+		self.waveSegs[i] = s
+	end
+
 	-- Power meter: a vaporwave nitro strip — a tilted pill of LED segments
 	-- ramping cyan->magenta like a tape-deck VU meter. A diamond bead
 	-- rides the lit edge; the boundary cell glows partial so charge reads
@@ -2204,6 +2247,7 @@ function Ui:showMenu(best: number)
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
 	self.powerBar.Visible = false
+	self.waveWrap.Visible = false
 	self.seedTag.Visible = false
 	self:setBest(best)
 end
@@ -2216,6 +2260,7 @@ function Ui:showHud()
 	self.spdNum.Visible = true
 	self.spdUnit.Visible = true
 	self.powerBar.Visible = true
+	self.waveWrap.Visible = true
 	self.seedTag.Visible = true
 end
 
@@ -2233,6 +2278,28 @@ end
 -- slight swell, brighter face, and the chromatic ghosts spread wider.
 function Ui:setPulse(v: number)
 	self.pulse = v
+end
+
+-- Oscilloscope trace (§12): spec is Music.spectrum()'s shared band buffer.
+-- Heights quantize to 2 px and writes gate on change — a steady mix costs
+-- nothing, only real motion repaints.
+function Ui:setWave(spec: { number }?)
+	local segs = self.waveSegs
+	if not segs then
+		return
+	end
+	local cache = self._waveCache
+	local maxH = WAVE_H - 4
+	local gamma = Config.Music.WaveGamma
+	for i, s in ipairs(segs) do
+		local v = spec and spec[i] or 0
+		v = v ^ gamma
+		local h = math.max(2, math.floor(v * maxH / 2 + 0.5) * 2)
+		if h ~= cache[i] then
+			cache[i] = h
+			s.Size = UDim2.fromOffset(3, h)
+		end
+	end
 end
 
 -- BPM number + power meter, called every heartbeat during a run. `bpm` is
@@ -2537,6 +2604,7 @@ function Ui:showDeath(
 	self.spdNum.Visible = false
 	self.spdUnit.Visible = false
 	self.powerBar.Visible = false
+	self.waveWrap.Visible = false
 	self.seedTag.Visible = false
 	self.death.Visible = true
 

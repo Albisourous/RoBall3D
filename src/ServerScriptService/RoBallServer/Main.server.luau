@@ -145,6 +145,7 @@ type Run = {
 	hzPassed: number, -- lethal planes crossed alive (death-screen stat)
 	closest: number, -- tightest crossing gap seen, studs (inf = never close)
 	banked: number, -- gems credited to the bank this run (§18 P2 — never score)
+	debug: boolean, -- feature-forced track (§7): ineligible for all scoring
 	t0: number, -- os.clock() at start; feeds the plausibility cap
 	lastFloorDist: number, -- last whole meter written to score attributes
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
@@ -188,11 +189,12 @@ local function resolveSeed(player: Player): (number, string?)
 		if Daily.isKeyword(s) then
 			return Daily.seed(), nil
 		end
-		-- TODO(debug-seed): a feature keyword ("pressrow", "TERRACES")
-		-- forces a track of only that chunk type for testing — the text
-		-- still hashes to the seed, so the same word replays the same
-		-- layout. Remove with the other TODO(debug-seed) sites.
-		local only = ChunkDefs.matchFeature(s)
+		-- Feature seeds (§7, Config.Debug.Enabled): a feature keyword
+		-- ("pressrow", "TERRACES") forces a track of only that chunk type —
+		-- the text still hashes to the seed, so the same word replays the
+		-- same layout. Forced runs carry run.debug and never submit scores;
+		-- with the flag off the keyword is just a normal hashed seed.
+		local only = Config.Debug.Enabled and ChunkDefs.matchFeature(s) or nil
 		if only then
 			return hashSeed(s), only
 		end
@@ -279,7 +281,12 @@ local function killRun(player: Player, run: Run, cause: string?, causeLoc: strin
 	local score = math.floor(run.dist) + run.gemPts + run.nmPts
 	local dist = math.floor(run.dist)
 	local oldBest = player:GetAttribute("RoBallBest") or 0
-	local best = math.max(oldBest, score)
+	-- A run only counts when it's real: debug-seed forced tracks (§7,
+	-- run.debug) and implausible scores earn nothing — no record, no
+	-- board, no quests, no streak. The session best/leaderstats reads stay
+	-- honest too: a fake run can't inflate them even transiently.
+	local cleanRun = not run.debug and plausible(run, score)
+	local best = if cleanRun then math.max(oldBest, score) else oldBest
 	if run.ball then
 		run.ball:Destroy()
 	end
@@ -297,7 +304,6 @@ local function killRun(player: Player, run: Run, cause: string?, causeLoc: strin
 	-- implausible runs don't count the day (a cheaty run earns nothing).
 	-- Quests evaluate on every clean run — they're day missions, not tied
 	-- to the daily seed.
-	local cleanRun = plausible(run, score)
 	local streak, streakBonus = 0, 0
 	if cleanRun and run.seed == Daily.seed() then
 		streak, streakBonus = ShopService.recordDailyRun(player)
@@ -315,7 +321,7 @@ local function killRun(player: Player, run: Run, cause: string?, causeLoc: strin
 		run.gemPts,
 		best,
 		run.seed,
-		score > oldBest,
+		cleanRun and score > oldBest,
 		run.banked,
 		streak,
 		streakBonus,
@@ -368,7 +374,7 @@ local function killRun(player: Player, run: Run, cause: string?, causeLoc: strin
 				end
 			end)
 		end
-	else
+	elseif not run.debug then
 		warn("[RoBall3D] implausible score rejected:", player.Name, score)
 	end
 end
@@ -381,7 +387,7 @@ local function startRun(player: Player)
 	local laneIndex = laneOf[player] or 0
 	local seed, onlyFeature = resolveSeed(player)
 	local streamer = TrackStreamer.new(laneIndex, seed)
-	-- TODO(debug-seed): forced single-feature test runs — see
+	-- Feature-forced test runs (§7, Config.Debug.Enabled): see
 	-- ChunkDefs.matchFeature.
 	streamer.gen.onlyType = onlyFeature
 	if onlyFeature then
@@ -401,6 +407,7 @@ local function startRun(player: Player)
 		hzPassed = 0,
 		closest = math.huge,
 		banked = 0,
+		debug = onlyFeature ~= nil,
 		t0 = os.clock(),
 		lastFloorDist = 0,
 		lastPos = nil,

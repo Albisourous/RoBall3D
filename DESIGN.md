@@ -134,9 +134,7 @@ explainable.
   that way. First tap still steers — the dash
   only reads on the repeat press. Steering is ignored mid-burst — the
   dodge is a commitment.
-  Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells —
-  TEMP TEST OVERRIDE: `Cost` 0.03 + `Power.Capacity` 12, a 10× meter —
-  see the TODO markers in `Config`)
+  Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
   of the **same** power meter boost/brake drain — offense, defense and
   dodge all bid on one resource, so a spent dodge is a boost you don't
   have. Dash arms on the **marker**, not its own threshold: the gold
@@ -315,14 +313,17 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   displayed on the death screen and stored with the score so leaderboard rows
   are replayable/verifiable.
 - Seed entry: numeric or text (hashed to int via a stable string hash).
-- TODO(debug-seed): a seed-box keyword matching a chunk type or label
-  (`pressrow`, `TERRACES`, "press row") forces a run where every chunk is
-  that feature — intro/debuts/pool weighting all bypassed, and the text
-  still hashes to the seed so the same word replays the same layout. A
+- Feature seeds (debug-only): while `Config.Debug.Enabled` is on, a
+  seed-box keyword matching a chunk type or label (`pressrow`,
+  `TERRACES`, "press row") forces a run where every chunk is that
+  feature — intro/debuts/pool weighting all bypassed, and the text still
+  hashes to the seed so the same word replays the same layout. A
   `Debug.FeatureRunway`-long flat lead-in runs first so the element is
-  visible on approach. Debug-only; remove all `TODO(debug-seed)` sites
-  together (`ChunkDefs.matchFeature`, `GenCore.onlyType`, `Main.server`
-  resolveSeed, `Config.Debug.FeatureRunway`).
+  visible on approach. Forced runs are flagged `run.debug` and earn
+  nothing — no record, no board, no quests/streak, no ghost credential.
+  **Flip `Debug.Enabled` off before release** so the keywords resolve to
+  ordinary hashed seeds on live servers (sites: `ChunkDefs.matchFeature`,
+  `GenCore.onlyType`, `Main.server` resolveSeed, `Debug.FeatureRunway`).
 
 ## 8. World generation
 
@@ -912,6 +913,14 @@ that caused them.
   It's dressed vaporwave: a chrome gradient band under the hue, a −6°
   outrun slant, and twin cyan/pink VHS-fringe ghosts that spread and
   flare with the audio pulse — the digit thumps on the heard beat.
+  Beside it a small **oscilloscope trace** draws the heard spectrum as a
+  mirrored-envelope waveform: `Music.WavePoints` strips bucketed
+  log-spaced off the same throttled `AudioAnalyzer` tap that feeds the
+  thump (bass left, air right, cyan→pink ramp), attack-instant /
+  decay-per-tick so a quiet passage flattens instead of snapping off.
+  Bands are auto-gained against a decaying peak (`Music.WavePeakDecay`,
+  floored at `WaveFloor`) so the trace breathes at any stem loudness,
+  and the HUD lifts them perceptually (`WaveGamma`).
   Bottom-left
   is a glanceable **power meter**: a tilted capsule of LED segments ramping
   cyan→magenta like a VU meter, diamond bead riding the lit edge,

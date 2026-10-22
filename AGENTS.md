@@ -65,21 +65,22 @@ screenshot of the result.
 
 ## Testing a specific feature (debug-seed)
 
-To test one chunk type in isolation, type its name in the seed box and
-press PLAY — `pressrow`, `PRESS ROW`, `TERRACES`, `swell`, `fulltilt`,
-`left tilt`, any builder name or its HUD label, case/space-insensitive.
-`ChunkDefs.matchFeature` resolves the text; `GenCore.onlyType` then emits
-a `Config.Debug.FeatureRunway`-stud flat runway followed by only that
-chunk. The keyword still hashes to a seed, so the same word replays the
-exact same layout — reproducible repro cases. Forcing bypasses `canRun`
-on purpose (flag-off features like `OrbHop`/`FlipRide` spawn too).
+While `Config.Debug.Enabled` is true, type a chunk name in the seed box
+and press PLAY — `pressrow`, `PRESS ROW`, `TERRACES`, `swell`,
+`fulltilt`, `left tilt`, any builder name or its HUD label,
+case/space-insensitive. `ChunkDefs.matchFeature` resolves the text;
+`GenCore.onlyType` then emits a `Config.Debug.FeatureRunway`-stud flat
+runway followed by only that chunk. The keyword still hashes to a seed,
+so the same word replays the exact same layout — reproducible repro
+cases. Forcing bypasses `canRun` on purpose (flag-off features like
+`OrbHop`/`FlipRide` spawn too). Forced runs are flagged `run.debug`:
+they never touch records, boards, quests, streaks, or ghost credentials.
 
 From the MCP client datamodel you can also fire it directly:
 `remotes.RequestStart:FireServer("swell")`.
 
-Marked `TODO(debug-seed)` at all four sites for later removal:
-`ChunkDefs.matchFeature`, `GenCore` (field + `nextChunk` bypass),
-`Main.server` (`resolveSeed`/`startRun`), `DESIGN.md` §7.
+**Release:** flip `Config.Debug.Enabled` to false — keywords resolve to
+plain hashed seeds on live servers (PRODUCTION_PROMPT.md checklist).
 
 ## Repo & deploy
 

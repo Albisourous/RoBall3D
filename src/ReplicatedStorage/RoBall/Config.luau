@@ -48,7 +48,7 @@ Config.Speed = {
 Config.Power = {
 	Mult = 1.5, -- forward speed multiplier while boosting — a real kick
 	AccelMult = 4, -- ease rate x Accel while boosting: the BPM HUD visibly JUMPS
-	Capacity = 12, -- TODO(test): revert to 1.2 — 10x meter for dash testing
+	Capacity = 1.2, -- seconds a full meter drains under a held verb
 	RegenPerSec = 0.15, -- meter fraction refilled per second off (~6.7s to full)
 	RechargeGate = 0.35, -- emptied meter must refill this far to act again — the marker
 	-- Gem income (§10): pickups refund meter by point value — riskier
@@ -65,7 +65,7 @@ Config.Dash = {
 	Speed = 64, -- studs/s lateral target during the burst (~2.4x max steer)
 	Time = 0.16, -- burst window — ~10 studs of sidestep before hand-back
 	Accel = 2400, -- burst ease rate: reaches Speed in ~25ms, snaps in fast
-	Cost = 0.03, -- TODO(test): revert to 0.3 — 10x meter for dash testing (~33 dashes/bar)
+	Cost = 0.3, -- flat meter slice per burst (~4 of the bar's 14 LED cells)
 	Cooldown = 0.35, -- seconds between dashes (the meter is the real limiter)
 	BufferWindow = 0.4, -- a press mid-burst/on cooldown stays armed this long — chains snap
 	-- Dash style (§4): a saved menu toggle picks the input mapping —
@@ -940,6 +940,22 @@ Config.Music = {
 	-- per call — re-read at this rate and keep the pulse envelope's decay
 	-- running per frame between reads, so visuals stay continuous.
 	AnalyzerHz = 30,
+	-- HUD waveform (§12): the BPM cluster's scope trace buckets the
+	-- throttled spectrum into this many strips — log-spaced bins, bass on
+	-- the left, air on the right. Attack is instant, release decays per
+	-- tick so a quiet passage flattens instead of snapping off.
+	WavePoints = 26,
+	-- Auto-gain: raw spectrum magnitudes ride the stem loudness (~1e-3
+	-- scale), so bands normalize against a decaying peak — the trace
+	-- breathes at any mix volume instead of clipping loud or flatlining
+	-- quiet. WaveFloor keeps dead air a true flatline rather than
+	-- noise-pumping the floor to full height.
+	WavePeakDecay = 0.985,
+	WaveFloor = 0.03,
+	WaveDecay = 0.8,
+	-- Perceptual lift applied in the HUD (v^WaveGamma): raises quiet
+	-- bands so mids/air register without flattening the bass crests.
+	WaveGamma = 0.55,
 	-- Gem-chime voice pool (PERFORMANCE.md §3): playOneShot used to build
 	-- an AudioPlayer + Wire per pickup; this many pooled voices cover
 	-- even dense cluster runs, recycling the oldest when saturated.
@@ -1464,10 +1480,11 @@ Config.Leaderboard = {
 -- fields are display fallbacks; the shop prefers live GetProductInfo
 -- PriceInRobux when the pass/product exists.
 Config.Monetization = {
-	-- TEMP test mode: every pack/product grants instantly on click — no
-	-- dashboard ids, no purchase prompts, and OWNED/bank behave exactly
-	-- like the real grants. Flip false (or remove) when real ids land.
-	FreeForTesting = true,
+	-- Test mode OFF (production state): packs/products prompt their real
+	-- dashboard ids — 0-id entries show SOON. Flip true ONLY for
+	-- pre-paywall testing: every pack/product then grants instantly on
+	-- click with no purchase prompt (§18).
+	FreeForTesting = false,
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
 		starter = 0, -- STARTER NEON — sunset set + palms world (~49)
@@ -1612,13 +1629,20 @@ Config.Monetization = {
 }
 
 Config.Debug = {
+	-- Master switch for debug features — MUST be false for release
+	-- (PRODUCTION_PROMPT.md checklist): feature-seed keywords in the seed
+	-- box stop resolving, so nobody can spawn a single-feature farm map
+	-- on the live servers. Forced runs are also flagged ineligible for
+	-- every score/quest/streak path in Main.server killRun regardless.
+	Enabled = true,
 	-- GenVerify solvability sweep (DESIGN.md §8.6): Studio-only audit that
 	-- walks seeds asserting corridor/reaction/ballistic invariants on every
 	-- generated chunk. 0 seeds = off (production playtests stay clean).
 	VerifySeeds = 0,
 	VerifyChunks = 600,
-	-- TODO(debug-seed): flat approach runway in front of a feature-forced
-	-- track so the element is visible on the roll-in. ~3s at Speed.Start.
+	-- Feature-seed runway (DESIGN.md §7): flat approach in front of a
+	-- feature-forced track so the element is visible on the roll-in.
+	-- ~3s at Speed.Start.
 	FeatureRunway = 100,
 }
 

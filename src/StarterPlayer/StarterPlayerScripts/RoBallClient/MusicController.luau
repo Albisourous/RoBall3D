@@ -55,6 +55,11 @@ local windFader: any = nil
 local norm = 0 -- last speedNorm, kept so layer fades see it
 local tier = 1
 local pulseSmooth = 0
+local specBuf: { number } = {} -- smoothed waveform bands for the HUD trace (§12)
+local specRaw: { number } = {} -- per-band means before auto-gain normalization
+local specEdges: { number }? = nil -- log-spaced bucket edges, sized on first real spectrum
+local specLen = 0 -- the spectrum length specEdges was built for
+local specPeak = 0 -- decaying band maximum — the auto-gain reference
 local sampleAt = 0 -- os.clock() deadline for the next analyzer re-read
 -- Pooled chime voices (PERFORMANCE.md §3): { player, busyUntil } — the
 -- gem chime was building an AudioPlayer + Wire per pickup before.
@@ -637,11 +642,62 @@ function Music.sample(): number
 				bass += spectrum[i]
 			end
 			energy = math.max(energy, bass / 7)
+			-- Waveform trace (§12): bucket the spectrum into WavePoints
+			-- log-spaced bands — bass left, air right. The buffer persists
+			-- and decays per tick so silence flattens rather than snaps.
+			local n = Config.Music.WavePoints
+			if not specEdges or #specBuf ~= n or specLen ~= #spectrum then
+				specEdges = table.create(n + 1, 0)
+				for i = 0, n do
+					specEdges[i + 1] = math.max(2, math.floor((#spectrum - 1) ^ (i / n)) + 1)
+				end
+				specBuf = table.create(n, 0)
+				specRaw = table.create(n, 0)
+				specLen = #spectrum
+			end
+			local edges = specEdges
+			local bandMax = 0
+			for i = 1, n do
+				local lo, hi = edges[i], math.min(edges[i + 1], #spectrum + 1)
+				local sum = 0
+				for b = lo, hi - 1 do
+					sum += spectrum[b]
+				end
+				local raw = sum / math.max(hi - lo, 1)
+				specRaw[i] = raw
+				if raw > bandMax then
+					bandMax = raw
+				end
+			end
+			-- Auto-gain (§12): spectrum magnitudes track stem loudness, so a
+			-- fixed gain either clips loud mixes or flatlines quiet ones.
+			-- Normalize against a decaying peak instead — the trace keeps
+			-- its relative bass->air shape at any volume. WaveFloor keeps
+			-- dead air flat instead of boosting the noise floor to full.
+			specPeak = math.max(specPeak * Config.Music.WavePeakDecay, bandMax)
+			local denom = math.max(specPeak, Config.Music.WaveFloor)
+			for i = 1, n do
+				local v = math.min(1, specRaw[i] / denom)
+				specBuf[i] = math.max(specBuf[i] * Config.Music.WaveDecay, v)
+			end
+		elseif #specBuf > 0 then
+			-- No spectrum this tick (dead air, unfocused audio) — decay the
+			-- trace and the gain reference toward the flatline.
+			specPeak *= Config.Music.WavePeakDecay
+			for i = 1, #specBuf do
+				specBuf[i] *= Config.Music.WaveDecay
+			end
 		end
 		-- attack fast, release slow — reads as a thump not a strobe
 		pulseSmooth = math.max(pulseSmooth, energy)
 	end
 	return pulseSmooth
+end
+
+-- HUD waveform (§12): the BPM cluster's scope trace — WavePoints entries,
+-- 0..1, smoothed. Shared buffer: callers read, never write.
+function Music.spectrum(): { number }
+	return specBuf
 end
 
 return Music

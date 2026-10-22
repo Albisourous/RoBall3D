@@ -3,9 +3,10 @@
 Paste this prompt into a Devin session (or keep it as standing orders). The agent
 runs the loop below and does not stop until you say **stop**.
 
-> **OPEN TODO:** `Power.Capacity` is 12 and `Dash.Cost` is 0.03 — a 10×
-> meter left in for dash testing. Revert to 1.2 / 0.3 (the `TODO(test)`
-> markers in `Config.luau`) once testing is done.
+> **DONE:** the 10× dash-test meter is reverted — `Power.Capacity` is
+> 1.2 and `Dash.Cost` is 0.3 (see git log). Debug hooks now sit behind
+> `Config.Debug.Enabled` — flip it off before release (see
+> PRODUCTION_PROMPT.md).
 
 > Improve RoBall3D continuously. Work the backlog top-to-bottom, one feature per
 > commit. Never break the core loop or the fairness guarantees. Verify every

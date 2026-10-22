@@ -1261,6 +1261,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local pulse = Music.sample()
 	Backdrop.setPulse(pulse) -- analyzer energy -> sun breathing (AUDIO.md §8)
 	ui:setPulse(pulse) -- same energy -> speedo thump / chromatic spread
+	ui:setWave(Music.spectrum()) -- spectrum buckets -> BPM scope trace (§12)
 
 	local b = ball
 	if b then

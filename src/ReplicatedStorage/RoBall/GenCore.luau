@@ -44,9 +44,9 @@ function GenCore.new(seed: number): Gen
 	-- Feature ramp (DESIGN.md §8.6): name -> true once its gentle debut
 	-- showcase has spawned. Debuted types hold out of the pool until then.
 	self.debuted = {}
-	-- TODO(debug-seed): when set (seed box held a feature keyword), every
-	-- chunk emits that type — intro, debuts and pool weighting all bypass.
-	-- Remove with the other TODO(debug-seed) sites.
+	-- Feature-seed override (DESIGN.md §7, Config.Debug.Enabled): when set
+	-- (seed box held a feature keyword), every chunk emits that type —
+	-- intro, debuts and pool weighting all bypass.
 	self.onlyType = nil :: string?
 	self.intro = {
 		{ type = "Flat", length = 35, widthOut = 48 },
@@ -104,7 +104,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 	}
 
 	if self.onlyType then
-		-- TODO(debug-seed): forced single-feature track for testing.
+		-- Forced single-feature track (Config.Debug.Enabled only).
 		if self.introIndex == 0 then
 			-- Short flat runway first: the ball spawns ~15 studs from the
 			-- track head, so the feature needs approach room to be seen

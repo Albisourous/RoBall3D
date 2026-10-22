@@ -1005,9 +1005,10 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 	return true
 end
 
--- TODO(debug-seed): seed-as-feature-name test hook — remove all
--- TODO(debug-seed) sites together (GenCore.onlyType, Main.server
--- resolveSeed/startRun, DESIGN.md §debug note).
+-- Feature-seed test hook (DESIGN.md §7): only reached when
+-- Config.Debug.Enabled is on — a live build never resolves these.
+-- Sites: this matcher, GenCore.onlyType, Main.server resolveSeed/startRun,
+-- Config.Debug.FeatureRunway.
 local featureKeys: { [string]: string }? = nil
 
 -- Match a seed-box keyword to a chunk type: normalized name or label
