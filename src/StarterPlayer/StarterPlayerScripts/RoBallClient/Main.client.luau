@@ -237,6 +237,19 @@ local function gemPackStates(): { [string]: { label: string, enabled: boolean } 
 	return states
 end
 
+-- Preview push (§18): the garage's ViewportFrame diorama dresses the
+-- BROWSED items — cycling a slot previews unowned merch before the buy,
+-- which is the conversion lever. Filter rides along as a Gui overlay.
+local function previewPush()
+	local items: { [string]: any } = {}
+	for _, slot in ipairs(Cosmetics.Slots) do
+		items[slot] = Cosmetics.item(browseId(slot))
+	end
+	CosmeticFx.preview(items)
+	local f = items.filter
+	ui:setPreviewFilter(if f then f.filter else "off")
+end
+
 local function refreshGarage()
 	local owned = ownedSet()
 	ui:setGarage({
@@ -255,6 +268,7 @@ local function refreshGarage()
 			},
 		},
 	})
+	previewPush()
 end
 
 local function bindBall(b: Instance)
@@ -329,10 +343,11 @@ end
 ui:setTrackRow(trackItems[trackPickIdx])
 
 local function requestStart()
+	-- Empty box = "daily": the seed row's placeholder is the default —
+	-- no mode swap (§6). Any typed text goes through as the seed.
 	local s = ui:seedText()
-	if s == "" and trackPickIdx > 1 then
-		local n = #Config.Music.ActiveTracklist
-		s = tostring(trackPickIdx - 2 + n * math.random(0, 9999))
+	if s == "" then
+		s = "daily"
 	end
 	evStart:FireServer(s)
 end
@@ -642,13 +657,9 @@ end)
 evRunStarted.OnClientEvent:Connect(function(seed: number)
 	mode = "running"
 	currentSeed = seed
-	-- Mirror a rolled seed into the box: a blank box ("random" chip or a
-	-- cleared field) launched this run, so write the resolved number back
-	-- and every later start — R included — reloads the same map. A held
-	-- value ("daily", a typed pick) is the stronger intent and stays.
-	if ui:seedText() == "" then
-		ui:setSeedText(tostring(seed))
-	end
+	-- Blank box stays blank: empty means "daily" — writing the resolved
+	-- number back would freeze it to a stale day. A typed seed already
+	-- persists in the box, so R restarts the same map either way.
 	combo = 0
 	lastGemPts = 0
 	passedBest = false
@@ -1273,6 +1284,7 @@ GemFx.init()
 CosmeticFx.init(function()
 	return ball
 end)
+CosmeticFx.mountViewport(ui.previewView)
 PadController.init(function()
 	return ball
 end)

@@ -195,35 +195,45 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 ## 6. Run structure & menu
 
 - **Menu** (built in code, `StarterGui` from Luau — everything stays in git):
-  "Vapor Horizon" layout — the center is a sparse movie poster (title,
-  PLAY, best, missions ticker) and every panel lives in the **dock**, a
-  bottom command strip whose mono chips (`run ›` / `track ›` / `dash` /
-  `garage ›` / `board ›` / `missions ›`) swap one anchored page above
-  it. Clicking the lit chip collapses the deck; `showMenu` always
-  reopens on the clean poster. The strip's third row is the keymap
-  caption (`dashHint`). Title `ROBALL3D`, vaporwave-styled, over a
-  hairline cyan→pink horizon rule that fades at both ends.
+  "Shop floor" layout — the menu backdrop is **opaque** (the running
+  world is NOT the background; a live scene behind the merch buries it).
+  Three permanent zones: a left **GARAGE rail** (always open — the shop
+  is zero clicks away, conversion needs the merch visible), a center
+  **poster column** (title `ROBALL3D` over a hairline cyan→pink horizon
+  rule, PLAY, dash, seed, track, best, missions ticker), and a right
+  **LEADERBOARD rail** (always open — your rank is the ad for the rerun
+  loop). The missions card is the only pop-up: a deck card over the
+  bottom caption row (`dashHint` keymap).
   - **PLAY** — the only filled element on the screen (solid pink slab,
     cyan rim on hover); `ENTER`/`R` also start. Everything else is chrome.
+  - **DASH button** — its own bordered gold chip directly under PLAY;
+    cycles `keys / tap / both`, server-mirrored + saved (§4).
+  - **SEED row** — directly under the dash button. The box defaults
+    EMPTY with `daily` as the placeholder: blank = today's shared seed,
+    any typed text is a seeded run (keywords like `daily`/feature seeds
+    still resolve, §14). No daily/random mode swap — the empty state IS
+    the daily mode, and it stays empty after a run so it keeps tracking
+    today (a rolled seed is never mirrored into the box).
+  - **TRACK row** — under the seed row; `‹ name ›` cycler picks the
+    run's song (AUDIO.md §3).
   - **Missions ticker** — one dim line under BEST (`missions n/3 ·
     awards n/N ›`), fed by `setQuests`/`setAchievements`; a click opens
-    the missions deck page.
-  - **RUN deck page** — bordered card holding whatever shapes the run:
-    `DAILY | RANDOM` seed chips (one tap writes
-    the seed box; the lit chip is what PLAY runs; typing a custom seed
-    unlatches them all), the seed `TextBox` (defaults to `daily` — race
-    today's shared board; `daily`/`today` resolve — §14), and the
-    `TRACK` cycler (AUDIO.md §3). The strip's `run ›` chip mirrors the
-    seed box verbatim (`run › daily` / `run › #seed`); `track ›`
-    mirrors the track name.
-  - **GARAGE deck page** — tabbed `STYLE | PACKS | BANK | AUDIO`: equip
-    cyclers, bundle passes, the gem bank, and the audio mixer each get
-    their own page so the shop can't flood the menu (§18). The preview
-    ball still dresses live. PACKS is a scrolling list — each row is an
+    the missions deck card (`◇` open / `✓` done quests + award tally,
+    §14).
+  - **GARAGE rail** — tabbed `STYLE | PACKS | BANK | AUDIO`: equip
+    cyclers, bundle passes, the gem bank, and the audio mixer (§18).
+    The bank balance lives in the garage header — spendable gems sit
+    next to every ◊ price. PACKS is a scrolling list — each row is an
     accordion whose body lists the bundle's actual contents
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
     color), one open at a time, so a purchase is never a guess.
-  - **Leaderboard deck page** — DAILY / TOP tabs (`name / score /
+  - **PREVIEW window** — pinned to the bottom of the garage rail: a
+    `ViewportFrame` diorama (mini deck + dressed ball + sun + world
+    motif + gem sample + death shards) that CosmeticFx rebuilds from
+    the *browsed* item on every slot — unowned merch previews before
+    the buy (try-before-you-buy). The screen-filter cosmetic repaints
+    inside the window as a Gui overlay.
+  - **Leaderboard rail** — DAILY / TOP tabs (`name / score /
     seed`), DAILY left and selected by default to match the default run
     mode; the daily tab shows the shared seed + UTC reset countdown.
     A `◈ friends` toggle filters whichever board is
@@ -237,9 +247,13 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     appended on every clean run end, also session-only until the first
     save) and mirrors them to the client as the `RoBallHistory`
     `s,d,z;…` CSV attribute
-  - **MISSIONS deck page** — same bordered chrome as RUN, holding the
-    day's three seeded quests (`◇` open / `✓` done) plus the award tally
-    footer (§14).
+  - Audio console — an `AUDIO` garage page, five channel sliders stacked
+    one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
+    mixer taps in AUDIO.md §7, persisted via `profile.audio` →
+    `RoBallVol_<ch>` attributes so a mix survives sessions. Defaults
+    (`Config.Audio.Defaults`): MUSIC unity, SFX channels at half — the
+    sources are mixed hot; full-everything was deafening.
+  - Personal best label
   - Audio console — an `AUDIO` garage page, five channel sliders stacked
     one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
     mixer taps in AUDIO.md §7, persisted via `profile.audio` →
@@ -255,8 +269,8 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   then a bordered mono readout panel — `RUN <seed>` header, hero `score`
   row, `best`, a `gems / banked` payout row, and the telemetry rows —
   with `[R]` or the `RETRY` button = instant
-  restart on the seed box's pick (`daily` by default — a run's rolled
-  seed is mirrored into the box, so it names the map you just played).
+  restart on the seed box's pick (`daily` by default — the box keeps
+  whatever seeded it, so retrying replays the same map).
   A gold `★ NEW BEST!` rides the score row when the run beat the
   stored record — the flag is computed server-side since attribute
   replication races make a client-side compare unreliable. The
@@ -1092,7 +1106,9 @@ src/
                                    --   output, required by GenCore + client)
     Cosmetics.luau                 -- cosmetic catalog: items, slots, bundles (§18)
     BallDress.luau                 -- shared ball dresser (rings + trail) for
-                                   --   server spawn and the client menu preview
+                                   --   server spawn (the menu preview uses
+                                   --   real parts — adornments don't render
+                                   --   in a ViewportFrame)
   ServerScriptService/RoBallServer/
     Main.server.luau               -- boot/wiring (exists): run lifecycle folded
                                    --   in (remotes, spawn, kill, heartbeat,
@@ -1239,15 +1255,19 @@ bundle pass. The death screen reads `◊ +N BANKED` — the payout visible on
 every run end.
 
 **Show surfaces**: private lanes hide other players, so the flex surfaces
-are the run itself and the **menu preview ball** — a client-local dressed
-ball parked in the menu vista that rebuilds on every equip change
-(`BallDress` is shared so server spawn and preview draw the same way).
+are the run itself and the **garage preview window** — a `ViewportFrame`
+diorama pinned to the bottom of the always-on garage rail (§6). CosmeticFx
+rebuilds it on every browse change from the *browsed* item — not just the
+equipped one — so cycling the catalog previews unowned merch before the
+buy (try-before-you-buy). It's drawn from real parts (mini deck, neon
+ring cage, trail, strip-stack sun, world motif, gem sample, orbiting
+death shards) since adornments don't render inside a ViewportFrame.
 Animated flags (`fx = "rainbow" | "pulse" | "strobe" | "wave"` on skins —
 strobe is a fast hue flicker, wave flows the run palette across the rings;
-`"rainbow"` on trails/gemfx) are evaluated in the client render loop. The
-`world` slot rides the same plumbing: `RoBallEq_world` lands on the client
-and `Backdrop.setTheme` re-seeds whichever scenery system takes over — the
-vista is visible in the menu the moment the pass equips.
+`"rainbow"`/`"palette"` on trails/gemfx) are evaluated in the client
+render loop. The `world` slot rides the same plumbing: `RoBallEq_world`
+lands on the client and `Backdrop.setTheme` re-seeds whichever scenery
+system takes over — in the menu it shows up as the diorama's motif.
 `world_peaks` sells as its own bundle pass (`Passes.peaks`) or à-la-carte
 for ◊800 — the flagship grind target. **DEEP SPACE** (`Passes.deepspace`)
 packs three world themes — `world_void` (STAR WELL), `world_grid`
@@ -1269,7 +1289,7 @@ like any other color. Owning ANY lab item (bundle or à-la-carte gem buy)
 unlocks the garage's three sliders (`Cosmetics.labOwned`); a drag release
 posts all three channels through the `SetHues` RemoteFunction, which
 re-gates ownership and clamps `Config.CustomHue` server-side. Writes land
-on `RoBallHue*` attributes → the menu preview rebuilds, a live ball
+on `RoBallHue*` attributes → the preview diorama rebuilds, a live ball
 retints mid-run, and the garage sliders re-seat. Persisted in
 `profile.hues` like the mixer gains; the defaults are cyan/magenta/cyan.
 
