@@ -57,11 +57,18 @@ Config.Power = {
 -- power meter (offense/defense/dodge bid on one resource). Discrete
 -- spend, not a held drain, but it still needs a meter past the marker.
 Config.Dash = {
-	Speed = 50, -- studs/s lateral target during the burst (~1.9x max steer)
-	Time = 0.16, -- burst window — ~8 studs of sidestep before hand-back
-	Accel = 1200, -- burst ease rate: reaches Speed in ~40ms, eases in like steering
+	Speed = 64, -- studs/s lateral target during the burst (~2.4x max steer)
+	Time = 0.16, -- burst window — ~10 studs of sidestep before hand-back
+	Accel = 2400, -- burst ease rate: reaches Speed in ~25ms, snaps in fast
 	Cost = 0.3, -- meter fraction per dash (~4 LED cells, 3 dashes per full bar)
 	Cooldown = 0.45, -- seconds between dashes (the meter is the real limiter)
+	-- Dash style (§4): a saved menu toggle picks the input mapping —
+	-- "keys" (Q/E), "tap" (double-tap the steer key), or "both".
+	-- Mirrored as RoBallDashMode; persisted in the profile like a mixer gain.
+	Modes = { "keys", "tap", "both" },
+	TapWindow = 0.28, -- seconds between steer-key taps that read as a dash
+	ModeLabel = { keys = "‹ Q / E KEYS ›", tap = "‹ DOUBLE-TAP A / D ›", both = "‹ Q/E + DOUBLE-TAP ›" },
+	ModeHint = { keys = "Q/E dash", tap = "A·A / D·D dash", both = "Q/E or A·A·D·D dash" },
 }
 
 -- Steering is force/momentum based (Super Monkey Ball feel), not snapping.
@@ -406,6 +413,15 @@ Config.Blackout = {
 	-- Break-section darkness: grid/center neon dims to this fraction while
 	-- edge rails and gems stay lit — the track goes lights-out, not blind.
 	GridScale = 0.12,
+}
+
+Config.Terrace = {
+	-- Tread shape (§8.3): the front fraction of each step tilts gently UP
+	-- on a cosine, then the whole drop (step + rise) eases back down on a
+	-- cosine — both phases land slope-zero at every seam, so the profile
+	-- has no lip edge and no foot-V for a flying ball to snag on.
+	UpFrac = 0.35, -- front share of each tread that rises
+	RiseFrac = 0.45, -- rise height as a fraction of stepH (~0.5–0.8 studs)
 }
 
 Config.Swell = {

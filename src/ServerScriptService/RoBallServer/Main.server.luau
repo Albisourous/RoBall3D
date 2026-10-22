@@ -125,6 +125,9 @@ fnGetGhost.Parent = remotes
 local evCrown = Instance.new("RemoteEvent")
 evCrown.Name = "Crown"
 evCrown.Parent = remotes
+local fnSetDashMode = Instance.new("RemoteFunction")
+fnSetDashMode.Name = "SetDashMode"
+fnSetDashMode.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 type Run = {
@@ -664,6 +667,15 @@ fnSetAudio.OnServerInvoke = function(player, ch, v)
 		return false
 	end
 	return ShopService.setAudio(player, ch, v)
+end
+
+-- Dash style (§4): "keys"|"tap"|"both" — a control pref, mirrored +
+-- saved like a mixer gain.
+fnSetDashMode.OnServerInvoke = function(player, m)
+	if typeof(m) ~= "string" then
+		return false
+	end
+	return ShopService.setDashMode(player, m)
 end
 
 fnBuyItem.OnServerInvoke = function(player, itemId)

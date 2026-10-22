@@ -463,6 +463,12 @@ runs the loop below and does not stop until you say **stop**.
     ScreenGui (ScreenFilter.luau) — the 3D view pixelates while HUD
     text stays crisp above it; VHS DECK pass bundles both)*
 
+66. **Dash style toggle** *(done — `Config.Dash.Modes` keys / double-tap
+    steer / both; a saved menu ghost-button cycles it through
+    `SetDashMode` → `RoBallDashMode` attr (persists in profile like a
+    mixer gain). Q/E gate by mode; A/D taps inside `TapWindow` dash the
+    steer direction — first tap still steers)*
+
 64. **Zero-bounce landing** *(done — elasticity 0 alone still bounced:
     the solver's impact response pops hard landings. When the lane
     probe sees deck inside `Landing.ClampReach`, the client caps the

@@ -67,6 +67,7 @@ local fnBuyItem = remotes:WaitForChild("BuyItem") :: RemoteFunction
 local fnBuyPack = remotes:WaitForChild("BuyPack") :: RemoteFunction
 local fnBuyGems = remotes:WaitForChild("BuyGems") :: RemoteFunction
 local fnSetHues = remotes:WaitForChild("SetHues") :: RemoteFunction
+local fnSetDashMode = remotes:WaitForChild("SetDashMode") :: RemoteFunction
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -84,6 +85,9 @@ local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
 local dashUntil = 0
 local lastDashAt = 0
+-- "tap" dash style (§4): last press time per steer direction — a second
+-- tap inside Dash.TapWindow dashes instead of just steering.
+local lastTapAt = { [-1] = 0, [1] = 0 }
 local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
 local bestDist = 0 -- RoBallBestDist: the PB gate's z; 0 = no marked record
 local passedBest = false -- set when this run crosses it (one flash only)
@@ -258,6 +262,8 @@ local function bindBall(b: Instance)
 		dashDir = 0
 		dashUntil = 0
 		lastDashAt = 0
+		lastTapAt[-1] = 0
+		lastTapAt[1] = 0
 		dashDeniedAt = 0
 		wasDashing = false
 		stuckT = 0
@@ -339,6 +345,25 @@ ui.onEquipCycle = function(slot, dir)
 	end
 	refreshGarage()
 end
+
+-- Dash style (§4): the menu toggle cycles Config.Dash.Modes; the server
+-- mirrors RoBallDashMode back and the attribute drives the input map.
+local function dashMode(): string
+	local m = player:GetAttribute("RoBallDashMode")
+	return if typeof(m) == "string" and table.find(Config.Dash.Modes, m) then m else Config.Dash.Modes[1]
+end
+ui.onDashMode = function()
+	local modes = Config.Dash.Modes
+	local i = table.find(modes, dashMode()) or 1
+	pcall(function()
+		fnSetDashMode:InvokeServer(modes[(i % #modes) + 1])
+	end)
+end
+local function syncDashModeUi()
+	ui:setDashMode(dashMode())
+end
+player:GetAttributeChangedSignal("RoBallDashMode"):Connect(syncDashModeUi)
+syncDashModeUi()
 
 -- Click a priced item name: buy it with banked gems (§18 P2). The server
 -- owns the answer — success auto-equips and lands via attribute refresh.
@@ -783,10 +808,24 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		requestStart()
 		return
 	end
-	if input.KeyCode == Enum.KeyCode.Q then
+	-- Dash input map (§4): "keys" fires Q/E; "tap" fires on a second
+	-- press of the same steer key inside TapWindow; "both" allows either.
+	local dm = dashMode()
+	if (dm == "keys" or dm == "both") and input.KeyCode == Enum.KeyCode.Q then
 		tryDash(-1)
-	elseif input.KeyCode == Enum.KeyCode.E then
+	elseif (dm == "keys" or dm == "both") and input.KeyCode == Enum.KeyCode.E then
 		tryDash(1)
+	elseif dm == "tap" or dm == "both" then
+		local dir = if input.KeyCode == Enum.KeyCode.A then -1 elseif input.KeyCode == Enum.KeyCode.D then 1 else 0
+		if dir ~= 0 then
+			local now = tick()
+			if now - lastTapAt[dir] <= Config.Dash.TapWindow then
+				lastTapAt[dir] = 0
+				tryDash(dir)
+			else
+				lastTapAt[dir] = now
+			end
+		end
 	end
 end)
 

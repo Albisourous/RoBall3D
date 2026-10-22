@@ -106,12 +106,17 @@ explainable.
   the universal **armed** marker — a meter past the notch means all
   three verbs are live, so "can I act?" is read off the bar, not felt
   out. Charge lives on the bottom-left meter bar (§12).
-- **Dash** (`Config.Dash`): tap `Q`/`E` = lateral burst left/right —
-  the same steer-ease math drives lateral velocity toward `Speed`
-  (50 s/s ≈ 1.9× max steer) at burst accel (~40ms to full, so the
-  dart eases in like steering does — no robotic hard-slide) for `Time`
-  (0.16s): a ~8-stud sidestep that clamps back into steer range on
-  release. Steering is ignored mid-burst — the dodge is a commitment.
+- **Dash** (`Config.Dash`): a lateral burst left/right — same steer-ease
+  math drives lateral velocity toward `Speed` (64 s/s ≈ 2.4× max steer)
+  at burst accel (~25ms to full — a snap, not a hard-slide) for
+  `Time` (0.16s): a ~10-stud sidestep that
+  clamps back into steer range on release. **Dash style** is a saved
+  menu toggle (`Dash.Modes`, `RoBallDashMode` attr, persisted in the
+  profile like a mixer gain): `keys` = tap `Q`/`E`, `tap` = a second
+  press of the same `A`/`D` steer key inside `TapWindow` (0.28s) dashes
+  that way, `both` = either mapping. First tap still steers — the dash
+  only reads on the repeat press. Steering is ignored mid-burst — the
+  dodge is a commitment.
   Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
   of the **same** power meter boost/brake drain — offense, defense and
   dodge all bid on one resource, so a spent dodge is a boost you don't
@@ -330,7 +335,7 @@ narrow. Then the seeded generator takes over.
 | `BlockGate` | Red blocks across the deck, one gap ≥ CorridorMin | Thread-the-gap | 2+ |
 | `BlockField` | Scattered red blocks, density scales with tier | Weaving pressure | 3+ |
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
-| `Terrace` | Deck descends in lips — each drop rides a real ~10° ramp over the tread's back half so a slow/mid-hop ball can't snag the edge | Free ballistic spectacle | 2+ |
+| `Terrace` | Deck descends in soft steps — each tread tilts gently up on a cosine for its front fraction (`Terrace.UpFrac`/`RiseFrac`), then eases the whole drop down; every seam lands slope-zero so a flying ball has no lip edge or foot-V to snag | Free ballistic spectacle | 2+ |
 | `Swell` | Full-width ribbon undulating in y — a pump line of gentle crests; integer sine periods land the exit on the entry height, and a slope cap (`Swell.SlopeMax`) keeps crests as hops, not launches | Kinesthetic rest | 2+ |
 | `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave | Hold the line | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |

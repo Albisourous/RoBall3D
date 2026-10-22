@@ -108,13 +108,14 @@ end
 
 -- Quiet text-only button for secondary actions — no box, mono font. The
 -- stroked SciFi outline treatment reads as a blur at small sizes.
-local function ghostButton(parent, text, size, order)
+local function ghostButton(parent, text, size, order, color)
+	local base = color or C_DIM
 	local b = Instance.new("TextButton")
 	b.BackgroundTransparency = 1
 	b.AutoButtonColor = false
 	b.Font = F_DATA
 	b.TextSize = size
-	b.TextColor3 = C_DIM
+	b.TextColor3 = base
 	b.Text = text
 	b.Size = UDim2.fromOffset(size * 8, size * 1.6)
 	b.LayoutOrder = order or 0
@@ -122,7 +123,7 @@ local function ghostButton(parent, text, size, order)
 		b.TextColor3 = C_WHITE
 	end)
 	b.MouseLeave:Connect(function()
-		b.TextColor3 = C_DIM
+		b.TextColor3 = base
 	end)
 	b.Parent = parent
 	return b
@@ -146,6 +147,7 @@ function Ui.new(): Ui
 	self.onMenu = nil :: (() -> ())?
 	self.onEquipCycle = nil :: ((slot: string, dir: number) -> ())?
 	self.onItemSlot = nil :: ((slot: string) -> ())? -- click displayed item name
+	self.onDashMode = nil :: (() -> ())? -- menu dash-style toggle
 	self.onBuy = nil :: ((bundleId: string) -> ())?
 	self.onGemPack = nil :: ((productKey: string) -> ())?
 
@@ -413,7 +415,15 @@ function Ui.new(): Ui
 	self.achLine.Position = UDim2.fromOffset(0, 102)
 
 	label(menuCol, "", 8, F_DATA, C_DIM, 10)
-	label(menuCol, "A/D steer   ·   W/S boost/brake   ·   Q/E dash   ·   R restart", 13, F_DATA, C_DIM, 11)
+	self.dashHint = label(menuCol, "", 13, F_DATA, C_DIM, 11)
+	-- Dash style toggle (§4): cycles keys / double-tap / both — the
+	-- server mirrors + saves the pick, so the row is the whole pref.
+	self.dashToggle = ghostButton(menuCol, "DASH ▸", 15, 12, C_GOLD)
+	self.dashToggle.MouseButton1Click:Connect(function()
+		if self.onDashMode then
+			self.onDashMode()
+		end
+	end)
 
 	play.MouseButton1Click:Connect(function()
 		if self.onPlay then
@@ -1748,6 +1758,16 @@ function Ui.new(): Ui
 	end)
 
 	return self
+end
+
+-- Dash style (§4): the menu toggle label + the controls hint both track
+-- the saved pick — "‹ Q / E KEYS ›" / "‹ DOUBLE-TAP A / D ›" /
+-- "‹ Q/E + DOUBLE-TAP ›".
+function Ui:setDashMode(m: string)
+	self.dashToggle.Text = "DASH STYLE  " .. (Config.Dash.ModeLabel[m] or m)
+	self.dashHint.Text = "A/D steer   ·   W/S boost/brake   ·   "
+		.. (Config.Dash.ModeHint[m] or "Q/E dash")
+		.. "   ·   R restart"
 end
 
 function Ui:showMenu(best: number)

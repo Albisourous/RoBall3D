@@ -54,6 +54,9 @@ local audioVol: { [Player]: { [string]: number } } = {}
 -- Config.CustomHue). Mirrored as RoBallHue* attributes; persisted in
 -- profile.hues like the mixer gains.
 local customHues: { [Player]: { a: number, b: number, c: number } } = {}
+-- Dash style (§4): "keys"|"tap"|"both" — a control pref mirrored as the
+-- RoBallDashMode attribute; persists in profile.dashMode like the mixer.
+local dashModes: { [Player]: string } = {}
 
 local function defaultHues(): { a: number, b: number, c: number }
 	local d = Config.CustomHue.Defaults
@@ -153,6 +156,7 @@ local function pushAttrs(player: Player)
 	for k, attr in pairs(Cosmetics.HueAttr) do
 		player:SetAttribute(attr, (h :: any)[k])
 	end
+	player:SetAttribute("RoBallDashMode", dashModes[player] or Config.Dash.Modes[1])
 end
 
 local function itemArray(player: Player): { string }
@@ -189,6 +193,7 @@ local function saveNow(player: Player)
 	end
 	local audioSnapshot = table.clone(audioVol[player] or {})
 	local huesSnapshot = table.clone(customHues[player] or defaultHues())
+	local dashSnapshot = dashModes[player] or Config.Dash.Modes[1]
 	-- Snapshot entries too — a shallow clone would alias the live history.
 	local histSnapshot = {}
 	for _, r in ipairs(history[player] or {}) do
@@ -210,6 +215,7 @@ local function saveNow(player: Player)
 			statsBestDist = statsBestDist[player] or 0,
 			audio = audioSnapshot,
 			hues = huesSnapshot,
+			dashMode = dashSnapshot,
 			history = histSnapshot,
 		})
 	end)
@@ -457,6 +463,22 @@ function ShopService.setAudio(player: Player, ch: string, v: number): boolean
 	return true
 end
 
+-- Dash style (§4): the menu toggle lands here via SetDashMode — a control
+-- pref, mirrored as RoBallDashMode + saved like a mixer gain.
+function ShopService.dashMode(player: Player): string
+	return dashModes[player] or Config.Dash.Modes[1]
+end
+
+function ShopService.setDashMode(player: Player, m: string): boolean
+	if not table.find(Config.Dash.Modes, m) then
+		return false
+	end
+	dashModes[player] = m
+	pushAttrs(player)
+	saveNow(player)
+	return true
+end
+
 -- COLOR LAB write (§18): slider releases land here via SetHues. Gate: the
 -- player must own at least one lab item (bundle grants all three; a
 -- gem-bought single unlocks the lab too — friendlier and harmless).
@@ -648,6 +670,10 @@ function ShopService.onPlayerAdded(player: Player)
 				end
 				customHues[player] = cur
 			end
+			-- Dash style (§4): control pref, whitelisted ids only.
+			if typeof(prof.dashMode) == "string" and table.find(Config.Dash.Modes, prof.dashMode) then
+				dashModes[player] = prof.dashMode
+			end
 			-- Achievements restore unconditionally — unlocks are permanent,
 			-- stats are lifetime counters. Unknown ids are ignored.
 			if typeof(prof.achievements) == "table" then
@@ -706,6 +732,7 @@ function ShopService.onPlayerRemoving(player: Player)
 	statsBestDist[player] = nil
 	audioVol[player] = nil
 	customHues[player] = nil
+	dashModes[player] = nil
 	history[player] = nil
 end
 
