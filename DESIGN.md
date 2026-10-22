@@ -189,25 +189,37 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 ## 6. Run structure & menu
 
 - **Menu** (built in code, `StarterGui` from Luau — everything stays in git):
-  one dominant CTA + grouped rails. Title `ROBALL3D`, vaporwave-styled.
+  "Vapor Horizon" layout — the center is a sparse movie poster (title,
+  PLAY, best, missions ticker) and every panel lives in the **dock**, a
+  bottom command strip whose mono chips (`run ›` / `track ›` / `dash` /
+  `garage ›` / `board ›` / `missions ›`) swap one anchored page above
+  it. Clicking the lit chip collapses the deck; `showMenu` always
+  reopens on the clean poster. The strip's third row is the keymap
+  caption (`dashHint`). Title `ROBALL3D`, vaporwave-styled, over a
+  hairline cyan→pink horizon rule that fades at both ends.
   - **PLAY** — the only filled element on the screen (solid pink slab,
     cyan rim on hover); `ENTER`/`R` also start. Everything else is chrome.
-  - **RUN SETUP** panel — a bordered cluster under PLAY holding whatever
-    shapes the run: `DAILY | RANDOM` seed chips (one tap writes
+  - **Missions ticker** — one dim line under BEST (`missions n/3 ·
+    awards n/N ›`), fed by `setQuests`/`setAchievements`; a click opens
+    the missions deck page.
+  - **RUN deck page** — bordered card holding whatever shapes the run:
+    `DAILY | RANDOM` seed chips (one tap writes
     the seed box; the lit chip is what PLAY runs; typing a custom seed
     unlatches them all), the seed `TextBox` (defaults to `daily` — race
     today's shared board; `daily`/`today` resolve — §14), and the
-    `TRACK` cycler (AUDIO.md §3).
-  - **GARAGE** — left rail, tabbed `STYLE | PACKS | BANK | AUDIO`: equip
+    `TRACK` cycler (AUDIO.md §3). The strip's `run ›` chip mirrors the
+    seed box verbatim (`run › daily` / `run › #seed`); `track ›`
+    mirrors the track name.
+  - **GARAGE deck page** — tabbed `STYLE | PACKS | BANK | AUDIO`: equip
     cyclers, bundle passes, the gem bank, and the audio mixer each get
     their own page so the shop can't flood the menu (§18). The preview
     ball still dresses live. PACKS is a scrolling list — each row is an
     accordion whose body lists the bundle's actual contents
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
     color), one open at a time, so a purchase is never a guess.
-  - Leaderboard panel — DAILY / TOP tabs (`name / score / seed`), DAILY
-    left and selected by default to match the default run mode; the
-    daily tab shows the shared seed + UTC reset countdown.
+  - **Leaderboard deck page** — DAILY / TOP tabs (`name / score /
+    seed`), DAILY left and selected by default to match the default run
+    mode; the daily tab shows the shared seed + UTC reset countdown.
     A `◈ friends` toggle filters whichever board is
     open to your Roblox friends — rows keep their real rank numbers; the
     id set lazy-loads once per session via `GetFriendsAsync`. A `RECENT`
@@ -219,10 +231,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     appended on every clean run end, also session-only until the first
     save) and mirrors them to the client as the `RoBallHistory`
     `s,d,z;…` CSV attribute
-  - **MISSIONS** card — same bordered chrome as RUN SETUP, holding the
+  - **MISSIONS deck page** — same bordered chrome as RUN, holding the
     day's three seeded quests (`◇` open / `✓` done) plus the award tally
-    footer (§14). Second card, second job: setup shapes the run, missions
-    say what it pays.
+    footer (§14).
   - Audio console — an `AUDIO` garage page, five channel sliders stacked
     one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
     mixer taps in AUDIO.md §7, persisted via `profile.audio` →
@@ -359,7 +370,9 @@ narrow. Then the seeded generator takes over.
 | `Narrow` | Width lerps down over the chunk | Precision | 2+ |
 | `Widen` | Deck opens to the tier window's upper half in ~35%, then holds; twin edge-margin gem lines | Relief + lateral reach (dash's job) | 5+ |
 | `Tilt` | Ribbon rolls around its long axis ±(8–20°→cap, steepens with distance via the §9 roll ramp) — bank pull drags the ball toward the low edge | Momentum management | 3+ |
-| `FullTilt` | The whole chunk commits to one steep bank (26–34°→cap via the §9 roll ramp) — bank pull is the entire hazard; edge gems ride the downhill rail you're being dragged toward | Sustained counter-lean | 5+ |
+| `FullTilt` | The whole chunk commits to one steep bank (26–34°→cap via the §9 roll ramp), cosine-eased in/out so the pull never snaps — bank pull is the entire hazard; edge gems ride the downhill rail you're being dragged toward | Sustained counter-lean | 6 |
+| `LeftTilt` | FullTilt locked to a left bank — same sustained pull, fixed direction | Counter-lean left | 6 |
+| `RightTilt` | FullTilt locked to a right bank | Counter-lean right | 6 |
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
 | `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
@@ -485,9 +498,9 @@ ramp can gate a type's hard variants on the showcase having run. No HUD
 banner: the `NEW ▸ LABEL` flash was cut as screen clutter.
 
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
-Blackout 900m · Chicane 1300m · Fork 1500m · FullTilt 1600m ·
+Blackout 900m · Chicane 1300m · Fork 1500m ·
 PadHop 1700m · PadVoid 2100m · DropGate 2300m · PressRow 2600m · Pacer 2700m ·
-Rotor 2900m · OrbHop
+Rotor 2900m · FullTilt 3000m · LeftTilt 3200m · RightTilt 3400m · OrbHop
 3300m\* · FlipRide 3500m\* (\*flag-off stretches). Early
 game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
 

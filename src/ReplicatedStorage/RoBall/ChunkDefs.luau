@@ -509,45 +509,61 @@ function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
 end
 
--- FullTilt: one sustained steep bank — Sway's drama without the relief,
--- Tilt's hold turned all the way up. The bank ramps in over RampFrac,
--- holds at DegMin..DegMax·rollScale for the whole middle, ramps out at
--- the seam. Bank pull (§4) is the entire hazard: edge gems sit on the
--- downhill rail — the line you're being dragged toward is the one that
--- pays. canRun requires width so an uphill hold is always a fair fight.
-function ChunkDefs.FullTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+-- FullTilt family: one sustained steep bank — Sway's drama without the
+-- relief, Tilt's hold turned all the way up. The bank cosine-eases in
+-- over RampFrac (zero roll-rate at both ends — no snap in the pull or
+-- the profile), holds at DegMin..DegMax·rollScale through the middle,
+-- eases out at the seam. Bank pull (§4) is the entire hazard: edge gems
+-- sit on the downhill rail — the line you're being dragged toward is
+-- the one that pays. dir: -1 banks left (+roll dips the left edge),
+-- +1 banks right, 0 rolls a side. canRun requires width so an uphill
+-- hold is always a fair fight.
+local function fullTiltBuild(rng: Random, st: GenState, name: string, dir: number, debut: boolean?): ChunkSpec
 	local C = Config.FullTilt
 	local length = rng:NextInteger(C.LenMin, C.LenMax)
 	local degHi = math.min(C.DegMax * (st.rollScale or 1), Config.Roll.Cap)
 	local deg = if debut then C.DegMin else rng:NextNumber(C.DegMin, degHi)
-	local roll = deg * (rng:NextInteger(0, 1) * 2 - 1)
+	local sign = if dir ~= 0 then dir else rng:NextInteger(0, 1) * 2 - 1
+	local roll = deg * sign
 	local ramp = C.RampFrac
 	local rollAt = function(t: number)
+		local u = 1
 		if t < ramp then
-			return roll * (t / ramp)
+			u = t / ramp
 		elseif t > 1 - ramp then
-			return roll * ((1 - t) / ramp)
+			u = (1 - t) / ramp
 		end
-		return roll
+		return roll * (1 - math.cos(u * math.pi)) / 2
 	end
 	-- Downhill side = the direction bank pull shoves (deck dips toward
 	-- +xOff for positive roll) — the dare line pays edge value.
-	local side = if roll >= 0 then 1 else -1
 	local gems = gemRhythmLine(
 		rng,
 		Tiers.speedAt(st.dist),
 		length,
 		0.35,
 		0.6,
-		side * (st.width / 2 - 2),
+		sign * (st.width / 2 - 2),
 		Config.Gems.ValueEdge,
 		nil,
 		energyOf(st),
 		bpmOf(st)
 	)
-	return spec("FullTilt", st, length, function(t)
+	return spec(name, st, length, function(t)
 		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = rollAt(t) }
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+end
+
+function ChunkDefs.FullTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	return fullTiltBuild(rng, st, "FullTilt", 0, debut == true)
+end
+
+function ChunkDefs.LeftTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	return fullTiltBuild(rng, st, "LeftTilt", -1, debut == true)
+end
+
+function ChunkDefs.RightTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	return fullTiltBuild(rng, st, "RightTilt", 1, debut == true)
 end
 
 -- Pinch: width collapses briefly mid-chunk, then reopens.
@@ -932,6 +948,8 @@ local MinEntryWidth = {
 	PressRow = 21, -- MinSpan press + a debut-wide side lane
 	FullTilt = 18, -- an uphill hold needs real deck under the ball —
 	-- narrower and a worst-edge entry can't out-climb the pull
+	LeftTilt = 18,
+	RightTilt = 18,
 }
 
 -- Eligibility gate for pool + debut picks (§8.6): features that need a

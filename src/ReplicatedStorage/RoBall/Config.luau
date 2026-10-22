@@ -270,13 +270,15 @@ Config.Features = {
 		Blackout = 900,
 		Chicane = 1300,
 		Fork = 1500,
-		FullTilt = 1600,
 		PadHop = 1700,
 		PadVoid = 2100,
 		DropGate = 2300,
 		PressRow = 2600,
 		Pacer = 2700,
 		Rotor = 2900,
+		FullTilt = 3000,
+		LeftTilt = 3200,
+		RightTilt = 3400,
 		OrbHop = 3300, -- flag: Features.JumpOrbs
 		FlipRide = 3500, -- flag: Features.GravityFlip
 	},
@@ -287,13 +289,15 @@ Config.Features = {
 		"Blackout",
 		"Chicane",
 		"Fork",
-		"FullTilt",
 		"PadHop",
 		"PadVoid",
 		"DropGate",
 		"PressRow",
 		"Pacer",
 		"Rotor",
+		"FullTilt",
+		"LeftTilt",
+		"RightTilt",
 		"OrbHop",
 		"FlipRide",
 	},
@@ -325,6 +329,8 @@ Config.Features = {
 		Chicane = "CHICANE",
 		Fork = "FORK",
 		FullTilt = "FULL TILT",
+		LeftTilt = "LEFT TILT",
+		RightTilt = "RIGHT TILT",
 		PadHop = "PAD HOP",
 		PadVoid = "PAD VOID",
 		DropGate = "DROP GATE",
@@ -564,6 +570,8 @@ Config.Tiers = {
 			"Widen",
 			"Tilt",
 			"FullTilt",
+			"LeftTilt",
+			"RightTilt",
 			"Pinch",
 			"SplitGap",
 			"Bowl",
@@ -592,6 +600,8 @@ Config.Tiers = {
 			"Widen",
 			"Tilt",
 			"FullTilt",
+			"LeftTilt",
+			"RightTilt",
 			"Pinch",
 			"SplitGap",
 			"Bowl",
@@ -974,6 +984,8 @@ Config.MusicSync = {
 		Widen = "technical",
 		Tilt = "technical",
 		FullTilt = "technical",
+		LeftTilt = "technical",
+		RightTilt = "technical",
 		Pinch = "technical",
 		SplitGap = "technical",
 		Fork = "technical",
@@ -1272,6 +1284,12 @@ Config.Art = {
 	-- distance — the color flows continuously instead of banding per chunk.
 	GridEvery = 10,
 	GridValue = 0.5, -- palette value scale for grid lines (dimmer than edges)
+	-- Banked-deck continuity (§8.6): each slice pivots about the deck
+	-- centerline, so a roll change across it leaves a lip at the edge.
+	-- TrackStreamer halves rolling spans until the edge step fits this —
+	-- FullTilt's ramps emit as many fine slabs as needed, flat and held
+	-- spans still merge to single parts.
+	RollLipMax = 0.35, -- max vertical seam step at the deck edge, studs
 	-- Deck tint: how far the purple-black floor leans toward the palette at
 	-- each point (0 = static black, 1 = full neon). Subtle — keeps the deck
 	-- dark while letting it drift with the gradient.

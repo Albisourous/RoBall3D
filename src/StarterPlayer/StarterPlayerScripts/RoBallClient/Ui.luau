@@ -179,11 +179,60 @@ function Ui.new(): Ui
 	})
 	grad.Parent = menu
 
+	-- VAPOR HORIZON layout (§6): the center is a sparse movie poster —
+	-- title, PLAY, best, missions ticker — and every panel lives in the
+	-- DOCK, a bottom command strip whose chips swap one anchored page
+	-- above it (run setup / missions / board / garage). Clicking the lit
+	-- chip again collapses the deck back to the strip.
+	local deckPages: { [string]: GuiObject } = {}
+	local chipDeck: { [TextButton]: string } = {}
+	local deckOpen: string? = nil
+	local function openDeck(name: string?)
+		if deckOpen == name then
+			name = nil
+		end
+		deckOpen = name
+		for n, pg in pairs(deckPages) do
+			pg.Visible = n == name
+		end
+		for b, n in pairs(chipDeck) do
+			b.TextColor3 = if n == name then C_PINK else C_DIM
+		end
+	end
+	self.closeDeck = function()
+		openDeck(nil)
+	end
+
+	-- Shared panel chrome for every dock page: near-opaque card (tall
+	-- pages overlap the poster — translucency would bleed PLAY through),
+	-- dim rim, bottom-anchored so it rises straight out of the strip.
+	local function deckPanel(name: string, w: number, h: number): Frame
+		local f = Instance.new("Frame")
+		f.Name = name
+		f.BackgroundColor3 = C_PANEL
+		f.BackgroundTransparency = 0.06
+		f.BorderSizePixel = 0
+		f.AnchorPoint = Vector2.new(0.5, 1)
+		f.Position = UDim2.new(0.5, 0, 1, -98)
+		f.Size = UDim2.fromOffset(w, h)
+		f.Visible = false
+		f.Parent = menu
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 10)
+		c.Parent = f
+		local s = Instance.new("UIStroke")
+		s.Color = C_DIM
+		s.Thickness = 1
+		s.Transparency = 0.5
+		s.Parent = f
+		return f
+	end
+
 	local menuCol = Instance.new("Frame")
 	menuCol.Name = "Hero"
 	menuCol.BackgroundTransparency = 1
-	menuCol.Size = UDim2.fromOffset(520, 700) -- hero column: title, PLAY, run setup, missions
-	menuCol.Position = UDim2.fromScale(0.5, 0.5)
+	menuCol.Size = UDim2.fromOffset(560, 420) -- poster column: title, PLAY, best, ticker
+	menuCol.Position = UDim2.fromScale(0.5, 0.42)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
 	vlist(menuCol, 10)
@@ -195,7 +244,25 @@ function Ui.new(): Ui
 	tgrad.Parent = title
 
 	label(menuCol, "roll forever · don't fall", 18, F_DATA, C_DIM, 2)
-	label(menuCol, "", 6, F_DATA, C_DIM, 3)
+
+	-- Horizon rule: the poster's only ornament — a hairline sunset line
+	-- under the tagline, fading to nothing at both ends.
+	local rule = Instance.new("Frame")
+	rule.BackgroundColor3 = C_WHITE
+	rule.BorderSizePixel = 0
+	rule.Size = UDim2.fromOffset(280, 2)
+	rule.LayoutOrder = 3
+	rule.Parent = menuCol
+	local ruleGrad = Instance.new("UIGradient")
+	ruleGrad.Color = ColorSequence.new(C_CYAN, C_PINK)
+	ruleGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	ruleGrad.Parent = rule
+
+	label(menuCol, "", 8, F_DATA, C_DIM, 4)
 
 	-- PLAY is the single solid element on the menu — a filled neon slab,
 	-- not another ghosted outline, so the one action that matters reads
@@ -209,7 +276,7 @@ function Ui.new(): Ui
 	play.TextColor3 = Color3.fromRGB(16, 6, 24)
 	play.Text = "PLAY"
 	play.Size = UDim2.fromOffset(300, 74)
-	play.LayoutOrder = 4
+	play.LayoutOrder = 5
 	play.Parent = menuCol
 	local playCorner = Instance.new("UICorner")
 	playCorner.CornerRadius = UDim.new(0, 12)
@@ -233,31 +300,104 @@ function Ui.new(): Ui
 		playStroke.Transparency = 0.55
 	end)
 
-	label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 5).TextTransparency = 0.25
+	label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6).TextTransparency = 0.25
 
-	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 6)
+	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 7)
 
-	-- RUN SETUP (§6): everything that shapes THIS run lives next to PLAY —
-	-- one-tap DAILY/RANDOM chips write the seed box, or type a
-	-- custom seed, and the TRACK cycler picks the song. The old cryptic
-	-- "blank = random · 'daily' = today" explainer is gone: the chips are
-	-- self-describing.
-	local setup = Instance.new("Frame")
-	setup.Name = "RunSetup"
-	setup.BackgroundColor3 = C_PANEL
-	setup.BackgroundTransparency = 0.45
-	setup.BorderSizePixel = 0
-	setup.Size = UDim2.fromOffset(392, 122)
-	setup.LayoutOrder = 7
-	setup.Parent = menuCol
-	local setupCorner = Instance.new("UICorner")
-	setupCorner.CornerRadius = UDim.new(0, 10)
-	setupCorner.Parent = setup
-	local setupStroke = Instance.new("UIStroke")
-	setupStroke.Color = C_DIM
-	setupStroke.Thickness = 1
-	setupStroke.Transparency = 0.55
-	setupStroke.Parent = setup
+	-- Missions ticker: one dim line under BEST — "missions 2/3 · awards
+	-- 4/8 ›" — so the poster still whispers "there's more" without
+	-- pinning the whole card on screen. Click opens the dock page.
+	self.missionTicker = ghostButton(menuCol, "missions ›", 13, 8, C_DIM)
+	self.missionTicker.AutomaticSize = Enum.AutomaticSize.X
+	self.missionTicker.MouseButton1Click:Connect(function()
+		openDeck("missions")
+	end)
+
+	--============================= STRIP ============================--
+	-- Bottom command strip: row 1 is the this-run verbs (seed / track /
+	-- dash style), row 2 the deck pages. ghostButton chips auto-size to
+	-- their text so long seeds and mode labels never clip.
+	local strip = Instance.new("Frame")
+	strip.Name = "Strip"
+	strip.BackgroundTransparency = 1
+	strip.AnchorPoint = Vector2.new(0.5, 1)
+	strip.Position = UDim2.new(0.5, 0, 1, -8)
+	strip.Size = UDim2.new(1, -32, 0, 84)
+	strip.Parent = menu
+
+	local function hlist(parent: Frame, gap: number)
+		local l = Instance.new("UIListLayout")
+		l.FillDirection = Enum.FillDirection.Horizontal
+		l.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		l.VerticalAlignment = Enum.VerticalAlignment.Center
+		l.SortOrder = Enum.SortOrder.LayoutOrder
+		l.Padding = UDim.new(0, gap)
+		l.Parent = parent
+	end
+
+	local row1 = Instance.new("Frame")
+	row1.Name = "RunVerbs"
+	row1.BackgroundTransparency = 1
+	row1.Size = UDim2.new(1, 0, 0, 26)
+	row1.Parent = strip
+	hlist(row1, 30)
+
+	local row2 = Instance.new("Frame")
+	row2.Name = "DeckChips"
+	row2.BackgroundTransparency = 1
+	row2.Position = UDim2.fromOffset(0, 32)
+	row2.Size = UDim2.new(1, 0, 0, 26)
+	row2.Parent = strip
+	hlist(row2, 30)
+
+	-- Deck chip: ghost mono text that lights pink while its page is open.
+	-- The extra MouseLeave re-seats the lit tint — ghostButton's own
+	-- hover handler would fall back to the dim base otherwise.
+	local function stripChip(parent: Frame, text: string, order: number, key: string): TextButton
+		local b = ghostButton(parent, text, 13, order, C_DIM)
+		b.AutomaticSize = Enum.AutomaticSize.X
+		b.Size = UDim2.fromOffset(0, 24)
+		local pp = Instance.new("UIPadding")
+		pp.PaddingLeft = UDim.new(0, 10)
+		pp.PaddingRight = UDim.new(0, 10)
+		pp.Parent = b
+		chipDeck[b] = key
+		b.MouseButton1Click:Connect(function()
+			openDeck(key)
+		end)
+		b.MouseLeave:Connect(function()
+			b.TextColor3 = if chipDeck[b] == deckOpen then C_PINK else C_DIM
+		end)
+		return b
+	end
+
+	local runChip = stripChip(row1, "run › daily", 1, "run")
+	self.trackChip = stripChip(row1, "track ›", 2, "run")
+	self.dashToggle = ghostButton(row1, "DASH ›", 13, 3, C_GOLD)
+	self.dashToggle.AutomaticSize = Enum.AutomaticSize.X
+	self.dashToggle.Size = UDim2.fromOffset(0, 24)
+	local dashPad = Instance.new("UIPadding")
+	dashPad.PaddingLeft = UDim.new(0, 10)
+	dashPad.PaddingRight = UDim.new(0, 10)
+	dashPad.Parent = self.dashToggle
+
+	stripChip(row2, "garage ›", 1, "garage")
+	stripChip(row2, "board ›", 2, "board")
+	stripChip(row2, "missions ›", 3, "missions")
+
+	-- Keymap line (dashHint): third strip row — the poster owns the
+	-- middle, so the controls read like a footer caption.
+	self.dashHint = label(strip, "", 12, F_DATA, C_DIM, 0)
+	self.dashHint.Position = UDim2.fromOffset(0, 62)
+	self.dashHint.TextTransparency = 0.3
+
+	--============================ RUN PAGE ==========================--
+	-- RUN deck (§6): everything that shapes THIS run — one-tap
+	-- DAILY/RANDOM chips write the seed box, or type a custom seed, and
+	-- the TRACK cycler picks the song. Lives in the dock now; the strip's
+	-- run/track chips both open it.
+	local setup = deckPanel("RunPage", 420, 136)
+	deckPages.run = setup
 
 	local seedBox = Instance.new("TextBox")
 	seedBox.Name = "SeedBox"
@@ -270,8 +410,8 @@ function Ui.new(): Ui
 	seedBox.PlaceholderText = "or type a seed"
 	seedBox.PlaceholderColor3 = C_DIM
 	seedBox.Text = "daily" -- default: race today's shared board, not a throwaway
-	seedBox.Position = UDim2.fromOffset(18, 46)
-	seedBox.Size = UDim2.fromOffset(356, 30)
+	seedBox.Position = UDim2.fromOffset(18, 48)
+	seedBox.Size = UDim2.fromOffset(384, 30)
 	seedBox.ClearTextOnFocus = false
 	local seedStroke = Instance.new("UIStroke")
 	seedStroke.Color = C_DIM
@@ -294,6 +434,9 @@ function Ui.new(): Ui
 				st.Color = b.TextColor3
 			end
 		end
+		-- Strip mirror: the run chip always reads what PLAY will launch —
+		-- keyword name or the literal seed.
+		runChip.Text = "run › " .. if lit ~= "" then lit else "#" .. seedBox.Text
 	end
 	for i, key in ipairs({ "daily", "random" }) do
 		local b = Instance.new("TextButton")
@@ -305,8 +448,8 @@ function Ui.new(): Ui
 		b.TextSize = 13
 		b.TextColor3 = C_DIM
 		b.Text = string.upper(key)
-		b.Position = UDim2.fromOffset(18 + (i - 1) * 185, 12)
-		b.Size = UDim2.fromOffset(171, 26)
+		b.Position = UDim2.fromOffset(18 + (i - 1) * 193, 14)
+		b.Size = UDim2.fromOffset(184, 26)
 		b.Parent = setup
 		local bc = Instance.new("UICorner")
 		bc.CornerRadius = UDim.new(0, 6)
@@ -333,7 +476,7 @@ function Ui.new(): Ui
 	trkLabel.TextColor3 = C_DIM
 	trkLabel.TextXAlignment = Enum.TextXAlignment.Left
 	trkLabel.Text = "TRACK"
-	trkLabel.Position = UDim2.fromOffset(18, 84)
+	trkLabel.Position = UDim2.fromOffset(18, 90)
 	trkLabel.Size = UDim2.fromOffset(56, 26)
 	trkLabel.Parent = setup
 
@@ -345,8 +488,8 @@ function Ui.new(): Ui
 	trkName.TextSize = 15
 	trkName.TextColor3 = C_WHITE
 	trkName.Text = "SEEDED"
-	trkName.Position = UDim2.fromOffset(102, 84)
-	trkName.Size = UDim2.fromOffset(190, 26)
+	trkName.Position = UDim2.fromOffset(110, 90)
+	trkName.Size = UDim2.fromOffset(196, 26)
 	trkName.TextXAlignment = Enum.TextXAlignment.Center
 	trkName.Parent = setup
 	self.trackName = trkName
@@ -365,14 +508,14 @@ function Ui.new(): Ui
 		return b
 	end
 
-	local trkLeft = arrowButton(setup, "<", 74, 84)
+	local trkLeft = arrowButton(setup, "<", 82, 90)
 	trkLeft.Name = "TrackPrev"
 	trkLeft.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
 			self.onTrackCycle(-1)
 		end
 	end)
-	local trkRight = arrowButton(setup, ">", 296, 84)
+	local trkRight = arrowButton(setup, ">", 312, 90)
 	trkRight.Name = "TrackNext"
 	trkRight.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
@@ -380,29 +523,11 @@ function Ui.new(): Ui
 		end
 	end)
 
-	label(menuCol, "", 4, F_DATA, C_DIM, 8)
-
-	-- Missions card (§14): today's three seeded missions get the same
-	-- bordered-card chrome as RUN SETUP — two cards, two jobs: "shape the
-	-- run" and "what today pays". ✓ gold when done, ◇ dim while open; the
-	-- bank quest shows today's running total. The footer is the award
-	-- tally — the toast does the celebrating, the card just counts.
-	local missions = Instance.new("Frame")
-	missions.Name = "Missions"
-	missions.BackgroundColor3 = C_PANEL
-	missions.BackgroundTransparency = 0.45
-	missions.BorderSizePixel = 0
-	missions.Size = UDim2.fromOffset(392, 124)
-	missions.LayoutOrder = 9
-	missions.Parent = menuCol
-	local mCorner = Instance.new("UICorner")
-	mCorner.CornerRadius = UDim.new(0, 10)
-	mCorner.Parent = missions
-	local mStroke = Instance.new("UIStroke")
-	mStroke.Color = C_DIM
-	mStroke.Thickness = 1
-	mStroke.Transparency = 0.55
-	mStroke.Parent = missions
+	-- Missions deck (§14): today's three seeded missions, same card chrome
+	-- as RUN — ✓ gold when done, ◇ dim while open; the bank quest shows
+	-- today's running total and the footer counts the award tally.
+	local missions = deckPanel("MissionsPage", 420, 132)
+	deckPages.missions = missions
 
 	label(missions, "TODAY'S MISSIONS", 12, F_DATA, C_DIM, 0).Position = UDim2.fromOffset(0, 8)
 	self.questLines = {}
@@ -414,11 +539,8 @@ function Ui.new(): Ui
 	self.achLine = label(missions, "", 12, F_DATA, C_GOLD, 0)
 	self.achLine.Position = UDim2.fromOffset(0, 102)
 
-	label(menuCol, "", 8, F_DATA, C_DIM, 10)
-	self.dashHint = label(menuCol, "", 13, F_DATA, C_DIM, 11)
 	-- Dash style toggle (§4): cycles keys / double-tap / both — the
-	-- server mirrors + saves the pick, so the row is the whole pref.
-	self.dashToggle = ghostButton(menuCol, "DASH ▸", 15, 12, C_GOLD)
+	-- server mirrors + saves the pick, so the chip is the whole pref.
 	self.dashToggle.MouseButton1Click:Connect(function()
 		if self.onDashMode then
 			self.onDashMode()
@@ -441,13 +563,17 @@ function Ui.new(): Ui
 	local RECENT_H = 16 + Config.Leaderboard.HistoryShown * 17 + 6
 	local board = Instance.new("Frame")
 	board.Name = "Leaderboard"
-	board.AnchorPoint = Vector2.new(1, 0.5)
-	board.Position = UDim2.fromScale(0.96, 0.5)
-	board.Size = UDim2.fromOffset(320, 78 + TOP_N * 25 + RECENT_H)
+	-- Dock page: rises out of the strip like every other panel — closed
+	-- until the "board ›" chip opens it.
+	board.AnchorPoint = Vector2.new(0.5, 1)
+	board.Position = UDim2.new(0.5, 0, 1, -98)
+	board.Size = UDim2.fromOffset(340, 78 + TOP_N * 25 + RECENT_H)
 	board.BackgroundColor3 = C_PANEL
-	board.BackgroundTransparency = 0.25
+	board.BackgroundTransparency = 0.06
 	board.BorderSizePixel = 0
+	board.Visible = false
 	board.Parent = menu
+	deckPages.board = board
 	local boardCorner = Instance.new("UICorner")
 	boardCorner.CornerRadius = UDim.new(0, 10)
 	boardCorner.Parent = board
@@ -592,19 +718,20 @@ function Ui.new(): Ui
 	self.recent = recent
 
 	--============================ GARAGE ============================--
-	-- Neon shop (DESIGN.md §18): left rail, tabbed — STYLE (equip cyclers),
-	-- PACKS (bundle gamepasses), BANK (gem packs + 2X pass). One page is
-	-- visible at a time: the full shop is 30+ controls, and showing them
-	-- all at once drowned PLAY (progressive disclosure).
+	-- Neon shop (DESIGN.md §18): a dock page like the rest — tabbed STYLE
+	-- (equip cyclers), PACKS (bundle gamepasses), BANK (gem packs + 2X
+	-- pass), AUDIO (mixer). Opens from the "garage ›" strip chip.
 	local garage = Instance.new("Frame")
 	garage.Name = "Garage"
-	garage.AnchorPoint = Vector2.new(0, 0.5)
-	garage.Position = UDim2.fromScale(0.04, 0.5)
-	garage.Size = UDim2.fromOffset(330, 430)
+	garage.AnchorPoint = Vector2.new(0.5, 1)
+	garage.Position = UDim2.new(0.5, 0, 1, -98)
+	garage.Size = UDim2.fromOffset(340, 430)
 	garage.BackgroundColor3 = C_PANEL
-	garage.BackgroundTransparency = 0.25
+	garage.BackgroundTransparency = 0.06
 	garage.BorderSizePixel = 0
+	garage.Visible = false
 	garage.Parent = menu
+	deckPages.garage = garage
 	local gcorner = Instance.new("UICorner")
 	gcorner.CornerRadius = UDim.new(0, 10)
 	gcorner.Parent = garage
@@ -1850,6 +1977,9 @@ function Ui:setDashMode(m: string)
 end
 
 function Ui:showMenu(best: number)
+	if self.closeDeck then
+		self.closeDeck() -- every menu visit opens on the clean poster
+	end
 	self.menu.Visible = true
 	self.death.Visible = false
 	self.hud.Visible = false
@@ -2070,7 +2200,22 @@ function Ui:toast(text: string)
 end
 
 -- Achievement tally on the menu (§14): "awards n/total".
+-- Hero ticker ("missions 2/3 · awards 4/8 ›"): the poster's one-line
+-- summary of the missions deck — setQuests/setAchievements keep it
+-- current, click opens the page.
+function Ui:paintMissionTicker()
+	self.missionTicker.Text = string.format(
+		"missions %d/%d · awards %d/%d ›",
+		self._questDone or 0,
+		self._questTotal or #Daily.quests(),
+		self._achDone or 0,
+		#Config.Monetization.Achievements
+	)
+end
+
 function Ui:setAchievements(unlocked: number)
+	self._achDone = unlocked
+	self:paintMissionTicker()
 	self.achLine.Text = string.format("awards %d/%d", unlocked, #Config.Monetization.Achievements)
 end
 
@@ -2081,7 +2226,9 @@ function Ui:setQuests(csv: string)
 	self.missionCsv = csv
 	local parts = string.split(csv, ",")
 	local banked = tonumber(parts[#parts]) or 0
+	local doneCount = 0
 	for i, q in ipairs(Daily.quests()) do
+		doneCount += if parts[i] == "1" then 1 else 0
 		local line = self.questLines[i]
 		if line then
 			local done = parts[i] == "1"
@@ -2093,6 +2240,9 @@ function Ui:setQuests(csv: string)
 			line.TextColor3 = done and C_GOLD or C_DIM
 		end
 	end
+	self._questDone = doneCount
+	self._questTotal = #Daily.quests()
+	self:paintMissionTicker()
 end
 
 -- Live mission tracker (§14): snapshot the bank balance at run start so
@@ -2548,6 +2698,7 @@ end
 
 function Ui:setTrackRow(text: string)
 	self.trackName.Text = text
+	self.trackChip.Text = "track › " .. string.lower(text)
 end
 
 return Ui

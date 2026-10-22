@@ -606,13 +606,27 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	end
 
 	-- One straight deck box (or twin rails for a cutout) spanning tA..tB.
-	local function emitDeck(tA: number, tB: number)
+	-- Banked spans halve until their edge seam lip fits RollLipMax — each
+	-- slab pivots about the centerline, so a roll change across it leaves a
+	-- vertical step at the edges that would otherwise read as facets (and
+	-- can catch the ball). Flat and held-bank spans merge upstream, so this
+	-- split only fires inside roll transitions.
+	local function emitDeck(tA: number, tB: number, depth: number?)
 		local tM = (tA + tB) / 2
 		local sA = secAt(tA)
 		local sB = secAt(tB)
 		local mid = secAt(tM)
 		if mid.width <= 0.5 then
 			return
+		end
+		local d = depth or 0
+		if d < 6 then
+			local lip = math.abs(math.tan(math.rad(sB.rollDeg)) - math.tan(math.rad(sA.rollDeg))) * mid.width / 2
+			if lip > Config.Art.RollLipMax then
+				emitDeck(tA, tM, d + 1)
+				emitDeck(tM, tB, d + 1)
+				return
+			end
 		end
 		local span = (tB - tA) * len
 		local zMid = spec.startZ - tM * len
