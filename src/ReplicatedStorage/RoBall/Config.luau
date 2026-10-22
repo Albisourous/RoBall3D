@@ -1141,11 +1141,11 @@ Config.Art = {
 	-- descent so it hangs on the horizon. The crown is a solid dome
 	-- (orange -> magenta), the bottom `solid`->1 dissolves into the
 	-- classic horizontal strips with gaps widening downward.
-	SunDist = 640, -- studs ahead — pushed back so the disk reads distant,
-	-- not looming (about half the old angular size)
-	SunRadius = 80,
-	SunLift = 48, -- studs above the ball — disk center sits inside the
-	-- frame's upper band against the camera's downward pitch
+	SunDist = 480, -- studs ahead — pushed back so the disk reads distant,
+	-- not looming, but stays inside the atmosphere's ~600-stud fade wall
+	SunRadius = 72,
+	SunLift = 16, -- studs above the ball — disk rides low against the
+	-- camera's downward pitch so most of it stays in frame
 	SunStrips = 16,
 	SunDepth = 3, -- strip thickness along z
 	-- Sun skins (§18 "sun" slot): each style restyles the strip stack —

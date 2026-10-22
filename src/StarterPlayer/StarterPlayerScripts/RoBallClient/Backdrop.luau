@@ -15,6 +15,9 @@
 --             kelp on a wireframe reef.
 --   "meteor"— METEOR SHOWER: thin neon streaks slanting through the sky
 --             on real velocities, respawning ahead.
+--   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
+--             a trunk, a fan of drooping fronds, two bead coconuts;
+--             crowns rustle on a slow breeze sine.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -44,7 +47,7 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor"
+type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms"
 local theme: Theme = "city"
 
 -- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
@@ -69,6 +72,23 @@ type Meteor = { part: Part, vel: Vector3, speed: number }
 local meteors: { Meteor } = {}
 local meteorSeeded = false
 local meteorClock = os.clock() -- dt source for real streak motion
+
+-- PALMS (§18): same lazy-build / park-on-swap contract. A palm is a trunk
+-- part + a fan of drooping frond blades + two coconut beads; `crown`
+-- caches the trunk top so the per-frame breeze can re-fan the fronds.
+type Frond = { part: Part, yaw: number, droop: number, len: number, wob: number }
+type Palm = {
+	side: number,
+	row: number,
+	trunk: Part,
+	fronds: { Frond },
+	beads: { Part },
+	crown: Vector3,
+	phase: number,
+}
+local palms: { Palm } = {}
+local palmFrontZ: { [string]: number } = {}
+local palmSeeded = false
 
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
 local WHITE = Color3.fromRGB(245, 238, 255) -- star glints in the void theme
@@ -513,6 +533,103 @@ local function stepMeteors(anchor: Vector3, dt: number)
 	meteorSeeded = true
 end
 
+--============================ PALMS ============================--
+-- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
+-- blades fanning out of the crown on cyan→magenta, two bead coconuts.
+-- Frond yaw/droop/len are authored at lay time; the update loop re-fans
+-- them a few degrees on a slow sine so the grove breathes.
+
+local PALM_TRUNK = Color3.fromRGB(46, 16, 64) -- dark violet neon
+local PALM_BEAD = Color3.fromRGB(255, 46, 160) -- hot pink coconuts
+local PALM_FROND_A = Color3.fromRGB(0, 230, 255)
+local PALM_FROND_B = Color3.fromRGB(255, 64, 190)
+
+local function makePalmPart(parent: Instance): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Material = Enum.Material.Neon
+	p.CFrame = PARK
+	p.Parent = parent
+	return p
+end
+
+local function makePalm(parent: Instance, side: number, row: number): Palm
+	local model = Instance.new("Model")
+	model.Name = "Palm"
+	model.Parent = parent
+	local trunk = makePalmPart(model)
+	trunk.Color = PALM_TRUNK
+	local fronds: { Frond } = {}
+	for _ = 1, Art.PalmFronds do
+		table.insert(fronds, {
+			part = makePalmPart(model),
+			yaw = 0,
+			droop = 1,
+			len = Art.PalmFrondLen,
+			wob = rng:NextNumber(0.6, 1),
+		})
+	end
+	local beads: { Part } = {}
+	for _ = 1, 2 do
+		local b = makePalmPart(model)
+		b.Shape = Enum.PartType.Ball
+		b.Size = Vector3.new(1.4, 1.4, 1.4)
+		b.Color = PALM_BEAD
+		table.insert(beads, b)
+	end
+	return {
+		side = side,
+		row = row,
+		trunk = trunk,
+		fronds = fronds,
+		beads = beads,
+		crown = PARK.Position,
+		phase = rng:NextNumber(0, math.pi * 2),
+	}
+end
+
+local function ensurePalms()
+	if #palms > 0 then
+		return
+	end
+	for side = -1, 1, 2 do
+		for row = 1, Art.PalmRows do
+			for _ = 1, math.floor(Art.PalmSpan / Art.PalmSpacing) do
+				table.insert(palms, makePalm(root, side, row))
+			end
+		end
+	end
+end
+
+-- Re-lay a palm at (x, baseY, z): lean a fresh trunk, fan the crown with
+-- jittered yaw/droop/length, park the beads at its base. Frond blades
+-- extend along +X from the crown — yaw fans them, -droop tips them down.
+local function layPalm(palm: Palm, x: number, baseY: number, z: number)
+	local h = rng:NextNumber(Art.PalmTrunkMin, Art.PalmTrunkMax)
+	local lean = rng:NextNumber(-0.12, 0.12)
+	palm.trunk.Size = Vector3.new(1.4, h, 1.4)
+	palm.trunk.CFrame = CFrame.new(x, baseY + h / 2, z) * CFrame.Angles(lean, 0, lean * 0.5)
+	palm.crown = Vector3.new(x, baseY + h, z)
+	local n = #palm.fronds
+	local shade = 1 - (palm.row - 1) * 0.3 -- outer row dims like the far tower rows
+	for i, f in ipairs(palm.fronds) do
+		f.yaw = ((i - 1) / n) * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
+		f.droop = rng:NextNumber(Art.PalmDroopMin, Art.PalmDroopMax)
+		f.len = Art.PalmFrondLen * rng:NextNumber(0.85, 1.2)
+		f.part.Size = Vector3.new(f.len, 0.35, 1.1)
+		f.part.Color = PALM_FROND_A:Lerp(PALM_FROND_B, (i - 1) / math.max(n - 1, 1))
+			:Lerp(FACE_COLOR, 1 - Art.PalmValue * shade)
+		f.part.CFrame = CFrame.new(palm.crown) * CFrame.Angles(0, f.yaw, -f.droop) * CFrame.new(f.len / 2, 0, 0)
+	end
+	for i, b in ipairs(palm.beads) do
+		local a = (i - 1) * 2.1 + rng:NextNumber(0, 0.6)
+		b.CFrame = CFrame.new(palm.crown + Vector3.new(math.cos(a) * 0.9, -0.7, math.sin(a) * 0.9))
+	end
+end
+
 -- The synthwave sun is built as a stack of horizontal strips:
 -- chord width follows the disk's circle, color slides style.top ->
 -- style.bottom top to bottom (Config.Art.SunStyles — the §18 "sun" slot
@@ -720,6 +837,19 @@ local function parkMeteors()
 	meteorSeeded = false
 end
 
+local function parkPalms()
+	for _, palm in ipairs(palms) do
+		parkPart(palm.trunk)
+		for _, f in ipairs(palm.fronds) do
+			parkPart(f.part)
+		end
+		for _, b in ipairs(palm.beads) do
+			parkPart(b)
+		end
+	end
+	palmSeeded = false
+end
+
 local parkers: { [Theme]: () -> () } = {
 	city = parkTowers,
 	peaks = parkPeaks,
@@ -728,6 +858,7 @@ local parkers: { [Theme]: () -> () } = {
 	aurora = parkAurora,
 	reef = parkReef,
 	meteor = parkMeteors,
+	palms = parkPalms,
 }
 
 local THEMES: { [string]: Theme } = {
@@ -737,6 +868,7 @@ local THEMES: { [string]: Theme } = {
 	aurora = "aurora",
 	reef = "reef",
 	meteor = "meteor",
+	palms = "palms",
 }
 
 function Backdrop.setTheme(t: string)
@@ -901,6 +1033,39 @@ function Backdrop.update(anchor: Vector3)
 		local dt = math.clamp(now - meteorClock, 0, 0.12)
 		meteorClock = now
 		stepMeteors(anchor, dt)
+		return
+	end
+
+	-- MIAMI NIGHTS (§18 "palms"): rows recycle on a per-(side,row) frontier
+	-- like the tower canyon; every frame the crowns rustle on a slow sine.
+	if theme == "palms" then
+		ensurePalms()
+		if not palmSeeded then
+			palmSeeded = true
+			for side = -1, 1, 2 do
+				for row = 1, Art.PalmRows do
+					palmFrontZ[side .. ":" .. row] = anchor.Z + Art.PalmSpacing
+				end
+			end
+		end
+		local breeze = math.rad(Art.PalmSwayDeg) * math.sin(os.clock() * Art.PalmSwayRate)
+		for _, palm in ipairs(palms) do
+			if palm.trunk.Position.Z > anchor.Z + 60 then
+				local key = palm.side .. ":" .. palm.row
+				local z = palmFrontZ[key] - Art.PalmSpacing
+				palmFrontZ[key] = z
+				local x = anchor.X + palm.side * (Art.PalmMinX + (palm.row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
+				local ahead = math.max(anchor.Z - z, 0)
+				local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(4, 10)
+				layPalm(palm, x, baseY, z)
+			end
+			local sway = breeze * math.cos(palm.phase)
+			for _, f in ipairs(palm.fronds) do
+				f.part.CFrame = CFrame.new(palm.crown)
+					* CFrame.Angles(0, f.yaw + breeze * math.sin(palm.phase) * 0.4, -(f.droop + sway * f.wob))
+					* CFrame.new(f.len / 2, 0, 0)
+			end
+		end
 		return
 	end
 

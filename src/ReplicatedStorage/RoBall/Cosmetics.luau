@@ -15,9 +15,9 @@ local Palette = require(script.Parent.Palette)
 
 local Cosmetics = {}
 
-export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world" | "sun"
+export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world" | "sun" | "filter"
 
-Cosmetics.Slots = { "skin", "trail", "gemFx", "deathFx", "world", "sun" } :: { Slot }
+Cosmetics.Slots = { "skin", "trail", "gemFx", "deathFx", "world", "sun", "filter" } :: { Slot }
 Cosmetics.SlotName = {
 	skin = "SKIN",
 	trail = "TRAIL",
@@ -25,6 +25,7 @@ Cosmetics.SlotName = {
 	deathFx = "DEATH FX",
 	world = "WORLD",
 	sun = "SUN",
+	filter = "FILTER",
 } :: { [Slot]: string }
 
 -- Per-slot params:
@@ -39,6 +40,8 @@ Cosmetics.SlotName = {
 --            picks the side scenery Backdrop draws
 --   sun:     sun = a key into Config.Art.SunStyles — restyles the striped
 --            horizon disk Backdrop parks down the slope
+--   filter:  filter = "off"|"scan"|"pixel" — a screen overlay the
+--            ScreenFilter module draws UNDER the HUD text layer
 -- Any color param may instead be the string "customA"/"customB"/"customC"
 -- (COLOR LAB §18): it resolves through that RoBallHue* channel — ringA→A,
 -- ringB→B, trail/gemFx→C.
@@ -57,6 +60,7 @@ export type Item = {
 	colorB: Color3?,
 	theme: string?,
 	sun: string?,
+	filter: string?,
 }
 
 local CYAN = Color3.fromRGB(0, 230, 255)
@@ -385,6 +389,7 @@ Cosmetics.Items = {
 	world_aurora = { slot = "world", name = "BOREALIS SKY", gemPrice = 900, theme = "aurora" },
 	world_reef = { slot = "world", name = "NEON REEF", gemPrice = 800, theme = "reef" },
 	world_meteor = { slot = "world", name = "METEOR SHOWER", gemPrice = 900, theme = "meteor" },
+	world_palms = { slot = "world", name = "MIAMI NIGHTS", gemPrice = 800, theme = "palms" },
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -397,6 +402,12 @@ Cosmetics.Items = {
 	sun_midas = { slot = "sun", name = "24K NOON", gemPrice = 750, sun = "midas" },
 	sun_eclipse = { slot = "sun", name = "ECLIPSE", gemPrice = 800, sun = "eclipse" },
 	sun_frost = { slot = "sun", name = "POLAR CAP", gemPrice = 600, sun = "frost" },
+
+	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
+	-- renders it under the HUD so text stays readable)
+	filter_off = { slot = "filter", name = "CLEAN", free = true, filter = "off" },
+	filter_scan = { slot = "filter", name = "SCANLINES", gemPrice = 450, filter = "scan" },
+	filter_pixel = { slot = "filter", name = "PIXEL GLASS", gemPrice = 600, filter = "pixel" },
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -489,6 +500,11 @@ Cosmetics.Order = {
 		"sun_eclipse",
 		"sun_frost",
 	},
+	filter = {
+		"filter_off",
+		"filter_scan",
+		"filter_pixel",
+	},
 } :: { [string]: { string } }
 
 Cosmetics.Defaults = {
@@ -498,6 +514,7 @@ Cosmetics.Defaults = {
 	deathFx = "deathfx_shatter",
 	world = "world_city",
 	sun = "sun_classic",
+	filter = "filter_off",
 } :: { [string]: string }
 
 -- Themed bundle gamepasses (§18): one pass = a matched set across slots.
@@ -592,6 +609,22 @@ Cosmetics.Bundles = {
 		items = { "sun_eclipse", "sun_midas", "sun_grid" },
 	},
 	{
+		-- Scenery pair (§18): the palm grove world + the prism sun it
+		-- pairs with on the box art.
+		id = "miami",
+		name = "MIAMI NIGHTS",
+		desc = "palm-grove world + prism sun",
+		items = { "world_palms", "sun_prism" },
+	},
+	{
+		-- Screen filters (§18 "filter" slot): the whole 3D view goes
+		-- retro — HUD text renders above the overlay and stays crisp.
+		id = "vhs",
+		name = "VHS DECK",
+		desc = "pixel glass + scanline filters",
+		items = { "filter_pixel", "filter_scan" },
+	},
+	{
 		-- Seasonal slot (§18): Config.Monetization.Seasonal holds the UTC
 		-- window; Ui derives this row's desc from it at build time.
 		id = "solstice",
@@ -621,6 +654,7 @@ function Cosmetics.defaults(): { [string]: string }
 		deathFx = Cosmetics.Defaults.deathFx,
 		world = Cosmetics.Defaults.world,
 		sun = Cosmetics.Defaults.sun,
+		filter = Cosmetics.Defaults.filter,
 	}
 end
 
