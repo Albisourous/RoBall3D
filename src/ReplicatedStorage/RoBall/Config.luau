@@ -1360,8 +1360,7 @@ Config.Art = {
 	PalmValue = 0.9, -- neon brightness for fronds
 	-- SKY COURT (§18 "sky" world, APE BALL pack): the day-shift look —
 	-- the client re-times Lighting to midday so the whole sky goes
-	-- arcade blue with a real sun, a two-green grass checkerboard rides
-	-- the descent below the deck, palm-topped islets float past in the
+	-- arcade blue with a real sun, palm-topped islets float past in the
 	-- blue, and chunky cartoon clouds hang beside the track.
 	SkyClockTime = 14.2,
 	SkyAmbient = Color3.fromRGB(120, 132, 160),
@@ -1369,12 +1368,8 @@ Config.Art = {
 	SkyAtmoColor = Color3.fromRGB(150, 195, 245),
 	SkyAtmoDecay = Color3.fromRGB(115, 160, 215),
 	SkyAtmoHaze = 2.5,
-	SkyFloorDrop = 110, -- checkerboard depth below the deck
-	SkyFloorCell = 26, -- checker tile studs
-	SkyFloorCols = 9, -- tiles across the corridor
-	SkyFloorRows = 18, -- tile rows covering the window
-	SkyFloorA = Color3.fromRGB(158, 206, 80), -- arcade grass, light tile
-	SkyFloorB = Color3.fromRGB(50, 130, 54), -- arcade grass, dark tile
+	SkyFloorA = Color3.fromRGB(158, 206, 80), -- arcade grass, light tile (floor_check deck)
+	SkyFloorB = Color3.fromRGB(50, 130, 54), -- arcade grass, dark tile (floor_check deck)
 	-- Floating islets in the open blue (SMB's islands-in-the-sky read):
 	-- grass-domed motes with a lone palm recycle past like the cloud
 	-- field, hung at SkyIsleDrop below deck grade. SkyBgd is the blue
@@ -1383,7 +1378,7 @@ Config.Art = {
 	SkyIsleDrop = 230, -- islet altitude below deck grade
 	SkyBgd = Color3.fromRGB(92, 168, 235), -- the open blue the whole world reads
 	SkyIslands = 6, -- grass-domed islets adrift in the sky
-	SkyIslandMinX = 260, -- closest drift from lane center (checker corridor ends ~117)
+	SkyIslandMinX = 260, -- closest drift from lane center
 	SkyIslandDX = 380, -- lateral spread beyond MinX
 	SkyIslandZMin = 350, -- nearest re-entry ahead of the ball
 	SkyIslandZSpan = 1600, -- re-entry window beyond ZMin

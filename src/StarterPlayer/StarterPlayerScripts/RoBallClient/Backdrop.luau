@@ -25,10 +25,9 @@
 --             emitters re-anchored ahead of the ball; a sparse star
 --             field rides the night band with it.
 --   "sky"   — SKY COURT (APE BALL): the day-shift homage — midday
---             lighting so the whole world reads arcade blue, a
---             two-green grass checkerboard riding the descent below
---             the deck, palm-topped islets adrift in the blue, cartoon
---             clouds, and the shared grove in a day palette.
+--             lighting so the whole world reads arcade blue, palm-
+--             topped islets adrift in the blue, cartoon clouds, and
+--             the shared grove in a day palette.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -132,22 +131,17 @@ local palms: { Palm } = {}
 local palmFrontZ: { [string]: number } = {}
 local palmSeeded = false
 
--- SKY COURT (§18 "sky", APE BALL): checker tile rows ride the descent
--- below the deck (recycled on a shared frontier like the grid wires)
--- while chunky puff clouds drift beside the track and re-enter ahead.
--- `offs` caches each lobe's offset so the per-frame bob only rewrites
--- Position — no per-frame allocation.
-type SkyRow = { tiles: { Part }, z: number }
+-- SKY COURT (§18 "sky", APE BALL): chunky puff clouds drift beside the
+-- track and re-enter ahead. `offs` caches each lobe's offset so the
+-- per-frame bob only rewrites Position — no per-frame allocation.
 type SkyCloud = { parts: { Part }, offs: { Vector3 }, x: number, y: number, z: number, phase: number }
 -- The islands-in-the-sky read: each islet is a sandy mass + grass dome
 -- + one static palm (own Palm record — never in the grove pool, so
 -- stepPalms won't recycle it), laid once per re-entry, hanging at
 -- SkyIsleDrop below deck grade in the open blue.
 type SkyIsland = { dome: Part, base: Part, palm: Palm, z: number }
-local skyRows: { SkyRow } = {}
 local skyClouds: { SkyCloud } = {}
 local skyIslands: { SkyIsland } = {}
-local skyFrontZ = 0
 local skySeeded = false
 
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
@@ -969,15 +963,8 @@ local SKY_PALM: PalmStyle = {
 }
 
 local function ensureSky()
-	if #skyRows > 0 then
+	if #skyClouds > 0 then
 		return
-	end
-	for _ = 1, Art.SkyFloorRows do
-		local tiles: { Part } = {}
-		for _ = 1, Art.SkyFloorCols do
-			table.insert(tiles, makePeakPart(root, false))
-		end
-		table.insert(skyRows, { tiles = tiles, z = 0 })
 	end
 	for _ = 1, Art.SkyClouds do
 		local parts: { Part } = {}
@@ -1000,22 +987,6 @@ local function ensureSky()
 		dome.Shape = Enum.PartType.Ball
 		dome.Color = Art.SkyIslandTop
 		table.insert(skyIslands, { dome = dome, base = base, palm = makePalm(root, 0, 1), z = math.huge })
-	end
-end
-
--- Re-lay a checker row at z: SkyFloorCols solid tiles across the lane,
--- two greens alternating (SMB's grass board). Row-slot parity keeps the
--- pattern checked both across and along the descent; the row keeps it
--- through recycles.
-local function laySkyRow(row: SkyRow, rowIdx: number, anchor: Vector3, z: number)
-	row.z = z
-	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
-	local y = deckEst(anchor, z) - Art.SkyFloorDrop
-	local x0 = laneX + (0.5 - Art.SkyFloorCols / 2) * Art.SkyFloorCell
-	for i, tile in ipairs(row.tiles) do
-		tile.Size = Vector3.new(Art.SkyFloorCell, 1.5, Art.SkyFloorCell)
-		tile.Position = Vector3.new(x0 + (i - 1) * Art.SkyFloorCell, y, z)
-		tile.Color = if (i + rowIdx) % 2 == 0 then Art.SkyFloorA else Art.SkyFloorB
 	end
 end
 
@@ -1364,11 +1335,6 @@ local function parkPolar()
 end
 
 local function parkSky()
-	for _, row in ipairs(skyRows) do
-		for _, t in ipairs(row.tiles) do
-			parkPart(t)
-		end
-	end
 	for _, c in ipairs(skyClouds) do
 		for _, p in ipairs(c.parts) do
 			parkPart(p)
@@ -1607,8 +1573,7 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
-	-- SKY COURT (§18 "sky"): checker rows recycle on a shared frontier
-	-- like the grid wires; clouds re-enter ahead on a random span and
+	-- SKY COURT (§18 "sky"): clouds re-enter ahead on a random span and
 	-- bob lazily on wall-clock sine (Position rewrite only — offs fixed).
 	-- The islets recycle past in the open blue like the cloud field.
 	-- The day-palm grove runs the same step as MIAMI NIGHTS, day palette.
@@ -1617,10 +1582,6 @@ function Backdrop.update(anchor: Vector3)
 		stepPalms(anchor, SKY_PALM)
 		if not skySeeded then
 			skySeeded = true
-			skyFrontZ = math.ceil((anchor.Z + BACK_MARGIN) / Art.SkyFloorCell) * Art.SkyFloorCell
-			for i, row in ipairs(skyRows) do
-				laySkyRow(row, i, anchor, skyFrontZ - (i - 1) * Art.SkyFloorCell)
-			end
 			for _, c in ipairs(skyClouds) do
 				laySkyCloud(c, anchor, anchor.Z - rng:NextNumber(0, Art.SkyCloudSpan))
 			end
@@ -1628,12 +1589,6 @@ function Backdrop.update(anchor: Vector3)
 				laySkyIsland(isl, anchor, anchor.Z - rng:NextNumber(60, Art.SkyIslandZMin + Art.SkyIslandZSpan))
 			end
 			return
-		end
-		for i, row in ipairs(skyRows) do
-			if row.z > anchor.Z + BACK_MARGIN then
-				skyFrontZ -= Art.SkyFloorCell
-				laySkyRow(row, i, anchor, skyFrontZ)
-			end
 		end
 		for _, isl in ipairs(skyIslands) do
 			if isl.z > anchor.Z + Art.SkyIslandBack then
@@ -1951,15 +1906,8 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 		return
 	end
 	if t == "sky" then
-		-- Same lay math frozen: one checker window + a few puffs.
-		local front = math.ceil((anchor.Z + BACK_MARGIN) / Art.SkyFloorCell) * Art.SkyFloorCell
-		for i = 1, Art.SkyFloorRows do
-			local tiles: { Part } = {}
-			for _ = 1, Art.SkyFloorCols do
-				table.insert(tiles, makePeakPart(parent, false))
-			end
-			laySkyRow({ tiles = tiles, z = 0 }, i, anchor, front - (i - 1) * Art.SkyFloorCell)
-		end
+		-- Same lay math frozen: a few puffs adrift.
+		local front = anchor.Z + BACK_MARGIN
 		for _ = 1, 5 do
 			local parts: { Part } = {}
 			for _ = 1, 4 do

@@ -111,7 +111,7 @@ PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500 (prestige).
 | NORTHERN LIGHTS | particle-canopy aurora + stars | ◊900 | polaris + solstice |
 | VOIDSPACE | empty — lane + sun only | ◊900 | null |
 | TOXIC WASTES | rising acid bubbles | ◊800 | acid |
-| SKY COURT | day sky + checker floor + clouds | ◊900 | apeball |
+| SKY COURT | day sky + islets + clouds | ◊900 | apeball |
 
 ### FLOOR — deck-surface restyle (14)
 
@@ -197,9 +197,8 @@ the preview can render the whole look and nothing in the box is filler.
 | 2X BANK | permanent 2× bank perk | 99 |
 
 **APE BALL** is the rolling-party-ball homage — the whole world a
-bright midday blue, green/dark-green grass checkerboard below the deck
-AND under the ball (CHECKER
-DECK tiles the lane itself), palm-topped islets floating in the blue,
+bright midday blue, the green/dark-green CHECKER
+DECK tiling the lane itself, palm-topped islets floating in the blue,
 cartoon clouds, a day-palm grove, a
 50/50-clear glass capsule ball with a toy monkey riding UPRIGHT inside
 (it yaws to face velocity like the arcade original — the WebMonkeyBall

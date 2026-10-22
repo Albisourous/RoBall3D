@@ -933,9 +933,7 @@ that caused them.
   APE BALL) is the day-shift look: the client re-times `Lighting` to
   midday (`SkyClockTime` + day ambience/atmosphere — the only theme
   allowed to touch the sky, and it snapshots the server's night rig on
-  first equip so any swap restores it verbatim), a two-green grass
-  checkerboard floor rides the descent `SkyFloorDrop` studs below the
-  deck as solid SmoothPlastic tile rows recycled on a shared frontier,
+  first equip so any swap restores it verbatim),
   sandy grass-domed **islets** each crowned with a lone palm float past
   in the open blue `SkyIsleDrop` studs under deck grade, chunky
   four-lobe puff clouds drift
@@ -1345,7 +1343,7 @@ twelve packs total — STARTER NEON (sunset set + palms), NEON PEAKS
 + aurora sky), POLARIS (phantom + polar sky + HALO RISE), TOXIC SLUDGE
 (acid + toxic wastes), NEON REEF (lagoon + reef + NEAP TIDE), NULL (mono
 set + the empty world), APE BALL (capsule set + the sky court world —
-the rolling-party-ball homage: midday skybox, checkerboard floor,
+the rolling-party-ball homage: midday skybox,
 cartoon clouds, day palms, a 50/50-clear capsule ball with a toy monkey
 riding UPRIGHT inside (the WebMonkeyBall decomp's rider port — it yaws
 to face velocity, never tumbles), a checkered rolling surface via
@@ -1508,8 +1506,8 @@ deck — each sphere climbs on its own phase and pops back, a perpetual
 simmer beside the lane), `world_reef` → NEON REEF, `world_empty` → NULL
 (the `"empty"` theme draws no scenery at all — lane, sun, skybox; the
 silence is the product), `world_sky` → APE BALL (the day-shift world —
-SKY COURT re-times Lighting to midday, lays a two-green checkerboard
-below the deck with palm-topped islets afloat in the blue, and
+SKY COURT re-times Lighting to midday, floats palm-topped islets
+in the blue, and
 drifts puff clouds beside the track), and
 `world_polar` is shared —
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for
