@@ -42,6 +42,10 @@ function GenCore.new(seed: number): Gen
 	-- Feature ramp (DESIGN.md §8.6): name -> true once its gentle debut
 	-- showcase has spawned. Debuted types hold out of the pool until then.
 	self.debuted = {}
+	-- TODO(debug-seed): when set (seed box held a feature keyword), every
+	-- chunk emits that type — intro, debuts and pool weighting all bypass.
+	-- Remove with the other TODO(debug-seed) sites.
+	self.onlyType = nil :: string?
 	self.intro = {
 		{ type = "Flat", length = 35, widthOut = 48 },
 		{ type = "Flat", length = 35, widthOut = 44, gems = true }, -- teaches: gems exist
@@ -94,7 +98,10 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 		map = self.map,
 	}
 
-	if self.introIndex < #self.intro then
+	if self.onlyType then
+		-- TODO(debug-seed): forced single-feature track for testing.
+		spec = ChunkDefs[self.onlyType](self.rng, snap, Tiers.forDistance(st.dist))
+	elseif self.introIndex < #self.intro then
 		self.introIndex += 1
 		local chunk = self.intro[self.introIndex]
 		local section = ChunkDefs.wrapGrade(chunk.length, introSection(snap, chunk))

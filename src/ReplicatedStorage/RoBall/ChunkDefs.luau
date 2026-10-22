@@ -933,6 +933,27 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 	return true
 end
 
+-- TODO(debug-seed): seed-as-feature-name test hook — remove all
+-- TODO(debug-seed) sites together (GenCore.onlyType, Main.server
+-- resolveSeed/startRun, DESIGN.md §debug note).
+local featureKeys: { [string]: string }? = nil
+
+-- Match a seed-box keyword to a chunk type: normalized name or label
+-- ("pressrow", "press row", "PRESS ROW" all hit PressRow).
+function ChunkDefs.matchFeature(text: string): string?
+	if not featureKeys then
+		local map = {}
+		for name, label in pairs(Config.Features.Label) do
+			if type(ChunkDefs[name]) == "function" then
+				map[name:lower()] = name
+				map[(label:lower():gsub("%s+", ""))] = name
+			end
+		end
+		featureKeys = map
+	end
+	return featureKeys[(text:lower():gsub("%s+", ""))]
+end
+
 -- Terrace: the deck descends in soft lips instead of a smooth grade —
 -- each tread is one whole cosine ease: flat at both seams, steepest
 -- mid-tread. NO up-slopes anywhere — an up-facing ramp is exactly what a

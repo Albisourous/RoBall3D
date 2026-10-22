@@ -18,6 +18,7 @@ local BallDress = require(ReplicatedStorage.RoBall.BallDress)
 local TrackStreamer = require(script.Parent.TrackStreamer)
 local SaveService = require(script.Parent.SaveService)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
+local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local ShopService = require(script.Parent.ShopService)
 
 Players.CharacterAutoLoads = false
@@ -179,21 +180,29 @@ local function hashSeed(s: string): number
 	return h
 end
 
-local function resolveSeed(player: Player): number
+local function resolveSeed(player: Player): (number, string?)
 	local s = seedPref[player]
 	if s and #s > 0 then
 		-- "daily"/"today" → the shared UTC-day seed (DESIGN.md §14): every
 		-- player who runs it today gets the identical map.
 		if Daily.isKeyword(s) then
-			return Daily.seed()
+			return Daily.seed(), nil
+		end
+		-- TODO(debug-seed): a feature keyword ("pressrow", "TERRACES")
+		-- forces a track of only that chunk type for testing — the text
+		-- still hashes to the seed, so the same word replays the same
+		-- layout. Remove with the other TODO(debug-seed) sites.
+		local only = ChunkDefs.matchFeature(s)
+		if only then
+			return hashSeed(s), only
 		end
 		local n = tonumber(s)
 		if n then
-			return math.floor(math.abs(n)) % 2147483647
+			return math.floor(math.abs(n)) % 2147483647, nil
 		end
-		return hashSeed(s)
+		return hashSeed(s), nil
 	end
-	return randomSeed()
+	return randomSeed(), nil
 end
 
 local function spawnBall(player: Player, laneIndex: number, deckY: number): BasePart
@@ -370,8 +379,14 @@ local launch: (player: Player, run: Run, streamer: TrackStreamer.Streamer, seed:
 
 local function startRun(player: Player)
 	local laneIndex = laneOf[player] or 0
-	local seed = resolveSeed(player)
+	local seed, onlyFeature = resolveSeed(player)
 	local streamer = TrackStreamer.new(laneIndex, seed)
+	-- TODO(debug-seed): forced single-feature test runs — see
+	-- ChunkDefs.matchFeature.
+	streamer.gen.onlyType = onlyFeature
+	if onlyFeature then
+		print(string.format("[RoBall3D] debug-seed: every chunk is %s for %s", onlyFeature, player.Name))
+	end
 	local run: Run = {
 		laneIndex = laneIndex,
 		streamer = streamer,

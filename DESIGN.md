@@ -271,6 +271,12 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   displayed on the death screen and stored with the score so leaderboard rows
   are replayable/verifiable.
 - Seed entry: numeric or text (hashed to int via a stable string hash).
+- TODO(debug-seed): a seed-box keyword matching a chunk type or label
+  (`pressrow`, `TERRACES`, "press row") forces a run where every chunk is
+  that feature — intro/debuts/pool weighting all bypassed, and the text
+  still hashes to the seed so the same word replays the same layout.
+  Debug-only; remove all `TODO(debug-seed)` sites together
+  (`ChunkDefs.matchFeature`, `GenCore.onlyType`, `Main.server` resolveSeed).
 
 ## 8. World generation
 
