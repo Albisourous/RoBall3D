@@ -14,30 +14,33 @@ the red seam is cut out of the reachable space on both ends.
 
 ## Items (126 total)
 
-### SKIN — ringA/ringB cage + core (20)
+### SKIN — ringA/ringB cage + core + `gemShape` (20)
 
-| Item | Look | Price | Bundle |
-|---|---|---|---|
-| CLASSIC NEON | cyan/magenta | free | — |
-| MONO | white/silver | free | — |
-| SOLAR FLARE | orange/pink | ◊300 | starter |
-| 24K | gold/pale gold | ◊750 | midas |
-| PRISM | rainbow fx | ◊750 | synthwave |
-| VOID EMPRESS | violet/pink pulse | ◊900 | vip |
-| AURORA | teal-green/sky | ◊800 | aurora |
-| PHANTOM | white/amethyst pulse | ◊900 | polaris |
-| FROSTBITE | frost/ice | ◊800 | solstice (seasonal) |
-| LAGOON | mint/blue | ◊400 | reef |
-| ACID BATH | lime/green | ◊600 | acid |
-| CANDY GLOSS | pink/white | ◊400 | — |
-| EMBER | orange/gold | ◊400 | — |
-| CHROME | silver/white | ◊500 | — |
-| CHROMA | strobe fx | ◊1200 | — (prestige) |
-| IRIS | wave fx | ◊1100 | — (prestige) |
-| COLOR LAB | your hues ×2 | ◊1500 | — (prestige) |
-| NULL | pitch core/ghost rings | ◊800 | null |
-| SUMMIT | sky-blue/white | ◊800 | peaks |
-| CAPSULE | transparent shell / toy monkey inside | ◊800 | apeball |
+Every skin pins its pickups' silhouette for the run (§8.4) — the Gems
+column is that shape. Worth still reads on tier scale + tint.
+
+| Item | Look | Gems | Price | Bundle |
+|---|---|---|---|---|
+| CLASSIC NEON | cyan/magenta | diamond | free | — |
+| MONO | white/silver | orb | free | — |
+| SOLAR FLARE | orange/pink | shard | ◊300 | starter |
+| 24K | gold/pale gold | coin | ◊750 | midas |
+| PRISM | rainbow fx | diamond | ◊750 | synthwave |
+| VOID EMPRESS | violet/pink pulse | crown | ◊900 | vip |
+| AURORA | teal-green/sky | rod | ◊800 | aurora |
+| PHANTOM | white/amethyst pulse | shard | ◊900 | polaris |
+| FROSTBITE | frost/ice | shard | ◊800 | solstice (seasonal) |
+| LAGOON | mint/blue | orb | ◊400 | reef |
+| ACID BATH | lime/green | rod | ◊600 | acid |
+| CANDY GLOSS | pink/white | orb | ◊400 | — |
+| EMBER | orange/gold | rod | ◊400 | — |
+| CHROME | silver/white | coin | ◊500 | — |
+| CHROMA | strobe fx | crown | ◊1200 | — (prestige) |
+| IRIS | wave fx | orb | ◊1100 | — (prestige) |
+| COLOR LAB | your hues ×2 | diamond | ◊1500 | — (prestige) |
+| NULL | pitch core/ghost rings | diamond | ◊800 | null |
+| SUMMIT | sky-blue/white | shard | ◊800 | peaks |
+| CAPSULE | transparent shell / upright toy monkey inside | orb | ◊800 | apeball |
 
 ### TRAIL — wake ribbon (19)
 

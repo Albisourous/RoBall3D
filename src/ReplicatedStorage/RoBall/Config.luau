@@ -1376,7 +1376,8 @@ Config.Art = {
 	-- tumbling with the roll. Generic primitive monkey: no borrowed
 	-- character.
 	CapsuleAlpha = 0.5,
-	RiderTumble = 0.35, -- share of the ball's angular delta the rider inherits (SMB's damped unkA8)
+	RiderTumble = 0.004, -- lean-back per rad/s of ball spin (SMB's bounded in-air counter-tilt, NOT a spin share)
+	RiderTumbleMax = 0.18, -- rad cap on that lean — full speed stays a ~10° brace, never a somersault
 	RiderYawVelLo = 4, -- studs/s: yaw blends onto the velocity heading above this (SMB's 0.23 u/s gate rescaled)
 	RiderYawVelHi = 16, -- studs/s: fully velocity-facing by here (SMB's 0.37 u/s)
 	RiderResponsiveness = 40, -- Align stiffness — <200 leaves suspension bob, plays SMB's soft uprighting
@@ -1593,7 +1594,7 @@ Config.Monetization = {
 	-- dashboard ids — 0-id entries show SOON. Flip true ONLY for
 	-- pre-paywall testing: every pack/product then grants instantly on
 	-- click with no purchase prompt (§18).
-	FreeForTesting = false,
+	FreeForTesting = true,
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
 		starter = 0, -- STARTER NEON — sunset set + palms world (~49)

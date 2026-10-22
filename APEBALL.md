@@ -48,7 +48,7 @@ What the decomp actually does, in its own terms:
 | SMB does | Read it produces | Our port |
 |---|---|---|
 | `apeQuat` counter-rotates vs ball spin, upright-stabilized | The signature "ball spins around the rider" | Constraint rider rig: `AlignPosition` to ball center + `AlignOrientation` driven to a world-space goal (below) — the engine's solver IS the incremental stabilizer |
-| ~65% tumble inheritance (`unkA8`) | Rider shudders with hard spins, stays legible | `RiderTumble` fraction of `AssemblyAngularVelocity` folded into the goal |
+| ~65% tumble inheritance (`unkA8`) | Rider shudders with hard spins, stays legible | `RiderTumble` lean factor on `AssemblyAngularVelocity` magnitude, **capped by `RiderTumbleMax` (~10°)** — bounded like the decomp's 5°-class steps, never an integrated somersault |
 | Yaw → horizontal velocity, speed-gated blend | Monkey faces where it's going | `goalYaw = atan2(vx, vz)`, gated below `RiderYawVelLo`, fully tracked by `RiderYawVelHi` |
 | In-air spin compensation | Airtime reads loose/alive | Same goal path handles air — world-space goal never cares about contact |
 | ~50% clear shell, warm tint | Glass-bubble toy | `CapsuleAlpha 0.5` + `Enum.Material.Glass` |
@@ -107,13 +107,15 @@ rig). Port of `updateApeOrientation` (physics.ts ~571):
       local d = (target - lastYaw + math.pi) % (2 * math.pi) - math.pi
       lastYaw += d * blend
   end
-  -- tumble: RiderTumble share of the ball's per-frame angular delta
-  -- (the decomp's 0.65-scaled unkA8) — the shudder without the slave.
+  -- tumble: a lean-back proportional to spin speed, capped — the
+  -- decomp's counter-tilt is a small fixed step, so inheriting raw
+  -- w*dt somersaults the rider at real roll rates; bound it instead.
   local w = ball.AssemblyAngularVelocity
   local wn = w.Magnitude
   local goal = CFrame.Angles(0, lastYaw, 0)
+  local lean = math.clamp(wn * Art.RiderTumble, 0, Art.RiderTumbleMax)
   if wn > 1e-3 then
-      goal = CFrame.fromAxisAngle(w.Unit, wn * dt * Art.RiderTumble) * goal
+      goal = CFrame.fromAxisAngle(w.Unit, lean) * goal
   end
   ori.CFrame = goal
   ```
@@ -131,7 +133,8 @@ faces -Z), brighten `MonkeyFur`/`MonkeyFace` slightly — it must read
 through a 0.5 shell at chase-cam distance.
 
 **Tunables** (all in `Config.Art`, all commented): `CapsuleAlpha`,
-`RiderTumble` (~0.35 — share of ball angular delta inherited),
+`RiderTumble` (~0.004 — lean-back radians per rad/s of ball spin) +
+`RiderTumbleMax` (~0.18 — cap, so full-speed reads as a ~10° brace),
 `RiderYawVelLo`/`RiderYawVelHi` (~4/16 studs/s — SMB's gate rescaled:
 their 0.23/0.37 u/s at radius 0.5 ≈ this ratio), `RiderResponsiveness`
 (~40), rider `MaxForce`/`MaxTorque` caps, `MonkeyScale` (1.35). (The

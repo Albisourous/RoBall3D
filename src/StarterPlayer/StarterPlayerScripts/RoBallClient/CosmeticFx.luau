@@ -125,6 +125,7 @@ local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
 local vpGemCf: CFrame? = nil
 local vpGemSize = Config.Gems.Size
+local vpGemVec = Vector3.one * Config.Gems.Size -- posed size the beat pulse scales (coin/shard/rod aren't cubes)
 local vpGemShape = "diamond"
 local vpGemColor = Config.Gems.Color
 local vpGemItem: any = nil
@@ -318,6 +319,7 @@ function Fx.preview(items: { [string]: any })
 	vpGem = nil
 	vpGemCf = nil
 	vpGemSize = Config.Gems.Size
+	vpGemVec = Vector3.one * Config.Gems.Size
 	vpGemShape = "diamond"
 	vpGemItem = nil
 	vpGemTaken = false
@@ -428,12 +430,14 @@ function Fx.preview(items: { [string]: any })
 		end
 	end
 
-	-- Gem on the lane ahead — the real pickup: corner-balanced cube at
-	-- FloatY over the deck, tinted by the browsed GEM FX color. Worlds
-	-- carrying a gemStyle (world_sky → "ball") restyle it the same way
-	-- TrackStreamer does live: banana orb, tier scale. The ball steers
-	-- onto its line in step() and really runs it over each loop.
+	-- Gem on the lane ahead — the real pickup at FloatY over the deck,
+	-- tinted by the browsed GEM FX color, silhouette pinned by the browsed
+	-- SKIN's gemShape the same way TrackStreamer does live (one shape for
+	-- the run; tier scale carries worth). Worlds carrying a gemStyle
+	-- (world_sky → "ball") still restyle it to the banana orb first. The
+	-- ball steers onto its line in step() and really runs it over.
 	local gemPos = Vector3.new(GEM_X, deckTopAt(GEM_Z) + Config.Gems.FloatY, GEM_Z)
+	local gemTint = Cosmetics.colorOf(gemI and gemI.color, Config.Gems.Color, hues)
 	local gem: BasePart
 	if worldI and worldI.gemStyle == "ball" then
 		local shape, gsize, gcol = GemTypes.ball(10)
@@ -442,15 +446,18 @@ function Fx.preview(items: { [string]: any })
 		gem = vpart(Vector3.one * gsize, gemPos, gcol)
 		gem.Shape = if shape == "orb" then Enum.PartType.Ball else Enum.PartType.Block
 		vpGemCf = CFrame.new(gemPos)
+	elseif skin and skin.gemShape then
+		local shape, gsize = GemTypes.of(10, skin.gemShape)
+		vpGemSize = gsize
+		vpGemShape = shape
+		gem = vpart(Vector3.one * gsize, gemPos, gemTint)
+		vpGemCf = CFrame.new(gemPos) * GemTypes.pose(gem :: Part, shape, gsize)
 	else
 		vpGemSize = Config.Gems.Size
-		gem = vpart(
-			Vector3.one * Config.Gems.Size,
-			gemPos,
-			Cosmetics.colorOf(gemI and gemI.color, Config.Gems.Color, hues)
-		)
+		gem = vpart(Vector3.one * Config.Gems.Size, gemPos, gemTint)
 		vpGemCf = CFrame.new(gemPos) * CFrame.Angles(math.rad(35.264), math.rad(45), 0)
 	end
+	vpGemVec = gem.Size
 	vpGemColor = gem.Color
 	gem.Material = Enum.Material.Neon
 	gem.CFrame = vpGemCf
@@ -731,7 +738,7 @@ local function step()
 	end
 	if vpGem and vpGemCf and not vpGemTaken then
 		-- Beat pulse — same swell fraction live pickups use.
-		vpGem.Size = Vector3.one * vpGemSize * (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
+		vpGem.Size = vpGemVec * (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
 		vpGem.CFrame = vpGemCf
 	end
 	if vpFx and ANIM_FX[vpFx] then

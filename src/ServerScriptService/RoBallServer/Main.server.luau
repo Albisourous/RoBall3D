@@ -914,8 +914,12 @@ RunService.Heartbeat:Connect(function(dt)
 			-- horizontal velocity heading through the Lo→Hi speed gate (the
 			-- last heading holds when nearly stopped), then a RiderTumble
 			-- share of the ball's angular delta gives the shudder without
-			-- slaving the rider to the roll. The constraint's soft
-			-- Responsiveness plays the decomp's incremental uprighting —
+			-- slaving the rider to the roll — the decomp's spin
+			-- compensation is a fixed ~5° in-air counter-tilt, so the
+			-- inherit is a lean capped by RiderTumbleMax: bounded by
+			-- speed, never integrated into a somersault. The
+			-- constraint's soft Responsiveness plays the decomp's
+			-- incremental uprighting —
 			-- no manual upright nudge needed, and 30 Hz goals are
 			-- indistinguishable under that damping while halving the
 			-- replicated write rate. The AlignOrientation is cached on
@@ -931,7 +935,6 @@ RunService.Heartbeat:Connect(function(dt)
 				if ori then
 					run.riderAcc += dt
 					if run.riderAcc >= 1 / Config.Art.RiderHz then
-						local rdt = run.riderAcc
 						run.riderAcc = 0
 						local v = ball.AssemblyLinearVelocity
 						local hs = math.sqrt(v.X * v.X + v.Z * v.Z)
@@ -950,8 +953,9 @@ RunService.Heartbeat:Connect(function(dt)
 						local w = ball.AssemblyAngularVelocity
 						local wn = w.Magnitude
 						local goal = CFrame.Angles(0, run.riderYaw, 0)
+						local lean = math.clamp(wn * Config.Art.RiderTumble, 0, Config.Art.RiderTumbleMax)
 						if wn > 1e-3 then
-							goal = CFrame.fromAxisAngle(w.Unit, wn * rdt * Config.Art.RiderTumble) * goal
+							goal = CFrame.fromAxisAngle(w.Unit, lean) * goal
 						end
 						ori.CFrame = goal
 					end

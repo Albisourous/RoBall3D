@@ -481,35 +481,44 @@ obstacle gaps (the corridor you're meant to thread — highest risk/reward).
 Value scales with risk class:
 safe `10` / edge `15` / beam `25` / gap-arc `40`. 0–3 clusters per chunk.
 
-**Worth IS the shape** (`GemTypes.luau` + `Config.Gems.Kinds`): every value
-tier renders its own Neon silhouette in a warm-family tint — hotter and
-heavier reading = more points, so the payoff telegraphs at speed:
+**The skin pins the silhouette** (`gemShape` on skin items →
+`GemTypes.of`): the equipped skin fixes ONE pickup shape for the whole
+run — 24K rolls coins, FROSTBITE ice shards, CAPSULE ball-orbs, CLASSIC
+NEON the corner diamond. It is never re-rolled mid-run (a mid-run skin
+swap would style future chunks only — the same rule as `deckItem`), so
+every gem a run shows is identical in kind. Worth still telegraphs at
+speed on the tier's lead scale + warm tint — hotter and heavier reading
+= more points:
 
-| Value | Name | Shapes (seeded pick) | Tint |
-| ----: | ---- | ---- | ---- |
-| 10 | chip | corner-balanced cube `diamond` / pearl `orb` | gold `255,212,64` |
-| 15 | edge | upright `coin` / `orb` | amber `255,168,52` |
-| 25 | beam | standing wedge `shard` / vertical `rod` | orange `255,132,50` |
-| 40 | arc | fat `crown` diamond ×1.55 | white-hot `255,244,185` |
+| Value | Name | Tier scale | Seeded fallback pool | Tint |
+| ----: | ---- | ---- | ---- | ---- |
+| 10 | chip | ×1.0 | `diamond` / `orb` | gold `255,212,64` |
+| 15 | edge | ×1.05 | `coin` / `orb` | amber `255,168,52` |
+| 25 | beam | ×1.25 | `shard` / `rod` | orange `255,132,50` |
+| 40 | arc | ×1.55 | `crown` | white-hot `255,244,185` |
 
-All shapes are engine primitives (Block/Ball/Cylinder/Wedge — `GemTypes.pose`
-owns the silhouette + local rotation). The per-spot pick is a deterministic
-hash of the emitted `(startZ, t)` — NOT the generator rng — so a seed
-replays the same type mix every run (§6 purity: render-only, never feeds
-scoring). Tints stay in the gold→white "currency" ramp, clear of
-`LethalColor` red. The collected shape rides `RoBallGemShape` on the player
-so client FX knows exactly what was picked up. (Two-pyramid octahedron via
-`MeshType.Pyramid` was tried: that legacy mesh type renders nothing in the
-current engine.)
+All shapes are engine primitives (Block/Ball/Cylinder — `GemTypes.pose`
+owns the silhouette + local rotation; the vocabulary is `diamond`/`crown`
+corner cube, `orb`, `coin`, `shard`, `rod`). A skin without `gemShape`
+falls back to `GemTypes.pick` — a per-spot deterministic hash of the
+emitted `(startZ, t)`, NOT the generator rng — so a seed replays the same
+type mix (§6 purity: render-only, never feeds scoring). Tints stay in
+the gold→white "currency" ramp, clear of `LethalColor` red. The
+collected shape rides `RoBallGemShape` on the player so client FX knows
+exactly what was picked up. (Two-pyramid octahedron via
+`MeshType.Pyramid` was tried: that legacy mesh type renders nothing in
+the current engine.)
 
 **World restyle** (`gemStyle` on world items): a world cosmetic may restyle
 every pickup at spawn — `world_sky` (APE BALL) sets `gemStyle = "ball"` and
 TrackStreamer renders each gem as a banana-yellow capsule orb through
 `GemTypes.ball` (tier lead-scale still sizes it, so worth keeps
-telegraphing). The streamer stamps the live pickup's own `Color` into
-`RoBallGemColor` alongside `RoBallGemShape`, so the client's pop ghost
-matches styled pickups too. Authoritative value/scoring path untouched —
-the style is render-only and set per run from the equipped world.
+telegraphing). The world style wins over the skin's `gemShape` — the
+themed world's pickups are its signature. The streamer stamps the live
+pickup's own `Color` into `RoBallGemColor` alongside `RoBallGemShape`, so
+the client's pop ghost matches styled pickups too. Authoritative
+value/scoring path untouched — the style is render-only and set per run
+from the equipped world.
 
 **Pickup juice** (`GemFx.luau`, client): the gem itself is `Destroy`ed
 instantly server-side, so the flourish is client-local at the ball's
@@ -942,10 +951,9 @@ that caused them.
   `deck` re-bases the tint, `deckB`+`deckCell` tile slabs into a pure
   two-tone checker, `edge` pins rail color, `plain` drops grid + center
   line — stamped at chunk emit so mid-run swaps color future chunks.
-- **Gems**: four value tiers, each its own primitive silhouette + warm
-  tint — diamond chips/pearl orbs (gold, 10), coins/orbs (amber, 15),
-  shards/rods (orange, 25), the fat crown diamond (white-hot, 40). One part
-  each, zero mesh cost; catalog in §8.4.
+- **Gems**: the equipped skin pins one primitive silhouette for the run;
+  tier scale + warm tint carry worth — gold (10) → amber (15) → orange
+  (25) → white-hot (40). One part each, zero mesh cost; catalog in §8.4.
 - **Obstacles**: near-black bodies with red `SelectionBox` edge outlines —
   Slope's black-with-red-edges read, same one-color lethal language. Red is
   never used for decoration anywhere else.
@@ -1487,7 +1495,8 @@ the non-seasonal pack, so the sky never inherits the seasonal gate).
 The `floor` slot rides the `gemStyle` plumbing the other way: Main stamps
 the equipped item onto `streamer.deckItem` at run start and
 `TrackStreamer.emitDeck` tiles/recolors slabs per chunk (APEBALL.md §5)
-— CHECKER DECK turns the lane itself into the green/cream board.
+— CHECKER DECK turns the lane itself into the green/cream board. Skins
+pin `gemShape` the same direction — one pickup silhouette per run (§8.4).
 Wave 2 also fills the acid/lagoon/ember/candy/chrome families, the
 animated **CHROMA** (strobe) and **IRIS** (wave) prestige skins, and the
 COLOR LAB singles — all inside color law; retired bundles' contents

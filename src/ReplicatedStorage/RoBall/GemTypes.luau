@@ -47,7 +47,8 @@ end
 
 -- The recipe for a specific shape — GemFx resolves the collected gem's
 -- RoBallGemShape attribute through this so the pop ghost matches what
--- was actually picked up. Unknown shapes fall back to the tier's first.
+-- was actually picked up, and TrackStreamer renders a skin-pinned
+-- silhouette through it. Unknown shapes fall back to the tier's first.
 function GemTypes.of(value: number, shape: string?): (string, number, Color3)
 	local tier = tierOf(value)
 	if shape then

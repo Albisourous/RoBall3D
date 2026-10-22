@@ -81,6 +81,7 @@ export type Item = {
 	capsule: boolean?,
 	inhabitant: string?,
 	gemStyle: string?,
+	gemShape: string?,
 	none: boolean?,
 }
 
@@ -108,7 +109,11 @@ local PEACH = Color3.fromRGB(255, 196, 140)
 local BANANA = Color3.fromRGB(255, 226, 92) -- ape-ball toy family
 
 Cosmetics.Items = {
-	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball face
+	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball
+	-- face. `gemShape` pins the run's pickup silhouette (§8.4): every gem
+	-- under one skin shares the shape — worth still telegraphs on tier
+	-- scale + warm tint. Names come from GemTypes.pose's vocabulary:
+	-- "diamond"/"crown" (corner cube), "orb", "coin", "shard", "rod".
 	skin_classic = {
 		slot = "skin",
 		name = "CLASSIC NEON",
@@ -116,6 +121,7 @@ Cosmetics.Items = {
 		ringA = CYAN,
 		ringB = MAGENTA,
 		core = Color3.fromRGB(4, 8, 6),
+		gemShape = "diamond",
 	},
 	skin_mono = {
 		slot = "skin",
@@ -124,6 +130,7 @@ Cosmetics.Items = {
 		ringA = WHITE,
 		ringB = SILVER,
 		core = Color3.fromRGB(8, 8, 12),
+		gemShape = "orb", -- the pearl
 	},
 	skin_solar = {
 		slot = "skin",
@@ -132,6 +139,7 @@ Cosmetics.Items = {
 		ringA = ORANGE,
 		ringB = PINK,
 		core = Color3.fromRGB(24, 8, 4),
+		gemShape = "shard", -- flare spikes
 	},
 	skin_midas = {
 		slot = "skin",
@@ -140,6 +148,7 @@ Cosmetics.Items = {
 		ringA = GOLD,
 		ringB = PALE_GOLD,
 		core = Color3.fromRGB(26, 16, 4),
+		gemShape = "coin", -- bullion tokens
 	},
 	skin_prism = {
 		slot = "skin",
@@ -149,6 +158,7 @@ Cosmetics.Items = {
 		ringB = MAGENTA,
 		core = Color3.fromRGB(4, 8, 6),
 		fx = "rainbow",
+		gemShape = "diamond", -- faceted
 	},
 	skin_void = {
 		slot = "skin",
@@ -158,6 +168,7 @@ Cosmetics.Items = {
 		ringB = PINK,
 		core = Color3.fromRGB(2, 0, 6),
 		fx = "pulse",
+		gemShape = "crown", -- the empress wears it
 	},
 	skin_aurora = {
 		slot = "skin",
@@ -166,6 +177,7 @@ Cosmetics.Items = {
 		ringA = AURORA_G,
 		ringB = AURORA_B,
 		core = Color3.fromRGB(4, 14, 10),
+		gemShape = "rod", -- light pillars
 	},
 	skin_phantom = {
 		slot = "skin",
@@ -175,6 +187,7 @@ Cosmetics.Items = {
 		ringB = AMETHYST,
 		core = Color3.fromRGB(6, 4, 12),
 		fx = "pulse",
+		gemShape = "shard", -- spectral spike
 	},
 	--==== SOLSTICE — seasonal window slot (§18; Config.Monetization.Seasonal
 	-- gates the bundle and à-la-carte buys of these ids)
@@ -185,6 +198,7 @@ Cosmetics.Items = {
 		ringA = FROST,
 		ringB = DEEP_ICE,
 		core = Color3.fromRGB(4, 8, 16),
+		gemShape = "shard", -- ice crystal
 	},
 	--==== wave-2 families (§18): acid / lagoon / ember / candy / chrome,
 	-- the animated strobe+wave skins, and the COLOR LAB custom-hue skin.
@@ -195,6 +209,7 @@ Cosmetics.Items = {
 		ringA = MINT,
 		ringB = AURORA_B,
 		core = Color3.fromRGB(3, 12, 10),
+		gemShape = "orb", -- lagoon pearl
 	},
 	skin_acid = {
 		slot = "skin",
@@ -203,6 +218,7 @@ Cosmetics.Items = {
 		ringA = LIME,
 		ringB = AURORA_G,
 		core = Color3.fromRGB(10, 16, 2),
+		gemShape = "rod", -- glow-stick
 	},
 	skin_candy = {
 		slot = "skin",
@@ -211,6 +227,7 @@ Cosmetics.Items = {
 		ringA = PINK,
 		ringB = WHITE,
 		core = Color3.fromRGB(18, 4, 10),
+		gemShape = "orb", -- gumball
 	},
 	skin_ember = {
 		slot = "skin",
@@ -219,6 +236,7 @@ Cosmetics.Items = {
 		ringA = ORANGE,
 		ringB = GOLD,
 		core = Color3.fromRGB(20, 8, 2),
+		gemShape = "rod", -- a coal poker
 	},
 	skin_chrome = {
 		slot = "skin",
@@ -227,6 +245,7 @@ Cosmetics.Items = {
 		ringA = SILVER,
 		ringB = WHITE,
 		core = Color3.fromRGB(10, 10, 14),
+		gemShape = "coin", -- casino chip
 	},
 	skin_chroma = {
 		slot = "skin",
@@ -236,6 +255,7 @@ Cosmetics.Items = {
 		ringB = MAGENTA,
 		core = Color3.fromRGB(4, 8, 6),
 		fx = "strobe",
+		gemShape = "crown", -- jackpot silhouette
 	},
 	skin_iris = {
 		slot = "skin",
@@ -245,6 +265,7 @@ Cosmetics.Items = {
 		ringB = AURORA_B,
 		core = Color3.fromRGB(4, 6, 12),
 		fx = "wave",
+		gemShape = "orb", -- the eye
 	},
 	skin_custom = {
 		slot = "skin",
@@ -253,6 +274,7 @@ Cosmetics.Items = {
 		ringA = "customA",
 		ringB = "customB",
 		core = Color3.fromRGB(8, 6, 12),
+		gemShape = "diamond",
 	},
 	--==== NULL pack — the stark set for the empty world: a pitch ball,
 	-- ghost-pale rings, nothing chasing you but the sun.
@@ -263,6 +285,7 @@ Cosmetics.Items = {
 		ringA = WHITE,
 		ringB = Color3.fromRGB(46, 48, 68),
 		core = Color3.fromRGB(1, 1, 3),
+		gemShape = "diamond", -- bare crystal, nothing else
 	},
 	--==== NEON PEAKS pack — the flagship world as its own complete look:
 	-- a glacial summit set over the wireframe ridge field.
@@ -273,10 +296,12 @@ Cosmetics.Items = {
 		ringA = AURORA_B,
 		ringB = WHITE,
 		core = Color3.fromRGB(4, 8, 18),
+		gemShape = "shard", -- mountain crystal
 	},
 	--==== APE BALL pack — the arcade-toy set for the sky court world:
 	-- a glossy transparent capsule ball — a toy monkey rides inside on
-	-- welds, tumbling with the roll (BallDress, §18).
+	-- an upright constraint rig (BallDress + the server's yaw driver,
+	-- APEBALL.md §3).
 	skin_capsule = {
 		slot = "skin",
 		name = "CAPSULE",
@@ -286,6 +311,7 @@ Cosmetics.Items = {
 		core = Color3.fromRGB(255, 138, 36),
 		capsule = true, -- transparent shell at Config.Art.CapsuleAlpha
 		inhabitant = "monkey",
+		gemShape = "orb", -- ball pickups, on any world
 	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
