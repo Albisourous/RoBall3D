@@ -104,19 +104,22 @@ local MOTIFS: { [string]: () -> () } = {
 		end
 	end,
 	peaks = function()
-		for _, s in ipairs({ { -24, 15, -30 }, { 25, 11, -26 } }) do
-			local w = Instance.new("WedgePart")
-			w.Anchored = true
-			w.CanCollide = false
-			w.CastShadow = false
-			w.Material = Enum.Material.SmoothPlastic
-			w.Size = Vector3.new(14, s[2], 10)
-			w.CFrame = CFrame.new(s[1], s[2] / 2, s[3])
-			w.Color = DK
-			w.Parent = wmodel
+		-- Outline ridges: thin neon bars zig-zagged into mountain
+		-- silhouettes — a dark wedge melts into the dark window, but a
+		-- bright ridge reads at diorama scale.
+		local function ridge(cx: number, z: number, w: number, h: number, col: Color3)
+			local len = math.sqrt((w / 2) ^ 2 + h * h)
+			local ang = math.atan2(h, w / 2)
+			local l = vpart(Vector3.new(len, 0.6, 0.6), Vector3.new(cx - w / 4, h / 2, z), col)
+			l.Material = Enum.Material.Neon
+			l.CFrame = CFrame.new(l.Position) * CFrame.Angles(0, 0, ang)
+			local r = vpart(Vector3.new(len, 0.6, 0.6), Vector3.new(cx + w / 4, h / 2, z), col)
+			r.Material = Enum.Material.Neon
+			r.CFrame = CFrame.new(r.Position) * CFrame.Angles(0, 0, -ang)
 		end
-		vpart(Vector3.new(1, 15, 1), Vector3.new(-24, 8, -30), CY)
-		vpart(Vector3.new(1, 11, 1), Vector3.new(25, 6, -26), PK)
+		ridge(-19, -28, 18, 12, CY)
+		ridge(22, -22, 13, 9, PK)
+		ridge(3, -36, 22, 15, Color3.fromRGB(150, 80, 220))
 	end,
 	void = function()
 		local rng = Random.new(7)
