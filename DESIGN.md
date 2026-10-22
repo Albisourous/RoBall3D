@@ -105,7 +105,10 @@ explainable.
   boost, orange on brake. The gold `RechargeGate` notch in the strip is
   the universal **armed** marker — a meter past the notch means all
   three verbs are live, so "can I act?" is read off the bar, not felt
-  out. Charge lives on the bottom-left meter bar (§12).
+  out. Gem pickups refund meter by point value (`Power.GemPerPoint` —
+  safe 2%, edge 3%, beam 5%, gap-arc 8% of the bar), so a risky line is
+  a partial recharge, not just score. Charge lives on the bottom-left
+  meter bar (§12).
 - **Dash** (`Config.Dash`): a lateral burst left/right — same steer-ease
   math drives lateral velocity toward `Speed` (64 s/s ≈ 2.4× max steer)
   at burst accel (~25ms to full — a snap, not a hard-slide) for

@@ -51,6 +51,11 @@ Config.Power = {
 	Capacity = 12, -- TODO(test): revert to 1.2 — 10x meter for dash testing
 	RegenPerSec = 0.15, -- meter fraction refilled per second off (~6.7s to full)
 	RechargeGate = 0.35, -- emptied meter must refill this far to act again — the marker
+	-- Gem income (§10): pickups refund meter by point value — riskier
+	-- lines recharge faster. Per point: safe 10→2%, edge 15→3%, beam
+	-- 25→5%, gap-arc/hoop 40/25→8%/5%. ~500 pts fills a bar alone, so
+	-- regen stays primary and gems are a bonus trickle (~2x in a line).
+	GemPerPoint = 0.002,
 }
 
 -- Dash (DESIGN.md §4): tap Q/E for a lateral burst — a flat slice of the

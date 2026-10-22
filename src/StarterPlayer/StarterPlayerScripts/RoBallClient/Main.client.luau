@@ -615,6 +615,9 @@ local deathT0 = 0
 player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 	local n = player:GetAttribute("RoBallGems") or 0
 	if n > lastGemPts then
+		-- Gem income (§4/§10): each pickup refunds meter by its point
+		-- value — a risky line is a recharge, not just score.
+		powerCharge = math.min(1, powerCharge + (n - lastGemPts) * Config.Power.GemPerPoint)
 		combo = if tick() - lastPickupAt <= Config.GemSfx.ComboWindow then combo + 1 else 1
 		lastPickupAt = tick()
 		ui:setCombo(combo)
