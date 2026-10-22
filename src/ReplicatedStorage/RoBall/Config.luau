@@ -82,9 +82,10 @@ Config.Steering = {
 	MaxLateralSpeed = 26, -- studs/s
 	LateralAccel = 90, -- studs/s^2
 	IdleLateralDamping = 6, -- extra damping when no steer key held (kills drift)
-	BankPull = 30, -- downhill drift speed at sin(bank)=1 — a banked deck
-	-- nudges the ball toward its low edge (Sway/Tilt); counter-steer still
-	-- wins but pays the pull out of MaxLateralSpeed
+	BankPull = 45, -- downhill drift speed at sin(bank)=1 — a banked deck
+	-- shoves the ball toward its low edge (Sway/Tilt); counter-steer wins
+	-- on moderate banks but pays most of MaxLateralSpeed, and ~42° caps
+	-- nearly out-pull steering — hold uphill or slide off
 	SettleSeconds = 0.8, -- "rolling…" settle: steering locked this long after RunStarted (§6)
 	-- Unstick hop (§11): grounded + real forward speed under 15% of target
 	-- for UnstickTime = wedged on a seam lip — pop one Y impulse to clear it.
@@ -101,6 +102,9 @@ Config.Camera = {
 	-- studs out, so the camera pitches into the slope, not at the horizon.
 	LookDrop = 1.5, -- extra studs below the deck plane (keeps track in frame)
 	LeanMax = 3, -- degrees of camera roll toward the steer direction
+	BankLean = 0.5, -- fraction of the deck's bank the horizon follows —
+	-- the tilt read: on a 20° bank the world leans 10°, deck stays visibly
+	-- banked (Monkey Ball feel); 1.0 would make deck read flat
 	FovMin = 70,
 	FovMax = 88, -- FOV widens with speed for sense of velocity
 	SmoothTime = 0.12,
@@ -266,6 +270,7 @@ Config.Features = {
 		Blackout = 900,
 		Chicane = 1300,
 		Fork = 1500,
+		FullTilt = 1600,
 		PadHop = 1700,
 		PadVoid = 2100,
 		DropGate = 2300,
@@ -282,6 +287,7 @@ Config.Features = {
 		"Blackout",
 		"Chicane",
 		"Fork",
+		"FullTilt",
 		"PadHop",
 		"PadVoid",
 		"DropGate",
@@ -318,6 +324,7 @@ Config.Features = {
 		Blackout = "BLACKOUT",
 		Chicane = "CHICANE",
 		Fork = "FORK",
+		FullTilt = "FULL TILT",
 		PadHop = "PAD HOP",
 		PadVoid = "PAD VOID",
 		DropGate = "DROP GATE",
@@ -450,6 +457,18 @@ Config.Roll = {
 	Cap = 42, -- absolute bank cap, degrees
 }
 
+Config.FullTilt = {
+	-- FullTilt (DESIGN.md §8.3): the whole chunk commits to one steep
+	-- bank — no Sway oscillation, no mild Tilt hold. Bank pull shoves
+	-- toward the low edge the entire length; holding the uphill line IS
+	-- the challenge. DegMax rides the §9 roll ramp.
+	LenMin = 45,
+	LenMax = 75,
+	DegMin = 26, -- base bank, degrees
+	DegMax = 34, -- × rollScale, clamped to Roll.Cap
+	RampFrac = 0.3, -- fraction of chunk the bank eases in/out over
+}
+
 Config.Sway = {
 	-- Deck-shape chunk (DESIGN.md §8.3): the ribbon's bank oscillates
 	-- left-right. Integer periods land the exit level; RateMax caps the
@@ -544,6 +563,7 @@ Config.Tiers = {
 			"Narrow",
 			"Widen",
 			"Tilt",
+			"FullTilt",
 			"Pinch",
 			"SplitGap",
 			"Bowl",
@@ -571,6 +591,7 @@ Config.Tiers = {
 			"Narrow",
 			"Widen",
 			"Tilt",
+			"FullTilt",
 			"Pinch",
 			"SplitGap",
 			"Bowl",
@@ -952,6 +973,7 @@ Config.MusicSync = {
 		Narrow = "technical",
 		Widen = "technical",
 		Tilt = "technical",
+		FullTilt = "technical",
 		Pinch = "technical",
 		SplitGap = "technical",
 		Fork = "technical",

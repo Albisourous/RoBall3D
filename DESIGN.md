@@ -177,7 +177,10 @@ not flat-ahead — it drops to the deck plane `LookAhead = 16` studs out
 (`target.y -= Grade*16 + LookDrop`), so the camera pitches into the slope
 (~28°) the way Slope does: ball low in frame, long readable runway ahead.
 FOV eases `70 -> 88` with speed. Up to `LeanMax = 3°` of roll into the steer
-direction for momentum readability. No vertical bob (keeps precision readable).
+direction for momentum readability. The horizon itself follows
+`BankLean = 0.5` of the deck's bank — a banked chunk tilts the world, not
+just the ribbon, while the deck stays visibly banked. No vertical bob
+(keeps precision readable).
 The position follows with an exp damp at `Camera.SmoothTime` (0.12s —
 `alpha = 1 - e^-dt/τ`, frame-rate independent): deck-seam and landing bumps
 filter out while the aim stays locked on the lead point, so a dash reads as
@@ -353,6 +356,7 @@ narrow. Then the seeded generator takes over.
 | `Narrow` | Width lerps down over the chunk | Precision | 2+ |
 | `Widen` | Deck opens to the tier window's upper half in ~35%, then holds; twin edge-margin gem lines | Relief + lateral reach (dash's job) | 5+ |
 | `Tilt` | Ribbon rolls around its long axis ±(8–20°→cap, steepens with distance via the §9 roll ramp) — bank pull drags the ball toward the low edge | Momentum management | 3+ |
+| `FullTilt` | The whole chunk commits to one steep bank (26–34°→cap via the §9 roll ramp) — bank pull is the entire hazard; edge gems ride the downhill rail you're being dragged toward | Sustained counter-lean | 5+ |
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
 | `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
@@ -478,8 +482,8 @@ ramp can gate a type's hard variants on the showcase having run. No HUD
 banner: the `NEW ▸ LABEL` flash was cut as screen clutter.
 
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
-Blackout 900m · Chicane 1300m · Fork 1500m · PadHop 1700m · PadVoid 2100m
-· DropGate 2300m · PressRow 2600m · Pacer 2700m ·
+Blackout 900m · Chicane 1300m · Fork 1500m · FullTilt 1600m ·
+PadHop 1700m · PadVoid 2100m · DropGate 2300m · PressRow 2600m · Pacer 2700m ·
 Rotor 2900m · OrbHop
 3300m\* · FlipRide 3500m\* (\*flag-off stretches). Early
 game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.

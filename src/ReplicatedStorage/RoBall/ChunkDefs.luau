@@ -509,6 +509,47 @@ function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
 end
 
+-- FullTilt: one sustained steep bank — Sway's drama without the relief,
+-- Tilt's hold turned all the way up. The bank ramps in over RampFrac,
+-- holds at DegMin..DegMax·rollScale for the whole middle, ramps out at
+-- the seam. Bank pull (§4) is the entire hazard: edge gems sit on the
+-- downhill rail — the line you're being dragged toward is the one that
+-- pays. canRun requires width so an uphill hold is always a fair fight.
+function ChunkDefs.FullTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local C = Config.FullTilt
+	local length = rng:NextInteger(C.LenMin, C.LenMax)
+	local degHi = math.min(C.DegMax * (st.rollScale or 1), Config.Roll.Cap)
+	local deg = if debut then C.DegMin else rng:NextNumber(C.DegMin, degHi)
+	local roll = deg * (rng:NextInteger(0, 1) * 2 - 1)
+	local ramp = C.RampFrac
+	local rollAt = function(t: number)
+		if t < ramp then
+			return roll * (t / ramp)
+		elseif t > 1 - ramp then
+			return roll * ((1 - t) / ramp)
+		end
+		return roll
+	end
+	-- Downhill side = the direction bank pull shoves (deck dips toward
+	-- +xOff for positive roll) — the dare line pays edge value.
+	local side = if roll >= 0 then 1 else -1
+	local gems = gemRhythmLine(
+		rng,
+		Tiers.speedAt(st.dist),
+		length,
+		0.35,
+		0.6,
+		side * (st.width / 2 - 2),
+		Config.Gems.ValueEdge,
+		nil,
+		energyOf(st),
+		bpmOf(st)
+	)
+	return spec("FullTilt", st, length, function(t)
+		return { width = st.width, centerX = st.centerX, y = st.y, rollDeg = rollAt(t) }
+	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+end
+
 -- Pinch: width collapses briefly mid-chunk, then reopens.
 function ChunkDefs.Pinch(rng: Random, st: GenState, _tier): ChunkSpec
 	local pinchW = math.max(Config.Generation.MinWidth, st.width * 0.22)
@@ -889,6 +930,8 @@ local MinEntryWidth = {
 	Rotor = 23, -- center-post windmill needs arm half >= 3 with both rim lanes
 	Fork = 24,
 	PressRow = 21, -- MinSpan press + a debut-wide side lane
+	FullTilt = 18, -- an uphill hold needs real deck under the ball —
+	-- narrower and a worst-edge entry can't out-climb the pull
 }
 
 -- Eligibility gate for pool + debut picks (§8.6): features that need a

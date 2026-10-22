@@ -78,6 +78,8 @@ local mode: "menu" | "running" | "dead" = "menu"
 local ball: BasePart? = nil
 local lateralVel = 0
 local fwdSpeed = Config.Speed.Start
+local bankRollRad = 0 -- grounded deck's bank angle (rad) — horizon lean + pull
+local bankLeanCur = 0 -- eased bank lean actually applied to the camera
 local currentSeed: number? = nil
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
 local lastBallPos = Vector3.new(0, Config.Generation.StartY, -30)
@@ -259,6 +261,8 @@ local function bindBall(b: Instance)
 		ball = b :: BasePart
 		lateralVel = 0
 		fwdSpeed = Config.Speed.Start
+		bankRollRad = 0
+		bankLeanCur = 0
 		powerCharge = 1
 		powerSpent = false
 		dashDir = 0
@@ -891,8 +895,13 @@ RunService.Heartbeat:Connect(function(dt)
 	local grounded = drop ~= nil
 		and bp.Y - (drop :: RaycastResult).Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad
 	local bankPull = 0
+	bankRollRad = 0
 	if grounded and drop then
 		bankPull = -drop.Normal.X * steer.BankPull
+		-- Deck roll for the camera: normal.X = -sin(roll) on a banked
+		-- surface — same read the pull uses, kept as an angle for the
+		-- horizon lean.
+		bankRollRad = -math.asin(math.clamp(drop.Normal.X, -1, 1))
 	end
 	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
@@ -1185,6 +1194,11 @@ RunService.RenderStepped:Connect(function(dt)
 		local target = b.Position + Config.Generation.TravelAxis * cam.LookAhead
 		target -= Vector3.new(0, Config.Generation.Grade * cam.LookAhead + cam.LookDrop, 0)
 		local lean = -math.clamp(lateralVel / Config.Steering.MaxLateralSpeed, -1, 1) * math.rad(cam.LeanMax)
+		-- Horizon lean: the camera follows BankLean of the deck's roll so a
+		-- banked chunk tilts the WORLD, not just the ribbon — eased so deck
+		-- seams and landings lean rather than snap.
+		bankLeanCur += (-bankRollRad * cam.BankLean - bankLeanCur) * (1 - math.exp(-dt / cam.SmoothTime))
+		lean += bankLeanCur
 		-- Position eases with an exp damp (alpha = 1 - e^-dt/τ — frame-rate
 		-- independent): deck-seam and landing bumps filter out at SmoothTime
 		-- while the aim stays locked on the lead point, so dashes read as a
