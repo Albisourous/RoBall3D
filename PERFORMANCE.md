@@ -72,6 +72,17 @@ Budgets (targets, not laws):
   `.Size` writes/frame could quantize the pulse; `stepAurora` writes
   Position+Color on ~22 parts/frame — acceptable, leave unless the
   MicroProfiler says otherwise.
+- [x] **Garage diorama rebuilt once per attribute write, and animated
+  every frame behind the hidden menu.** `refreshGarage` fires per
+  `RoBall*` attr change (profile lands ~12 pushes at boot; `RoBallBank`
+  writes on every gem pickup mid-run) and each call ran `Fx.preview` —
+  a synchronous `WorldModel:ClearAllChildren()` + ~350-part scene
+  rebuild. `CosmeticFx.step()` also ran the whole diorama roll/trail/
+  burst anim while the menu was hidden. Fixed: `queuePreview` is a
+  0.12 s trailing debounce gated on `ui.menu.Visible` (a burst lands
+  exactly one rebuild; mid-run pushes are skipped — `ui.onMenu`
+  refreshes on reopen), and `step()` early-outs the diorama block
+  unless `Fx.onMode` last saw `"menu"` (live-ball FX still runs).
 
 ## 2. Per-frame loops — server
 
@@ -207,3 +218,14 @@ near-miss-FX removal so client "before" is slightly heavy.
   `rojo serve` before opening a baseline build.
 - `rbxassetid://203785492` fails to load ("asset type does not match")
   — pre-existing, unrelated to perf.
+- **Boot "world keeps regenerating" lag — RESOLVED (diorama churn, not
+  Backdrop).** Symptom: visible scene thrash + hitches in the first
+  seconds after join. Probed live by watching the diorama ball's
+  identity (fresh part each `preview()`): the profile's ~12 attr
+  pushes each forced a full ~350-part WorldModel rebuild, and
+  `RoBallBank` re-fired on every gem pickup mid-run (85 attr writes
+  in ~8 s of a `flat` run — a rebuild per gem behind the hidden menu).
+  After the fix the whole boot + profile window lands **one** rebuild,
+  mid-run pushes land **zero**, and the diorama freezes its per-frame
+  anim while hidden. The live `Backdrop` was exonerated first — its
+  lazy-build/park pools were not the churn source.
