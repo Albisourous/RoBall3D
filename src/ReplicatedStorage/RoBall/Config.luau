@@ -1594,7 +1594,7 @@ Config.Monetization = {
 	-- dashboard ids — 0-id entries show SOON. Flip true ONLY for
 	-- pre-paywall testing: every pack/product then grants instantly on
 	-- click with no purchase prompt (§18).
-	FreeForTesting = true,
+	FreeForTesting = false,
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
 		starter = 0, -- STARTER NEON — sunset set + palms world (~49)

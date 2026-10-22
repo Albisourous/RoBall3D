@@ -372,6 +372,9 @@ function Fx.preview(items: { [string]: any })
 	-- basis in step().
 	vpBallAlpha = if skin and skin.capsule then Art.CapsuleAlpha else 0
 	ball.Transparency = vpBallAlpha
+	if skin and skin.capsule then
+		ball.Material = Enum.Material.Glass
+	end
 	vpBall = ball
 	if skin and skin.inhabitant == "monkey" then
 		for _, bit in ipairs(BallDress.monkeySpec(BALL_D)) do
