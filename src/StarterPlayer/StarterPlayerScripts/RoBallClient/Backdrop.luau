@@ -9,8 +9,9 @@
 --             half below the deck plane — the drop reads as open space.
 --   "grid"  — GRID PLANE: the retro wireframe floor riding the descent
 --             below the deck — cross wires + longitudinal rays.
---   "aurora"— BOREALIS SKY: translucent light curtains hanging high beside
---             the lane, swaying + cycling green→violet.
+--   "aurora"— BOREALIS SKY: soft-particle light curtains flanking the
+--             lane — the same frozen-burst emitter canopy as "polar",
+--             fanned ALONG the track instead of across the sky.
 --   "reef"  — NEON REEF: dense thin neon strands rising out of the void —
 --             kelp on a wireframe reef.
 --   "meteor"— METEOR SHOWER: thin neon streaks slanting through the sky
@@ -65,10 +66,8 @@ local gridFrontZ = 0 -- nearest cross-wire z; recycles march it forward
 local gridSeeded = false
 
 -- Wave-2 world themes (§18) — same lazy-build / park-on-swap contract.
-type Curtain = { part: Part, side: number, x: number, z: number, alt: number, phase: number, huePhase: number }
-local auroraCurtains: { Curtain } = {}
-local auroraFrontZ: { [number]: number } = {} -- per-side recycle frontier
-local auroraSeeded = false
+type AuroraFan = { part: Part, emitter: ParticleEmitter, side: number, xOff: number, zOff: number, phase: number }
+local auroraFans: { AuroraFan } = {}
 type Strand = { part: Part, side: number }
 local reefStrands: { Strand } = {}
 local reefFrontZ: { [number]: number } = {}
@@ -410,70 +409,122 @@ local function layGridRay(ray: Part, anchor: Vector3, z0: number, x: number)
 	ray.Color = Palette.dimAt(-zA, Art.GridFloorValue)
 end
 
+--================= SOFT-PARTICLE FANS (aurora + polar) =================--
+-- Both aurora themes share the canonical one-emitter trick: giant
+-- VelocityPerpendicular streak sprites burst thousands of studs out of
+-- the emitter and Drag freezes them mid-flight — what was a burst lands
+-- as a luminous canopy of rays. SpreadAngle (180,0) fans the burst in
+-- the emitter part's local X-Y plane, so each part's pose picks where
+-- that plane hangs in the sky. Sprites fade in/out on FAN_FADE — the
+-- canopy churns without pops.
+
+type FanSpec = {
+	texture: string,
+	colors: ColorSequence,
+	rate: number,
+	speed: number,
+	drag: number,
+	size: number,
+	squash: number,
+	lifeMin: number,
+	lifeMax: number,
+	emission: number,
+}
+
+local FAN_FADE = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.15, 1),
+	NumberSequenceKeypoint.new(0.55, 0.2),
+	NumberSequenceKeypoint.new(1, 1),
+})
+
+local function makeFanPart(parent: Instance, spec: FanSpec): { part: Part, emitter: ParticleEmitter }
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Transparency = 1
+	p.Size = Vector3.new(1, 1, 1)
+	p.CFrame = PARK
+	p.Parent = parent
+	local em = Instance.new("ParticleEmitter")
+	em.Texture = spec.texture
+	em.Color = spec.colors
+	em.Transparency = FAN_FADE
+	em.Brightness = 1
+	em.LightEmission = spec.emission
+	em.LightInfluence = 0
+	em.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
+	em.Size = NumberSequence.new(spec.size)
+	em.Squash = NumberSequence.new(spec.squash)
+	em.Lifetime = NumberRange.new(spec.lifeMin, spec.lifeMax)
+	em.Rate = spec.rate
+	em.Speed = NumberRange.new(spec.speed)
+	em.SpreadAngle = Vector2.new(180, 0)
+	em.Drag = spec.drag
+	em.EmissionDirection = Enum.NormalId.Top
+	em.Enabled = false
+	em.Parent = p
+	return { part = p, emitter = em }
+end
+
 --=========================== BOREALIS SKY (aurora) ==========================--
--- Tall translucent light sheets hanging high beside the lane. Each curtain
--- keeps its z slot and sways in place (y bob + x drift + slow hue cycle
--- between AuroraHueA..B — the band never crosses the red seam); z recycles
--- on a per-side frontier like the towers so the field streams forever.
+-- Curtains of light flanking the lane: each emitter fan is yawed 90° so
+-- its sprite plane runs ALONG the track at x=±FanX — the fan covers
+-- forward + backward + up, so rays streak past and over the deck like
+-- hanging curtains (polar's fans span the sky overhead instead). Fans
+-- re-anchor beside the ball every frame — no recycling.
+
+local AURORA_COLORS = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 255, 170)),
+	ColorSequenceKeypoint.new(0.3, Color3.fromRGB(160, 235, 255)),
+	ColorSequenceKeypoint.new(0.65, Color3.fromRGB(170, 160, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 160, 230)),
+})
+
+local function makeAuroraFan(parent: Instance): AuroraFan
+	local f = makeFanPart(parent, {
+		texture = Art.AuroraTexture,
+		colors = AURORA_COLORS,
+		rate = Art.AuroraRate,
+		speed = Art.AuroraSpeed,
+		drag = Art.AuroraDrag,
+		size = Art.AuroraSize,
+		squash = Art.AuroraSquash,
+		lifeMin = Art.AuroraLifeMin,
+		lifeMax = Art.AuroraLifeMax,
+		emission = Art.AuroraEmission,
+	})
+	return { part = f.part, emitter = f.emitter, side = 0, xOff = 0, zOff = 0, phase = 0 }
+end
 
 local function ensureAurora()
-	if #auroraCurtains > 0 then
+	if #auroraFans > 0 then
 		return
 	end
 	for side = -1, 1, 2 do
-		for _ = 1, Art.AuroraCount do
-			local p = Instance.new("Part")
-			p.Anchored = true
-			p.CanCollide = false
-			p.CanQuery = false
-			p.CastShadow = false
-			p.Material = Enum.Material.Neon
-			p.Transparency = Art.AuroraFade
-			p.CFrame = PARK
-			p.Parent = root
-			table.insert(auroraCurtains, {
-				part = p,
-				side = side,
-				x = 0,
-				z = 0,
-				alt = Art.AuroraAlt,
-				phase = 0,
-				huePhase = 0,
-			})
+		for i = 1, Art.AuroraFanSides do
+			local f = makeAuroraFan(root)
+			f.side = side
+			f.xOff = Art.AuroraFanX + rng:NextNumber(0, Art.AuroraFanXJitter)
+			f.zOff = Art.AuroraFanZ + (i - 1) * Art.AuroraFanZGap
+			f.phase = rng:NextNumber(0, math.pi * 2)
+			table.insert(auroraFans, f)
 		end
 	end
 end
 
-local function layCurtain(c: Curtain, anchor: Vector3, z: number)
-	c.z = z
-	c.x = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
-		+ c.side * rng:NextNumber(Art.AuroraMinX, Art.AuroraMaxX)
-	c.alt = Art.AuroraAlt + rng:NextNumber(-Art.AuroraAltJitter, Art.AuroraAltJitter)
-	c.phase = rng:NextNumber(0, math.pi * 2)
-	c.huePhase = rng:NextNumber()
-	local p = c.part
-	p.Size = Vector3.new(
-		rng:NextNumber(Art.AuroraMinW, Art.AuroraMaxW),
-		rng:NextNumber(Art.AuroraMinH, Art.AuroraMaxH),
-		Art.AuroraThick
-	)
-end
-
--- Per-frame sway + hue cycle: cheap, ~22 parts. The hue never leaves the
--- green→violet window — color law safe without a palette lookup.
+-- Per-frame: re-anchor the fans beside the lane with a slow lateral
+-- drift + yaw wobble so the curtains wander.
 local function stepAurora(anchor: Vector3, t: number)
-	for _, c in ipairs(auroraCurtains) do
-		if c.z > anchor.Z + BACK_MARGIN then
-			local key = c.side
-			auroraFrontZ[key] = (auroraFrontZ[key] or anchor.Z + Art.AuroraSpacing) - Art.AuroraSpacing
-			layCurtain(c, anchor, auroraFrontZ[key])
-		end
-		local sway = math.sin(t * Art.AuroraWaveF + c.phase)
-		local drift = math.sin(t * 0.31 + c.phase * 1.7)
-		c.part.Position = Vector3.new(c.x + drift * 7, deckEst(anchor, c.z) + c.alt + sway * Art.AuroraWaveAmp, c.z)
-		local h = Art.AuroraHueA
-			+ (Art.AuroraHueB - Art.AuroraHueA) * (0.5 + 0.5 * math.sin(t * 0.23 + c.huePhase * 6.283))
-		c.part.Color = Color3.fromHSV(h, 0.85, Art.AuroraValue)
+	for _, f in ipairs(auroraFans) do
+		f.emitter.Enabled = true
+		local drift = math.sin(t * 0.11 + f.phase) * 14
+		local yaw = math.pi / 2 + math.sin(t * 0.07 + f.phase * 1.3) * 0.1
+		f.part.CFrame = CFrame.new(anchor.X + f.side * (f.xOff + drift), anchor.Y + Art.AuroraFanY, anchor.Z - f.zOff)
+			* CFrame.Angles(0, yaw, 0)
 	end
 end
 
@@ -502,47 +553,22 @@ local POLAR_COLORS = ColorSequence.new({
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(247, 255, 174)),
 })
 
--- Sprites fade in from full transparent, hold a soft veil through
--- mid-flight, fade back out — the canopy churns without pops.
-local POLAR_FADE = NumberSequence.new({
-	NumberSequenceKeypoint.new(0, 1),
-	NumberSequenceKeypoint.new(0.15, 1),
-	NumberSequenceKeypoint.new(0.55, 0.2),
-	NumberSequenceKeypoint.new(1, 1),
-})
-
 local function makePolarFan(parent: Instance): PolarFan
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.CastShadow = false
-	p.Transparency = 1
-	p.Size = Vector3.new(1, 1, 1)
-	p.CFrame = PARK
-	p.Parent = parent
-	local em = Instance.new("ParticleEmitter")
-	em.Texture = Art.PolarTexture
-	em.Color = POLAR_COLORS
-	em.Transparency = POLAR_FADE
-	em.Brightness = 1
-	em.LightEmission = Art.PolarEmission
-	em.LightInfluence = 0
-	em.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
-	em.Size = NumberSequence.new(Art.PolarSize)
-	em.Squash = NumberSequence.new(Art.PolarSquash)
-	em.Lifetime = NumberRange.new(Art.PolarLifeMin, Art.PolarLifeMax)
-	em.Rate = Art.PolarRate
-	em.Speed = NumberRange.new(Art.PolarSpeed)
-	em.SpreadAngle = Vector2.new(180, 0)
-	em.Drag = Art.PolarDrag
-	em.EmissionDirection = Enum.NormalId.Top
-	em.Enabled = false
-	em.Parent = p
+	local f = makeFanPart(parent, {
+		texture = Art.PolarTexture,
+		colors = POLAR_COLORS,
+		rate = Art.PolarRate,
+		speed = Art.PolarSpeed,
+		drag = Art.PolarDrag,
+		size = Art.PolarSize,
+		squash = Art.PolarSquash,
+		lifeMin = Art.PolarLifeMin,
+		lifeMax = Art.PolarLifeMax,
+		emission = Art.PolarEmission,
+	})
 	return {
-		part = p,
-		emitter = em,
+		part = f.part,
+		emitter = f.emitter,
 		zOff = 0,
 		yaw = rng:NextNumber(-Art.PolarFanYaw, Art.PolarFanYaw),
 		phase = rng:NextNumber(0, math.pi * 2),
@@ -963,10 +989,10 @@ local function parkGrid()
 end
 
 local function parkAurora()
-	for _, c in ipairs(auroraCurtains) do
-		parkPart(c.part)
+	for _, f in ipairs(auroraFans) do
+		f.emitter.Enabled = false -- parked emitters would still churn particles
+		parkPart(f.part)
 	end
-	auroraSeeded = false
 end
 
 local function parkReef()
@@ -1142,21 +1168,10 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
-	-- BOREALIS SKY (§18 "aurora"): curtains recycle on a per-side frontier,
-	-- then every frame sways + hue-cycles in place.
+	-- BOREALIS SKY (§18 "aurora"): emitter fans re-anchor beside the ball
+	-- every frame — no frontier.
 	if theme == "aurora" then
 		ensureAurora()
-		if not auroraSeeded then
-			auroraSeeded = true
-			-- Seed the frontier behind the ball: the first pass fills the
-			-- whole window with spaced curtains at once.
-			auroraFrontZ[-1] = anchor.Z + BACK_MARGIN
-			auroraFrontZ[1] = anchor.Z + BACK_MARGIN
-			for _, c in ipairs(auroraCurtains) do
-				auroraFrontZ[c.side] -= Art.AuroraSpacing
-				layCurtain(c, anchor, auroraFrontZ[c.side])
-			end
-		end
 		stepAurora(anchor, os.clock())
 		return
 	end

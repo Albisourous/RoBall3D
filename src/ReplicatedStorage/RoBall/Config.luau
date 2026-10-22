@@ -1157,26 +1157,29 @@ Config.Art = {
 	GridFloorCols = 14, -- longitudinal rays
 	GridFloorLine = 0.4, -- wire thickness
 	GridFloorValue = 0.75, -- palette value for the floor neon
-	-- Aurora curtains (§18 world "aurora"): tall translucent light sheets
-	-- hanging high beside the lane, swaying + cycling hue between
-	-- AuroraHueA..B (never red — color law). Recycled on a frontier.
-	AuroraCount = 11, -- curtains per side
-	AuroraSpacing = 95, -- z spacing per curtain
-	AuroraMinX = 60, -- inner lateral reach (clears the deck's ~39 max)
-	AuroraMaxX = 190,
-	AuroraAlt = 95, -- center height above the deck plane, ± AltJitter
-	AuroraAltJitter = 60,
-	AuroraMinH = 60, -- sheet height
-	AuroraMaxH = 150,
-	AuroraMinW = 26, -- sheet width across x
-	AuroraMaxW = 54,
-	AuroraThick = 1.1, -- sheet depth
-	AuroraWaveAmp = 16, -- sway amplitude in studs
-	AuroraWaveF = 0.55, -- sway frequency (rad-ish, scaled by tick)
-	AuroraHueA = 0.34, -- polar green end of the cycle
-	AuroraHueB = 0.72, -- violet end
-	AuroraValue = 0.85, -- neon brightness
-	AuroraFade = 0.55, -- base transparency
+	-- BOREALIS SKY (§18 world "aurora"): light curtains flanking the
+	-- lane — the same soft-particle technique as NORTHERN LIGHTS (giant
+	-- VelocityPerpendicular streak sprites burst ~10k studs and frozen
+	-- mid-flight by Drag), but each emitter fan is yawed so its sprite
+	-- plane runs ALONG the track beside the deck (polar's fans span the
+	-- sky overhead). Emitter parts re-anchor ahead of the ball every
+	-- frame — the curtains stream forever without recycling.
+	AuroraFanSides = 2, -- emitter fans per side, stacked down-course
+	AuroraFanX = 75, -- lateral offset beside the lane (clears ~39 deck)
+	AuroraFanXJitter = 40, -- seeded lateral spread across the fans
+	AuroraFanY = 110, -- emitter height above the ball — high enough for the
+	-- rays to arch into the chase cam's sky band instead of hugging the deck
+	AuroraFanZ = 120, -- first fan's distance ahead
+	AuroraFanZGap = 380, -- extra distance per stacked fan
+	AuroraTexture = "rbxassetid://110170832236629", -- soft streak sprite
+	AuroraRate = 140, -- particles/s per fan
+	AuroraSpeed = 10000, -- burst studs — drag then freezes them mid-flight
+	AuroraDrag = 9,
+	AuroraSize = 500, -- sprite studs
+	AuroraSquash = 2, -- velocity stretch — silky streaks, not blobs
+	AuroraLifeMin = 2,
+	AuroraLifeMax = 4,
+	AuroraEmission = 0.85, -- LightEmission — self-glow through the night
 	-- NORTHERN LIGHTS (§18 world "polar"): the aurora is a soft-particle
 	-- canopy, not part sheets — giant VelocityPerpendicular streak
 	-- sprites flung on a 10,000-stud burst and frozen mid-flight by Drag

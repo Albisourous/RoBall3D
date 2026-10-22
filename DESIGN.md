@@ -830,10 +830,13 @@ that caused them.
   studs below the deck — cross wires recycle on a frontier like the
   tower rows, longitudinal rays stride by their own window length, and
   both pitch to the grade so the floor stays parallel to the slope.
-  Wave 2 added three more: **BOREALIS SKY** (`aurora`) hangs tall
-  translucent light curtains high beside the lane — they sway on a sine,
-  drift in x, and hue-cycle inside a green→violet window (color-law safe
-  by construction, no red seam); **NEON REEF** (`reef`) fields dense thin
+  Wave 2 added three more: **BOREALIS SKY** (`aurora`) hangs light
+  curtains beside the lane as soft particles — the same one-emitter
+  canopy technique as `polar` (giant `VelocityPerpendicular` streaks
+  frozen mid-flight by `Drag`), but each fan is yawed so its sprite
+  plane runs ALONG the track beside the deck, rays streaking forward
+  and back past the ball over a green→cyan→violet gradient (color-law
+  safe by construction, no red seam); **NEON REEF** (`reef`) fields dense thin
   neon strands rising out of the void beside the deck — bases sink below
   the plane, tips poke above it, like kelp on a wireframe reef;
   **METEOR SHOWER** (`meteor`) is the one animated sky — thin neon
