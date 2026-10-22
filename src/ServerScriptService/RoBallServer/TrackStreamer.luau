@@ -623,11 +623,16 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 			makeWall(holder, centerX + width / 2 - 0.5, topY, zMid, mid.wallH, span, pitch, roll, spec.type, deckColor)
 		end
 
-		-- TunnelSlot roof (§8.6): a dark ceiling ribbon with neon edge
-		-- lines enclosing the deck. Non-collide — nothing can reach it.
+		-- TunnelSlot/PressRow roof (§8.6): a dark ceiling ribbon with neon
+		-- edge lines enclosing the deck. Non-collide — a pad-launched ball
+		-- sails through the ribbon instead of landing on the ceiling or
+		-- wedging under PressRow's roof fade ramps.
 		if mid.roofH and mid.roofH > 0.1 then
 			local roofY = topY + mid.roofH
-			makeSlicePart(holder, centerX, roofY, zMid, width, span, pitch, roll, spec.type, deckColor)
+			local roof = makeSlicePart(holder, centerX, roofY, zMid, width, span, pitch, roll, spec.type, deckColor)
+			roof.CanCollide = false
+			roof.CanQuery = false
+			roof.CanTouch = false
 			local c = Palette.dimAt(-zMid, Config.Art.GridValue * gridScale)
 			makeEdgeStrip(holder, centerX - width / 2 + EDGE_W / 2, roofY, zMid, span, pitch, roll, spec.type, c)
 			makeEdgeStrip(holder, centerX + width / 2 - EDGE_W / 2, roofY, zMid, span, pitch, roll, spec.type, c)

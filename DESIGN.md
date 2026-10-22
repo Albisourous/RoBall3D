@@ -375,7 +375,10 @@ narrow. Then the seeded generator takes over.
 
 **Feature chunks (§8.6) extend the contract**
 - `Section.cutoutOff` shifts a cutout's center off the deck axis (Fork).
-- `Section.roofH` emits a dark ceiling ribbon + neon ribs (TunnelSlot).
+- `Section.roofH` emits a dark ceiling ribbon + neon ribs (TunnelSlot,
+  PressRow). Non-collide — a launched ball sails through it rather than
+  riding the roof (a collidable roof fade ramp scooped PadHop landings
+  onto the ceiling and pinned slow rollers under the exit wedge).
 - `Obstacle.hang` anchors a slab's top to `roofH` — hanging gate columns.
 - `Obstacle.motion` (`slideX`/`spin`/`dropY` + periodSec/phase) —
   beat-locked movers; periods are whole-note counts of the heard tempo
