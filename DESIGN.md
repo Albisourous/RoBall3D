@@ -117,14 +117,19 @@ explainable.
   that way, `both` = either mapping. First tap still steers — the dash
   only reads on the repeat press. Steering is ignored mid-burst — the
   dodge is a commitment.
-  Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
+  Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells —
+  TEMP TEST OVERRIDE: `Cost` 0.03 + `Power.Capacity` 12, a 10× meter —
+  see the TODO markers in `Config`)
   of the **same** power meter boost/brake drain — offense, defense and
   dodge all bid on one resource, so a spent dodge is a boost you don't
   have. Dash arms on the **marker**, not its own threshold: the gold
   `RechargeGate` notch is the readiness read for every verb — below it
   a press is denied (the bar flickers dim), past it the dodge is live.
-  `Cooldown` (0.45s) paces repeat bursts — the meter is the real
-  limiter. Airborne is legal physics: a bad Terrace bounce or ramp arc
+  `Cooldown` (0.35s) paces repeat bursts — the meter is the real
+  limiter. A press that lands mid-burst or on cooldown doesn't die: it
+  arms a `BufferWindow` (0.4s) buffer that auto-fires the moment the
+  window is legal, so back-to-back pairs (`A·A` then `D·D`) chain at the
+  earliest legal instant instead of being eaten. Airborne is legal physics: a bad Terrace bounce or ramp arc
   can be bought sideways at meter cost, and a dash can even carry a
   narrow cutout laterally — voids still kill (Y stays gravity's), so
   the skip is a gamble, not a cheat. The bar flashes white for the

@@ -88,6 +88,7 @@ local lastDashAt = 0
 -- "tap" dash style (§4): last press time per steer direction — a second
 -- tap inside Dash.TapWindow dashes instead of just steering.
 local lastTapAt = { [-1] = 0, [1] = 0 }
+local dashBuffered: { dir: number, at: number }? = nil -- press during burst/cooldown arms a fire-on-unlock dash
 local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
 local bestDist = 0 -- RoBallBestDist: the PB gate's z; 0 = no marked record
 local passedBest = false -- set when this run crosses it (one flash only)
@@ -264,6 +265,7 @@ local function bindBall(b: Instance)
 		lastDashAt = 0
 		lastTapAt[-1] = 0
 		lastTapAt[1] = 0
+		dashBuffered = nil
 		dashDeniedAt = 0
 		wasDashing = false
 		stuckT = 0
@@ -795,6 +797,15 @@ local function tryDash(dir: number): string
 	return "fired"
 end
 
+-- Buffering (§4): a press that lands mid-burst or inside Cooldown would
+-- otherwise die silently — arm it instead, and the drive loop fires it
+-- the moment the window is legal. Back-to-back pairs chain.
+local function queueDash(dir: number)
+	if tryDash(dir) == "cooldown" then
+		dashBuffered = { dir = dir, at = tick() }
+	end
+end
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
@@ -812,16 +823,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	-- press of the same steer key inside TapWindow; "both" allows either.
 	local dm = dashMode()
 	if (dm == "keys" or dm == "both") and input.KeyCode == Enum.KeyCode.Q then
-		tryDash(-1)
+		queueDash(-1)
 	elseif (dm == "keys" or dm == "both") and input.KeyCode == Enum.KeyCode.E then
-		tryDash(1)
+		queueDash(1)
 	elseif dm == "tap" or dm == "both" then
 		local dir = if input.KeyCode == Enum.KeyCode.A then -1 elseif input.KeyCode == Enum.KeyCode.D then 1 else 0
 		if dir ~= 0 then
 			local now = tick()
 			if now - lastTapAt[dir] <= Config.Dash.TapWindow then
 				lastTapAt[dir] = 0
-				tryDash(dir)
+				queueDash(dir)
 			else
 				lastTapAt[dir] = now
 			end
@@ -870,6 +881,14 @@ RunService.Heartbeat:Connect(function(dt)
 	-- eases in over ~50ms instead of hard-sliding. Steering input is
 	-- ignored for the window; on expiry the velocity clamps back into
 	-- steer range so residual drift is normal steering, not a free slide.
+	-- Consume a buffered dash once the burst window is legal again —
+	-- stale presses expire after BufferWindow so a dropped dodge doesn't
+	-- surprise-fire later. "denied"/"fired" clear it in one shot.
+	if
+		dashBuffered and (now - dashBuffered.at > Config.Dash.BufferWindow or tryDash(dashBuffered.dir) ~= "cooldown")
+	then
+		dashBuffered = nil
+	end
 	local dashing = now < dashUntil
 	local targetLat = intent * steer.MaxLateralSpeed
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel

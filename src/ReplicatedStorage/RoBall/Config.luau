@@ -48,7 +48,7 @@ Config.Speed = {
 Config.Power = {
 	Mult = 1.5, -- forward speed multiplier while boosting — a real kick
 	AccelMult = 4, -- ease rate x Accel while boosting: the BPM HUD visibly JUMPS
-	Capacity = 1.2, -- seconds of held-verb drain on a full meter — spend it deliberately
+	Capacity = 12, -- TODO(test): revert to 1.2 — 10x meter for dash testing
 	RegenPerSec = 0.15, -- meter fraction refilled per second off (~6.7s to full)
 	RechargeGate = 0.35, -- emptied meter must refill this far to act again — the marker
 }
@@ -60,8 +60,9 @@ Config.Dash = {
 	Speed = 64, -- studs/s lateral target during the burst (~2.4x max steer)
 	Time = 0.16, -- burst window — ~10 studs of sidestep before hand-back
 	Accel = 2400, -- burst ease rate: reaches Speed in ~25ms, snaps in fast
-	Cost = 0.3, -- meter fraction per dash (~4 LED cells, 3 dashes per full bar)
-	Cooldown = 0.45, -- seconds between dashes (the meter is the real limiter)
+	Cost = 0.03, -- TODO(test): revert to 0.3 — 10x meter for dash testing (~33 dashes/bar)
+	Cooldown = 0.35, -- seconds between dashes (the meter is the real limiter)
+	BufferWindow = 0.4, -- a press mid-burst/on cooldown stays armed this long — chains snap
 	-- Dash style (§4): a saved menu toggle picks the input mapping —
 	-- "keys" (Q/E), "tap" (double-tap the steer key), or "both".
 	-- Mirrored as RoBallDashMode; persisted in the profile like a mixer gain.
