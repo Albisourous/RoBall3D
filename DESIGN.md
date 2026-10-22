@@ -344,7 +344,7 @@ narrow. Then the seeded generator takes over.
 | `BlockField` | Scattered red blocks, density scales with tier | Weaving pressure | 3+ |
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
 | `Terrace` | Deck descends in soft lips — each tread is one whole cosine ease: flat at both seams, steepest mid-tread. No up-slopes, no lip edge, no foot-V — a flying ball only ever meets surfaces sloping away | Free ballistic spectacle | 2+ |
-| `Swell` | Full-width ribbon undulating in y — a pump line of gentle crests; integer sine periods land the exit on the entry height, and a slope cap (`Swell.SlopeMax`) keeps crests as hops, not launches | Kinesthetic rest | 2+ |
+| `Swell` | Full-width ribbon undulating in y — rolling hills, up and down 3–6 times a chunk (amp 2–7); integer sine periods land the exit on the entry height, and `Swell.SlopeMax` keeps crests as air-popping hops, never walls | Kinesthetic rest | 2+ |
 | `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave | Hold the line | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |
 | `Blackout` | Flat geometry, grid/center neon dims to rails+gems only — break sections only | Atmosphere | 3+ |
@@ -514,7 +514,10 @@ game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
 a pure-Luau sweep walking GenCore for N seeds asserting all of the above
 plus entry continuity and debut ordering. Two further audits: the
 **flat-exit seam** (roll/cutout/wall/roof are chunk-internal — every chunk
-must hand the next a level, open seam) and **lateral reachability** — the
+must hand the next a level, open seam), the **no-up-step** invariant (the
+deck never presents an upward-facing step — fine-sampled sections flag
+any rise steeper than ~1.5 studs/stud; smooth rises like RampGap's ramp
+and Swell's hills stay far below), and **lateral reachability** — the
 set of lane-local x positions a ball can still occupy is propagated through
 each chunk's valid ribbon band (minus ball radius, split by cutouts,
 shrunk around static lethal blockers over their depth, voids expand-only)

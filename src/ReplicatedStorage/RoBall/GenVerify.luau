@@ -328,6 +328,28 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 			end
 		end
 
+		-- No-up-step invariant: the deck may never present an upward-facing
+		-- step or ledge — a low-flying ball wedges on one (the Terrace bug).
+		-- Sample at half-stud resolution across contiguous deck and flag any
+		-- rise steeper than ~1.5/stud; smooth rises stay far under that
+		-- (RampGap's launch ramp peaks ~0.67, Swell crests cap at SlopeMax),
+		-- so only a true step trips it. Void samples break the chain — the
+		-- landing lip's drop is a cliff down, never up.
+		local fineN = math.max(8, math.ceil(spec.length * 2))
+		local prevY, prevW = 0, 0
+		for k = 0, fineN do
+			local s = spec.section(k / fineN)
+			if s.width > 0.5 and prevW > 0.5 then
+				local rise = (s.y - prevY) * (fineN / spec.length)
+				if rise > 1.5 then
+					bad(string.format("up-step: deck rises %.2f/stud at t=%.2f", rise, k / fineN), spec, i)
+					break
+				end
+			end
+			prevY = s.y
+			prevW = s.width
+		end
+
 		-- Lethal rows: corridor + spacing between consecutive rows.
 		if spec.obstacles and #spec.obstacles > 0 then
 			local sorted = table.clone(spec.obstacles)

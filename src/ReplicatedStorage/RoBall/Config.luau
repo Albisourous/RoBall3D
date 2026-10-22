@@ -423,15 +423,15 @@ Config.Blackout = {
 
 Config.Swell = {
 	-- Deck-shape rest chunk (DESIGN.md §8.3): full-width ribbon undulating
-	-- in y — a pump line of gentle crests. Integer periods land the exit
+	-- in y — a pump line of rolling hills. Integer periods land the exit
 	-- back on the entry height so the seam stays clean.
-	LenMin = 140,
-	LenMax = 220,
-	PeriodsMin = 2,
-	PeriodsMax = 3,
-	AmpMin = 1.2,
-	AmpMax = 3.5,
-	SlopeMax = 0.22, -- peak added slope; past this a crest launches, not pops
+	LenMin = 160,
+	LenMax = 260,
+	PeriodsMin = 3,
+	PeriodsMax = 6,
+	AmpMin = 2.0,
+	AmpMax = 7.0,
+	SlopeMax = 0.36, -- peak added slope; past this a crest launches hard, not pops
 }
 
 Config.Sway = {

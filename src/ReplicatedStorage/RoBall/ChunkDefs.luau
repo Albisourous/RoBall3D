@@ -970,10 +970,11 @@ function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): C
 end
 
 -- Swell: a full-width ribbon whose deck undulates in y — a pump line of
--- gentle crests and troughs. Integer periods land the exit exactly on
--- the entry height so the seam is clean; the slope cap keeps a fast
--- ball hopping the crests rather than launching off them. Rest-family
--- like Terrace — no canRun gate, the audit's reach band stays full.
+-- rolling hills, up and down several times per chunk. Integer periods
+-- land the exit exactly on the entry height so the seam is clean; the
+-- slope cap keeps crests steep enough to pop a heartbeat of air, never
+-- enough to throw the run. Rest-family like Terrace — no canRun gate,
+-- the audit's reach band stays full.
 function ChunkDefs.Swell(rng: Random, st: GenState, _tier): ChunkSpec
 	local C = Config.Swell
 	local length = rng:NextInteger(C.LenMin, C.LenMax)
