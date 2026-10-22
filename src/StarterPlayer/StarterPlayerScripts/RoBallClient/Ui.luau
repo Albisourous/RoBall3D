@@ -1177,30 +1177,79 @@ function Ui.new(): Ui
 	end
 
 	--=========== BANK (§18 P2) ===========--
-	-- Gem economy page: balance line, three gem-pack dev products, and the
-	-- 2X BANK pass row. Everything degrades to SOON until the ids are
-	-- created on the dashboard — the buttons only arm via setGarage.
+	-- The economy page, not just a checkout: hero balance card (what you
+	-- hold), top-up cards (buy more), a TODAY'S FLOW ledger (what today
+	-- already paid + what's still on the table), then the 2X pass.
+	-- Everything degrades to SOON until the dashboard ids exist — the
+	-- buttons only arm via setGarage.
 	local pageBank = gPages.BANK
-	-- Balance reads in the garage header now (always visible) — this page
-	-- is just the spend surface.
-	label(pageBank, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 6)
+	local function caption(text: string, y: number)
+		local c = label(pageBank, text, 10, F_DATA, C_DIM, 0)
+		c.Position = UDim2.fromOffset(14, y)
+		c.Size = UDim2.fromOffset(312, 14)
+		c.TextXAlignment = Enum.TextXAlignment.Left
+		c.TextTransparency = 0.35
+		return c
+	end
 
-	-- Gem packs: three equal buttons "◊300\nR$49". Enabled state arrives via
-	-- setGarage's gemPacks list (SOON until product ids exist).
+	label(pageBank, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 4)
+
+	-- Balance hero: the number the whole page is about — gold and huge,
+	-- with today's inflow + the streak on the right for context. The
+	-- header's small ◊ stays (prices read against it everywhere).
+	local balCard = Instance.new("Frame")
+	balCard.BackgroundColor3 = C_BG
+	balCard.Position = UDim2.fromOffset(14, 26)
+	balCard.Size = UDim2.fromOffset(312, 56)
+	balCard.Parent = pageBank
+	local balCorner = Instance.new("UICorner")
+	balCorner.CornerRadius = UDim.new(0, 8)
+	balCorner.Parent = balCard
+	local balStroke = Instance.new("UIStroke")
+	balStroke.Color = C_GOLD
+	balStroke.Thickness = 1.5
+	balStroke.Parent = balCard
+
+	local hero = Instance.new("TextLabel")
+	hero.BackgroundTransparency = 1
+	hero.Font = F_DATA
+	hero.TextSize = 30
+	hero.TextColor3 = C_GOLD
+	hero.TextXAlignment = Enum.TextXAlignment.Left
+	hero.Position = UDim2.fromOffset(14, 0)
+	hero.Size = UDim2.fromOffset(160, 56)
+	hero.Text = "◊ 0"
+	hero.Parent = balCard
+	self.bankHero = hero
+	local bankToday = label(balCard, "", 11, F_DATA, C_DIM, 0)
+	bankToday.Position = UDim2.fromOffset(150, 11)
+	bankToday.Size = UDim2.fromOffset(152, 16)
+	bankToday.TextXAlignment = Enum.TextXAlignment.Right
+	local bankStreak = label(balCard, "", 11, F_DATA, C_GOLD, 0)
+	bankStreak.Position = UDim2.fromOffset(150, 29)
+	bankStreak.Size = UDim2.fromOffset(152, 16)
+	bankStreak.TextXAlignment = Enum.TextXAlignment.Right
+	self.bankToday = bankToday
+	self.bankStreak = bankStreak
+
+	-- Gem packs: three equal cards — the ◊ amount reads big, the price
+	-- small. Enabled state arrives via setGarage's gemPacks list (SOON
+	-- until product ids exist). The vault carries the BEST tag — most
+	-- gems per R$ of the three.
+	caption("TOP-UP", 92)
 	self.gemPackBtn = {}
 	self.gemPackStroke = {}
 	self.gemPackEnabled = {}
+	self.gemPackAmt = {}
+	self.gemPackPrice = {}
 	for i, key in ipairs(Config.Monetization.ProductOrder) do
 		local b = Instance.new("TextButton")
 		b.BackgroundColor3 = C_BG
 		b.BackgroundTransparency = 0
 		b.AutoButtonColor = false
-		b.Font = F_DATA
-		b.TextSize = 13
-		b.TextColor3 = C_GOLD
-		b.Text = "◊?\nSOON"
-		b.Position = UDim2.fromOffset(14 + (i - 1) * 103, 32)
-		b.Size = UDim2.fromOffset(96, 44)
+		b.Text = ""
+		b.Position = UDim2.fromOffset(14 + (i - 1) * 108, 108)
+		b.Size = UDim2.fromOffset(96, 58)
 		b.Parent = pageBank
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
@@ -1210,17 +1259,46 @@ function Ui.new(): Ui
 		stroke.Color = C_GOLD
 		stroke.Thickness = 1.5
 		stroke.Parent = b
+		local amt = Instance.new("TextLabel")
+		amt.BackgroundTransparency = 1
+		amt.Font = F_DATA
+		amt.TextSize = 17
+		amt.TextColor3 = C_GOLD
+		amt.Text = "◊?"
+		amt.Position = UDim2.fromOffset(0, 8)
+		amt.Size = UDim2.new(1, 0, 0, 20)
+		amt.Parent = b
+		local prc = Instance.new("TextLabel")
+		prc.BackgroundTransparency = 1
+		prc.Font = F_DATA
+		prc.TextSize = 10
+		prc.TextColor3 = C_DIM
+		prc.Text = "SOON"
+		prc.Position = UDim2.fromOffset(0, 34)
+		prc.Size = UDim2.new(1, 0, 0, 14)
+		prc.Parent = b
+		if i == #Config.Monetization.ProductOrder then
+			local tag = Instance.new("TextLabel")
+			tag.BackgroundTransparency = 1
+			tag.Font = F_DATA
+			tag.TextSize = 8
+			tag.TextColor3 = C_CYAN
+			tag.Text = "★ BEST"
+			tag.Position = UDim2.fromOffset(0, -10)
+			tag.Size = UDim2.new(1, 0, 0, 10)
+			tag.Parent = b
+		end
 		self.gemPackBtn[key] = b
 		self.gemPackStroke[key] = stroke
+		self.gemPackAmt[key] = amt
+		self.gemPackPrice[key] = prc
 		b.MouseEnter:Connect(function()
 			if self.gemPackEnabled[key] then
-				b.TextColor3 = C_CYAN
 				stroke.Color = C_CYAN
 			end
 		end)
 		b.MouseLeave:Connect(function()
-			b.TextColor3 = self.gemPackEnabled[key] and C_GOLD or C_DIM
-			stroke.Color = b.TextColor3
+			stroke.Color = self.gemPackEnabled[key] and C_GOLD or C_DIM
 		end)
 		b.MouseButton1Click:Connect(function()
 			if self.gemPackEnabled[key] and self.onGemPack then
@@ -1229,13 +1307,38 @@ function Ui.new(): Ui
 		end)
 	end
 
+	-- TODAY'S FLOW: the ledger — what today already paid, what the open
+	-- missions still owe, and what the next daily run's streak pays.
+	-- Painted by _paintBankFlow from RoBallQuests + the streak attribute.
+	caption("TODAY'S FLOW", 176)
+	local function flowLine(y: number)
+		local name = label(pageBank, "", 11, F_DATA, C_DIM, 0)
+		name.Position = UDim2.fromOffset(14, y)
+		name.Size = UDim2.fromOffset(180, 15)
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		local amt = label(pageBank, "", 11, F_DATA, C_GOLD, 0)
+		amt.Position = UDim2.fromOffset(180, y)
+		amt.Size = UDim2.fromOffset(146, 15)
+		amt.TextXAlignment = Enum.TextXAlignment.Right
+		return name, amt
+	end
+	self.flowBanked = { flowLine(194) }
+	self.flowMissions = { flowLine(210) }
+	self.flowStreak = { flowLine(226) }
+
 	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
 	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow(pageBank, "bank2x", "2X BANK", "every gem banks double", 90)
+	packRow(pageBank, "bank2x", "2X BANK", "every gem banks double", 250)
 
 	local hint = label(pageBank, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
-	hint.Position = UDim2.fromOffset(0, 136)
+	hint.Position = UDim2.fromOffset(0, 296)
 	hint.TextTransparency = 0.3
+
+	-- The streak only moves at run end — repaint the ledger when it does
+	-- (setQuests covers the mission/banked lines on its own pushes).
+	Players.LocalPlayer:GetAttributeChangedSignal("RoBallDailyStreak"):Connect(function()
+		self:_paintBankFlow()
+	end)
 
 	--=========== AUDIO (AUDIO.md §7) ===========--
 	-- Mixer page: one channel per row, stacked — the garage panel is too
@@ -2260,6 +2363,35 @@ function Ui:setQuests(csv: string)
 			line.TextColor3 = done and C_GOLD or C_DIM
 		end
 	end
+	self:_paintBankFlow()
+end
+
+-- TODAY'S FLOW (§18 P2): the bank page's ledger — banked today, the
+-- open missions' rewards still on the table, and the next daily run's
+-- streak payout. RoBallQuests csv carries the flags + today's tally;
+-- RoBallDailyStreak carries the day count.
+function Ui:_paintBankFlow()
+	local parts = string.split(self.missionCsv or "", ",")
+	local banked = tonumber(parts[#parts]) or 0
+	local open = 0
+	for i, q in ipairs(Daily.quests()) do
+		if parts[i] ~= "1" then
+			open += q.reward
+		end
+	end
+	local lp = Players.LocalPlayer
+	local streak = (lp and lp:GetAttribute("RoBallDailyStreak")) or 0
+	local m = Config.Monetization
+	local nextBonus = math.min(streak + 1, m.DailyStreakCap) * m.DailyStreakBonus
+	self.flowBanked[1].Text = "banked today"
+	self.flowBanked[2].Text = "+◊" .. tostring(banked)
+	self.flowMissions[1].Text = "missions left"
+	self.flowMissions[2].Text = open > 0 and ("+◊" .. tostring(open)) or "cleared ✓"
+	self.flowMissions[2].TextColor3 = open > 0 and C_GOLD or C_DIM
+	self.flowStreak[1].Text = streak > 0 and string.format("day-%d streak", streak) or "no streak yet"
+	self.flowStreak[2].Text = "+◊" .. tostring(nextBonus) .. " next daily"
+	self.bankToday.Text = string.format("today +◊%d", banked)
+	self.bankStreak.Text = streak > 0 and string.format("day-%d streak", streak) or ""
 end
 
 -- Live mission tracker (§14): snapshot the bank balance at run start so
@@ -2494,12 +2626,16 @@ function Ui:setGarage(state: GarageState)
 	for key, btn in pairs(self.gemPackBtn) do
 		local st = state.gemPacks[key]
 		local enabled = st ~= nil and st.enabled == true
-		btn.Text = if st then st.label else "SOON"
-		btn.TextColor3 = enabled and C_GOLD or C_DIM
+		local lines = string.split(if st then st.label else "SOON", "\n")
+		self.gemPackAmt[key].Text = lines[1] or ""
+		self.gemPackAmt[key].TextColor3 = enabled and C_GOLD or C_DIM
+		self.gemPackPrice[key].Text = lines[2] or ""
 		self.gemPackStroke[key].Color = enabled and C_GOLD or C_DIM
 		self.gemPackEnabled[key] = enabled
+		btn.TextColor3 = enabled and C_GOLD or C_DIM
 	end
 	self.bankLabel.Text = "◊ " .. tostring(state.bank)
+	self.bankHero.Text = "◊ " .. tostring(state.bank)
 	-- COLOR LAB: visibility comes from ownership; the pushed hues re-seat
 	-- the knobs/swatches (writes only happen on release, so this never
 	-- fights a live drag).

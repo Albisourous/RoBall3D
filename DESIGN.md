@@ -1303,8 +1303,14 @@ Name-click is the conversion funnel: a bundled item jumps to PACKS with
 its bundle unfolded, scrolled into view, and the buy chip flared — the
 open accordion still lists each member with its ◊price as the à-la-carte
 escape hatch (unbundled singles keep the direct name-click buy). The BANK
-block shows the balance, three gem-pack buttons (SOON until product ids
-exist), and the 2X BANK row wired like a bundle pass. The death screen reads `◊ +N BANKED` — the payout visible on
+page is the economy surface: a gold-bordered hero card carries the
+balance big (`today +◊N` / `day-N streak` right-aligned for context), a
+`TOP-UP` caption heads three gem-pack cards (◊ amount big, price small,
+SOON until product ids exist — the vault tags `★ BEST`, most gems per
+R$), a `TODAY'S FLOW` ledger shows banked today / open-mission rewards
+left / the next daily run's streak payout (repainted by `setQuests` +
+the streak attribute), then the 2X BANK row wired like a bundle pass.
+The death screen reads `◊ +N BANKED` — the payout visible on
 every run end.
 
 **Show surfaces**: private lanes hide other players, so the flex surfaces
