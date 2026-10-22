@@ -170,7 +170,6 @@ everything below:
 AudioPlayer[stem] ──► AudioFader[stem] ─┐
 AudioPlayer[stem] ──► AudioFader[stem] ─┤   (players stay sample-locked:
 ...  4–6 stems ──►  ...               ──┤    same length, Play() same frame)
-AudioPlayer[wind] ─► AudioFilter ─► AudioFader
                                         ▼
                       AudioFilter[lowpass] ─► AudioPitchShifter ─► AudioFader[duck] ─► AudioDeviceOutput
                                               ▲                              │
@@ -349,7 +348,7 @@ Anything that *sounds* musical lands on the grid:
   `DenyTime` — a blunt "nope" that never rings out. Cooldown presses are
   silent — denial audio mirrors the bar flicker exactly.
 
-## 7. Scene scoring — menu, death, wind
+## 7. Scene scoring — menu, death
 
 - **Menu**: same track at `PlaybackSpeedMin` through a half-closed
   `AudioFilter` lowpass (~2kHz) — the muffled-diner version of the game
@@ -359,19 +358,13 @@ Anything that *sounds* musical lands on the grid:
   18kHz → 700Hz over the same 0.5s, then hold under the death screen.
   Restart resets both instantly (instant restart stays sacred — no fade-in
   tax).
-- **Wind** — looped noise `AudioPlayer` through its own fader +
-  `AudioFilter`; volume `∝ speedNorm²`, cutoff `2k → 8kHz` with speed,
-  exponentially smoothed (~140ms approach) so the per-heartbeat tracking
-  doesn't zipper the filter. The speed you hear is wind + tempo — two
-  channels of the same signal.
 - **Menu mixer** (`Config.Audio`, `AudioMix`) — the garage's `AUDIO`
-  page: four stacked sliders `MUSIC / GEMS / DASH / WIND`, each
+  page: three stacked sliders `MUSIC / GEMS / DASH`, each
   0–100%, live-dragged (apply on every move, persist on release).
-  Defaults come from `Config.Audio.Defaults` — all four at half, since
+  Defaults come from `Config.Audio.Defaults` — all three at half, since
   the sources are mixed hot and full-everything was deafening. Gains
   land on dedicated taps: `musicFader` post-duck, `sfxFader` for
-  pickup voices, `windFader`'s per-frame target scaled, and dash
-  one-shots multiplied at spawn. State round-trips through
+  pickup voices, and dash one-shots multiplied at spawn. State round-trips through
   `RoBallVol_<ch>` attributes + `profile.audio` — the `RoBallEq_*`
   equip pattern — so a mix survives sessions; the attribute echo never
   re-invokes the remote.

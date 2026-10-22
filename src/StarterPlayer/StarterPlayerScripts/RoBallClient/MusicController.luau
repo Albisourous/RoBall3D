@@ -45,12 +45,8 @@ local shifter: any = nil
 local duckFader: any = nil
 local sfxFader: any = nil -- post-duck tap for one-shot voices (gem chimes)
 local musicFader: any = nil -- user MUSIC gain (AudioMix): post-duck, pre-output
-local windGain = 1 -- user WIND gain (AudioMix): scales the per-frame target
 local duckGen = 0 -- duck() generation: a newer dip cancels an older release
 local analyzer: any = nil
-local windPlayer: any = nil
-local windFilter: any = nil
-local windFader: any = nil
 
 local norm = 0 -- last speedNorm, kept so layer fades see it
 local tier = 1
@@ -99,9 +95,6 @@ local function ps(): number
 end
 
 local lastPs: number = 0 -- last applied step; steps glide, holds are free
-local windSmV = 0 -- smoothed wind fader level
-local windSmHz = m.WindCutMin -- smoothed wind cutoff
-local windLastT = tick()
 
 local function applySpeed()
 	local speed = ps()
@@ -125,18 +118,6 @@ local function applySpeed()
 			end
 		end
 		lastPs = speed
-	end
-	if windFader then
-		-- Exponential smoothing (~140ms approach): the wind bed tracks
-		-- speed every heartbeat — hard sets would zipper-noise the filter
-		-- and step the loudness. dt-based so it's frame-rate independent.
-		local now = tick()
-		local k = math.min(1, (now - windLastT) * 7)
-		windLastT = now
-		windSmV += (m.WindVolume * windGain * norm * norm - windSmV) * k
-		windSmHz += (m.WindCutMin + (m.WindCutMax - m.WindCutMin) * norm - windSmHz) * k
-		windFader.Volume = windSmV
-		windFilter.Frequency = windSmHz
 	end
 end
 
@@ -183,7 +164,7 @@ local function syncStems()
 end
 
 -- Tear down the current track's player set (track switch at run start).
--- The bus tail and wind bed are shared and survive.
+-- The bus tail is shared and survives.
 local function teardownPlayers()
 	for _, p in ipairs(players) do
 		p:Destroy()
@@ -362,27 +343,6 @@ function Music.init()
 	-- re-pick per seed in onStart.
 	selectTrack(m.menuTrackId())
 
-	-- Speed-wind bed (optional until the asset is uploaded)
-	if m.WindAssetId ~= 0 then
-		windPlayer = newPlayer(contentId(m.WindAssetId), true)
-		windFilter = Instance.new("AudioFilter")
-		windFilter.FilterType = Enum.AudioFilterType.Lowpass12dB
-		windFilter.Frequency = m.WindCutMin
-		windFilter.Parent = folder
-		windFader = Instance.new("AudioFader")
-		windFader.Volume = 0
-		windFader.Parent = folder
-		-- Wind taps straight to output (not through the music bus): the
-		-- menu mixer's WIND channel is independent of MUSIC — and wind is
-		-- ~silent in the menu anyway since its level rides speedNorm.
-		wire(windPlayer, windFilter)
-		wire(windFilter, windFader)
-		wire(windFader, output)
-		task.defer(function()
-			windPlayer:Play()
-		end)
-	end
-
 	-- Boot in the menu state: same track, muffled under the lowpass.
 	lowpass.Frequency = m.MenuCutoffHz
 	for _, p in ipairs(players) do
@@ -419,9 +379,6 @@ function Music.onStart(seed: number?)
 			p:Play()
 		end
 	end
-	if windPlayer and not windPlayer.IsPlaying then
-		windPlayer:Play()
-	end
 	tier = 1
 	applyLayers()
 	setFilter(m.OpenCutoffHz, 0.25)
@@ -437,9 +394,6 @@ function Music.onDeath()
 	if shifter then
 		-- pitch compensation would fight the slide — open it back up
 		TweenService:Create(shifter, TweenInfo.new(m.FilterSweepTime), { Pitch = 1 }):Play()
-	end
-	if windFader then
-		TweenService:Create(windFader, TweenInfo.new(m.FilterSweepTime), { Volume = 0 }):Play()
 	end
 end
 
@@ -504,16 +458,13 @@ end
 -- keeps the punch. Generation-guarded: a rapid second pickup cancels the
 -- previous release so dips re-trigger cleanly instead of fighting.
 -- User mixer gain (AudioMix, AUDIO.md §7): each channel lands on its own
--- tap — music on the post-duck masterFader, gems on the SFX one-shot tap,
--- wind folded into its per-frame target. "dash" has no graph node: its
--- plain Sounds scale at spawn in Sfx.
+-- tap — music on the post-duck masterFader, gems on the SFX one-shot tap.
+-- "dash" has no graph node: its plain Sounds scale at spawn in Sfx.
 function Music.setGain(ch: string, v: number)
 	if ch == "music" and musicFader then
 		musicFader.Volume = v
 	elseif ch == "gems" and sfxFader then
 		sfxFader.Volume = v
-	elseif ch == "wind" then
-		windGain = v
 	end
 end
 

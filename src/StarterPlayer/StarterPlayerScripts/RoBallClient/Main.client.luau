@@ -36,22 +36,18 @@ local camera = workspace.CurrentCamera
 camera.CameraType = Enum.CameraType.Scriptable -- set once (PERFORMANCE.md §1), not re-asserted per frame
 local Lighting = game:GetService("Lighting")
 
--- Speed-blur meter (DESIGN.md §12): BlurEffect for the screen smear +
--- the place's DepthOfField retuned so only the horizon goes soft, both
--- ramping off fwdSpeed in the render loop. The DoF ships in the place
--- file with a near focus that blurred the whole track — we take it over.
-local speedBlur = Lighting:FindFirstChild("SpeedBlur") :: BlurEffect?
-if not speedBlur then
-	speedBlur = Instance.new("BlurEffect")
-	speedBlur.Name = "SpeedBlur"
-	speedBlur.Size = 0
-	speedBlur.Parent = Lighting
+-- No gameplay blur/DoF (§12): the place file ships a DepthOfField at a
+-- near focus that softens the whole track — destroy it on boot. Any
+-- stale SpeedBlur a previous version created gets removed the same way.
+for _, name in ipairs({ "SpeedBlur" }) do
+	local fx = Lighting:FindFirstChild(name)
+	if fx then
+		fx:Destroy()
+	end
 end
 local dof = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
 if dof then
-	dof.FocusDistance = Config.Blur.DofFocusDistance
-	dof.InFocusRadius = Config.Blur.DofFocusDistance * 0.6
-	dof.NearIntensity = 0
+	dof:Destroy()
 end
 
 local remotes = ReplicatedStorage:WaitForChild("RoBallRemotes")
@@ -1281,14 +1277,6 @@ RunService.RenderStepped:Connect(function(dt)
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
 		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
-		-- Blur meter: power curve — clear through the 0-100 game, smear
-		-- climbs hard into endless mode, capped at MaxBlur.
-		local bl = Config.Blur
-		local curve = math.clamp((fwdSpeed - bl.StartSpeed) / (bl.CurveTop - bl.StartSpeed), 0, 1) ^ bl.Exponent;
-		(speedBlur :: BlurEffect).Size = curve * bl.MaxBlur
-		if dof then
-			dof.FarIntensity = curve * bl.DofFarMax
-		end
 		-- Aim at the deck plane LookAhead studs out: the drop = grade*ahead,
 		-- so the camera pitches into the slope and shows more track (the
 		-- Slope downhill read). Roll leans a few degrees into the steer.

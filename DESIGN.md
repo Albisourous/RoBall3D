@@ -252,11 +252,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     appended on every clean run end, also session-only until the first
     save) and mirrors them to the client as the `RoBallHistory`
     `s,d,z;…` CSV attribute
-  - Audio console — an `AUDIO` garage page, four channel sliders stacked
-    one per row (`MUSIC / GEMS / DASH / WIND`, 0–100%) riding the
+  - Audio console — an `AUDIO` garage page, three channel sliders stacked
+    one per row (`MUSIC / GEMS / DASH`, 0–100%) riding the
     mixer taps in AUDIO.md §7, persisted via `profile.audio` →
     `RoBallVol_<ch>` attributes so a mix survives sessions. Defaults
-    (`Config.Audio.Defaults`): all four at half — the
+    (`Config.Audio.Defaults`): all three at half — the
     sources are mixed hot; full-everything was deafening.
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
@@ -767,7 +767,7 @@ spectacle — crossing its plane inside the opening
 point) pays `Hoop.Score` gem points and `Hoop.Bank` banked gems through
 the same dual-purpose path as a pickup, so the `RoBallGems` bump gives
 it the pickup flourish for free, while a `RoBallHoop` bump fires the
-inhale-swept thread whoosh on the `wind` channel. Off-line or
+inhale-swept thread whoosh on the `gems` channel. Off-line or
 over-the-top passes pay nothing — threading the ring is the ask.
 
 ## 11. Death
@@ -1023,14 +1023,11 @@ that caused them.
   1.5 — only true Neon emissive pixels bloom; earlier 1.15/30/0.8 smeared
   the whole frame into blur, and 0.55/16/1.3 still glowed too hot), subtle `ColorCorrection`, `Atmosphere` density
   0.25 for depth haze. Backdrop's audio pulse binds `WorldBloom` by name
-  (`WaitForChild`), never a stale authored bloom. **Speed blur** is a meter, not a constant: a
-  `BlurEffect` + the `DepthOfField`'s far intensity ramp off `fwdSpeed` —
-  a power curve (`MaxBlur * t^Exponent`, t normalized `StartSpeed`→`CurveTop`,
-  StartSpeed 100) so sub-100 stays perfectly clear and the smear climbs
-  exponentially past it, capped at MaxBlur — crystal at
-  tier pace, smearing only deep into endless mode. The place-file DoF used
-  to sit at a near focus (track permanently soft); the client retunes it to
-  `DofFocusDistance` so only the horizon blurs.
+  (`WaitForChild`), never a stale authored bloom. **No gameplay blur** —
+  the world stays razor sharp at any speed; the place file's shipped
+  `DepthOfFieldEffect` (near focus: whole track soft) and any stale
+  `SpeedBlur` are destroyed on client boot. Speed-drama reads come from
+  the FOV ramp, the danger vignette, and the vignette sonar instead.
 
 ## 13. Audio
 

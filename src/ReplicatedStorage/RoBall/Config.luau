@@ -205,21 +205,8 @@ Config.Sectors = {
 	MarkTrans = 0.25, -- brighter than grid lines, under the edge neon
 }
 
--- Speed blur (DESIGN.md §12): the world smears as the ball gets faster —
--- a BlurEffect plus the DepthOfField's far-field intensity, both driven
--- by forward speed. Power curve, not linear: Size = MaxBlur * t^Exponent
--- where t = (speed - StartSpeed)/(CurveTop - StartSpeed) clamped 0..1.
--- Exponent > 1 keeps everything under 100 s/s perfectly clear — blur is
--- strictly an endless-mode effect — then climbs hard: ~1.7 at 150, ~8 at
--- 200 — the deep-run wall reads as the world literally smearing.
-Config.Blur = {
-	StartSpeed = 100, -- s/s before any blur appears (0–100 stays razor sharp)
-	CurveTop = 220, -- s/s where the curve saturates at MaxBlur
-	Exponent = 2.2, -- >1 = progressively steeper
-	MaxBlur = 12, -- Blur.Size ceiling (engine max is 24; 12 is a heavy smear)
-	DofFarMax = 0.45,
-	DofFocusDistance = 300, -- studs — visible track stays sharp, horizon blurs
-}
+-- No gameplay blur (DESIGN.md §12): the world stays razor sharp at any
+-- speed — post FX is restrained bloom + color correction + atmosphere.
 
 Config.Death = {
 	-- Kill plane (DESIGN.md §11): falling this far below the local deck
@@ -404,7 +391,7 @@ Config.Hoop = {
 	Score = 25, -- gem points for a clean thread (beam-tier value)
 	Bank = 3, -- banked gems paid through ShopService.awardGems
 	-- Whoosh (§10): the bell inhale-swept up through the pass — air
-	-- rushing through the opening; rides the `wind` mixer channel.
+	-- rushing through the opening; rides the `gems` mixer channel.
 	WhooshVol = 0.38,
 	WhooshStartOct = 0.45, -- starts flattened…
 	WhooshEndOct = 1.3, -- …lifts through the thread — triumphant, not a zip
@@ -862,9 +849,9 @@ Config.Audio = {
 	-- (0..1) — the mix is tuned at the sources. Defaults sit at half —
 	-- the sources are mixed hot, full-everything was deafening, and a
 	-- mid default leaves headroom both directions.
-	Channels = { "music", "gems", "dash", "wind" },
-	Defaults = { music = 0.5, gems = 0.5, dash = 0.5, wind = 0.5 },
-	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH", wind = "WIND" },
+	Channels = { "music", "gems", "dash" },
+	Defaults = { music = 0.5, gems = 0.5, dash = 0.5 },
+	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH" },
 	RemoteName = "SetAudio", -- RemoteFunction: SetAudio(ch, 0..1) -> bool
 	AttrPrefix = "RoBallVol_", -- per-channel attribute mirror
 }
@@ -986,13 +973,6 @@ Config.Music = {
 	OpenCutoffHz = 18000,
 	DeathCutoffHz = 700,
 	FilterSweepTime = 0.5,
-	-- Speed wind bed (AUDIO.md §7): looped noise faded/filtered by speed.
-	-- Ceiling is deliberately low — broadband noise fatigues fast, so the
-	-- mixer's WIND slider tops out at a whisper rather than a roar.
-	WindAssetId = 89232863140759,
-	WindVolume = 0.12,
-	WindCutMin = 500,
-	WindCutMax = 4200,
 	-- Analyzer cadence (PERFORMANCE.md §1): GetSpectrum allocates a table
 	-- per call — re-read at this rate and keep the pulse envelope's decay
 	-- running per frame between reads, so visuals stay continuous.

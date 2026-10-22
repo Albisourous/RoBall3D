@@ -151,14 +151,13 @@ end
 
 -- Hoop whoosh (§10): the bell inhale-swept up through the pass — air
 -- rushing through the ring's opening the ball just threaded. Rides the
--- `wind` mixer channel like the speed bed; the gem chime on the same
--- award supplies the consonant hit on top.
+-- `gems` mixer channel with the chime that lands on the same award.
 function Sfx.hoop()
 	local cfg = Config.Hoop
 	local s = Instance.new("Sound")
 	s.Name = "HoopWhoosh"
 	s.SoundId = assetUri(Config.DashSfx)
-	s.Volume = cfg.WhooshVol * AudioMix.gain("wind")
+	s.Volume = cfg.WhooshVol * AudioMix.gain("gems")
 	local ps = Instance.new("PitchShiftSoundEffect")
 	ps.Octave = cfg.WhooshStartOct
 	ps.Parent = s

@@ -64,7 +64,7 @@ entirely.
       Sound exists in the place tree**; it is an engine-side request
       (character-sound legacy id). Verify harmless in a real client;
       remove if it turns out to be ours.
-- [ ] Wind/menu/stem assets all load; the `Music.Wave*` scope trace
+- [ ] Menu/stem assets all load; the `Music.Wave*` scope trace
       (BPM HUD) stays ≤ 30 Hz analyzer reads — no extra taps.
 - [ ] SFX ids (gem pickup, dash, UI) all resolve.
 
