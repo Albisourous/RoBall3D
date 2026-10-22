@@ -12,9 +12,9 @@ the red seam is cut out of the reachable space on both ends.
 
 ---
 
-## Items (98 total)
+## Items (105 total)
 
-### SKIN — ringA/ringB cage + core (18)
+### SKIN — ringA/ringB cage + core (19)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -36,8 +36,9 @@ the red seam is cut out of the reachable space on both ends.
 | IRIS | wave fx | ◊1100 | — (prestige) |
 | COLOR LAB | your hues ×2 | ◊1500 | — (prestige) |
 | NULL | pitch core/ghost rings | ◊800 | null |
+| SUMMIT | sky-blue/white | ◊800 | peaks |
 
-### TRAIL — wake ribbon (17)
+### TRAIL — wake ribbon (18)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -58,16 +59,17 @@ the red seam is cut out of the reachable space on both ends.
 | INFERNO | orange | ◊300 | — |
 | LAB WAKE | your accent hue | ◊1500 | — (prestige) |
 | DRIFT | pale grey | ◊450 | null |
+| RIDGELINE | sky blue | ◊450 | peaks |
 
-### GEM FX — pickup flourish (16)
+### GEM FX — pickup flourish (17)
 
 Same families/prices as trails: GOLD POP + COLD POP free; SUNSET→starter,
 JACKPOT→midas, PRISM→synthwave, AMETHYST→vip, AURORA→aurora,
-SPECTRE→polaris, FROST→solstice, NULL POP→null (◊200–500, bundled);
-VOLT→acid, MINT→reef; PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB
-POP ◊1500 (prestige).
+SPECTRE→polaris, FROST→solstice, NULL POP→null, PEAK POP→peaks
+(◊200–500, bundled); VOLT→acid, MINT→reef; PEACH/GHOST/INFERNO
+(◊250–350, à-la-carte); LAB POP ◊1500 (prestige).
 
-### DEATH FX — run-end burst (15)
+### DEATH FX — run-end burst (16)
 
 | Item | Style | Price | Bundle |
 |---|---|---|---|
@@ -86,13 +88,14 @@ POP ◊1500 (prestige).
 | PINK SLIP | pop | ◊500 | — |
 | LIMEWIRE | shatter | ◊550 | — |
 | FADE | pop | ◊550 | null |
+| LANDSLIDE | shatter | ◊550 | peaks |
 
-### WORLD — side-scenery theme (10)
+### WORLD — side-scenery theme (11)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
 | NEON CITY | tower canyon | free | — |
-| NEON PEAKS | wireframe ridges | ◊800 | acid |
+| NEON PEAKS | wireframe ridges | ◊800 | peaks |
 | STAR WELL | mote shell | ◊800 | vip |
 | GRID PLANE | wireframe floor | ◊800 | synthwave |
 | BOREALIS SKY | aurora curtains | ◊900 | aurora |
@@ -101,8 +104,9 @@ POP ◊1500 (prestige).
 | MIAMI NIGHTS | neon palm grove | ◊800 | starter |
 | NORTHERN LIGHTS | particle-canopy aurora + stars | ◊900 | polaris + solstice |
 | VOIDSPACE | empty — lane + sun only | ◊900 | null |
+| TOXIC WASTES | rising acid bubbles | ◊800 | acid |
 
-### SUN — striped horizon disk (11)
+### SUN — striped horizon disk (12)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -117,8 +121,9 @@ POP ◊1500 (prestige).
 | HALO RISE | thin spectral ring | ◊600 | polaris |
 | NEAP TIDE | cyan→deep blue | ◊600 | reef |
 | DEAD SUN | sparse ghost strips | ◊600 | null |
+| ALPINE SUN | cyan→violet strips | ◊600 | peaks |
 
-### FILTER — screen overlay (11)
+### FILTER — screen overlay (12)
 
 | Item | Look | Price | Bundle |
 |---|---|---|---|
@@ -133,10 +138,11 @@ POP ◊1500 (prestige).
 | ABYSS | deep-ice grade | ◊550 | reef |
 | SNOWBLIND | frost grade | ◊550 | solstice (seasonal) |
 | SOOT | grey desat grade | ◊500 | null |
+| THIN AIR | pale blue grade | ◊500 | peaks |
 
 ---
 
-## Bundle passes (10 + 1 perk)
+## Bundle passes (11 + 1 perk)
 
 Every pack is a complete outfit — exactly one item per STYLE slot, so
 the preview can render the whole look and nothing in the box is filler.
@@ -144,12 +150,13 @@ the preview can render the whole look and nothing in the box is filler.
 | Pass | Contents | Suggested R$ |
 |---|---|---|
 | STARTER NEON | SOLAR FLARE · MIAMI NIGHTS · SUNSET trail · SUNSET POP · SUPERNOVA · PRISM RISE · SCANLINES | 49 |
+| NEON PEAKS | SUMMIT · NEON PEAKS world · RIDGELINE · PEAK POP · LANDSLIDE · ALPINE SUN · THIN AIR | 149 |
 | SYNTHWAVE | PRISM · GRID PLANE · PRISM trail · PRISM POP · ULTRAVIOLET · WIREFRAME SUN · PIXEL GLASS | 149 |
 | MIDAS | 24K · METEOR SHOWER · BULLION · JACKPOT · COLLAPSE · 24K NOON · GOLD HOUR | 149 |
 | VOID VIP | VOID EMPRESS · STAR WELL · ULTRAVIOLET trail · AMETHYST · EVENT HORIZON · ECLIPSE · VIGNETTE | 199 |
 | AURORA | AURORA · BOREALIS SKY · AURORA WAKE · AURORA POP · BOREALIS · PALE MOON · VERDANT VEIL | 149 |
 | POLARIS | PHANTOM · NORTHERN LIGHTS · SPECTRE trail · SPECTRE POP · STATIC · HALO RISE · PHOSPHOR | 149 |
-| TOXIC SLUDGE | ACID BATH · NEON PEAKS · VOLT trail · VOLT POP · MELTDOWN · ACID SUN · TOXIN | 149 |
+| TOXIC SLUDGE | ACID BATH · TOXIC WASTES · VOLT trail · VOLT POP · MELTDOWN · ACID SUN · TOXIN | 149 |
 | NEON REEF | LAGOON · NEON REEF world · MINT trail · MINT POP · GEYSER · NEAP TIDE · ABYSS | 199 |
 | NULL | NULL · VOIDSPACE · DRIFT · NULL POP · FADE · DEAD SUN · SOOT | 149 |
 | SOLSTICE | FROSTBITE · NORTHERN LIGHTS · FROSTWAKE · FROST POP · AVALANCHE · POLAR CAP · SNOWBLIND (seasonal) | 149 |
@@ -157,9 +164,11 @@ the preview can render the whole look and nothing in the box is filler.
 
 Retired passes — no longer sold, but `Cosmetics.LegacyBundles` keeps
 every already-sold pass granting its original contents forever:
-`peaks`, `phantom`, `deepspace`, `inferno`, `candy`, `colorlab`,
-`sunkissed`, `miami`, `vhs`. Their items folded into the new packs or
-back to à-la-carte gem buys.
+`phantom`, `deepspace`, `inferno`, `candy`, `colorlab`, `sunkissed`,
+`miami`, `vhs`. Their items folded into the new packs or back to
+à-la-carte gem buys. (The old world-only `peaks` pass came back as the
+full NEON PEAKS set — same pass key, so early buyers keep their world
+and get the whole outfit.)
 
 ## Gem packs (dev products)
 
@@ -199,7 +208,7 @@ back to à-la-carte gem buys.
 
 ## Live-ops checklist
 
-1. Create the 10 passes + bank2x + 3 products on the Creator Dashboard
+1. Create the 11 passes + bank2x + 3 products on the Creator Dashboard
    at the prices above; drop ids into `Config.Monetization.Passes` /
    `.Products`.
 2. Flip `Config.Monetization.FreeForTesting` off.

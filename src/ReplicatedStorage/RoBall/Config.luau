@@ -1153,6 +1153,22 @@ Config.Art = {
 	VoidZSpan = 900, -- z window the motes cover around the ball
 	VoidSize = 1.4, -- base mote diameter (jittered ±)
 	VoidValue = 0.9, -- palette value for mote neon
+	-- TOXIC WASTES (§18 world "toxic"): acid bubbles boiling up beside
+	-- the lane — lime spheres climb out of the runoff below deck, pop
+	-- back to base when their phase wraps, and recycle forward on the
+	-- usual z frontier like the star motes.
+	ToxicCount = 120, -- bubbles in the field
+	ToxicSideMin = 30, -- lateral distance from lane center (clears the deck)
+	ToxicSideJitter = 260, -- extra lateral spread
+	ToxicZSpan = 650, -- z window the field covers behind the frontier
+	ToxicDepthMin = 4, -- spawn depth below the local deck plane
+	ToxicDepthMax = 44,
+	ToxicRiseMin = 5, -- climb speed, studs/s
+	ToxicRiseMax = 15,
+	ToxicRiseSpan = 50, -- height of one climb before the pop resets
+	ToxicSizeMin = 0.6,
+	ToxicSizeMax = 4.2,
+	ToxicAlpha = 0.2, -- base transparency (jittered up per bubble)
 	-- Retro grid floor (§18 world "grid"): a wireframe plane riding the
 	-- descent GridFloorDrop studs below the deck — cross wires +
 	-- longitudinal rays, recycling forward like the tower rows.
@@ -1366,6 +1382,15 @@ Config.Art = {
 			gap = 0.7,
 			scale = 0.85,
 		},
+		alpine = {
+			-- NEON PEAKS pack: glacial cyan burning off into summit
+			-- violet — a cold sun for a ridge-line world.
+			top = Color3.fromRGB(170, 230, 255),
+			bottom = Color3.fromRGB(140, 90, 220),
+			solid = 0.45,
+			gap = 0.45,
+			scale = 0.9,
+		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
 	RingA = Color3.fromRGB(0, 230, 255),
@@ -1452,6 +1477,7 @@ Config.Monetization = {
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
 		starter = 0, -- STARTER NEON — sunset set + palms world (~49)
+		peaks = 0, -- NEON PEAKS — summit set + ridge world (~149)
 		synthwave = 0, -- SYNTHWAVE — prism set + grid world (~149)
 		midas = 0, -- MIDAS — gold set + meteor world (~149)
 		vip = 0, -- VOID VIP — violet set + star-well world (~199)
@@ -1464,7 +1490,6 @@ Config.Monetization = {
 		solstice = 0, -- SOLSTICE — seasonal frost set + polar sky (~149)
 		-- Retired ids: no longer sold, but already-owned passes keep
 		-- granting their contents through Cosmetics.LegacyBundles.
-		peaks = 0,
 		phantom = 0,
 		deepspace = 0,
 		inferno = 0,

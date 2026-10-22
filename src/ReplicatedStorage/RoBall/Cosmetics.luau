@@ -248,6 +248,16 @@ Cosmetics.Items = {
 		ringB = Color3.fromRGB(46, 48, 68),
 		core = Color3.fromRGB(1, 1, 3),
 	},
+	--==== NEON PEAKS pack — the flagship world as its own complete look:
+	-- a glacial summit set over the wireframe ridge field.
+	skin_summit = {
+		slot = "skin",
+		name = "SUMMIT",
+		gemPrice = 800,
+		ringA = AURORA_B,
+		ringB = WHITE,
+		core = Color3.fromRGB(4, 8, 18),
+	},
 
 	--==== TRAIL — slim wake ribbon behind the ball
 	trail_none = { slot = "trail", name = "NONE", free = true, none = true },
@@ -267,6 +277,7 @@ Cosmetics.Items = {
 	trail_inferno = { slot = "trail", name = "INFERNO", gemPrice = 300, color = ORANGE },
 	trail_custom = { slot = "trail", name = "LAB WAKE", gemPrice = 1500, color = "customC" },
 	trail_null = { slot = "trail", name = "DRIFT", gemPrice = 450, color = SILVER },
+	trail_ridgeline = { slot = "trail", name = "RIDGELINE", gemPrice = 450, color = AURORA_B },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -285,6 +296,7 @@ Cosmetics.Items = {
 	gemfx_inferno = { slot = "gemFx", name = "INFERNO POP", gemPrice = 300, color = ORANGE },
 	gemfx_custom = { slot = "gemFx", name = "LAB POP", gemPrice = 1500, color = "customC" },
 	gemfx_null = { slot = "gemFx", name = "NULL POP", gemPrice = 400, color = SILVER },
+	gemfx_peak = { slot = "gemFx", name = "PEAK POP", gemPrice = 400, color = AURORA_B },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -407,6 +419,14 @@ Cosmetics.Items = {
 		colorA = WHITE,
 		colorB = SILVER,
 	},
+	deathfx_landslide = {
+		slot = "deathFx",
+		name = "LANDSLIDE",
+		gemPrice = 550,
+		style = "shatter",
+		colorA = AURORA_B,
+		colorB = WHITE,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -419,6 +439,7 @@ Cosmetics.Items = {
 	world_palms = { slot = "world", name = "MIAMI NIGHTS", gemPrice = 800, theme = "palms" },
 	world_polar = { slot = "world", name = "NORTHERN LIGHTS", gemPrice = 900, theme = "polar" },
 	world_empty = { slot = "world", name = "VOIDSPACE", gemPrice = 900, theme = "empty" },
+	world_toxic = { slot = "world", name = "TOXIC WASTES", gemPrice = 800, theme = "toxic" },
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -434,6 +455,7 @@ Cosmetics.Items = {
 	sun_halo = { slot = "sun", name = "HALO RISE", gemPrice = 600, sun = "halo" },
 	sun_tide = { slot = "sun", name = "NEAP TIDE", gemPrice = 600, sun = "tide" },
 	sun_null = { slot = "sun", name = "DEAD SUN", gemPrice = 600, sun = "null" },
+	sun_alpine = { slot = "sun", name = "ALPINE SUN", gemPrice = 600, sun = "alpine" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
 	-- renders it under the HUD so text stays readable). One per bundle:
@@ -477,6 +499,13 @@ Cosmetics.Items = {
 		filter = "tint",
 		tint = Color3.fromRGB(110, 110, 140),
 	},
+	filter_thinair = {
+		slot = "filter",
+		name = "THIN AIR",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(140, 190, 255),
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -500,6 +529,7 @@ Cosmetics.Order = {
 		"skin_iris",
 		"skin_custom",
 		"skin_null",
+		"skin_summit",
 	},
 	trail = {
 		"trail_none",
@@ -519,6 +549,7 @@ Cosmetics.Order = {
 		"trail_inferno",
 		"trail_custom",
 		"trail_null",
+		"trail_ridgeline",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -537,6 +568,7 @@ Cosmetics.Order = {
 		"gemfx_inferno",
 		"gemfx_custom",
 		"gemfx_null",
+		"gemfx_peak",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -554,6 +586,7 @@ Cosmetics.Order = {
 		"deathfx_pinkslip",
 		"deathfx_limewire",
 		"deathfx_null",
+		"deathfx_landslide",
 	},
 	world = {
 		"world_city",
@@ -566,6 +599,7 @@ Cosmetics.Order = {
 		"world_palms",
 		"world_polar",
 		"world_empty",
+		"world_toxic",
 	},
 	sun = {
 		"sun_classic",
@@ -579,6 +613,7 @@ Cosmetics.Order = {
 		"sun_halo",
 		"sun_tide",
 		"sun_null",
+		"sun_alpine",
 	},
 	filter = {
 		"filter_off",
@@ -592,6 +627,7 @@ Cosmetics.Order = {
 		"filter_abyss",
 		"filter_snowblind",
 		"filter_soot",
+		"filter_thinair",
 	},
 } :: { [string]: { string } }
 
@@ -624,6 +660,23 @@ Cosmetics.Bundles = {
 			"deathfx_nova",
 			"sun_prism",
 			"filter_scan",
+		},
+	},
+	{
+		-- The flagship world sold solo once — now it anchors its own
+		-- complete look. Anyone holding the retired world-only `peaks`
+		-- pass owns the whole set through the same pass key.
+		id = "peaks",
+		name = "NEON PEAKS",
+		desc = "full summit set · ridge world",
+		items = {
+			"skin_summit",
+			"world_peaks",
+			"trail_ridgeline",
+			"gemfx_peak",
+			"deathfx_landslide",
+			"sun_alpine",
+			"filter_thinair",
 		},
 	},
 	{
@@ -699,10 +752,10 @@ Cosmetics.Bundles = {
 	{
 		id = "acid",
 		name = "TOXIC SLUDGE",
-		desc = "full acid set · peaks world",
+		desc = "full acid set · toxic wastes",
 		items = {
 			"skin_acid",
-			"world_peaks",
+			"world_toxic",
 			"trail_volt",
 			"gemfx_volt",
 			"deathfx_meltdown",
@@ -778,7 +831,6 @@ end
 -- passes keep granting their original contents forever — owns() consults
 -- this map so a deleted pack never claws back what someone bought.
 Cosmetics.LegacyBundles = {
-	peaks = { "world_peaks" },
 	phantom = { "skin_phantom", "trail_spectre", "gemfx_spectre", "deathfx_static" },
 	deepspace = { "world_void", "world_grid", "world_meteor" },
 	inferno = { "skin_ember", "trail_inferno", "gemfx_inferno", "deathfx_corona" },

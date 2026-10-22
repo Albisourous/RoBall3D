@@ -857,7 +857,12 @@ that caused them.
   on a transparency curve and carry the green→white→cyan→pale-yellow
   aurora gradient — every hue inside the color-law window. A sparse
   star field scatters through the band so it reads as night sky, not a
-  ceiling. All follow the same contract:
+  ceiling. **TOXIC WASTES** (`toxic`) is acid runoff come alive — lime
+  Neon bubbles in a wide flanking field, each climbing `ToxicRiseSpan`
+  on its own phase out of the dark below deck and popping back to base
+  when the phase wraps, with a slow lateral sway so the columns never
+  march in step; z recycles on the usual frontier. All follow the same
+  contract:
   lazy-built on first equip, client-local, non-collidable, parked below
   the void on theme swap, recycled on frontiers so they stream forever.
 - **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe
@@ -1216,12 +1221,13 @@ lattice modes (PIXEL GLASS grid / SCANLINES·PHOSPHOR raster) plus wash
 modes (GOLD HOUR·VERDANT VEIL·TOXIN·ABYSS·SNOWBLIND color grades and the
 VIGNETTE dark-edge falloff) — while HUD text renders above it and stays
 crisp. **Every bundle is a complete look**: exactly one item per slot,
-ten packs total — STARTER NEON (sunset set + palms), SYNTHWAVE (prism +
-grid), MIDAS (gold + meteor), VOID VIP (void + star well + eclipse),
-AURORA (borealis + aurora sky), POLARIS (phantom + polar sky + HALO
-RISE), TOXIC SLUDGE (acid + peaks), NEON REEF (lagoon + reef + NEAP
-TIDE), NULL (mono set + the empty world), and seasonal SOLSTICE (frost
-set + POLAR CAP + the shared NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
+eleven packs total — STARTER NEON (sunset set + palms), NEON PEAKS
+(summit set + the flagship ridge world), SYNTHWAVE (prism + grid), MIDAS
+(gold + meteor), VOID VIP (void + star well + eclipse), AURORA (borealis
++ aurora sky), POLARIS (phantom + polar sky + HALO RISE), TOXIC SLUDGE
+(acid + toxic wastes), NEON REEF (lagoon + reef + NEAP TIDE), NULL (mono
+set + the empty world), and seasonal SOLSTICE (frost set + POLAR CAP +
+the shared NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
 `Cosmetics.LegacyBundles` — already-owned passes keep granting their
 original contents forever.
 
@@ -1348,9 +1354,14 @@ system takes over — in the menu it shows up as the diorama's scene.
 Every world theme anchors exactly one bundle (§18's complete-set rule):
 `world_palms` → STARTER NEON, `world_grid` → SYNTHWAVE, `world_meteor` →
 MIDAS, `world_void` → VOID VIP, `world_aurora` → AURORA, `world_peaks` →
-TOXIC SLUDGE, `world_reef` → NEON REEF, `world_empty` → NULL (the
-`"empty"` theme draws no scenery at all — lane, sun, skybox; the silence
-is the product), and `world_polar` is shared —
+NEON PEAKS (the flagship earns its own pass again — the retired
+world-only `peaks` pass revives as a full 7-slot set and old buyers get
+the whole outfit through the same pass key), `world_toxic` → TOXIC
+SLUDGE (the `toxic` theme boils lime bubbles up out of the runoff below
+deck — each sphere climbs on its own phase and pops back, a perpetual
+simmer beside the lane), `world_reef` → NEON REEF, `world_empty` → NULL
+(the `"empty"` theme draws no scenery at all — lane, sun, skybox; the
+silence is the product), and `world_polar` is shared —
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for
 the winter window (`Cosmetics.bundleOf` resolves shared membership to
 the non-seasonal pack, so the sky never inherits the seasonal gate).

@@ -53,13 +53,18 @@ local frontZ: { [string]: number } = {}
 type PeakTile = { slot: number, side: number, z0: number, lines: { Part }, plates: { Part }, slab: Part }
 local peakTiles: { PeakTile } = {}
 local peaksSeeded = false
-type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms" | "polar" | "empty"
+type Theme = "city" | "peaks" | "void" | "grid" | "aurora" | "reef" | "meteor" | "palms" | "polar" | "empty" | "toxic"
 local theme: Theme = "city"
 
 -- Star-well pool (§18 "void") + grid-floor pool (§18 "grid") — both
 -- lazily built on first activation, non-owners never pay for the parts.
 local voidMotes: { Part } = {}
 local voidSeeded = false
+
+-- TOXIC WASTES pool (§18 "toxic") — same lazy-build contract.
+type ToxicBubble = { part: Part, x: number, y0: number, z: number, rise: number, phase: number }
+local toxicBubbles: { ToxicBubble } = {}
+local toxicSeeded = false
 local gridWires: { Part } = {} -- cross wires (one per GridRows)
 local gridRays: { Part } = {} -- longitudinal rays (one per GridCols)
 local gridFrontZ = 0 -- nearest cross-wire z; recycles march it forward
@@ -370,6 +375,65 @@ local function layVoidMote(mote: Part, anchor: Vector3)
 	mote.Color = if rng:NextNumber() < 0.25
 		then WHITE
 		else Palette.dimAt(-z * 0.3 + rng:NextNumber(0, 200), Art.VoidValue)
+end
+
+--========================== TOXIC WASTES (toxic) ==========================--
+-- Acid runoff flanking the lane: lime Neon spheres boil up out of the
+-- dark below deck, climb ToxicRiseSpan on a per-bubble phase, and pop
+-- back to base when the phase wraps — a perpetual simmer that never
+-- marches in step. z recycles on the usual frontier like the star motes;
+-- the climb is computed from the clock, so no velocity state to keep.
+
+local TOXIC_LIME = Color3.fromRGB(170, 255, 60)
+local TOXIC_DEEP = Color3.fromRGB(70, 190, 70)
+local TOXIC_GLINT = Color3.fromRGB(215, 255, 170)
+
+local function styleToxicBubble(b: Part)
+	b.Shape = Enum.PartType.Ball
+	b.Size = Vector3.one * rng:NextNumber(Art.ToxicSizeMin, Art.ToxicSizeMax)
+	b.Transparency = Art.ToxicAlpha + rng:NextNumber(0, 0.3)
+	local roll = rng:NextNumber()
+	b.Color = if roll < 0.15 then TOXIC_GLINT elseif roll < 0.55 then TOXIC_LIME else TOXIC_DEEP
+end
+
+local function ensureToxic()
+	if #toxicBubbles > 0 then
+		return
+	end
+	for _ = 1, Art.ToxicCount do
+		local part = makePeakPart(root, true)
+		styleToxicBubble(part)
+		table.insert(toxicBubbles, {
+			part = part,
+			x = 0,
+			y0 = 0,
+			z = 0,
+			rise = rng:NextNumber(Art.ToxicRiseMin, Art.ToxicRiseMax),
+			phase = rng:NextNumber(0, Art.ToxicRiseSpan),
+		})
+	end
+end
+
+local function layToxicBubble(b: ToxicBubble, anchor: Vector3)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	b.x = anchor.X + side * (Art.ToxicSideMin + rng:NextNumber(0, Art.ToxicSideJitter))
+	b.z = anchor.Z + BACK_MARGIN - rng:NextNumber(0, Art.ToxicZSpan)
+	b.y0 = deckEst(anchor, b.z) - rng:NextNumber(Art.ToxicDepthMin, Art.ToxicDepthMax)
+end
+
+-- Every frame: recycle spent bubbles, then advance each climb. The
+-- lateral sway keeps the column organic instead of a straight lift.
+local function stepToxic(anchor: Vector3)
+	local now = os.clock()
+	for _, b in ipairs(toxicBubbles) do
+		if not toxicSeeded or b.z > anchor.Z + BACK_MARGIN then
+			layToxicBubble(b, anchor)
+		end
+		local climb = (now * b.rise + b.phase) % Art.ToxicRiseSpan
+		local wob = math.sin(now * 1.3 + b.phase) * 1.6
+		b.part.Position = Vector3.new(b.x + wob, b.y0 + climb, b.z)
+	end
+	toxicSeeded = true
 end
 
 --=========================== GRID PLANE (grid) ===========================--
@@ -971,6 +1035,13 @@ local function parkPeaks()
 	peaksSeeded = false
 end
 
+local function parkToxic()
+	for _, b in ipairs(toxicBubbles) do
+		parkPart(b.part)
+	end
+	toxicSeeded = false
+end
+
 local function parkVoid()
 	for _, mote in ipairs(voidMotes) do
 		parkPart(mote)
@@ -1044,6 +1115,7 @@ local parkers: { [Theme]: () -> () } = {
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
+	toxic = parkToxic,
 }
 
 local THEMES: { [string]: Theme } = {
@@ -1056,6 +1128,7 @@ local THEMES: { [string]: Theme } = {
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
+	toxic = "toxic",
 }
 
 function Backdrop.setTheme(t: string)
@@ -1265,6 +1338,14 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
+	-- TOXIC WASTES (§18 "toxic"): bubbles climb on their own phases every
+	-- frame — the boil needs a per-frame step like the meteors.
+	if theme == "toxic" then
+		ensureToxic()
+		stepToxic(anchor)
+		return
+	end
+
 	if not seeded then
 		seeded = true
 		-- Seed each row's frontier behind the anchor spread across the span,
@@ -1335,6 +1416,20 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 	local t: Theme = THEMES[themeKey] or "city"
 	if t == "empty" then
 		-- Nothing to lay — the sun above is the whole set dressing.
+		return
+	end
+	if t == "toxic" then
+		-- Static boil: one window of bubbles frozen mid-climb on random
+		-- phases — same lay math as the live frontier.
+		for _ = 1, Art.ToxicCount do
+			local part = makePeakPart(parent, true)
+			styleToxicBubble(part)
+			local side = if rng:NextNumber() < 0.5 then -1 else 1
+			local z = anchor.Z + BACK_MARGIN - rng:NextNumber(0, Art.ToxicZSpan)
+			local x = anchor.X + side * (Art.ToxicSideMin + rng:NextNumber(0, Art.ToxicSideJitter))
+			local y = deckEst(anchor, z) - rng:NextNumber(Art.ToxicDepthMin, Art.ToxicDepthMax)
+			part.Position = Vector3.new(x + rng:NextNumber(-1.6, 1.6), y + rng:NextNumber(0, Art.ToxicRiseSpan), z)
+		end
 		return
 	end
 	if t == "peaks" then
