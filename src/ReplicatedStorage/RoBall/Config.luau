@@ -1177,23 +1177,30 @@ Config.Art = {
 	-- seeded with a slash yaw and undulating on slow sines in the same
 	-- green→violet window. A sparse star field rides the band with them.
 	PolarCount = 8, -- ribbons covering the window
-	PolarSpacing = 140, -- z spacing per ribbon
+	PolarSpacing = 110, -- z spacing per ribbon
 	PolarSpan = 380, -- ribbon length across x
-	PolarDepth = 34, -- ribbon width along z
-	PolarThick = 1.4, -- ribbon thickness
-	PolarAlt = 190, -- center height above the deck plane, ± AltJitter
-	PolarAltJitter = 40,
+	PolarHeight = 60, -- curtain height — a vertical veil, not a flat sheet,
+	-- so it reads as a light band instead of an edge-on sliver
+	PolarThick = 1.4, -- ribbon depth
+	-- Sky-anchored like the sun (ball-relative, not deck-relative): the
+	-- grade would otherwise sink distant veils below the horizon line.
+	-- Tuned to the chase cam's ~15° sky band: near veils arc overhead
+	-- out of frame, mid/far ones slash across the visible sky.
+	PolarAlt = 70, -- center height above the ball, ± AltJitter
+	PolarAltJitter = 50,
 	PolarYawMax = 0.5, -- seeded slash angle across the sky (rad)
+	PolarTiltMin = 0.25, -- seeded pitch off vertical (rad) — catches the
+	PolarTiltMax = 0.6, -- face from below so the veil has on-screen area
 	PolarRollMax = 0.22, -- live roll wobble amplitude (rad)
 	PolarWaveAmp = 18, -- y bob amplitude
 	PolarWaveF = 0.45, -- bob frequency (scaled by tick)
 	PolarHueA = 0.33, -- polar green end of the cycle
 	PolarHueB = 0.75, -- violet end (never red — color law)
-	PolarValue = 0.9, -- neon brightness
-	PolarFade = 0.6, -- base transparency
+	PolarValue = 1.0, -- neon brightness
+	PolarFade = 0.5, -- base transparency
 	PolarStars = 45, -- star motes scattered through the night band
-	PolarStarAltMin = 30, -- star heights above the deck plane
-	PolarStarAltMax = 280,
+	PolarStarAltMin = 10, -- star heights above the ball (ball-relative,
+	PolarStarAltMax = 280, -- same sky-anchoring as the veils)
 	PolarStarX = 320, -- star lateral scatter half-width
 	PolarStarZSpan = 1100, -- z window the field covers
 	-- Neon reed field (§18 world "reef"): dense thin neon strands rising

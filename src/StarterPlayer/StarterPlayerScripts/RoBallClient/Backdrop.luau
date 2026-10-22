@@ -78,7 +78,16 @@ local meteorSeeded = false
 local meteorClock = os.clock() -- dt source for real streak motion
 
 -- POLAR (§18): overhead ribbons + a star band, same lazy/park contract.
-type PolarBand = { part: Part, x: number, z: number, alt: number, yaw: number, phase: number, huePhase: number }
+type PolarBand = {
+	part: Part,
+	x: number,
+	z: number,
+	alt: number,
+	yaw: number,
+	tilt: number,
+	phase: number,
+	huePhase: number,
+}
 local polarBands: { PolarBand } = {}
 local polarStars: { Part } = {}
 local polarFrontZ = 0
@@ -470,12 +479,15 @@ local function stepAurora(anchor: Vector3, t: number)
 end
 
 --========================= NORTHERN LIGHTS (polar) =========================--
--- The real aurora: wide translucent ribbons slung ACROSS the lane high
+-- The real aurora: tall translucent veils slung ACROSS the lane high
 -- overhead — where BOREALIS SKY flanks the road with curtains, this arcs
--- over it. Each ribbon seeds a slash yaw + size jitter, then undulates in
--- place (y bob + roll wobble + the green→violet hue window); z recycles
--- on a single frontier. Sparse star motes fill the band so it reads as
--- night sky, not a ceiling.
+-- over it. Each veil seeds a slash yaw + a tilt off vertical (a flat
+-- sheet reads edge-on as a sliver — the tilt gives the face on-screen
+-- area) + size jitter, then undulates in place (y bob + roll wobble +
+-- the green→violet hue window); z recycles on a single frontier. Heights
+-- are ball-relative like the sun — deck-relative heights would sink
+-- distant veils under the horizon line. Sparse star motes fill the band
+-- so it reads as night sky, not a ceiling.
 
 local STAR_BLUE = Color3.fromRGB(170, 190, 255)
 local STAR_GREEN = Color3.fromRGB(150, 255, 210)
@@ -494,7 +506,7 @@ local function ensurePolar()
 		p.Transparency = Art.PolarFade
 		p.CFrame = PARK
 		p.Parent = root
-		table.insert(polarBands, { part = p, x = 0, z = 0, alt = 0, yaw = 0, phase = 0, huePhase = 0 })
+		table.insert(polarBands, { part = p, x = 0, z = 0, alt = 0, yaw = 0, tilt = 0, phase = 0, huePhase = 0 })
 	end
 	for _ = 1, Art.PolarStars do
 		local s = Instance.new("Part")
@@ -516,13 +528,14 @@ local function layBand(b: PolarBand, anchor: Vector3, z: number)
 	b.x = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing + rng:NextNumber(-60, 60)
 	b.alt = Art.PolarAlt + rng:NextNumber(-Art.PolarAltJitter, Art.PolarAltJitter)
 	b.yaw = rng:NextNumber(-Art.PolarYawMax, Art.PolarYawMax)
+	b.tilt = rng:NextNumber(Art.PolarTiltMin, Art.PolarTiltMax) * (if rng:NextNumber() < 0.5 then -1 else 1)
 	b.phase = rng:NextNumber(0, math.pi * 2)
 	b.huePhase = rng:NextNumber()
 	local p = b.part
 	p.Size = Vector3.new(
 		Art.PolarSpan * rng:NextNumber(0.75, 1.15),
-		Art.PolarThick,
-		Art.PolarDepth * rng:NextNumber(0.7, 1.4)
+		Art.PolarHeight * rng:NextNumber(0.7, 1.4),
+		Art.PolarThick
 	)
 end
 
@@ -530,7 +543,7 @@ local function layPolarStar(s: Part, anchor: Vector3)
 	local z = anchor.Z - rng:NextNumber(0, Art.PolarStarZSpan)
 	s.Position = Vector3.new(
 		anchor.X + rng:NextNumber(-Art.PolarStarX, Art.PolarStarX),
-		deckEst(anchor, z) + rng:NextNumber(Art.PolarStarAltMin, Art.PolarStarAltMax),
+		anchor.Y + rng:NextNumber(Art.PolarStarAltMin, Art.PolarStarAltMax),
 		z
 	)
 	-- Mostly white glints, a few tinted to the aurora family.
@@ -549,8 +562,7 @@ local function stepPolar(anchor: Vector3, t: number)
 		local sway = math.sin(t * Art.PolarWaveF + b.phase)
 		local roll = math.sin(t * 0.27 + b.phase * 1.3) * Art.PolarRollMax
 		local p = b.part
-		p.CFrame = CFrame.new(b.x, deckEst(anchor, b.z) + b.alt + sway * Art.PolarWaveAmp, b.z)
-			* CFrame.Angles(0, b.yaw, roll)
+		p.CFrame = CFrame.new(b.x, anchor.Y + b.alt + sway * Art.PolarWaveAmp, b.z) * CFrame.Angles(b.tilt, b.yaw, roll)
 		local h = Art.PolarHueA + (Art.PolarHueB - Art.PolarHueA) * (0.5 + 0.5 * math.sin(t * 0.2 + b.huePhase * 6.283))
 		p.Color = Color3.fromHSV(h, 0.85, Art.PolarValue)
 		p.Transparency = Art.PolarFade + 0.1 * math.sin(t * 0.9 + b.phase * 2)
@@ -1402,10 +1414,10 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			p.Material = Enum.Material.Neon
 			p.Transparency = Art.PolarFade
 			p.Parent = parent
-			local b: PolarBand = { part = p, x = 0, z = 0, alt = 0, yaw = 0, phase = 0, huePhase = 0 }
+			local b: PolarBand = { part = p, x = 0, z = 0, alt = 0, yaw = 0, tilt = 0, phase = 0, huePhase = 0 }
 			layBand(b, anchor, z)
 			-- One static frame of the undulation loop's pose/color math.
-			p.CFrame = CFrame.new(b.x, deckEst(anchor, b.z) + b.alt, b.z) * CFrame.Angles(0, b.yaw, 0)
+			p.CFrame = CFrame.new(b.x, anchor.Y + b.alt, b.z) * CFrame.Angles(b.tilt, b.yaw, 0)
 			p.Color = Color3.fromHSV(
 				Art.PolarHueA + (Art.PolarHueB - Art.PolarHueA) * (0.5 + 0.5 * math.sin(b.huePhase * 6.283)),
 				0.85,

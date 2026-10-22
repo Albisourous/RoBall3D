@@ -837,11 +837,16 @@ that caused them.
   streaks on real velocities (wall-clock dt), respawning ahead once they
   fall below the deck or slip behind. **NORTHERN LIGHTS** (`polar`) is
   the overhead aurora — where BOREALIS SKY flanks the lane with
-  curtains, wide translucent ribbons sling ACROSS the lane high in the
-  night sky, each seeded with a slash yaw and undulating on slow sines
-  (y bob + roll wobble + the same green→violet hue window + a shimmer on
-  transparency); a sparse star field scatters through the band so it
-  reads as night sky, not a ceiling. All follow the same contract:
+  curtains, tall translucent veils sling ACROSS the lane high in the
+  night sky — each seeded with a slash yaw + a tilt off vertical (a
+  flat sheet reads edge-on as a sliver; the tilt gives the face
+  on-screen area) and undulating on slow sines (y bob + roll wobble +
+  the same green→violet hue window + a shimmer on transparency).
+  Heights are ball-relative like the sun — deck-relative heights would
+  sink distant veils below the horizon line; tuned to the chase cam's
+  ~15° sky band so near veils arc overhead and mid/far ones slash
+  across the visible sky. A sparse star field scatters through the
+  band so it reads as night sky, not a ceiling. All follow the same contract:
   lazy-built on first equip, client-local, non-collidable, parked below
   the void on theme swap, recycled on frontiers so they stream forever.
 - **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe
