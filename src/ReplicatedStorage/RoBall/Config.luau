@@ -1372,11 +1372,8 @@ Config.Art = {
 	SkyFloorB = Color3.fromRGB(50, 130, 54), -- arcade grass, dark tile (floor_check deck)
 	-- Floating islets in the open blue (SMB's islands-in-the-sky read):
 	-- grass-domed motes with a lone palm recycle past like the cloud
-	-- field, hung at SkyIsleDrop below deck grade. SkyBgd is the blue
-	-- wash itself — the garage diorama paints its ViewportFrame with it
-	-- (Lighting's midday rig already blues the live sky).
+	-- field, hung at SkyIsleDrop below deck grade.
 	SkyIsleDrop = 230, -- islet altitude below deck grade
-	SkyBgd = Color3.fromRGB(92, 168, 235), -- the open blue the whole world reads
 	SkyIslands = 6, -- grass-domed islets adrift in the sky
 	SkyIslandMinX = 260, -- closest drift from lane center
 	SkyIslandDX = 380, -- lateral spread beyond MinX
