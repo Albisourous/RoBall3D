@@ -134,7 +134,7 @@ explainable.
   that way. First tap still steers — the dash
   only reads on the repeat press. Steering is ignored mid-burst — the
   dodge is a commitment.
-  Each dash spends a flat `Cost` (0.3 ≈ 4 of the bar's 14 LED cells)
+  Each dash spends a flat `Cost` (0.3 ≈ a third of the bar's sweep)
   of the **same** power meter boost/brake drain — offense, defense and
   dodge all bid on one resource, so a spent dodge is a boost you don't
   have. Dash arms on the **marker**, not its own threshold: the gold
@@ -930,9 +930,13 @@ that caused them.
   while the hairline and capsule rim flash with it — the module pumps
   on the music, not just the band energies.
   Bottom-left
-  is a glanceable **power meter**: an untilted capsule of LED segments ramping
-  cyan→magenta like a VU meter, diamond bead riding the lit edge,
-  `RechargeGate` shown as a gold notch between cells — the armed marker
+  is a glanceable **power meter**: an untilted capsule holding one smooth
+  chrome bar clipped to the eased charge — cyan→pink ramp with a
+  white-hot leading edge, gloss sheen on top, dim shade under — with
+  LED slot dividers laid over it so the retro texture survives while
+  the fill slides continuously instead of stepping. A diamond bead
+  rides the lit edge, `RechargeGate` shows as a gold notch in the
+  sweep — the armed marker
   for boost, brake AND dash (§4) — with the lock zone
   tinted warm, pink flare while boosting, hot orange
   while braking, white flash for a dash burst, a dim flicker on a

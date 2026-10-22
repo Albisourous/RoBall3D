@@ -2073,19 +2073,69 @@ function Ui.new(): Ui
 		s.Parent = bInner
 		self.powerSegs[i] = s
 	end
+	-- The fill is ONE smooth chrome bar clipped to the eased charge —
+	-- cyan→pink ramp with a white-hot leading edge, a gloss sheen on top
+	-- and a dim shade line under it. The LED texture survives as slot
+	-- dividers laid OVER the bar, so charge slides continuously instead
+	-- of stepping cell to cell. Forced states tint the whole ramp.
+	self._meterInnerW = innerW
+	local fillWrap = Instance.new("Frame")
+	fillWrap.BackgroundTransparency = 1
+	fillWrap.Position = UDim2.fromOffset(0, 0)
+	fillWrap.Size = UDim2.fromScale(0, 1)
+	fillWrap.ClipsDescendants = true
+	fillWrap.Parent = bInner
+	self.powerFillWrap = fillWrap
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = C_WHITE
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.new(0, innerW, 1, 0)
+	fill.Parent = fillWrap
+	self.powerFill = fill
+	local fGrad = Instance.new("UIGradient")
+	fGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, C_CYAN),
+		ColorSequenceKeypoint.new(0.55, C_PINK:Lerp(C_CYAN, 0.25)),
+		ColorSequenceKeypoint.new(0.85, C_PINK),
+		ColorSequenceKeypoint.new(1, C_WHITE),
+	})
+	fGrad.Parent = fill
+	local sheen = Instance.new("Frame")
+	sheen.BorderSizePixel = 0
+	sheen.BackgroundColor3 = C_WHITE
+	sheen.BackgroundTransparency = 0.6
+	sheen.Size = UDim2.new(1, 0, 0, 1)
+	sheen.Parent = fill
+	local shade = Instance.new("Frame")
+	shade.AnchorPoint = Vector2.new(0, 1)
+	shade.Position = UDim2.fromScale(0, 1)
+	shade.BorderSizePixel = 0
+	shade.BackgroundColor3 = C_BG
+	shade.BackgroundTransparency = 0.5
+	shade.Size = UDim2.new(1, 0, 0, 2)
+	shade.Parent = fill
+	for i = 1, METER_SEGS - 1 do
+		local d = Instance.new("Frame")
+		d.BackgroundColor3 = C_BG
+		d.BackgroundTransparency = 0.15
+		d.BorderSizePixel = 0
+		d.Position = UDim2.fromOffset(i * cellW + (i - 1) * gap, 0)
+		d.Size = UDim2.new(0, gap, 1, 0)
+		d.Parent = bInner
+	end
 	-- The recharge gate is a notch IN the strip, not a floating tick: a
 	-- slim gold divider slotted into the gap right after the lock zone.
 	local bGate = Instance.new("Frame")
 	bGate.AnchorPoint = Vector2.new(0, 0.5)
 	bGate.Position = UDim2.new(0, gateCells * cellW + (gateCells - 1) * gap + 0.5, 0.5, 0)
-	bGate.Size = UDim2.fromOffset(2, 8)
+	bGate.Size = UDim2.fromOffset(2, 14)
 	bGate.BackgroundColor3 = C_GOLD
 	bGate.BackgroundTransparency = 0.25
 	bGate.BorderSizePixel = 0
 	bGate.Parent = bInner
 	self.powerGate = bGate
 	-- Diamond bead riding the lit edge — in wrap space so its x tracks
-	-- the smoothed fill fraction every frame.
+	-- the smoothed fill fraction every frame; a white rim sells the glow.
 	local bTip = Instance.new("Frame")
 	bTip.AnchorPoint = Vector2.new(0.5, 0.5)
 	bTip.Position = UDim2.new(0, METER_PAD, 0.5, 0)
@@ -2095,6 +2145,11 @@ function Ui.new(): Ui
 	bTip.BorderSizePixel = 0
 	bTip.Visible = false
 	bTip.Parent = bWrap
+	local tipStroke = Instance.new("UIStroke")
+	tipStroke.Color = C_WHITE
+	tipStroke.Transparency = 0.3
+	tipStroke.Thickness = 1
+	tipStroke.Parent = bTip
 	self.powerTip = bTip
 	local bLab = Instance.new("TextLabel")
 	bLab.AnchorPoint = Vector2.new(0, 1)
@@ -2466,31 +2521,27 @@ function Ui:setSpeedo(
 		or dashing and C_WHITE
 		or (denied and (math.sin(now * 18) > 0 and C_DIM or C_PANEL))
 		or (braking and Color3.fromRGB(255, 140, 40) or ((boosting or blink) and C_PINK or nil))
-	local lit = disp * METER_SEGS
-	local segCol = self._segCol or {}
+	-- Smooth fill: the chrome bar is one clipped ramp — its clip width
+	-- slides with the eased charge and forced states tint the whole bar
+	-- instead of flashing cell by cell.
+	local fillW = math.floor(disp * self._meterInnerW + 0.5)
+	if fillW ~= self._fillW then
+		self._fillW = fillW
+		self.powerFillWrap.Size = UDim2.new(0, fillW, 1, 0)
+	end
+	local tint = forced or C_WHITE
+	if tint ~= self._fillCol then
+		self._fillCol = tint
+		self.powerFill.BackgroundColor3 = tint
+	end
+	-- Lock-zone slots: permanent warm tint, gently pulsing while latched
+	-- out — "recharging through the gate" reads without a floating tick.
+	-- (Only the unfilled dark slots show; the fill covers them when lit.)
 	local segTr = self._segTr or {}
-	self._segCol = segCol
 	self._segTr = segTr
-	for i, s in ipairs(self.powerSegs) do
-		local edge = lit - (i - 1)
-		local c, ctr
-		if edge > 0 then
-			c = forced or C_CYAN:Lerp(C_PINK, (i - 0.5) / METER_SEGS)
-			ctr = math.floor(math.clamp((1 - edge) * 0.85, 0, 0.85) * 64 + 0.5) / 64
-		elseif i <= (self._gateCells or 0) then
-			-- Lock-zone slot: permanent warm tint, gently pulsing while
-			-- latched out — "recharging through the gate" reads without
-			-- needing a floating tick.
-			c = C_GATE_DIM
-			ctr = powerSpent and (math.floor((0.35 + 0.3 * math.sin(now * 6)) * 64 + 0.5) / 64) or 0.4
-		else
-			c = C_PANEL
-			ctr = 0.4
-		end
-		if c ~= segCol[i] then
-			segCol[i] = c
-			s.BackgroundColor3 = c
-		end
+	for i = 1, self._gateCells or 0 do
+		local s = self.powerSegs[i]
+		local ctr = powerSpent and (math.floor((0.35 + 0.3 * math.sin(now * 6)) * 64 + 0.5) / 64) or 0.4
 		if ctr ~= segTr[i] then
 			segTr[i] = ctr
 			s.BackgroundTransparency = ctr
