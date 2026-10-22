@@ -933,31 +933,39 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 	return true
 end
 
--- Terrace: the deck descends in lips instead of a smooth grade — gravity
--- pops the ball off each edge for free ballistic hops. Pure spectacle:
--- every landing is deck, never void. Each drop rides over the back half
--- of its tread as a real ramp instead of collapsing inside one slice —
--- a hard lip edge could snag a slow or mid-hop ball; a ~10° slope keeps
--- the hop line free (same total descent, same end state).
+-- Terrace: the deck descends in soft steps instead of a smooth grade —
+-- each tread tilts gently UP for its front fraction, then eases the whole
+-- drop down on a cosine. Gravity pops the ball off each crest for free
+-- ballistic hops, and every seam lands tangent (slope-zero both sides):
+-- no lip edge and no foot-V for a flying ball to snag. Pure spectacle:
+-- every landing is deck, never void. Same total descent, same end state.
 function ChunkDefs.Terrace(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
 	local length = rng:NextInteger(50, 70)
 	local steps = if debut then 2 else rng:NextInteger(3, 5)
 	local stepH = if debut then 1 else rng:NextNumber(1.1, 1.8)
-	-- Fraction of each tread that stays flat before its ramp — the lip
-	-- read survives, the edge does not.
-	local tread = 0.5
+	local C = Config.Terrace
+	local upFrac = C.UpFrac
+	-- Rise in stepH units — the crest each tread climbs before its drop.
+	local rise = C.RiseFrac
 	local function stepDrop(t: number): number
 		local u = t * steps
 		local i = math.floor(u)
 		local f = u - i
-		return i + math.clamp((f - tread) / (1 - tread), 0, 1)
+		if f < upFrac then
+			-- Gentle up-tilt: cosine 0 → -rise, flat at both ends.
+			return i - rise * (1 - math.cos(math.pi * f / upFrac)) * 0.5
+		end
+		-- The drop: cosine from the crest down a full step+rise, flat at
+		-- both ends — the foot flows tangent into the next tread.
+		local g = (f - upFrac) / (1 - upFrac)
+		return i - rise + (1 + rise) * (1 - math.cos(math.pi * g)) * 0.5
 	end
 	local gems = {}
-	-- A small arc floats just past each lip — the hop line pays out.
+	-- A small arc floats just past each crest — the hop line pays out.
 	for i = 1, steps - 1 do
-		local t = i / steps
+		local t = (i + upFrac + 0.15) / steps
 		if t < GEM_BOUND then
-			table.insert(gems, { t = t + 0.03, xOff = 0, value = Config.Gems.ValueEdge, yOff = 2.6 })
+			table.insert(gems, { t = t, xOff = 0, value = Config.Gems.ValueEdge, yOff = 2.6 })
 		end
 	end
 	return spec("Terrace", st, length, function(t)
