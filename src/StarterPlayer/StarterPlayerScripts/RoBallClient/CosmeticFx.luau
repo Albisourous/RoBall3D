@@ -188,20 +188,24 @@ function Fx.preview(items: { [string]: any })
 	end
 
 	-- Trail: real Trail + attachments on the ball — the ribbon swings as
-	-- the cage tumbles, same as it does in a live run.
+	-- the cage tumbles, same as it does in a live run. The tail anchor
+	-- drops below-behind the ball so the ribbon cuts diagonally through
+	-- the shot instead of streaming away edge-on, and FaceCamera keeps
+	-- the ribbon face readable at every tumble angle.
 	if trailI then
 		local a0 = Instance.new("Attachment")
 		a0.Position = Vector3.new(0, BALL_D / 2 + 0.5, 0)
 		a0.Parent = ball
 		local a1 = Instance.new("Attachment")
-		a1.Position = Vector3.new(0, BALL_D / 2 + 0.5, -2.5)
+		a1.Position = Vector3.new(-1.5, -BALL_D * 0.3, -2.2)
 		a1.Parent = ball
 		local tr = Instance.new("Trail")
 		tr.Attachment0 = a0
 		tr.Attachment1 = a1
-		tr.Lifetime = 0.5
+		tr.Lifetime = 0.8
 		tr.MinLength = 0
-		tr.WidthScale = NumberSequence.new(BALL_D * 0.5)
+		tr.FaceCamera = true
+		tr.WidthScale = NumberSequence.new(BALL_D * 0.9)
 		local col = Cosmetics.colorOf(trailI.color, PK, hues)
 		tr.Color = ColorSequence.new(col)
 		tr.Parent = ball
