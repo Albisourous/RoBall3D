@@ -5,8 +5,10 @@
 --    straight Flat ribbon emitted with TrackStreamer's own part recipe,
 --    the dressed ball rolling down-grade at the real opener speed, the
 --    real Backdrop generators around it, framed by the live chase-cam
---    transform. Rebuilt on every browse change (unowned items preview
---    too — that's the conversion lever).
+--    transform. The loop ends at a lethal-style wall: the ball slams,
+--    the browsed DEATH FX's real burst fires into the WorldModel, then
+--    the wrap respawns it. Rebuilt on every browse change (unowned
+--    items preview too — that's the conversion lever).
 -- 2) Animated skin/trail flags ("rainbow"/"pulse") applied to the live
 --    ball AND the diorama in the render loop.
 --
@@ -23,6 +25,7 @@ local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 local Backdrop = require(script.Parent.Backdrop)
+local DeathFx = require(script.Parent.DeathFx)
 
 local player = Players.LocalPlayer
 
@@ -78,6 +81,13 @@ local TRAIL_MOTES = 10
 local WHITE = Color3.new(1, 1, 1)
 local BALL_D = Config.Ball.Diameter
 local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
+-- Loop tail: the ball slams a lethal-style slab at the end of its run,
+-- the browsed DEATH FX bursts at the impact point, the wrap respawns.
+local WALL_H = Config.Obstacles.BlockHeight
+local WALL_T = 1.2
+local WALL_Z = ROLL_Z0 - ROLL_LEN - BALL_D / 2 - WALL_T / 2 -- face meets the ball's nose
+local DEAD_T = 0.85 -- seconds holding on the burst before the respawn
+local CYCLE = ROLL_LEN + ROLL_SPEED * DEAD_T
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
 -- tick() is ~1.8e9 seconds — raw tick-derived angles hit ~4e10 radians,
 -- where CFrame.Angles' trig quantizes and the rotation FREEZES (the ball
@@ -96,7 +106,9 @@ local vpRingRots: { CFrame } = {}
 local vpBases: { Color3 } = {}
 local vpGem: BasePart? = nil
 local vpGemCf: CFrame? = nil
-local vpShards: { BasePart } = {}
+local vpDeathItem: any = nil
+local vpDead = false
+local vpHitPos: Vector3? = nil
 local vpTrailSegs: { BasePart } = {}
 local vpTrailGlow: { BasePart } = {}
 local vpMotes: { BasePart } = {}
@@ -241,7 +253,8 @@ function Fx.preview(items: { [string]: any })
 	vpRings = {}
 	vpRingRots = {}
 	vpBases = {}
-	vpShards = {}
+	vpDead = false
+	vpHitPos = nil
 
 	local hues = Cosmetics.huesOf(player)
 	local skin = items.skin
@@ -250,6 +263,7 @@ function Fx.preview(items: { [string]: any })
 	local deathI = items.deathFx
 	local worldI = items.world
 	local sunI = items.sun
+	vpDeathItem = deathI
 	vpFx = skin and skin.fx or nil
 	vpRainbowTrail = trailI ~= nil and trailI.color == "rainbow"
 	vpPaletteTrail = trailI ~= nil and trailI.color == "palette"
@@ -328,12 +342,26 @@ function Fx.preview(items: { [string]: any })
 	gem.CFrame = vpGemCf
 	vpGem = gem
 
-	-- Death shards: two wedges orbiting the ball in the DEATH FX pair
-	-- colors — reads as "your burst, sampled" without a run.
-	for i, col in ipairs({ deathI and deathI.colorA, deathI and deathI.colorB }) do
-		local s = vpart(Vector3.new(1.1, 0.8, 0.5), ballPos + Vector3.new(5.2, 0, 0), col or PK)
-		s.Material = Enum.Material.Neon
-		vpShards[i] = s
+	-- The wall the ball slams to end its loop: the lethal read — a
+	-- near-black slab with a hot-red edge frame. SelectionBox can't draw
+	-- inside a ViewportFrame (same swap as the ring cage), so the outline
+	-- is real neon strips on the face the ball approaches.
+	local wy = deckTopAt(WALL_Z)
+	local wallCf = CFrame.new(0, wy + WALL_H / 2, WALL_Z) * CFrame.Angles(DECK_PITCH, 0, 0)
+	local wall = vpart(Vector3.new(LANE_W - 1, WALL_H, WALL_T), wallCf.Position, Config.Obstacles.FaceColor)
+	wall.Name = "PreviewWall"
+	wall.CFrame = wallCf
+	local ET = 0.3
+	local halfW = (LANE_W - 1) / 2
+	for _, f in ipairs({
+		{ size = Vector3.new(ET, WALL_H, ET), off = CFrame.new(-halfW + ET / 2, 0, WALL_T / 2 + ET / 2) },
+		{ size = Vector3.new(ET, WALL_H, ET), off = CFrame.new(halfW - ET / 2, 0, WALL_T / 2 + ET / 2) },
+		{ size = Vector3.new(LANE_W - 1, ET, ET), off = CFrame.new(0, WALL_H / 2 - ET / 2, WALL_T / 2 + ET / 2) },
+		{ size = Vector3.new(LANE_W - 1, ET, ET), off = CFrame.new(0, -WALL_H / 2 + ET / 2, WALL_T / 2 + ET / 2) },
+	}) do
+		local e = vpart(f.size, (wallCf * f.off).Position, Config.LethalColor)
+		e.CFrame = wallCf * f.off
+		e.Material = Enum.Material.Neon
 	end
 
 	-- World + sun: one static window of the REAL Backdrop generation —
@@ -404,13 +432,40 @@ local function step()
 	end
 
 	-- Diorama anims: the ball really rolls down the straight at opener
-	-- speed (that's why the trail streams like a run), the chase cam
-	-- re-aims with the live transform, rings ride the roll, the gem
-	-- beat-pulses, shards orbit.
+	-- speed (that's why the trail streams like a run), slams the wall at
+	-- the loop end — the real browsed DEATH FX bursts at the impact and
+	-- the ball hides until the wrap respawns it — the chase cam re-aims
+	-- with the live transform, rings ride the roll, the gem beat-pulses.
 	if vpBall then
 		local tt = tick()
-		local roll = (tt * ROLL_SPEED) % ROLL_LEN
-		local z = ROLL_Z0 - roll
+		local roll = (tt * ROLL_SPEED) % CYCLE
+		local dead = roll >= ROLL_LEN
+		if dead and not vpDead then
+			-- Impact: last alive frame sits at the wall face — burst there.
+			vpDead = true
+			vpHitPos = vpBall.Position
+			if wmodel then
+				DeathFx.previewBurst(wmodel, vpHitPos :: Vector3, vpDeathItem)
+			end
+			vpBall.Transparency = 1
+			for _, segs in ipairs(vpRings) do
+				for _, p in ipairs(segs) do
+					p.Transparency = 1
+				end
+			end
+			vpTrailPts = {}
+		elseif not dead and vpDead then
+			-- Respawn wrap: re-dress the ball at the loop head.
+			vpDead = false
+			vpHitPos = nil
+			vpBall.Transparency = 0
+			for _, segs in ipairs(vpRings) do
+				for _, p in ipairs(segs) do
+					p.Transparency = 0
+				end
+			end
+		end
+		local z = ROLL_Z0 - math.min(roll, ROLL_LEN)
 		-- Gentle lateral weave — the trail streams in a visible S instead
 		-- of a dead-straight line, like real steering input.
 		local sway = math.sin((tt * SWAY_W) % TAU) * SWAY_AMP
@@ -425,11 +480,12 @@ local function step()
 			end
 		end
 		if vpCam then
+			-- During the dead hold the cam keeps staring at the impact
+			-- point so the burst reads.
+			local focus = vpHitPos or bc.Position
 			vpCam.CFrame = CFrame.lookAt(
-				bc.Position + Cam.Offset,
-				bc.Position
-					+ Gen.TravelAxis * Cam.LookAhead
-					- Vector3.new(0, Gen.Grade * Cam.LookAhead + Cam.LookDrop, 0)
+				focus + Cam.Offset,
+				focus + Gen.TravelAxis * Cam.LookAhead - Vector3.new(0, Gen.Grade * Cam.LookAhead + Cam.LookDrop, 0)
 			)
 		end
 		if roll < vpLastRoll then
@@ -438,9 +494,11 @@ local function step()
 		end
 		vpLastRoll = roll
 		if vpTrailSegs[1] then
-			table.insert(vpTrailPts, 1, bc.Position)
-			if #vpTrailPts > TRAIL_SEGS + 1 then
-				table.remove(vpTrailPts)
+			if not vpDead then
+				table.insert(vpTrailPts, 1, bc.Position)
+				if #vpTrailPts > TRAIL_SEGS + 1 then
+					table.remove(vpTrailPts)
+				end
 			end
 			local tcol = vpTrailColor
 			if vpRainbowTrail then
@@ -496,13 +554,6 @@ local function step()
 			* Config.Gems.Size
 			* (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
 		vpGem.CFrame = vpGemCf
-	end
-	if vpBall then
-		for i, s in ipairs(vpShards) do
-			local a = (tick() * 1.1 + (i - 1) * math.pi) % TAU
-			s.CFrame = CFrame.new(vpBall.Position + Vector3.new(math.cos(a) * 5.2, 0.4, math.sin(a) * 5.2))
-				* CFrame.Angles(a, a * 1.3, 0)
-		end
 	end
 	if vpFx and ANIM_FX[vpFx] then
 		for i, segs in ipairs(vpRings) do

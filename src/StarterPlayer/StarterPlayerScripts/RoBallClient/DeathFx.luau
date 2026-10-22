@@ -25,7 +25,7 @@ local function randDir(): Vector3
 end
 
 -- Neon shard that tweens between two radii while tumbling + fading.
-local function shard(pos: Vector3, dir: Vector3, r0: number, r1: number, color: Color3, life: number)
+local function shard(parent: Instance, pos: Vector3, dir: Vector3, r0: number, r1: number, color: Color3, life: number)
 	local s = Instance.new("Part")
 	s.Name = "DeathShardFx"
 	s.Anchored = true
@@ -35,7 +35,7 @@ local function shard(pos: Vector3, dir: Vector3, r0: number, r1: number, color: 
 	s.Color = color
 	s.Material = Enum.Material.Neon
 	s.CFrame = CFrame.new(pos + dir * r0) * CFrame.Angles(math.rad(math.random(360)), math.rad(math.random(360)), 0)
-	s.Parent = workspace
+	s.Parent = parent
 	Debris:AddItem(s, life + 0.1)
 	TweenService:Create(s, TweenInfo.new(life, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Position = pos + dir * r1,
@@ -45,7 +45,7 @@ local function shard(pos: Vector3, dir: Vector3, r0: number, r1: number, color: 
 end
 
 -- Flat neon ring expanding across the deck plane (same read as GemFx).
-local function flatRing(pos: Vector3, finalSize: number, color: Color3, time: number)
+local function flatRing(parent: Instance, pos: Vector3, finalSize: number, color: Color3, time: number)
 	local r = Instance.new("Part")
 	r.Name = "DeathRingFx"
 	r.Anchored = true
@@ -56,7 +56,7 @@ local function flatRing(pos: Vector3, finalSize: number, color: Color3, time: nu
 	r.Color = color
 	r.Material = Enum.Material.Neon
 	r.Transparency = 0.15
-	r.Parent = workspace
+	r.Parent = parent
 	Debris:AddItem(r, time + 0.1)
 	TweenService:Create(r, TweenInfo.new(time, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		Size = Vector3.new(0.15, finalSize, finalSize),
@@ -65,7 +65,7 @@ local function flatRing(pos: Vector3, finalSize: number, color: Color3, time: nu
 end
 
 -- Bright core flash: neon sphere expands and fades.
-local function flash(pos: Vector3, size: number, color: Color3, time: number)
+local function flash(parent: Instance, pos: Vector3, size: number, color: Color3, time: number)
 	local f = Instance.new("Part")
 	f.Name = "DeathFlashFx"
 	f.Shape = Enum.PartType.Ball
@@ -76,7 +76,7 @@ local function flash(pos: Vector3, size: number, color: Color3, time: number)
 	f.Color = color
 	f.Material = Enum.Material.Neon
 	f.Position = pos
-	f.Parent = workspace
+	f.Parent = parent
 	Debris:AddItem(f, time + 0.1)
 	TweenService:Create(f, TweenInfo.new(time, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		Size = Vector3.one * size,
@@ -85,7 +85,7 @@ local function flash(pos: Vector3, size: number, color: Color3, time: number)
 end
 
 -- Ghost of the ball itself: oversize pop + spin + fade (the "WHITEOUT" look).
-local function ghostPop(pos: Vector3, color: Color3)
+local function ghostPop(parent: Instance, pos: Vector3, color: Color3)
 	local g = Instance.new("Part")
 	g.Name = "DeathGhostFx"
 	g.Shape = Enum.PartType.Ball
@@ -97,7 +97,7 @@ local function ghostPop(pos: Vector3, color: Color3)
 	g.Material = Enum.Material.Neon
 	g.Transparency = 0.25
 	g.Position = pos
-	g.Parent = workspace
+	g.Parent = parent
 	Debris:AddItem(g, 0.55)
 	TweenService:Create(g, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 		Size = Vector3.one * 6.5,
@@ -106,67 +106,100 @@ local function ghostPop(pos: Vector3, color: Color3)
 end
 
 local STYLES = {
-	pop = function(pos: Vector3, cA: Color3, cB: Color3)
-		ghostPop(pos, cA)
-		flatRing(pos, 12, cB, 0.35)
+	pop = function(parent: Instance, pos: Vector3, cA: Color3, cB: Color3)
+		ghostPop(parent, pos, cA)
+		flatRing(parent, pos, 12, cB, 0.35)
 	end,
-	shatter = function(pos: Vector3, cA: Color3, cB: Color3)
+	shatter = function(parent: Instance, pos: Vector3, cA: Color3, cB: Color3)
 		for i = 1, 12 do
 			local dir = randDir()
-			shard(pos, dir, 0.3, 4 + math.random() * 5, if i % 2 == 0 then cA else cB, 0.5 + math.random() * 0.3)
+			shard(
+				parent,
+				pos,
+				dir,
+				0.3,
+				4 + math.random() * 5,
+				if i % 2 == 0 then cA else cB,
+				0.5 + math.random() * 0.3
+			)
 		end
-		flatRing(pos, 14, cB, 0.4)
+		flatRing(parent, pos, 14, cB, 0.4)
 	end,
-	nova = function(pos: Vector3, cA: Color3, cB: Color3)
-		flash(pos, 5, cB, 0.3)
-		flatRing(pos, 12, cA, 0.4)
+	nova = function(parent: Instance, pos: Vector3, cA: Color3, cB: Color3)
+		flash(parent, pos, 5, cB, 0.3)
+		flatRing(parent, pos, 12, cA, 0.4)
 		task.delay(0.12, function()
-			flatRing(pos, 22, cB, 0.45)
+			flatRing(parent, pos, 22, cB, 0.45)
 		end)
 		task.delay(0.24, function()
-			flatRing(pos, 34, cA, 0.5)
+			flatRing(parent, pos, 34, cA, 0.5)
 		end)
 	end,
-	implode = function(pos: Vector3, cA: Color3, cB: Color3)
+	implode = function(parent: Instance, pos: Vector3, cA: Color3, cB: Color3)
 		for i = 1, 12 do
 			local dir = randDir()
-			shard(pos, dir, 6 + math.random() * 3, 0.2, if i % 2 == 0 then cA else cB, 0.45)
+			shard(parent, pos, dir, 6 + math.random() * 3, 0.2, if i % 2 == 0 then cA else cB, 0.45)
 		end
 		task.delay(0.4, function()
-			flash(pos, 5.5, cB, 0.3)
-			flatRing(pos, 10, cA, 0.35)
+			flash(parent, pos, 5.5, cB, 0.3)
+			flatRing(parent, pos, 10, cA, 0.35)
 		end)
 	end,
 	-- Upward fountain: shards spray high off the kill spot — reads like a
 	-- geyser of light when the run ends.
-	geyser = function(pos: Vector3, cA: Color3, cB: Color3)
+	geyser = function(parent: Instance, pos: Vector3, cA: Color3, cB: Color3)
 		for i = 1, 14 do
 			local dir =
 				Vector3.new((math.random() - 0.5) * 0.9, 0.85 + math.random() * 0.6, (math.random() - 0.5) * 0.9).Unit
-			shard(pos, dir, 0.2, 9 + math.random() * 7, if i % 2 == 0 then cA else cB, 0.5 + math.random() * 0.3)
+			shard(
+				parent,
+				pos,
+				dir,
+				0.2,
+				9 + math.random() * 7,
+				if i % 2 == 0 then cA else cB,
+				0.5 + math.random() * 0.3
+			)
 		end
-		flatRing(pos, 12, cB, 0.4)
+		flatRing(parent, pos, 12, cB, 0.4)
 	end,
 	-- Flat bloom: shards placed on a ring around the ball burst outward
 	-- level with the deck — the "corona" read.
-	corona = function(pos: Vector3, cA: Color3, cB: Color3)
+	corona = function(parent: Instance, pos: Vector3, cA: Color3, cB: Color3)
 		for i = 1, 10 do
 			local th = (i / 10) * math.pi * 2
 			local dir = Vector3.new(math.cos(th), 0.15, math.sin(th)).Unit
-			shard(pos, dir, 0.3, 7 + math.random() * 4, if i % 2 == 0 then cA else cB, 0.45 + math.random() * 0.2)
+			shard(
+				parent,
+				pos,
+				dir,
+				0.3,
+				7 + math.random() * 4,
+				if i % 2 == 0 then cA else cB,
+				0.45 + math.random() * 0.2
+			)
 		end
-		flash(pos, 4.5, cB, 0.3)
+		flash(parent, pos, 4.5, cB, 0.3)
 	end,
 }
 
-function Fx.burst(pos: Vector3)
-	local item = Cosmetics.item(player:GetAttribute("RoBallEq_deathFx") :: string?)
+local function burstInto(parent: Instance, pos: Vector3, item: any)
 	local style = (item and item.style) or "shatter"
 	local hues = Cosmetics.huesOf(player)
 	local cA = Cosmetics.colorOf(item and item.colorA, Color3.fromRGB(0, 230, 255), hues)
 	local cB = Cosmetics.colorOf(item and item.colorB, Color3.fromRGB(255, 64, 190), hues)
 	local fn = STYLES[style] or STYLES.shatter
-	fn(pos, cA, cB)
+	fn(parent, pos, cA, cB)
+end
+
+function Fx.burst(pos: Vector3)
+	burstInto(workspace, pos, Cosmetics.item(player:GetAttribute("RoBallEq_deathFx") :: string?))
+end
+
+-- Garage diorama (CosmeticFx): the same burst fired into the preview's
+-- WorldModel, styled by the BROWSED item so unowned merch previews too.
+function Fx.previewBurst(parent: Instance, pos: Vector3, item: any)
+	burstInto(parent, pos, item)
 end
 
 return Fx
