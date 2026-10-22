@@ -1171,17 +1171,18 @@ Config.Art = {
 	-- sky overhead). Emitter parts re-anchor ahead of the ball every
 	-- frame — the curtains stream forever without recycling.
 	AuroraFanSides = 2, -- emitter fans per side, stacked down-course
-	AuroraFanX = 75, -- lateral offset beside the lane (clears ~39 deck)
-	AuroraFanXJitter = 40, -- seeded lateral spread across the fans
-	AuroraFanY = 110, -- emitter height above the ball — high enough for the
+	AuroraFanX = 460, -- lateral offset beside the lane — far enough that the
+	-- curtains hang in the distance instead of walling the camera in
+	AuroraFanXJitter = 140, -- seeded lateral spread across the fans
+	AuroraFanY = 170, -- emitter height above the ball — high enough for the
 	-- rays to arch into the chase cam's sky band instead of hugging the deck
-	AuroraFanZ = 120, -- first fan's distance ahead
-	AuroraFanZGap = 380, -- extra distance per stacked fan
+	AuroraFanZ = 420, -- first fan's distance ahead
+	AuroraFanZGap = 520, -- extra distance per stacked fan
 	AuroraTexture = "rbxassetid://110170832236629", -- soft streak sprite
 	AuroraRate = 140, -- particles/s per fan
 	AuroraSpeed = 10000, -- burst studs — drag then freezes them mid-flight
 	AuroraDrag = 9,
-	AuroraSize = 500, -- sprite studs
+	AuroraSize = 420, -- sprite studs
 	AuroraSquash = 2, -- velocity stretch — silky streaks, not blobs
 	AuroraLifeMin = 2,
 	AuroraLifeMax = 4,
