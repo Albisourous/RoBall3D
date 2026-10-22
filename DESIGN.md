@@ -161,7 +161,22 @@ explainable.
   down server-side without firing `RunEnded` and without saving the score —
   restarting to dodge a death never banks it.
 - **No jump** in MVP.
-- Keyboard only in MVP; touch later.
+- **Devices** (`Config.Controls`, §4): every device maps onto the same
+  steer/boost/brake/dash intents — no new physics, no new tunables
+  outside `Config.Controls`.
+  - *Keyboard* — `A`/`D` steer, `W`/`S` boost/brake, `Q`/`E` or
+    double-tap dash, `R`/`Enter` start.
+  - *Gamepad* — left-stick X is analog steer (`PadDeadzone`), `RT`/`LT`
+    hold boost/brake, `RB`/`LB` dash right/left, `START` restarts like
+    `R`. Menu nav is engine-native: the primary buttons are `Selectable`
+    and `GuiService.SelectedObject` follows the shown card (PLAY on
+    menu, RETRY on death), so `A` clicks through.
+  - *Touch* — an invisible drag zone under the left thumb is analog
+    steer (floating origin, full lock at `PadTravelPx`); a quick release
+    under `PadTapPx` is a tap and a same-side pair inside
+    `Dash.TapWindow` dashes — the "tap" style's gesture, always live.
+    `BOOST`/`BRAKE` hold buttons sit under the right thumb. The layer
+    only exists on touch-only devices and only while a run is up.
 
 Ball: 3-stud `Ball`-shape Part, unanchored, `CustomPhysicalProperties`
 (density 0.7, friction 0.6, elasticity 0, **elasticity weight 100** — the

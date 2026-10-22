@@ -60,10 +60,12 @@ entirely.
 - [ ] Every `TrackAssets` entry loads — `AssetId = 0` tracks are dropped
       from `ActiveTracklist` by the watchdog; sweep the list.
 - [ ] `rbxassetid://203785492` fails to load at startup ("asset type does
-      not match") — **not referenced anywhere in `src/` and no orphan
-      Sound exists in the place tree**; it is an engine-side request
-      (character-sound legacy id). Verify harmless in a real client;
-      remove if it turns out to be ours.
+      not match") — **confirmed external**: not in `src/`, not in the
+      Edit tree (broad ContentId-property sweep), not in either play
+      datamodel. It's Zyleak's 2015 "Pop Close Sound" requested with the
+      wrong expected type at Studio session/rojo-push transitions — a
+      stale reference inside a Studio built-in/plugin asset. Harmless;
+      nothing game code can do. Verify in a real client.
 - [ ] Menu/stem assets all load; the `Music.Wave*` scope trace
       (BPM HUD) stays ≤ 30 Hz analyzer reads — no extra taps.
 - [ ] SFX ids (gem pickup, dash, UI) all resolve.

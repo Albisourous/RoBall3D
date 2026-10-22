@@ -84,6 +84,12 @@ local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
 local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
 local dashUntil = 0
+-- Gamepad + touch ride the same intents (§4): padSteer is the analog
+-- thumbstick/pad-drag read, the held flags mirror W/S. Touch state lives
+-- on `ui` (padSteer/boostHeld/brakeHeld) and resets with the HUD.
+local padSteer = 0
+local padBoost = false
+local padBrake = false
 local lastDashAt = 0
 -- "tap" dash style (§4): last press time per steer direction — a second
 -- tap inside Dash.TapWindow dashes instead of just steering.
@@ -374,14 +380,16 @@ workspace.ChildRemoved:Connect(function(c)
 end)
 
 local function steerIntent(): number
-	local intent = 0
+	-- Analog inputs (gamepad stick, touch pad) sum with the digital keys
+	-- — clamped, so stick-at-half + key still reads full lock, not 1.5.
+	local intent = padSteer + ui.padSteer
 	if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
 		intent -= 1
 	end
 	if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
 		intent += 1
 	end
-	return intent
+	return math.clamp(intent, -1, 1)
 end
 
 --============================== wiring ==============================--
@@ -965,6 +973,10 @@ local function queueDash(dir: number)
 	end
 end
 
+ui.onPadTap = function(dir)
+	queueDash(dir)
+end
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
@@ -975,6 +987,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	-- been mirrored back into the box — so a reload keeps the same map
 	-- unless the menu says otherwise. Enter starts from the menu.
 	if input.KeyCode == Enum.KeyCode.R or (input.KeyCode == Enum.KeyCode.Return and mode == "menu") then
+		requestStart()
+		return
+	end
+	-- Gamepad (§4): bumpers dash like Q/E, triggers hold boost/brake,
+	-- START restarts like R. Button A needs no binding — the engine
+	-- activates GuiService.SelectedObject (Ui keeps it on PLAY/RETRY).
+	if input.KeyCode == Enum.KeyCode.ButtonL1 then
+		queueDash(-1)
+		return
+	elseif input.KeyCode == Enum.KeyCode.ButtonR1 then
+		queueDash(1)
+		return
+	elseif input.KeyCode == Enum.KeyCode.ButtonR2 then
+		padBoost = true
+		return
+	elseif input.KeyCode == Enum.KeyCode.ButtonL2 then
+		padBrake = true
+		return
+	elseif input.KeyCode == Enum.KeyCode.ButtonStart then
 		requestStart()
 		return
 	end
@@ -997,6 +1028,37 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			end
 		end
 	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.ButtonR2 then
+		padBoost = false
+	elseif input.KeyCode == Enum.KeyCode.ButtonL2 then
+		padBrake = false
+	end
+end)
+
+-- Thumbstick steer (§4): the analog X reads straight into steerIntent,
+-- deadzoned so a resting stick can't creep.
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if gameProcessed or input.KeyCode ~= Enum.KeyCode.Thumbstick1 then
+		return
+	end
+	local x = input.Position.X
+	padSteer = if math.abs(x) < Config.Controls.PadDeadzone then 0 else x
+end)
+
+-- Device hints (§6): the menu's controls line + play/death prompts track
+-- whatever the player last touched — keys, pad, or touch.
+local function deviceKind(t: EnumItem): string
+	if t == Enum.UserInputType.Touch then
+		return "touch"
+	end
+	return if (t.Name :: string):sub(1, 7) == "Gamepad" then "pad" else "keys"
+end
+ui:setDeviceInput(deviceKind(UserInputService:GetLastInputType()))
+UserInputService.LastInputTypeChanged:Connect(function(t)
+	ui:setDeviceInput(deviceKind(t))
 end)
 
 --============================== drive ===============================--
@@ -1114,8 +1176,14 @@ RunService.Heartbeat:Connect(function(dt)
 		passedBest = true
 		ui:flashBest()
 	end
-	local wantBoost = UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up)
-	local wantBrake = UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down)
+	local wantBoost = UserInputService:IsKeyDown(Enum.KeyCode.W)
+		or UserInputService:IsKeyDown(Enum.KeyCode.Up)
+		or padBoost
+		or ui.boostHeld
+	local wantBrake = UserInputService:IsKeyDown(Enum.KeyCode.S)
+		or UserInputService:IsKeyDown(Enum.KeyCode.Down)
+		or padBrake
+		or ui.brakeHeld
 	local boosting = wantBoost and not powerSpent
 	local braking = wantBrake and not boosting and not powerSpent
 	if boosting or braking then

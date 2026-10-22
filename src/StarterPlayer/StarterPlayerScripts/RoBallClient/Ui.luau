@@ -6,6 +6,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
@@ -199,6 +200,13 @@ function Ui.new(): Ui
 	self.onBuy = nil :: ((bundleId: string) -> ())?
 	self.onGemPack = nil :: ((productKey: string) -> ())?
 	self.onBuyItem = nil :: ((itemId: string) -> ())? -- à-la-carte inside an open pack
+	self.onPadTap = nil :: ((dir: number) -> ())? -- touch pad double-tap dash
+	-- Touch input state the drive loop reads each frame (§4): padSteer is
+	-- the analog −1..+1 drag; the holds mirror W/S. Written by the pad
+	-- zone + buttons below, reset whenever the run isn't showing.
+	self.padSteer = 0
+	self.boostHeld = false
+	self.brakeHeld = false
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "RoBallGui"
@@ -331,6 +339,7 @@ function Ui.new(): Ui
 	playGrad.Rotation = 90
 	playGrad.Color = ColorSequence.new(C_PINK:Lerp(C_WHITE, 0.18), C_PINK:Lerp(Color3.fromRGB(90, 0, 60), 0.25))
 	playGrad.Parent = play
+	play.Selectable = true -- gamepad: GuiService.SelectedObject target
 	local playStroke = Instance.new("UIStroke")
 	playStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	playStroke.Color = C_CYAN
@@ -345,14 +354,17 @@ function Ui.new(): Ui
 		play.TextColor3 = Color3.fromRGB(16, 6, 24)
 		playStroke.Transparency = 0.55
 	end)
+	self.playBtn = play
 
-	label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6).TextTransparency = 0.25
+	self.playHint = label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6)
+	self.playHint.TextTransparency = 0.25
 
 	-- DASH button (§4): its own bordered chip right under PLAY — cycles
 	-- keys / double-tap; the server mirrors + saves the pick, so
 	-- this button IS the whole pref.
 	local dash = Instance.new("TextButton")
 	dash.Name = "DashToggle"
+	dash.Selectable = true -- reachable on the gamepad menu cursor
 	dash.BackgroundColor3 = C_BG
 	dash.BackgroundTransparency = 0.3
 	dash.AutoButtonColor = false
@@ -2395,29 +2407,232 @@ function Ui.new(): Ui
 	aLayout.Parent = actions
 	local retry = outlineButton(actions, "RETRY", 30, 1)
 	retry.Size = UDim2.fromOffset(300, 56)
+	retry.Selectable = true -- gamepad: A activates the selected button
 	retry.MouseButton1Click:Connect(function()
 		if self.onRetry then
 			self.onRetry()
 		end
 	end)
 	local toMenu = ghostButton(actions, "menu", 15, 2)
+	toMenu.Selectable = true
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
 			self.onMenu()
 		end
 	end)
-	label(dCol, "press R", 13, F_DATA, C_DIM, 8).TextTransparency = 0.25
+	self.retryBtn = retry
+	self.toMenuBtn = toMenu
+	self.deathHint = label(dCol, "press R", 13, F_DATA, C_DIM, 8)
+	self.deathHint.TextTransparency = 0.25
+
+	--===================== touch controls (§4) ======================--
+	-- A drag zone on the left thumb (steer + tap-tap dash, the "tap" dash
+	-- style's gesture) and BOOST/BRAKE hold buttons on the right. Only
+	-- built for touch-only devices — a laptop touchscreen (touch + mouse)
+	-- keeps the keyboard map and never sees this.
+	local touchUi = Instance.new("Frame")
+	touchUi.Name = "TouchControls"
+	touchUi.BackgroundTransparency = 1
+	touchUi.Size = UDim2.fromScale(1, 1)
+	touchUi.Visible = false
+	touchUi.Parent = gui
+	self.touchUi = touchUi
+	self.touchEnabled = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+
+	-- Steer zone: invisible full-capture area under the left thumb —
+	-- drag for analog steer (floating origin at touch-down, full lock at
+	-- PadTravelPx), a quick release reads as a tap and a same-side pair
+	-- inside Dash.TapWindow fires onPadTap (the pad's dash). A faint pad
+	-- ring + knob ghost in while the thumb is down so the zone has a body.
+	local zone = Instance.new("TextButton")
+	zone.Name = "SteerZone"
+	zone.BackgroundTransparency = 1
+	zone.Text = ""
+	zone.AnchorPoint = Vector2.new(0, 1)
+	zone.Position = UDim2.fromScale(0, 1)
+	zone.Size = UDim2.fromScale(Config.Controls.ZoneW, Config.Controls.ZoneH)
+	zone.Parent = touchUi
+	local pad = Instance.new("Frame")
+	pad.Name = "Pad"
+	pad.AnchorPoint = Vector2.new(0.5, 0.5)
+	pad.Position = UDim2.fromScale(0.5, 0.5)
+	pad.Size = UDim2.fromOffset(120, 120)
+	pad.BackgroundColor3 = C_BG
+	pad.BackgroundTransparency = 0.75
+	pad.BorderSizePixel = 0
+	pad.Visible = false
+	pad.Parent = zone
+	local padCorner = Instance.new("UICorner")
+	padCorner.CornerRadius = UDim.new(1, 0)
+	padCorner.Parent = pad
+	local padRing = Instance.new("UIStroke")
+	padRing.Color = C_CYAN
+	padRing.Transparency = 0.55
+	padRing.Thickness = 1.5
+	padRing.Parent = pad
+	local knob = Instance.new("Frame")
+	knob.Name = "Knob"
+	knob.AnchorPoint = Vector2.new(0.5, 0.5)
+	knob.Position = UDim2.fromScale(0.5, 0.5)
+	knob.Size = UDim2.fromOffset(44, 44)
+	knob.BackgroundColor3 = C_CYAN
+	knob.BackgroundTransparency = 0.25
+	knob.BorderSizePixel = 0
+	knob.Parent = pad
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
+	knobCorner.Parent = knob
+	local padInput: InputObject? = nil
+	local padDownAt = 0
+	local padDownX = 0
+	local padLastTap: { [number]: number } = { [-1] = 0, [1] = 0 }
+	zone.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		padInput = input
+		padDownAt = tick()
+		padDownX = input.Position.X
+		pad.Visible = true
+	end)
+	zone.InputChanged:Connect(function(input)
+		if input ~= padInput then
+			return
+		end
+		local s = math.clamp((input.Position.X - padDownX) / Config.Controls.PadTravelPx, -1, 1)
+		self.padSteer = s
+		knob.Position = UDim2.fromScale(0.5 + s * 0.32, 0.5)
+	end)
+	zone.InputEnded:Connect(function(input)
+		if input ~= padInput then
+			return
+		end
+		padInput = nil
+		pad.Visible = false
+		self.padSteer = 0
+		-- Tap read: quick release with almost no travel. A same-side pair
+		-- inside TapWindow is the pad's dash — the "tap" dash style
+		-- gesture, always live on touch regardless of the menu pick.
+		if
+			tick() - padDownAt < Config.Dash.TapWindow
+			and math.abs(input.Position.X - padDownX) < Config.Controls.PadTapPx
+		then
+			local half = zone.AbsoluteSize.X / 2
+			local dir = if input.Position.X - zone.AbsolutePosition.X < half then -1 else 1
+			local now = tick()
+			if now - padLastTap[dir] <= Config.Dash.TapWindow then
+				padLastTap[dir] = 0
+				if self.onPadTap then
+					self.onPadTap(dir)
+				end
+			else
+				padLastTap[dir] = now
+			end
+		end
+	end)
+
+	-- HOLD column (§4): BOOST on top where the thumb rests, BRAKE the
+	-- smaller deck under it — the power meter's own boost/brake split.
+	-- Held flags ride the exact W/S path in the drive loop.
+	local function holdButton(text: string, yOff: number, h: number, setter: (boolean) -> ())
+		local b = Instance.new("TextButton")
+		b.AnchorPoint = Vector2.new(1, 1)
+		b.Position = UDim2.new(1, -18, 1, yOff)
+		b.Size = UDim2.fromOffset(150, h)
+		b.BackgroundColor3 = C_BG
+		b.BackgroundTransparency = 0.5
+		b.AutoButtonColor = false
+		b.Text = ""
+		b.BorderSizePixel = 0
+		b.Parent = touchUi
+		local bc = Instance.new("UICorner")
+		bc.CornerRadius = UDim.new(0, 14)
+		bc.Parent = b
+		local bs = Instance.new("UIStroke")
+		bs.Color = C_CYAN
+		bs.Transparency = 0.45
+		bs.Thickness = 1.5
+		bs.Parent = b
+		local bl = Instance.new("TextLabel")
+		bl.BackgroundTransparency = 1
+		bl.Size = UDim2.fromScale(1, 1)
+		bl.Font = F_DISPLAY
+		bl.TextSize = 17
+		bl.TextColor3 = C_WHITE
+		bl.Text = text
+		bl.Parent = b
+		b.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch then
+				setter(true)
+				bs.Transparency = 0.05
+				b.BackgroundTransparency = 0.25
+			end
+		end)
+		b.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch then
+				setter(false)
+				bs.Transparency = 0.45
+				b.BackgroundTransparency = 0.5
+			end
+		end)
+		return b
+	end
+	holdButton("BOOST", -116, 76, function(v)
+		self.boostHeld = v
+	end)
+	holdButton("BRAKE", -26, 72, function(v)
+		self.brakeHeld = v
+	end)
+	local padHint = Instance.new("TextLabel")
+	padHint.AnchorPoint = Vector2.new(0.5, 1)
+	padHint.Position = UDim2.new(0.5, 0, 1, -6)
+	padHint.Size = UDim2.new(0.9, 0, 0, 14)
+	padHint.BackgroundTransparency = 1
+	padHint.Font = F_DATA
+	padHint.TextSize = 11
+	padHint.TextColor3 = C_DIM
+	padHint.TextTransparency = 0.35
+	padHint.Text = "drag to steer · tap-tap to dash"
+	padHint.Parent = zone
 
 	return self
 end
 
 -- Dash style (§4): the menu toggle label + the controls hint both track
--- the saved pick — "‹ Q / E KEYS ›" / "‹ DOUBLE-TAP A / D ›".
+-- the saved pick — "‹ Q / E KEYS ›" / "‹ DOUBLE-TAP A / D ›". The hint
+-- row swaps per input device: pad/touch players never see keybinds.
 function Ui:setDashMode(m: string)
+	self._dashMode = m
 	self.dashToggle.Text = "DASH STYLE  " .. (Config.Dash.ModeLabel[m] or m)
-	self.dashHint.Text = "A/D steer   ·   W/S boost/brake   ·   "
-		.. (Config.Dash.ModeHint[m] or "Q/E dash")
-		.. "   ·   R restart"
+	local dev = self._deviceHint
+	if dev == "pad" then
+		self.dashHint.Text = "L-STICK steer   ·   RT/LT boost/brake   ·   RB/LB dash   ·   START restart"
+	elseif dev == "touch" then
+		self.dashHint.Text = "drag to steer   ·   tap-tap the pad to dash   ·   BOOST/BRAKE hold"
+	else
+		self.dashHint.Text = "A/D steer   ·   W/S boost/brake   ·   "
+			.. (Config.Dash.ModeHint[m] or "Q/E dash")
+			.. "   ·   R restart"
+	end
+end
+
+-- Input device (§4): Main feeds UserInputService.LastInputType so the
+-- menu's hints + gamepad SelectedObject follow whatever the player last
+-- touched — "keys" | "pad" | "touch".
+function Ui:setDeviceInput(kind: string)
+	self._deviceHint = kind
+	if self._dashMode then
+		self:setDashMode(self._dashMode)
+	end
+	if self.playHint then
+		self.playHint.Text = if kind == "pad"
+			then "press A / START to roll"
+			elseif kind == "touch" then "tap PLAY to roll"
+			else "press ENTER / R to roll"
+	end
+	if self.deathHint then
+		self.deathHint.Text = if kind == "pad" then "press A" elseif kind == "touch" then "" else "press R"
+	end
 end
 
 -- Locked-item funnel (§18): clicking an unowned STYLE row calls here with
@@ -2429,6 +2644,18 @@ function Ui:focusPack(id: string)
 	end
 end
 
+-- Gamepad menu nav (§4): the engine activates GuiService.SelectedObject
+-- on button A — put it on the primary action whenever a card shows, but
+-- only once the pad is actually the input device (a stray selection box
+-- on the keyboard/mouse UI reads as a bug).
+local function padActive(): boolean
+	local t = UserInputService:GetLastInputType()
+	return t == Enum.UserInputType.Gamepad1
+		or t == Enum.UserInputType.Gamepad2
+		or t == Enum.UserInputType.Gamepad3
+		or t == Enum.UserInputType.Gamepad4
+end
+
 function Ui:showMenu(best: number)
 	self.menu.Visible = true
 	self.death.Visible = false
@@ -2436,6 +2663,13 @@ function Ui:showMenu(best: number)
 	self.bpmScope.Visible = false
 	self.powerBar.Visible = false
 	self.seedTag.Visible = false
+	self.touchUi.Visible = false
+	self.padSteer = 0
+	self.boostHeld = false
+	self.brakeHeld = false
+	if padActive() then
+		GuiService.SelectedObject = self.playBtn
+	end
 	self:setBest(best)
 end
 
@@ -2447,6 +2681,8 @@ function Ui:showHud()
 	self.bpmScope.Visible = true
 	self.powerBar.Visible = true
 	self.seedTag.Visible = true
+	self.touchUi.Visible = self.touchEnabled
+	GuiService.SelectedObject = nil -- no menu selection inside a run
 end
 
 function Ui:setHud(score: number, dist: number, gems: number, _speed: number, seed: number)
@@ -2795,7 +3031,14 @@ function Ui:showDeath(
 	self.bpmScope.Visible = false
 	self.powerBar.Visible = false
 	self.seedTag.Visible = false
+	self.touchUi.Visible = false
+	self.padSteer = 0
+	self.boostHeld = false
+	self.brakeHeld = false
 	self.death.Visible = true
+	if padActive() then
+		GuiService.SelectedObject = self.retryBtn
+	end
 
 	-- Verdict: distance + executioner (§11) — the chunk type that killed
 	-- the run, or the backstop that fired: VOID for falls, STALL for

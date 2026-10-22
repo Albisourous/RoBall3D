@@ -101,6 +101,16 @@ Config.Steering = {
 	UnstickMaxY = 15, -- |vY| under this = grounded; resting slope reads ~7
 }
 
+-- Touch + gamepad inputs (§4): the keyboard map stays canonical — these
+-- map onto the same steer/boost/brake/dash intents, never new physics.
+Config.Controls = {
+	PadDeadzone = 0.18, -- gamepad thumbstick |x| under this reads 0
+	PadTravelPx = 90, -- touch drag distance for full-lock steer
+	PadTapPx = 14, -- release under this travel counts as a tap (dash pair)
+	ZoneW = 0.44, -- touch steer zone: left screen fraction, bottom-anchored
+	ZoneH = 0.62, -- …and height fraction from the bottom edge up
+}
+
 Config.Camera = {
 	Offset = Vector3.new(0, 13, 12), -- behind + above; high + pitched = Slope's downhill read
 	LookAhead = 16, -- studs ahead of the ball the camera aims at
