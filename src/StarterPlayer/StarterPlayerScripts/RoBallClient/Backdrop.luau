@@ -1072,12 +1072,14 @@ end
 -- the disk without drifting (AUDIO.md §8).
 local sunParts: { { part: Part, base: Vector3 } } = {}
 local sunPulse = 0
+local sunPulseApplied = -1 -- write-gated scale cache (−1 forces first pass)
 
 -- Mid-band punch: a client-local BloomEffect rides the same pulse —
 -- kicks bloom a little harder (AUDIO.md §8). Local to us; Lighting never
 -- replicates it. bloomBase preserves a place-authored intensity.
 local bloom: BloomEffect? = nil
 local bloomBase = 0
+local bloomApplied = math.huge -- write-gated intensity cache (huge forces first write)
 
 -- A sun style (Config.Art.SunStyles key — §18 "sun" slot) restyles the
 -- stack: crown/base colors, the solid-dome fraction, the thinnest strip,
@@ -1192,6 +1194,7 @@ function Backdrop.setSun(name: string)
 	end
 	sunStyle = name
 	table.clear(sunParts)
+	sunPulseApplied = -1 -- rebuilt strips need one write pass at any pulse
 	if sun then
 		sun:Destroy()
 	end
@@ -1204,8 +1207,13 @@ local seeded = false
 -- analyzer. Decorative only — the pulse never touches hue or hazards.
 function Backdrop.setPulse(p: number)
 	sunPulse = math.clamp(p, 0, 1)
-	if bloom then
-		bloom.Intensity = bloomBase + sunPulse * Art.BloomPulseGain
+	-- Lighting property writes cost more than a part field — quantize the
+	-- bloom intensity to 0.01 steps; the pulse is a breathing tint, not a
+	-- strobe, so the deadband is invisible.
+	local b = bloomBase + sunPulse * Art.BloomPulseGain
+	if bloom and math.abs(b - bloomApplied) > 0.01 then
+		bloomApplied = b
+		bloom.Intensity = b
 	end
 end
 
@@ -1386,9 +1394,15 @@ function Backdrop.update(anchor: Vector3)
 	if sun then
 		sun:PivotTo(CFrame.new(anchor.X, anchor.Y + Art.SunLift, anchor.Z - Art.SunDist))
 		-- Bass pulse: the disk breathes ±10% with the music's low end.
+		-- Write-gated — 16 strips × .Size every frame mostly rewrote the
+		-- same value (pulse jitter at rest); ±0.25% deadband keeps the
+		-- breathing and skips ~80% of the writes.
 		local s = 1 + sunPulse * 0.10
-		for _, sp in ipairs(sunParts) do
-			sp.part.Size = Vector3.new(sp.base.X * s, sp.base.Y * s, sp.base.Z)
+		if math.abs(s - sunPulseApplied) > 0.0025 then
+			sunPulseApplied = s
+			for _, sp in ipairs(sunParts) do
+				sp.part.Size = Vector3.new(sp.base.X * s, sp.base.Y * s, sp.base.Z)
+			end
 		end
 	end
 

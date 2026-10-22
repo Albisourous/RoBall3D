@@ -151,6 +151,8 @@ type Run = {
 	lastPos: Vector3?, -- previous-frame ball position (stall watchdog)
 	stillT: number, -- seconds the ball has been frozen in place
 	riderYaw: number, -- capsule rider heading (§3): persists so the yaw gate holds last heading
+	riderAcc: number, -- RiderHz accumulator for throttled goal writes
+	riderOri: AlignOrientation?, -- cached RiderOri constraint (recursive find once)
 }
 
 local runs: { [Player]: Run } = {}
@@ -402,6 +404,10 @@ local function startRun(player: Player)
 	-- FLOOR slot (APEBALL.md §5): the equipped floor item restyles deck
 	-- slabs/rails — a mid-run swap stamps future chunks only.
 	streamer.deckItem = Cosmetics.item(eq.floor)
+	-- Gem silhouette (§8.4): the equipped skin pins one pickup shape for
+	-- the run — worth still telegraphs on tier scale + tint. Read per
+	-- chunk build like deckItem, so the shape is never re-rolled mid-run.
+	streamer.gemShape = (Cosmetics.item(eq.skin) or {}).gemShape
 	local run: Run = {
 		laneIndex = laneIndex,
 		streamer = streamer,
@@ -422,6 +428,8 @@ local function startRun(player: Player)
 		lastPos = nil,
 		stillT = 0,
 		riderYaw = math.pi, -- facing -Z/travel at spawn, matching SMB's getInitApeYaw
+		riderAcc = 0,
+		riderOri = nil,
 	}
 	runs[player] = run
 	-- A stale daily rank can't leak onto a non-daily run's death card.
@@ -902,40 +910,51 @@ RunService.Heartbeat:Connect(function(dt)
 			-- Capsule rider goal (APEBALL.md §3 — port of the SMB decomp's
 			-- updateApeOrientation, WebMonkeyBall physics.ts ~571): the
 			-- Inhabitant rig's "RiderOri" AlignOrientation gets a fresh
-			-- world-space goal each frame — yaw blends onto the horizontal
-			-- velocity heading through the Lo→Hi speed gate (the last
-			-- heading holds when nearly stopped), then a RiderTumble share
-			-- of the ball's angular delta gives the shudder without
+			-- world-space goal each RiderHz tick — yaw blends onto the
+			-- horizontal velocity heading through the Lo→Hi speed gate (the
+			-- last heading holds when nearly stopped), then a RiderTumble
+			-- share of the ball's angular delta gives the shudder without
 			-- slaving the rider to the roll. The constraint's soft
 			-- Responsiveness plays the decomp's incremental uprighting —
-			-- no manual upright nudge needed. The ball's network owner is
-			-- the client, but server reads + constraint-property writes
-			-- replicate to whichever machine simulates the rig.
+			-- no manual upright nudge needed, and 30 Hz goals are
+			-- indistinguishable under that damping while halving the
+			-- replicated write rate. The AlignOrientation is cached on
+			-- first find (was a recursive search per frame).
 			local inhab = ball:FindFirstChild("Inhabitant")
 			if inhab then
-				local ori = inhab:FindFirstChild("RiderOri", true)
-				if ori and ori:IsA("AlignOrientation") then
-					local v = ball.AssemblyLinearVelocity
-					local hs = math.sqrt(v.X * v.X + v.Z * v.Z)
-					if hs > Config.Art.RiderYawVelLo then
-						local target = math.atan2(v.X, v.Z) -- +Z face (muzzle/eyes) onto vel dir
-						local blend = math.clamp(
-							(hs - Config.Art.RiderYawVelLo) / (Config.Art.RiderYawVelHi - Config.Art.RiderYawVelLo),
-							0,
-							1
-						)
-						-- Shortest-arc blend toward the heading — the
-						-- decomp's s16-wrapped delta.
-						local dYaw = (target - run.riderYaw + math.pi) % (2 * math.pi) - math.pi
-						run.riderYaw += dYaw * blend
+				local ori = run.riderOri
+				if not (ori and ori.Parent) then
+					local found = inhab:FindFirstChild("RiderOri", true)
+					ori = if found and found:IsA("AlignOrientation") then found else nil
+					run.riderOri = ori
+				end
+				if ori then
+					run.riderAcc += dt
+					if run.riderAcc >= 1 / Config.Art.RiderHz then
+						local rdt = run.riderAcc
+						run.riderAcc = 0
+						local v = ball.AssemblyLinearVelocity
+						local hs = math.sqrt(v.X * v.X + v.Z * v.Z)
+						if hs > Config.Art.RiderYawVelLo then
+							local target = math.atan2(v.X, v.Z) -- +Z face (muzzle/eyes) onto vel dir
+							local blend = math.clamp(
+								(hs - Config.Art.RiderYawVelLo) / (Config.Art.RiderYawVelHi - Config.Art.RiderYawVelLo),
+								0,
+								1
+							)
+							-- Shortest-arc blend toward the heading — the
+							-- decomp's s16-wrapped delta.
+							local dYaw = (target - run.riderYaw + math.pi) % (2 * math.pi) - math.pi
+							run.riderYaw += dYaw * blend
+						end
+						local w = ball.AssemblyAngularVelocity
+						local wn = w.Magnitude
+						local goal = CFrame.Angles(0, run.riderYaw, 0)
+						if wn > 1e-3 then
+							goal = CFrame.fromAxisAngle(w.Unit, wn * rdt * Config.Art.RiderTumble) * goal
+						end
+						ori.CFrame = goal
 					end
-					local w = ball.AssemblyAngularVelocity
-					local wn = w.Magnitude
-					local goal = CFrame.Angles(0, run.riderYaw, 0)
-					if wn > 1e-3 then
-						goal = CFrame.fromAxisAngle(w.Unit, wn * dt * Config.Art.RiderTumble) * goal
-					end
-					ori.CFrame = goal
 				end
 			end
 

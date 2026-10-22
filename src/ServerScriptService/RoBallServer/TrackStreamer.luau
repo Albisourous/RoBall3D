@@ -51,6 +51,11 @@ function TrackStreamer.new(laneIndex: number, seed: number): Streamer
 	-- Pickup restyle (§18): set by Main from the equipped world item —
 	-- "ball" renders every pickup as a capsule orb (APE BALL).
 	self.gemStyle = nil :: string?
+	-- Gem silhouette (§8.4): set by Main from the equipped SKIN item —
+	-- every pickup under that skin renders the same shape; worth still
+	-- telegraphs on tier scale + tint. Read per chunk build, so a mid-run
+	-- skin swap styles future chunks only (same rule as deckItem).
+	self.gemShape = nil :: string?
 	-- Deck restyle (APEBALL.md §5): the equipped floor Item — deck/
 	-- deckB/deckCell/edge/plain params restyle future chunks only.
 	self.deckItem = nil :: any?
@@ -347,24 +352,29 @@ local function makeBlock(parent: Instance, laneX: number, spec: ChunkDefs.ChunkS
 	return b, mid
 end
 
--- Gems hover above the deck (or along the ramp arc). The silhouette comes
--- from GemTypes by value tier (§8.4): worth IS the shape — chips/orbs,
--- coins, shards/rods, the fat crown — picked per spot by a deterministic
--- (startZ, t) hash so a seed replays the same mix. CanCollide stays off —
--- contact means collected, never an obstruction. (A two-pyramid octahedron
--- via SpecialMesh was tried: MeshType.Pyramid renders nothing in the
--- current engine.)
+-- Gems hover above the deck (or along the ramp arc). The equipped skin's
+-- gemShape pins ONE silhouette for the whole run (§8.4) — worth still
+-- reads on the tier's scale + warm tint. A world gemStyle ("ball") wins
+-- over the skin pick (APE BALL's pickups belong to the world); a skin
+-- without gemShape falls back to the seeded per-spot mix — a
+-- deterministic (startZ, t) hash, so a seed replays the same mix.
+-- CanCollide stays off — contact means collected, never an obstruction.
+-- (A two-pyramid octahedron via SpecialMesh was tried: MeshType.Pyramid
+-- renders nothing in the current engine.)
 local function makeGem(
 	parent: Instance,
 	laneX: number,
 	spec: ChunkDefs.ChunkSpec,
 	g: ChunkDefs.GemSpot,
-	style: string?
+	style: string?,
+	gemShape: string?
 ): Part
 	local s = spec.section(g.t)
 	local shape, size, color
 	if style == "ball" then
 		shape, size, color = GemTypes.ball(g.value)
+	elseif gemShape then
+		shape, size, color = GemTypes.of(g.value, gemShape)
 	else
 		shape, size, color = GemTypes.pick(g.value, spec.startZ, g.t)
 	end
@@ -553,6 +563,24 @@ local function emitFlipZone(
 end
 
 function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
+	-- spec.section(t) allocates a fresh Section table per call
+	-- (PERFORMANCE.md §3): every emitter samples the same handful of
+	-- fractions — ~50 allocs per chunk was steady GC churn at a chunk a
+	-- frame. Swap in a per-build memoized section for the emitters by
+	-- rebinding the local spec to a shallow clone; the ChunkRecord keeps
+	-- the RAW spec so per-frame yAt() queries don't grow the memo table.
+	local rawSpec = spec
+	local secCache = {}
+	spec = table.clone(rawSpec)
+	spec.section = function(t: number): ChunkDefs.Section
+		local s = secCache[t]
+		if not s then
+			s = rawSpec.section(t)
+			secCache[t] = s
+		end
+		return s
+	end
+
 	local holder = Instance.new("Folder")
 	holder.Name = spec.type .. "@" .. tostring(spec.startZ)
 	holder.Parent = self.folder
@@ -619,19 +647,14 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 
 	-- spec.section(t) allocates a fresh Section per call (PERFORMANCE.md
 	-- §3): emitDeck and the transverse marks re-queried ~3x per feature.
-	-- Aligned t hits `samples` directly; anything else memoizes per build.
-	local secCache: { [number]: ChunkDefs.Section } = {}
+	-- Aligned t hits `samples` directly; anything else falls through to
+	-- the memoized clone rebound above.
 	local function secAt(t: number): ChunkDefs.Section
 		local i = math.round(t * n)
 		if i >= 0 and i <= n and math.abs(t - i / n) < 1e-6 then
 			return samples[i + 1]
 		end
-		local s = secCache[t]
-		if not s then
-			s = spec.section(t)
-			secCache[t] = s
-		end
-		return s
+		return spec.section(t)
 	end
 
 	-- Blackout (§8.6): the chunk's transverse + center neon dims to a
@@ -976,7 +999,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 
 	if spec.gems then
 		for _, g in ipairs(spec.gems) do
-			local gem = makeGem(holder, self.laneX, spec, g, self.gemStyle)
+			local gem = makeGem(holder, self.laneX, spec, g, self.gemStyle, self.gemShape)
 			local taken = false
 			gem.Touched:Connect(function(hit)
 				if taken then
@@ -991,7 +1014,7 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	end
 
 	local record: ChunkRecord = {
-		spec = spec,
+		spec = rawSpec,
 		holder = holder,
 		startZ = spec.startZ,
 		endZ = spec.startZ - spec.length,

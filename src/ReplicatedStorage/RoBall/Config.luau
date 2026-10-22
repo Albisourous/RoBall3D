@@ -1382,6 +1382,7 @@ Config.Art = {
 	RiderResponsiveness = 40, -- Align stiffness — <200 leaves suspension bob, plays SMB's soft uprighting
 	RiderMaxForce = 1e5, -- AlignPosition cap: the rig must hold dead-center at any speed
 	RiderMaxTorque = 1e4, -- AlignOrientation cap: soft tracking, never a snap
+	RiderHz = 30, -- goal-write cadence: the damped constraint hides anything faster; halves replication
 	MonkeyScale = 1.35, -- overall monkey size multiplier — reads through the 0.5 shell
 	MonkeyFur = Color3.fromRGB(170, 110, 64),
 	MonkeyFace = Color3.fromRGB(248, 214, 170),

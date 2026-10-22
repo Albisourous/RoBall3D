@@ -123,10 +123,25 @@ Budgets (targets, not laws):
   `string.format` into the output table directly. (done: `..` concat,
   no temp arrays)
 - [x] **`spec.section(t)` allocates a fresh Section table per call.**
-  `TrackStreamer.buildChunk` already caches the `samples` array for
-  slicing but re-calls `section()` ~3× per emitDeck, ~3× per grid strip,
-  ~3× per sector mark (~50–100 allocs per chunk). Index the sampled
-  array for emitDeck reuse or memoize `section()` per chunk build.
+  (fixed: per-build memoized clone — `rawSpec` kept in the record so
+  `yAt` doesn't grow the cache) `TrackStreamer.buildChunk` already
+  caches the `samples` array for slicing but re-calls `section()` ~3×
+  per emitDeck, ~3× per grid strip, ~3× per sector mark (~50–100 allocs
+  per chunk). Index the sampled array for emitDeck reuse or memoize
+  `section()` per chunk build.
+- [x] **`refreshGarage` repaints the hidden garage on every bank write.**
+  (fixed: early-out on `ui.menu.Visible`) `RoBallBank` rewrites on every
+  gem pickup mid-run and each write rebuilt slot rows/pack states/lab
+  behind an invisible panel; now a boolean check. `ui.onMenu` repaints
+  on open.
+- [x] **Rider rig wrote `RiderOri.CFrame` every server Heartbeat.**
+  (fixed: `Config.Art.RiderHz = 30` cadence + cached constraint — the
+  recursive `FindFirstChild("RiderOri", true)` per frame is gone too)
+  The damped constraint hides the lower rate; halved replication.
+- [x] **Sun strips + bloom rewrote every frame.** (fixed: deadband
+  write-gates — ±0.25% sun scale, ±0.01 bloom intensity) 16 `.Size`
+  writes/frame mostly rewrote the same value at rest; Lighting property
+  writes cost more than part fields.
 ## 4. What's already right — do not regress
 
 - `GenCore` is pure & seeded; never add `Instance.new`, `math.random`,
@@ -229,3 +244,11 @@ near-miss-FX removal so client "before" is slightly heavy.
   mid-run pushes land **zero**, and the diorama freezes its per-frame
   anim while hidden. The live `Backdrop` was exonerated first — its
   lazy-build/park pools were not the churn source.
+- **Smoothness pass — mid-run churn killed.** Follow-up to the diorama
+  fix: `refreshGarage` still repainted the invisible garage on every
+  gem pickup (bank attr), the capsule rider wrote its orientation goal
+  at full Heartbeat rate + paid a recursive constraint find per frame,
+  and the sun's 16 strips + bloom rewrote identical values every frame.
+  `spec.section` memoization removes the last steady per-chunk alloc
+  churn (~50 table allocs → one clone + cache per build). Write-gating
+  pattern everywhere: compare before you write, quantize what breathes.

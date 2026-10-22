@@ -303,6 +303,14 @@ local function queuePreview()
 end
 
 local function refreshGarage()
+	-- Display-only work: skip the whole repaint while the menu's hidden —
+	-- RoBallBank rewrites on EVERY gem pickup mid-run and each write used
+	-- to rebuild slot rows/pack states/lab behind an invisible panel
+	-- (PERFORMANCE.md §1). ui.onMenu calls this on open, so the panel is
+	-- always fresh when it can actually be seen.
+	if not ui.menu.Visible then
+		return
+	end
 	local owned = ownedSet()
 	ui:setGarage({
 		slots = slotRows(),
