@@ -698,7 +698,10 @@ leaves the line off.
   downhill grade so the canyon hugs the slope. **Backdrop is client-local**
   (`Backdrop.luau`): zero replication cost. The Atmosphere dims towers past
   ~600 studs; `CitySpan` stays inside the visible band.
-  The **world** cosmetic slot (§18) swaps the flanks: **NEON PEAKS**
+  The **world** cosmetic slot (§18) swaps the flanks: **MIAMI NIGHTS**
+  plants neon palm rows beside the track (dark violet trunk, cyan→magenta
+  frond fan, bead coconuts; crowns rustle on a slow breeze sine);
+  **NEON PEAKS**
   replaces the towers with a seeded wireframe ridge field — a displaced
   grid mesh of thin Neon edge parts over near-black tilted facet plates,
   plus a grade-pitched dark slab per tile so ranges occlude the void
@@ -1070,12 +1073,17 @@ All have designed-for extension points (chunk features, `datamodel` hooks)
 **Phase 1 = cosmetics only.** The leaderboard is the replay hook, so v1
 sells looks, never power. Death stays final — revives were considered and
 explicitly rejected (a paid continue is just buying board position). Every
-item is a pure visual in one of six slots: `skin`, `trail`, `gemFx`,
-`deathFx`, `world`, `sun` — `world` swaps the entire side-scenery theme
-(§12: city canyon ↔ NEON PEAKS ridge field), the first environment-tier
-DLC; `sun` restyles the horizon disk the run chases (§12 `Art.SunStyles`),
-the second. The **SUNKISSED** bundle packs ECLIPSE + 24K NOON +
-WIREFRAME; **POLAR CAP** rides the seasonal SOLSTICE window.
+item is a pure visual in one of seven slots: `skin`, `trail`, `gemFx`,
+`deathFx`, `world`, `sun`, `filter` — `world` swaps the entire
+side-scenery theme (§12: city canyon ↔ NEON PEAKS ridge field ↔ MIAMI
+NIGHTS palm grove), the first environment-tier DLC; `sun` restyles the
+horizon disk the run chases (§12 `Art.SunStyles`), the second. `filter`
+draws a retro screen overlay (PIXEL GLASS lattice / SCANLINES raster) on
+a dedicated low-DisplayOrder ScreenGui — the whole 3D view pixelates
+while HUD text renders above it and stays crisp. The **SUNKISSED**
+bundle packs ECLIPSE + 24K NOON + WIREFRAME; **POLAR CAP** rides the
+seasonal SOLSTICE window; **MIAMI NIGHTS** bundles the palm grove with
+PRISM RISE; **VHS DECK** bundles both filters.
 
 **Catalog**: items live in `Cosmetics.luau` (ReplicatedStorage) — each is a
 data record `{ slot, name, ...colors/params }`, so a new look is config,

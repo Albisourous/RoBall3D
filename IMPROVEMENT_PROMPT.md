@@ -453,6 +453,23 @@ runs the loop below and does not stop until you say **stop**.
     on the solstice window; SUNKISSED pass bundles eclipse+noon+
     wireframe)*
 
+64. **Palm-grove world** *(done — MIAMI NIGHTS: `world_palms` swaps the
+    tower canyon for neon palm rows (violet trunk, cyan→magenta frond
+    fan, bead coconuts, breeze-rustle crowns) on the same lazy-build /
+    park-on-swap contract; MIAMI NIGHTS pass bundles grove+prism sun)*
+
+65. **Screen filter slot** *(done — seventh slot `filter`: PIXEL GLASS
+    LCD lattice + SCANLINES raster drawn on a dedicated low-DisplayOrder
+    ScreenGui (ScreenFilter.luau) — the 3D view pixelates while HUD
+    text stays crisp above it; VHS DECK pass bundles both)*
+
+64. **Zero-bounce landing** *(done — elasticity 0 alone still bounced:
+    the solver's impact response pops hard landings. When the lane
+    probe sees deck inside `Landing.ClampReach`, the client caps the
+    approach at slope-following rate + `ImpactPad` — lands flat every
+    time, and a bounce can't throw the ball into the next hole. Gaps
+    see no ground, so falling stays free)*
+
 63. **Sway chunk** *(done — the bank oscillates left-right, a slalom
     for the roll axis; integer sine periods exit level, `RateMax`
     caps deg/stud. Technical family, pools ≥200m, no canRun gate)*

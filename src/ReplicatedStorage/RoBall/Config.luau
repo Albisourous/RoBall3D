@@ -130,12 +130,15 @@ Config.Landing = {
 	ContactPad = 0.7,
 	-- Zero-bounce landing: a fast fall arrives past the solver's quiet-
 	-- contact range and the impact pops the ball back up — a bounce
-	-- that throws the player into the next hole. Once ground is inside
-	-- ClampReach, downward speed caps at the deck's own descent rate
-	-- (Grade*fwdSpeed) plus ImpactPad — contact is flat, always. Over
-	-- a gap the probe finds nothing, so the fall stays free.
+	-- that throws the player into the next hole. Two stages: the
+	-- approach cap engages when ground is inside ClampReach + one step
+	-- of lookahead, holding impact at slope-follow + ImpactPad; then any
+	-- solver-pop that still lands positive vY at ContactPad is squashed
+	-- flat. Pad/orb kicks stamp KickAt and ride a grace window through
+	-- the squash. Over a gap the probe finds nothing: falls stay free.
 	ClampReach = 1.8, -- studs under the ball where the cap engages
 	ImpactPad = 10, -- studs/s of true impact allowed over slope-following
+	KickGrace = 0.25, -- seconds a pad/orb kick is exempt from the squash
 }
 
 -- Danger vignette (§12): a red screen-frame stroke that tightens as the
@@ -1108,6 +1111,32 @@ Config.Art = {
 	MeteorDrop = 160, -- respawn once this far below the deck plane
 	MeteorValue = 1.0,
 	MeteorWhite = 0.45, -- fraction painted pure white (hot heads)
+	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
+	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
+	-- rustle a few degrees on wall-clock sine; bases sit just under the
+	-- deck grade so the grove reads planted beside the track.
+	PalmRows = 2,
+	PalmMinX = 54, -- nearest trunk distance from lane center
+	PalmRowDX = 46,
+	PalmSpacing = 40,
+	PalmSpan = 460,
+	PalmTrunkMin = 22,
+	PalmTrunkMax = 36,
+	PalmFronds = 6,
+	PalmFrondLen = 12,
+	PalmDroopMin = 0.9, -- rad: frond pitch below horizontal
+	PalmDroopMax = 1.35,
+	PalmSwayDeg = 3.5, -- crown rustle amplitude
+	PalmSwayRate = 1.1, -- rad/s breeze
+	PalmValue = 0.9, -- neon brightness for fronds
+	-- PIXEL GLASS / SCANLINES (§18 "filter" slot): an LCD-style lattice
+	-- over the 3D view — gridlines at PixelPitch read as chunky pixels.
+	-- The overlay sits on a lower DisplayOrder than the HUD so every
+	-- line of text stays crisp (the filter never touches readability).
+	PixelPitch = 6, -- px per pixel cell
+	PixelBar = 1, -- gridline thickness in px
+	PixelAlpha = 0.5, -- gridline opacity
+	PixelColor = Color3.fromRGB(6, 2, 12),
 	-- Synthwave sun: a neon disk parked far down the slope, riding the
 	-- descent so it hangs on the horizon. The crown is a solid dome
 	-- (orange -> magenta), the bottom `solid`->1 dissolves into the
@@ -1266,6 +1295,8 @@ Config.Monetization = {
 		candy = 0, -- CANDY GLOSS — pink-mono set + pink slip death (~149)
 		colorlab = 0, -- COLOR LAB — custom-hue skin+trail+pop + sliders (~249)
 		sunkissed = 0, -- SUNKISSED — eclipse + 24k noon + wireframe suns (~149)
+		miami = 0, -- MIAMI NIGHTS — palm-grove world + prism sun (~149)
+		vhs = 0, -- VHS DECK — pixel glass + scanline screen filters (~99)
 	},
 	Price = {
 		starter = 49,
@@ -1284,6 +1315,8 @@ Config.Monetization = {
 		candy = 149,
 		colorlab = 249,
 		sunkissed = 149,
+		miami = 149,
+		vhs = 99,
 	},
 	-- Seasonal slot (§18): ONE rotating bundle gated on a yearly UTC
 	-- window so the garage always has something coming or going. The

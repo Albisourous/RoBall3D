@@ -28,6 +28,7 @@ local PadController = require(script.Parent.PadController)
 local OrbController = require(script.Parent.OrbController)
 local FatalController = require(script.Parent.FatalController)
 local Ghost = require(script.Parent.GhostController)
+local ScreenFilter = require(script.Parent.ScreenFilter)
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -1052,11 +1053,22 @@ RunService.Heartbeat:Connect(function(dt)
 	-- takes over — the ball falls ClearH back to the deck.
 	-- Zero-bounce landing (§11): arriving harder than the deck's own
 	-- descent pops the ball back up even at elasticity 0 — the solver's
-	-- impact response is the bounce. When the lane probe sees ground
-	-- inside ClampReach, cap the approach at slope-following speed +
-	-- ImpactPad. Over a gap the probe finds nothing: falls stay free.
-	if not inFlip and drop and drop.Position.Y > bp.Y - Config.Ball.Diameter / 2 - Config.Landing.ClampReach then
-		vY = math.max(vY, -fwdSpeed * Config.Generation.Grade - Config.Landing.ImpactPad)
+	-- impact response is the bounce. Stage one: the lane probe looks
+	-- ClampReach + one physics step ahead and caps the approach at
+	-- slope-following speed + ImpactPad — a deep fall can't outrun the
+	-- frame. Stage two: any positive vY still standing at contact is a
+	-- solver pop, squashed flat — unless a pad/orb kick stamped KickAt
+	-- inside the grace window. Over a gap the probe finds nothing:
+	-- falls stay free.
+	if not inFlip and now >= unstickUntil and drop then
+		local gap = bp.Y - Config.Ball.Diameter / 2 - drop.Position.Y
+		if gap <= Config.Landing.ClampReach + math.max(0, -vY) * dt then
+			vY = math.max(vY, -fwdSpeed * Config.Generation.Grade - Config.Landing.ImpactPad)
+		end
+		local kickAt = b:GetAttribute("KickAt") or 0
+		if gap <= Config.Landing.ContactPad and vY > 0 and now - kickAt > Config.Landing.KickGrace then
+			vY = 0
+		end
 	end
 	b.AssemblyLinearVelocity = Vector3.new(lateralVel, vY, -fwdSpeed)
 	lastBallPos = b.Position
@@ -1145,6 +1157,7 @@ for _, slot in ipairs(Cosmetics.Slots) do
 end
 
 Backdrop.init()
+ScreenFilter.init()
 Music.init()
 AudioMix.init()
 Sfx.init()

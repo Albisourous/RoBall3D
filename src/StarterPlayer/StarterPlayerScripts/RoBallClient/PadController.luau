@@ -33,6 +33,9 @@ local function hook(pad: Instance)
 		fired[pad :: BasePart] = true
 		local v = b.AssemblyLinearVelocity
 		b.AssemblyLinearVelocity = Vector3.new(v.X, kick, v.Z)
+		-- Stamp the intentional launch so the landing squash (§11) can
+		-- tell it apart from a solver pop.
+		b:SetAttribute("KickAt", tick())
 		-- Local-only flash: the strip blooms for a beat to confirm the grab.
 		local p = pad :: BasePart
 		p.LocalTransparencyModifier = -0.4
