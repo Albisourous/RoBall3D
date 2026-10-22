@@ -49,13 +49,13 @@ Config.Power = {
 	Mult = 1.5, -- forward speed multiplier while boosting — a real kick
 	AccelMult = 4, -- ease rate x Accel while boosting: the BPM HUD visibly JUMPS
 	Capacity = 1.2, -- seconds a full meter drains under a held verb
-	RegenPerSec = 0.15, -- meter fraction refilled per second off (~6.7s to full)
+	RegenPerSec = 0.1, -- meter fraction refilled per second off (~10s to full)
 	RechargeGate = 0.35, -- emptied meter must refill this far to act again — the marker
 	-- Gem income (§10): pickups refund meter by point value — riskier
-	-- lines recharge faster. Per point: safe 10→2%, edge 15→3%, beam
-	-- 25→5%, gap-arc/hoop 40/25→8%/5%. ~500 pts fills a bar alone, so
-	-- regen stays primary and gems are a bonus trickle (~2x in a line).
-	GemPerPoint = 0.002,
+	-- lines recharge faster. Per point: safe 10→3%, edge 15→4.5%, beam
+	-- 25→7.5%, gap-arc/hoop 40/25→12%/7.5%. ~330 pts fills a bar alone —
+	-- with the slower regen, gem lines ARE the recharge path.
+	GemPerPoint = 0.003,
 }
 
 -- Dash (DESIGN.md §4): tap Q/E for a lateral burst — a flat slice of the

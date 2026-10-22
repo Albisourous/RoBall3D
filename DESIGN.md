@@ -113,15 +113,16 @@ explainable.
 - **Power meter** (`Config.Power`): one shared resource bar driving all
   three verbs — hold `W`/`↑` = ×`Mult` (1.5) boost, hold `S`/`↓` = ÷`Mult`
   brake, tap `Q`/`E` = dash (below). The ~1.2s charge drains while a held
-  verb runs, refills on release (~4.4s to full), and emptying latches
+  verb runs, refills on release (~10s to full — a deliberate pace, so
+  gem lines matter), and emptying latches
   **every** verb out until ~35% refilled. Boost/brake both ease at 4×
   normal accel so the HUD tempo visibly jumps; the bar flares pink on
   boost, orange on brake. The gold `RechargeGate` notch in the strip is
   the universal **armed** marker — a meter past the notch means all
   three verbs are live, so "can I act?" is read off the bar, not felt
   out. Gem pickups refund meter by point value (`Power.GemPerPoint` —
-  safe 2%, edge 3%, beam 5%, gap-arc 8% of the bar), so a risky line is
-  a partial recharge, not just score. Charge lives on the bottom-left
+  safe 3%, edge 4.5%, beam 7.5%, gap-arc 12% of the bar), so a risky
+  line is a real recharge, not just score. Charge lives on the bottom-left
   meter bar (§12).
 - **Dash** (`Config.Dash`): a lateral burst left/right — same steer-ease
   math drives lateral velocity toward `Speed` (64 s/s ≈ 2.4× max steer)
