@@ -10,7 +10,9 @@
 --   width   = ribbon width (0 => void, nothing emitted)
 --   centerX = lane-local X of ribbon center
 --   y       = deck TOP surface height
---   rollDeg = bank angle around the travel axis
+--   rollDeg = bank angle around the travel axis — sign convention:
+--   +rollDeg raises the +X edge, so the deck dips toward -X ("banks
+--   left"); downhill gems/pull always ride the -sign(rollDeg) side
 --   cutout  = optional center strip removed (SplitGap) — leaves two rails
 --   wallH   = optional rail wall height at both edges (Bowl)
 --
@@ -477,7 +479,7 @@ end
 
 -- Tilt: bank the ribbon, hold, return level. Always exits flat.
 function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
-	local length = rng:NextInteger(40, 70)
+	local length = rng:NextInteger(Config.Tilt.LenMin, Config.Tilt.LenMax)
 	-- Roll ramp (§9): the bank ceiling steepens with distance toward the
 	-- seed's rolled max; Cap is the absolute sanity bound.
 	local rollHi = math.min(20 * (st.rollScale or 1), Config.Roll.Cap)
@@ -515,9 +517,9 @@ end
 -- the profile), holds at DegMin..DegMax·rollScale through the middle,
 -- eases out at the seam. Bank pull (§4) is the entire hazard: edge gems
 -- sit on the downhill rail — the line you're being dragged toward is
--- the one that pays. dir: -1 banks left (+roll dips the left edge),
--- +1 banks right, 0 rolls a side. canRun requires width so an uphill
--- hold is always a fair fight.
+-- the one that pays. dir: +1 banks left (+rollDeg dips the -X edge,
+-- same convention Tilt's gem side uses), -1 banks right, 0 rolls a
+-- side. canRun requires width so an uphill hold is always a fair fight.
 local function fullTiltBuild(rng: Random, st: GenState, name: string, dir: number, debut: boolean?): ChunkSpec
 	local C = Config.FullTilt
 	local length = rng:NextInteger(C.LenMin, C.LenMax)
@@ -536,14 +538,14 @@ local function fullTiltBuild(rng: Random, st: GenState, name: string, dir: numbe
 		return roll * (1 - math.cos(u * math.pi)) / 2
 	end
 	-- Downhill side = the direction bank pull shoves (deck dips toward
-	-- +xOff for positive roll) — the dare line pays edge value.
+	-- -xOff for positive roll) — the dare line pays edge value.
 	local gems = gemRhythmLine(
 		rng,
 		Tiers.speedAt(st.dist),
 		length,
 		0.35,
 		0.6,
-		sign * (st.width / 2 - 2),
+		-sign * (st.width / 2 - 2),
 		Config.Gems.ValueEdge,
 		nil,
 		energyOf(st),
@@ -559,11 +561,11 @@ function ChunkDefs.FullTilt(rng: Random, st: GenState, _tier, debut: boolean?): 
 end
 
 function ChunkDefs.LeftTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
-	return fullTiltBuild(rng, st, "LeftTilt", -1, debut == true)
+	return fullTiltBuild(rng, st, "LeftTilt", 1, debut == true)
 end
 
 function ChunkDefs.RightTilt(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
-	return fullTiltBuild(rng, st, "RightTilt", 1, debut == true)
+	return fullTiltBuild(rng, st, "RightTilt", -1, debut == true)
 end
 
 -- Pinch: width collapses briefly mid-chunk, then reopens.

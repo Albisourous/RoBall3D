@@ -463,13 +463,19 @@ Config.Roll = {
 	Cap = 42, -- absolute bank cap, degrees
 }
 
+Config.Tilt = {
+	-- Tilt (DESIGN.md §8.3): bank the ribbon, hold, return level.
+	LenMin = 70,
+	LenMax = 110,
+}
+
 Config.FullTilt = {
 	-- FullTilt (DESIGN.md §8.3): the whole chunk commits to one steep
 	-- bank — no Sway oscillation, no mild Tilt hold. Bank pull shoves
 	-- toward the low edge the entire length; holding the uphill line IS
 	-- the challenge. DegMax rides the §9 roll ramp.
-	LenMin = 45,
-	LenMax = 75,
+	LenMin = 90,
+	LenMax = 140,
 	DegMin = 26, -- base bank, degrees
 	DegMax = 34, -- × rollScale, clamped to Roll.Cap
 	RampFrac = 0.3, -- fraction of chunk the bank eases in/out over
