@@ -836,17 +836,18 @@ that caused them.
   **METEOR SHOWER** (`meteor`) is the one animated sky — thin neon
   streaks on real velocities (wall-clock dt), respawning ahead once they
   fall below the deck or slip behind. **NORTHERN LIGHTS** (`polar`) is
-  the overhead aurora — where BOREALIS SKY flanks the lane with
-  curtains, tall translucent veils sling ACROSS the lane high in the
-  night sky — each seeded with a slash yaw + a tilt off vertical (a
-  flat sheet reads edge-on as a sliver; the tilt gives the face
-  on-screen area) and undulating on slow sines (y bob + roll wobble +
-  the same green→violet hue window + a shimmer on transparency).
-  Heights are ball-relative like the sun — deck-relative heights would
-  sink distant veils below the horizon line; tuned to the chase cam's
-  ~15° sky band so near veils arc overhead and mid/far ones slash
-  across the visible sky. A sparse star field scatters through the
-  band so it reads as night sky, not a ceiling. All follow the same contract:
+  the overhead aurora done with soft particles, not part sheets — the
+  classic one-emitter trick: giant `VelocityPerpendicular` streak
+  sprites burst ~10k studs out of an emitter and `Drag` freezes them
+  mid-flight, so what was a burst lands as a luminous canopy. Two
+  `SpreadAngle (180,0)` fans stacked down-course sweep the whole upper
+  semicircle across the lane; the emitter parts re-anchor ahead of the
+  ball every frame (a slow yaw drift wanders the canopy planes) so it
+  hangs over the track forever without recycling. Sprites fade in/out
+  on a transparency curve and carry the green→white→cyan→pale-yellow
+  aurora gradient — every hue inside the color-law window. A sparse
+  star field scatters through the band so it reads as night sky, not a
+  ceiling. All follow the same contract:
   lazy-built on first equip, client-local, non-collidable, parked below
   the void on theme swap, recycled on frontiers so they stream forever.
 - **Ball**: near-black sphere + five `CylinderHandleAdornment` wireframe

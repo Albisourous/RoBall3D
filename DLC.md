@@ -93,7 +93,7 @@ GHOST/INFERNO (◊250–350); LAB POP ◊1500 (colorlab).
 | NEON REEF | strand field | ◊800 | reef |
 | METEOR SHOWER | animated streaks | ◊900 | deepspace |
 | MIAMI NIGHTS | neon palm grove | ◊800 | miami |
-| NORTHERN LIGHTS | overhead aurora ribbons + stars | ◊900 | polaris |
+| NORTHERN LIGHTS | particle-canopy aurora + stars | ◊900 | polaris |
 
 ---
 

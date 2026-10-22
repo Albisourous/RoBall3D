@@ -18,10 +18,11 @@
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
---   "polar" — NORTHERN LIGHTS: the real aurora — wide translucent
---             ribbons slung ACROSS the lane high overhead, seeded with a
---             slash yaw and undulating on slow sines in the green→violet
---             window; a sparse star field rides the night band with them.
+--   "polar" — NORTHERN LIGHTS: the real aurora — a soft-particle canopy
+--             of giant velocity-stretched streak sprites frozen
+--             mid-flight by drag, fanned across the upper sky from
+--             emitters re-anchored ahead of the ball; a sparse star
+--             field rides the night band with it.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -77,20 +78,17 @@ local meteors: { Meteor } = {}
 local meteorSeeded = false
 local meteorClock = os.clock() -- dt source for real streak motion
 
--- POLAR (§18): overhead ribbons + a star band, same lazy/park contract.
-type PolarBand = {
+-- POLAR (§18): soft-particle aurora canopy + a star band, same
+-- lazy/park contract.
+type PolarFan = {
 	part: Part,
-	x: number,
-	z: number,
-	alt: number,
+	emitter: ParticleEmitter,
+	zOff: number,
 	yaw: number,
-	tilt: number,
 	phase: number,
-	huePhase: number,
 }
-local polarBands: { PolarBand } = {}
+local polarFans: { PolarFan } = {}
 local polarStars: { Part } = {}
-local polarFrontZ = 0
 local polarSeeded = false
 
 -- PALMS (§18): same lazy-build / park-on-swap contract. A palm is a trunk
@@ -479,34 +477,85 @@ local function stepAurora(anchor: Vector3, t: number)
 end
 
 --========================= NORTHERN LIGHTS (polar) =========================--
--- The real aurora: tall translucent veils slung ACROSS the lane high
--- overhead — where BOREALIS SKY flanks the road with curtains, this arcs
--- over it. Each veil seeds a slash yaw + a tilt off vertical (a flat
--- sheet reads edge-on as a sliver — the tilt gives the face on-screen
--- area) + size jitter, then undulates in place (y bob + roll wobble +
--- the green→violet hue window); z recycles on a single frontier. Heights
--- are ball-relative like the sun — deck-relative heights would sink
--- distant veils under the horizon line. Sparse star motes fill the band
--- so it reads as night sky, not a ceiling.
+-- The real aurora look comes from soft particles, not part sheets:
+-- huge VelocityPerpendicular streak sprites burst thousands of studs
+-- out of the emitter and Drag freezes them mid-flight — what was a
+-- burst lands as a soft luminous canopy (the classic one-emitter
+-- aurora trick). SpreadAngle (180,0) fans the burst in a plane; the
+-- part stays unrotated (emission Top = +Y) so the fan sweeps the whole
+-- upper semicircle ACROSS the lane. Emitter parts re-anchor ahead of
+-- the ball every frame — the canopy hangs over the track forever with
+-- no recycling. A sparse star field rides the band so it reads as
+-- night sky, not a ceiling.
 
 local STAR_BLUE = Color3.fromRGB(170, 190, 255)
 local STAR_GREEN = Color3.fromRGB(150, 255, 210)
 
+-- Aurora palette — the classic green→white→cyan→green→pale-yellow
+-- gradient; every hue sits inside the color law's window.
+local POLAR_COLORS = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(141, 255, 133)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(233, 255, 241)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(165, 243, 255)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(108, 255, 120)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(247, 255, 174)),
+})
+
+-- Sprites fade in from full transparent, hold a soft veil through
+-- mid-flight, fade back out — the canopy churns without pops.
+local POLAR_FADE = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.15, 1),
+	NumberSequenceKeypoint.new(0.55, 0.2),
+	NumberSequenceKeypoint.new(1, 1),
+})
+
+local function makePolarFan(parent: Instance): PolarFan
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Transparency = 1
+	p.Size = Vector3.new(1, 1, 1)
+	p.CFrame = PARK
+	p.Parent = parent
+	local em = Instance.new("ParticleEmitter")
+	em.Texture = Art.PolarTexture
+	em.Color = POLAR_COLORS
+	em.Transparency = POLAR_FADE
+	em.Brightness = 1
+	em.LightEmission = Art.PolarEmission
+	em.LightInfluence = 0
+	em.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
+	em.Size = NumberSequence.new(Art.PolarSize)
+	em.Squash = NumberSequence.new(Art.PolarSquash)
+	em.Lifetime = NumberRange.new(Art.PolarLifeMin, Art.PolarLifeMax)
+	em.Rate = Art.PolarRate
+	em.Speed = NumberRange.new(Art.PolarSpeed)
+	em.SpreadAngle = Vector2.new(180, 0)
+	em.Drag = Art.PolarDrag
+	em.EmissionDirection = Enum.NormalId.Top
+	em.Enabled = false
+	em.Parent = p
+	return {
+		part = p,
+		emitter = em,
+		zOff = 0,
+		yaw = rng:NextNumber(-Art.PolarFanYaw, Art.PolarFanYaw),
+		phase = rng:NextNumber(0, math.pi * 2),
+	}
+end
+
 local function ensurePolar()
-	if #polarBands > 0 then
+	if #polarFans > 0 then
 		return
 	end
-	for _ = 1, Art.PolarCount do
-		local p = Instance.new("Part")
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CastShadow = false
-		p.Material = Enum.Material.Neon
-		p.Transparency = Art.PolarFade
-		p.CFrame = PARK
-		p.Parent = root
-		table.insert(polarBands, { part = p, x = 0, z = 0, alt = 0, yaw = 0, tilt = 0, phase = 0, huePhase = 0 })
+	for i = 1, Art.PolarFans do
+		local f = makePolarFan(root)
+		f.zOff = Art.PolarFanZ + (i - 1) * Art.PolarFanZGap
+		table.insert(polarFans, f)
 	end
 	for _ = 1, Art.PolarStars do
 		local s = Instance.new("Part")
@@ -523,22 +572,6 @@ local function ensurePolar()
 	end
 end
 
-local function layBand(b: PolarBand, anchor: Vector3, z: number)
-	b.z = z
-	b.x = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing + rng:NextNumber(-60, 60)
-	b.alt = Art.PolarAlt + rng:NextNumber(-Art.PolarAltJitter, Art.PolarAltJitter)
-	b.yaw = rng:NextNumber(-Art.PolarYawMax, Art.PolarYawMax)
-	b.tilt = rng:NextNumber(Art.PolarTiltMin, Art.PolarTiltMax) * (if rng:NextNumber() < 0.5 then -1 else 1)
-	b.phase = rng:NextNumber(0, math.pi * 2)
-	b.huePhase = rng:NextNumber()
-	local p = b.part
-	p.Size = Vector3.new(
-		Art.PolarSpan * rng:NextNumber(0.75, 1.15),
-		Art.PolarHeight * rng:NextNumber(0.7, 1.4),
-		Art.PolarThick
-	)
-end
-
 local function layPolarStar(s: Part, anchor: Vector3)
 	local z = anchor.Z - rng:NextNumber(0, Art.PolarStarZSpan)
 	s.Position = Vector3.new(
@@ -551,21 +584,13 @@ local function layPolarStar(s: Part, anchor: Vector3)
 	s.Color = if r < 0.7 then WHITE elseif r < 0.85 then STAR_BLUE else STAR_GREEN
 end
 
--- Per-frame undulation: y bob + roll wobble + hue cycle + a slow shimmer
--- on transparency. ~8 bands + 45 motes — cheap.
+-- Per-frame: re-anchor each emitter fan ahead of the ball with a slow
+-- yaw drift so the canopy planes wander; stars re-scatter as they pass.
 local function stepPolar(anchor: Vector3, t: number)
-	for _, b in ipairs(polarBands) do
-		if b.z > anchor.Z + BACK_MARGIN then
-			polarFrontZ -= Art.PolarSpacing
-			layBand(b, anchor, polarFrontZ)
-		end
-		local sway = math.sin(t * Art.PolarWaveF + b.phase)
-		local roll = math.sin(t * 0.27 + b.phase * 1.3) * Art.PolarRollMax
-		local p = b.part
-		p.CFrame = CFrame.new(b.x, anchor.Y + b.alt + sway * Art.PolarWaveAmp, b.z) * CFrame.Angles(b.tilt, b.yaw, roll)
-		local h = Art.PolarHueA + (Art.PolarHueB - Art.PolarHueA) * (0.5 + 0.5 * math.sin(t * 0.2 + b.huePhase * 6.283))
-		p.Color = Color3.fromHSV(h, 0.85, Art.PolarValue)
-		p.Transparency = Art.PolarFade + 0.1 * math.sin(t * 0.9 + b.phase * 2)
+	for _, f in ipairs(polarFans) do
+		f.emitter.Enabled = true
+		f.part.CFrame = CFrame.new(anchor.X, anchor.Y + Art.PolarFanY, anchor.Z - f.zOff)
+			* CFrame.Angles(0, f.yaw + math.sin(t * 0.05 + f.phase) * 0.15, 0)
 	end
 	for _, s in ipairs(polarStars) do
 		if s.Position.Z > anchor.Z + BACK_MARGIN then
@@ -971,8 +996,9 @@ local function parkPalms()
 end
 
 local function parkPolar()
-	for _, b in ipairs(polarBands) do
-		parkPart(b.part)
+	for _, f in ipairs(polarFans) do
+		f.emitter.Enabled = false -- parked emitters would still churn particles
+		parkPart(f.part)
 	end
 	for _, s in ipairs(polarStars) do
 		parkPart(s)
@@ -1201,17 +1227,12 @@ function Backdrop.update(anchor: Vector3)
 		return
 	end
 
-	-- NORTHERN LIGHTS (§18 "polar"): ribbons recycle on one frontier,
-	-- then every frame undulates overhead; stars re-scatter as they pass.
+	-- NORTHERN LIGHTS (§18 "polar"): emitter fans re-anchor ahead of the
+	-- ball every frame — no frontier; stars re-scatter as they pass.
 	if theme == "polar" then
 		ensurePolar()
 		if not polarSeeded then
 			polarSeeded = true
-			polarFrontZ = anchor.Z + BACK_MARGIN
-			for _, b in ipairs(polarBands) do
-				polarFrontZ -= Art.PolarSpacing
-				layBand(b, anchor, polarFrontZ)
-			end
 			for _, s in ipairs(polarStars) do
 				layPolarStar(s, anchor)
 			end
@@ -1403,27 +1424,11 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 		return
 	end
 	if t == "polar" then
-		local z = anchor.Z + BACK_MARGIN
-		for _ = 1, Art.PolarCount do
-			z -= Art.PolarSpacing
-			local p = Instance.new("Part")
-			p.Anchored = true
-			p.CanCollide = false
-			p.CanQuery = false
-			p.CastShadow = false
-			p.Material = Enum.Material.Neon
-			p.Transparency = Art.PolarFade
-			p.Parent = parent
-			local b: PolarBand = { part = p, x = 0, z = 0, alt = 0, yaw = 0, tilt = 0, phase = 0, huePhase = 0 }
-			layBand(b, anchor, z)
-			-- One static frame of the undulation loop's pose/color math.
-			p.CFrame = CFrame.new(b.x, anchor.Y + b.alt, b.z) * CFrame.Angles(b.tilt, b.yaw, 0)
-			p.Color = Color3.fromHSV(
-				Art.PolarHueA + (Art.PolarHueB - Art.PolarHueA) * (0.5 + 0.5 * math.sin(b.huePhase * 6.283)),
-				0.85,
-				Art.PolarValue
-			)
-		end
+		-- The canopy is live particles — it animates inside the preview.
+		local f = makePolarFan(parent)
+		f.zOff = Art.PolarFanZ
+		f.part.CFrame = CFrame.new(anchor.X, anchor.Y + Art.PolarFanY, anchor.Z - f.zOff) * CFrame.Angles(0, f.yaw, 0)
+		f.emitter.Enabled = true
 		for _ = 1, Art.PolarStars do
 			local s = Instance.new("Part")
 			s.Anchored = true

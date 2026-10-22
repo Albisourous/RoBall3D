@@ -1171,33 +1171,29 @@ Config.Art = {
 	AuroraHueB = 0.72, -- violet end
 	AuroraValue = 0.85, -- neon brightness
 	AuroraFade = 0.55, -- base transparency
-	-- NORTHERN LIGHTS (§18 world "polar"): the overhead aurora — wide
-	-- translucent ribbons slung ACROSS the lane high in the night sky
-	-- (BOREALIS SKY's curtains flank the lane; these arc over it), each
-	-- seeded with a slash yaw and undulating on slow sines in the same
-	-- green→violet window. A sparse star field rides the band with them.
-	PolarCount = 8, -- ribbons covering the window
-	PolarSpacing = 110, -- z spacing per ribbon
-	PolarSpan = 380, -- ribbon length across x
-	PolarHeight = 60, -- curtain height — a vertical veil, not a flat sheet,
-	-- so it reads as a light band instead of an edge-on sliver
-	PolarThick = 1.4, -- ribbon depth
-	-- Sky-anchored like the sun (ball-relative, not deck-relative): the
-	-- grade would otherwise sink distant veils below the horizon line.
-	-- Tuned to the chase cam's ~15° sky band: near veils arc overhead
-	-- out of frame, mid/far ones slash across the visible sky.
-	PolarAlt = 70, -- center height above the ball, ± AltJitter
-	PolarAltJitter = 50,
-	PolarYawMax = 0.5, -- seeded slash angle across the sky (rad)
-	PolarTiltMin = 0.25, -- seeded pitch off vertical (rad) — catches the
-	PolarTiltMax = 0.6, -- face from below so the veil has on-screen area
-	PolarRollMax = 0.22, -- live roll wobble amplitude (rad)
-	PolarWaveAmp = 18, -- y bob amplitude
-	PolarWaveF = 0.45, -- bob frequency (scaled by tick)
-	PolarHueA = 0.33, -- polar green end of the cycle
-	PolarHueB = 0.75, -- violet end (never red — color law)
-	PolarValue = 1.0, -- neon brightness
-	PolarFade = 0.5, -- base transparency
+	-- NORTHERN LIGHTS (§18 world "polar"): the aurora is a soft-particle
+	-- canopy, not part sheets — giant VelocityPerpendicular streak
+	-- sprites flung on a 10,000-stud burst and frozen mid-flight by Drag
+	-- (the classic one-emitter aurora trick). SpreadAngle (180,0) fans
+	-- the burst across the upper semicircle; emitter parts re-anchor
+	-- ahead of the ball every frame so the canopy hangs over the track
+	-- forever. A sparse star field rides the night band with it.
+	PolarFans = 2, -- emitter fans stacked down-course (depth layers)
+	PolarFanZ = 50, -- first fan's distance ahead of the ball — near the
+	-- vanishing point, so the rays fan across the whole sky
+	PolarFanZGap = 140, -- extra distance per stacked fan
+	PolarFanY = -10, -- emitter drop below the ball — the fan sweeps overhead
+	PolarFanYaw = 0.35, -- seeded yaw off the lane axis (rad), plus a slow
+	-- live drift so the canopy planes wander
+	PolarTexture = "rbxassetid://110170832236629", -- soft streak sprite
+	PolarRate = 200, -- particles/s per fan
+	PolarSpeed = 10000, -- burst studs — drag then freezes them mid-flight
+	PolarDrag = 9, -- the freeze that turns a burst into a canopy
+	PolarSize = 650, -- sprite studs — the scale is what makes it sky-like
+	PolarSquash = 2, -- velocity stretch — silky streaks, not blobs
+	PolarLifeMin = 2, -- lifetime s — sprites respawn as the canopy churns
+	PolarLifeMax = 4,
+	PolarEmission = 0.9, -- LightEmission — self-glow through the night
 	PolarStars = 45, -- star motes scattered through the night band
 	PolarStarAltMin = 10, -- star heights above the ball (ball-relative,
 	PolarStarAltMax = 280, -- same sky-anchoring as the veils)
