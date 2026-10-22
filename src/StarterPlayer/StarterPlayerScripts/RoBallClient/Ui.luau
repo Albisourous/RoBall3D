@@ -2068,6 +2068,7 @@ function Ui:showDeath(
 		hazards: number?,
 		closest: number?,
 		cause: string?,
+		causeLoc: string?,
 		air: number?,
 		pbDelta: number?,
 		rivalDelta: number?,
@@ -2115,14 +2116,22 @@ function Ui:showDeath(
 			margin
 		)
 		-- Death cause (§11): the chunk type that killed the run, or the
-		-- backstop that fired — VOID for falls, STALL for wedges.
-		if stats.cause then
+		-- backstop that fired — VOID for falls, STALL for wedges. The
+		-- backstops also name WHERE (causeLoc): "inside PRESS ROW" is the
+		-- debug lead for stuck-death reports.
+		if stats.cause or stats.causeLoc then
 			local c = stats.cause
 			local name = if c == "VOID"
 				then "the VOID"
 				elseif c == "STALL" then "wedged geometry"
-				else Config.Features.Label[c] or string.upper(c)
-			self.dStats.Text ..= string.format('\n<font color="#FF40BE">felled by %s</font>', name)
+				elseif c then Config.Features.Label[c] or string.upper(c)
+				else "the track"
+			local loc = stats.causeLoc and Config.Features.Label[stats.causeLoc] or stats.causeLoc
+			self.dStats.Text ..= string.format(
+				'\n<font color="#FF40BE">felled by %s%s</font>',
+				name,
+				if loc then string.format(" — inside %s", loc) else ""
+			)
 		end
 		-- Ghost margins (§14): where each echo stood at the fall — the
 		-- last pace deltas, signed by your lead. Dim like the stats line.

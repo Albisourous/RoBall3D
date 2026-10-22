@@ -703,7 +703,10 @@ part it simulated, the server reads the part's `ChunkType` stamp (set
 at build from the spec) and carries the type on `RunEnded` — the stats
 line ends `felled by NAME` (`Config.Features.Label`, pink). Falls read
 `the VOID`, wedge-kills `wedged geometry`; an untrusted or missing part
-leaves the line off.
+leaves the line off. Backstop deaths (VOID/STALL/external) additionally
+name the chunk containing the ball — `chunkTypeAt(z)` on the streamer —
+rendered `— inside NAME`, so stuck-death reports carry the feature
+that caused them.
 
 ## 12. Presentation
 

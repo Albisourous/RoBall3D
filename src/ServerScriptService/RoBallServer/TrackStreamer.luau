@@ -965,6 +965,17 @@ function TrackStreamer:startMovers()
 	end)
 end
 
+-- Which chunk owns world z — for death-cause attribution (§11): VOID and
+-- STALL deaths name the feature that ate the run, not just the manner.
+function TrackStreamer:chunkTypeAt(z: number): string?
+	for _, c in ipairs(self.chunks) do
+		if z <= c.startZ and z > c.endZ then
+			return c.spec.type
+		end
+	end
+	return nil
+end
+
 -- Deck-top height at world z (for the kill plane). Exact via section fns.
 -- Queries during a run only move deeper (the ball rolls -Z), so a cursor
 -- into the z-ordered chunk list walks forward instead of rescanning it

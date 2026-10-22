@@ -713,7 +713,8 @@ evRunEnded.OnClientEvent:Connect(
 		questHits: number?,
 		hzPassed: number?,
 		closestCall: number?,
-		cause: string?
+		cause: string?,
+		causeLoc: string?
 	)
 		mode = "dead"
 		deathSeq += 1
@@ -754,6 +755,7 @@ evRunEnded.OnClientEvent:Connect(
 				hazards = hzPassed,
 				closest = closestCall,
 				cause = cause,
+				causeLoc = causeLoc,
 				air = statAirT / math.max(statAirT + statGroundT, 0.01),
 				pbDelta = paceCache,
 				rivalDelta = rivalPaceCache,

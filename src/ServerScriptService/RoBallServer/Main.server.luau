@@ -266,7 +266,7 @@ end
 
 -- Death is instant (DESIGN.md §11): fall below the deck OR touch lethal
 -- geometry. Seal the score, report to the client, wait for the next request.
-local function killRun(player: Player, run: Run, cause: string?)
+local function killRun(player: Player, run: Run, cause: string?, causeLoc: string?)
 	local score = math.floor(run.dist) + run.gemPts + run.nmPts
 	local dist = math.floor(run.dist)
 	local oldBest = player:GetAttribute("RoBallBest") or 0
@@ -314,7 +314,8 @@ local function killRun(player: Player, run: Run, cause: string?)
 		questHits,
 		run.hzPassed,
 		if run.closest < math.huge then run.closest else nil,
-		cause
+		cause,
+		causeLoc
 	)
 
 	if cleanRun then
@@ -841,7 +842,7 @@ RunService.Heartbeat:Connect(function(dt)
 			-- Ball destroyed by something outside killRun (kill floor,
 			-- cleanup race, admin) — seal the run so the HUD can't hang
 			-- on a ghost run forever.
-			killRun(player, run)
+			killRun(player, run, nil, run.streamer:chunkTypeAt(ball.Position.Z))
 		elseif ball then
 			local z = ball.Position.Z
 			run.streamer:ensureAhead(z)
@@ -871,7 +872,7 @@ RunService.Heartbeat:Connect(function(dt)
 			if run.lastPos and (pos - run.lastPos).Magnitude < 0.05 then
 				run.stillT += math.min(dt, 0.25)
 				if run.stillT > Config.Death.StallSeconds and run.dist > Config.Death.StallGraceDist then
-					killRun(player, run, "STALL")
+					killRun(player, run, "STALL", run.streamer:chunkTypeAt(pos.Z))
 					continue
 				end
 			else
@@ -963,7 +964,7 @@ RunService.Heartbeat:Connect(function(dt)
 			run.lastPos = pos
 
 			if ball.Position.Y < run.streamer:yAt(z) - Config.Death.KillDrop then
-				killRun(player, run, "VOID")
+				killRun(player, run, "VOID", run.streamer:chunkTypeAt(z))
 			end
 		end
 	end
