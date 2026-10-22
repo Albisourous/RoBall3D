@@ -910,12 +910,14 @@ that caused them.
   semitone-snapped `TempoStepSt` curve), so the digit is accurate even
   mid-glide and steps in real intervals exactly when the music does. The digit's hue is still the speed meter: gradients cyan →
   violet → magenta across 0–100 s/s and snaps hot red + pulsing past it.
-  It's dressed vaporwave: a chrome gradient band under the hue, a −6°
-  outrun slant, and twin cyan/pink VHS-fringe ghosts that spread and
+  It's dressed vaporwave: a chrome gradient band under the hue and twin
+  cyan/pink VHS-fringe ghosts that spread and
   flare with the audio pulse — the digit thumps on the heard beat.
-  The digit and its trace live in **one tilted capsule** (the `BpmScope`
-  module) — same pill recipe as the power meter opposite it, so the two
-  bottom corners bracket the screen as a set. Inside, an **oscilloscope
+  The digit and its trace live in **one capsule** (the `BpmScope`
+  module) — the same untilted pill footprint as the power meter
+  mirrored on the opposite corner, so the two parallel pills bracket
+  the lane as a matched set, with a `TEMPO` tag over the right one
+  mirroring the meter's `POWER METER` tag. Inside, an **oscilloscope
   trace** takes the lead slot and draws the heard spectrum as a
   mirrored-envelope waveform: `Music.WavePoints` strips bucketed
   log-spaced off the same throttled `AudioAnalyzer` tap that feeds the
@@ -928,7 +930,7 @@ that caused them.
   while the hairline and capsule rim flash with it — the module pumps
   on the music, not just the band energies.
   Bottom-left
-  is a glanceable **power meter**: a tilted capsule of LED segments ramping
+  is a glanceable **power meter**: an untilted capsule of LED segments ramping
   cyan→magenta like a VU meter, diamond bead riding the lit edge,
   `RechargeGate` shown as a gold notch between cells — the armed marker
   for boost, brake AND dash (§4) — with the lock zone

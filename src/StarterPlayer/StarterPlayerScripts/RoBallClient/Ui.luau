@@ -57,18 +57,13 @@ local function spaced(s: string): string
 	return table.concat(out, "  ")
 end
 
--- Power meter strip geometry: LED-cell count + the segment strip's inset
--- inside the capsule (tip/gate math derives the inner width from it).
-local METER_W = 220
+-- Bottom telemetry pills (§4/§12): power meter left, TEMPO scope right —
+-- the same untilted capsule footprint mirrored in from the corners, so
+-- the pair brackets the lane as a matched set with different guts.
+local PILL_W = 246
+local PILL_H = 54
 local METER_SEGS = 14
 local METER_PAD = 9
-
--- TEMPO module geometry (§12): one tilted capsule bottom-right — the
--- spectrum scope takes the lead slot (where the digit used to sit) and
--- the chrome digit rides its right edge. Mirrors the power meter's pill
--- on the opposite corner.
-local BPM_W = 246
-local BPM_H = 54
 local WAVE_W = 140
 local WAVE_H = 42
 
@@ -1933,7 +1928,7 @@ function Ui.new(): Ui
 	unitGrad.Color = ColorSequence.new(C_DIM, C_PINK:Lerp(C_DIM, 0.35))
 	unitGrad.Parent = spdUnit
 
-	-- TEMPO module (§12): one tilted capsule — the spectrum scope takes
+	-- TEMPO module (§12): one untilted capsule — the spectrum scope takes
 	-- the lead slot where the digit used to sit; the chrome digit and
 	-- its BPM label ride the right edge. Same pill recipe as the power
 	-- meter opposite it: C_BG fill, full corner, cyan rim — the two
@@ -1942,8 +1937,7 @@ function Ui.new(): Ui
 	scope.Name = "BpmScope"
 	scope.AnchorPoint = Vector2.new(1, 0.5)
 	scope.Position = UDim2.new(0.82, 0, 1, -38)
-	scope.Size = UDim2.fromOffset(BPM_W, BPM_H)
-	scope.Rotation = -4
+	scope.Size = UDim2.fromOffset(PILL_W, PILL_H)
 	scope.BackgroundColor3 = C_BG
 	scope.BackgroundTransparency = 0.25
 	scope.BorderSizePixel = 0
@@ -1959,13 +1953,12 @@ function Ui.new(): Ui
 	sStroke.Transparency = 0.55
 	sStroke.Parent = scope
 	self.scopeStroke = sStroke
-	-- Digit + label move inside: the capsule's -4 degree supplies the
-	-- outrun slant, so their own rotations relax and positions go local.
+	-- Digit + label move inside: positions go local to the capsule.
 	spdNum.Parent = scope
 	spdNum.AnchorPoint = Vector2.new(1, 0.5)
 	spdNum.Position = UDim2.new(1, -10, 0.5, -7)
 	spdNum.Size = UDim2.fromOffset(78, 44)
-	spdNum.Rotation = -2
+	spdNum.Rotation = 0
 	spdNum.Visible = true
 	spdUnit.Parent = scope
 	spdUnit.AnchorPoint = Vector2.new(1, 1)
@@ -1974,6 +1967,19 @@ function Ui.new(): Ui
 	spdUnit.Rotation = 0
 	spdUnit.TextSize = 10
 	spdUnit.Visible = true
+	-- Module tag above the pill — mirrors the meter's POWER METER label,
+	-- right-aligned so the pair reads inward toward the lane.
+	local sLab = Instance.new("TextLabel")
+	sLab.AnchorPoint = Vector2.new(1, 1)
+	sLab.Position = UDim2.new(1, 0, 0, -3)
+	sLab.Size = UDim2.fromOffset(PILL_W, 13)
+	sLab.BackgroundTransparency = 1
+	sLab.Font = F_DATA
+	sLab.TextSize = 11
+	sLab.TextColor3 = C_DIM
+	sLab.TextXAlignment = Enum.TextXAlignment.Right
+	sLab.Text = "TEMPO"
+	sLab.Parent = scope
 
 	-- Oscilloscope waveform (§12): the heard spectrum as a mirrored-
 	-- envelope trace in the lead slot — one thin strip per bucket,
@@ -2013,18 +2019,18 @@ function Ui.new(): Ui
 		self.waveSegs[i] = s
 	end
 
-	-- Power meter: a vaporwave nitro strip — a tilted pill of LED segments
-	-- ramping cyan->magenta like a tape-deck VU meter. A diamond bead
-	-- rides the lit edge; the boundary cell glows partial so charge reads
+	-- Power meter: a vaporwave nitro strip — an untilted pill of LED
+	-- segments ramping cyan->magenta like a tape-deck VU meter, twin of
+	-- the TEMPO capsule mirrored on the right. A diamond bead rides the
+	-- lit edge; the boundary cell glows partial so charge reads
 	-- analog-smooth between cells. RechargeGate is a gold notch slotted
 	-- between cells, its lock zone tinted warm; the strip still flares
 	-- (pink boost, orange brake, gold ready-ping).
 	local bWrap = Instance.new("Frame")
 	bWrap.Name = "PowerMeter"
 	bWrap.AnchorPoint = Vector2.new(0.5, 0.5)
-	bWrap.Position = UDim2.new(0.18, METER_W / 2, 1, -38)
-	bWrap.Size = UDim2.fromOffset(METER_W, 18)
-	bWrap.Rotation = -4
+	bWrap.Position = UDim2.new(0.18, PILL_W / 2, 1, -38)
+	bWrap.Size = UDim2.fromOffset(PILL_W, PILL_H)
 	bWrap.BackgroundColor3 = C_BG
 	bWrap.BackgroundTransparency = 0.25
 	bWrap.BorderSizePixel = 0
@@ -2045,10 +2051,10 @@ function Ui.new(): Ui
 	-- meter must refill past them before W fires again.
 	local bInner = Instance.new("Frame")
 	bInner.BackgroundTransparency = 1
-	bInner.Position = UDim2.fromOffset(METER_PAD, 4)
-	bInner.Size = UDim2.new(1, -METER_PAD * 2, 1, -8)
+	bInner.Position = UDim2.fromOffset(METER_PAD, 13)
+	bInner.Size = UDim2.new(1, -METER_PAD * 2, 0, 28)
 	bInner.Parent = bWrap
-	local innerW = METER_W - METER_PAD * 2
+	local innerW = PILL_W - METER_PAD * 2
 	local gap = 3
 	local cellW = (innerW - gap * (METER_SEGS - 1)) / METER_SEGS
 	local gateCells = math.floor(Config.Power.RechargeGate * METER_SEGS + 1e-4)
@@ -2093,7 +2099,7 @@ function Ui.new(): Ui
 	local bLab = Instance.new("TextLabel")
 	bLab.AnchorPoint = Vector2.new(0, 1)
 	bLab.Position = UDim2.fromOffset(0, -3)
-	bLab.Size = UDim2.fromOffset(METER_W, 13)
+	bLab.Size = UDim2.fromOffset(PILL_W, 13)
 	bLab.BackgroundTransparency = 1
 	bLab.Font = F_DATA
 	bLab.TextSize = 11
@@ -2497,7 +2503,7 @@ function Ui:setSpeedo(
 		self._tipCol = tipC
 		self.powerTip.BackgroundColor3 = tipC
 	end
-	local tipPos = UDim2.new(0, math.floor(METER_PAD + disp * (METER_W - METER_PAD * 2) + 0.5), 0.5, 0)
+	local tipPos = UDim2.new(0, math.floor(METER_PAD + disp * (PILL_W - METER_PAD * 2) + 0.5), 0.5, 0)
 	if tipPos ~= self._tipPos then
 		self._tipPos = tipPos
 		self.powerTip.Position = tipPos
