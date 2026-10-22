@@ -951,6 +951,20 @@ RunService.Heartbeat:Connect(function(dt)
 	-- still wins but pays the pull out of MaxLateralSpeed. Airborne reads
 	-- no surface — pull stays zero.
 	local bp = b.Position
+	-- Uncapped-tail guard (§9): past ~1k studs/s the ball can out-step the
+	-- solver through the 1-stud deck — last frame's center was above the
+	-- surface, this frame's is below it. Sweep the traveled segment
+	-- against the lane; a crossed floor face re-seats the ball on top
+	-- (the approach cap then re-grounds vY). Falls through real gaps hit
+	-- nothing and stay free.
+	local sweep = bp - lastBallPos
+	if sweep.Magnitude > 0.01 then
+		local hit = workspace:Raycast(lastBallPos, sweep, edgeParams)
+		if hit and hit.Normal:Dot(Vector3.yAxis) > 0.5 then
+			b.CFrame = CFrame.new(hit.Position + hit.Normal * (Config.Ball.Diameter / 2))
+			bp = b.Position
+		end
+	end
 	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
 	local grounded = drop ~= nil
 		and bp.Y - (drop :: RaycastResult).Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad

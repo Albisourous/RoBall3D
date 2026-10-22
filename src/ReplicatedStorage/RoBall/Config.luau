@@ -17,16 +17,22 @@ Config.Ball = {
 }
 
 -- Forward speed is a logarithmic curve (DESIGN.md §9): the whole ramp is
---   speed(d) = Start + LogGain * ln(1 + d / LogDist)
+--   speed(d) = Start + LogGain * ln(1 + d / LogDist)              d <= LinearKnee
+--            = curve(LinearKnee) + TailGain * (d - LinearKnee)   d >  LinearKnee
 -- fit through the old tier milestones (~63@500m, 78@900m, 92@1400m,
--- 105@2000m), so early game is gentler and the endless tail keeps
--- climbing slower than linear — the width-shrink + reaction squeeze
--- carry difficulty, not an out-of-control odometer.
+-- 105@2000m), so early game is gentler — then a LINEAR endless tail:
+-- the log flattens to a felt ceiling in deep runs, the tail doesn't.
+-- There is no speed cap: every kilometer past the knee adds ~TailGain*1000
+-- studs/s. TrackStreamer keeps AheadSeconds of boosted-pace track built
+-- and the client's swept-floor catch re-seats solver tunneling, so the
+-- run survives the tail instead of falling into ungenerated void.
 Config.Speed = {
 	Start = 34, -- studs/s — a shade under the old 40 opener: learnable, not boring
 	Accel = 6, -- studs/s^2 ease toward the curve target
 	LogGain = 49.3, -- curve slope (studs/s per log unit)
 	LogDist = 625, -- characteristic distance, meters — d/D inside ln(1+x)
+	LinearKnee = 2000, -- meters where the log curve hands off to the linear tail
+	TailGain = 0.03, -- studs/s gained per meter past the knee (+30/km)
 	-- Reference speed for 0..1 normalization (FOV, music ramp, gem beat
 	-- spacing) — those saturate at Max. Actual speed is UNCAPPED: the log
 	-- curve keeps growing (slowly) forever.
@@ -232,6 +238,11 @@ Config.Generation = {
 	ChunkMinLength = 30, -- studs
 	ChunkMaxLength = 90,
 	AheadDistance = 400, -- keep this much track generated ahead of the ball
+	-- Uncapped-tail safety (§9): at extreme speed a fixed stud window
+	-- shrinks to sub-second margin — the window grows to AheadSeconds of
+	-- boosted-pace travel so a build hitch can't strand the ball in
+	-- ungenerated void.
+	AheadSeconds = 2,
 	BehindDistance = 250, -- destroy chunks further than this behind the ball
 	-- Instance.new bursts are the cost, not generation: a chunk is
 	-- ~30-90 parts. One per frame tops up the window invisibly; the

@@ -14,6 +14,7 @@ local ChunkDefs = require(ReplicatedStorage.RoBall.ChunkDefs)
 local MoveWave = require(ReplicatedStorage.RoBall.MoveWave)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
 local GemTypes = require(ReplicatedStorage.RoBall.GemTypes)
+local Tiers = require(ReplicatedStorage.RoBall.Tiers)
 
 local SEG_LEN = 5 -- studs per slice; smaller = smoother curves, more parts
 -- Deck primitives live in Config.Art — the garage preview's real-scale
@@ -938,14 +939,24 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 	return record
 end
 
--- Keep generated track AheadDistance studs in front of the ball. The
--- per-frame call builds at most ChunkBuildsPerFrame chunks — the window
--- tops up a chunk at a time instead of bursting ~90 Instance.news in
--- one heartbeat when several chunks come due together.
+-- Keep generated track in front of the ball: AheadDistance studs, or
+-- AheadSeconds of boosted-pace travel when that's deeper (the uncapped
+-- linear speed tail would shrink a fixed stud window to sub-second
+-- margin — a build hitch could strand the ball in ungenerated void).
+-- The per-frame call builds at most ChunkBuildsPerFrame chunks — the
+-- window tops up a chunk at a time instead of bursting ~90 Instance.news
+-- in one heartbeat — with a small catch-up allowance when the ball has
+-- outrun the base window.
 function TrackStreamer:ensureAhead(ballZ: number, maxBuilds: number?)
 	self.ballZ = ballZ
-	local target = ballZ - Config.Generation.AheadDistance
+	local gc = Config.Generation
+	local pace = Tiers.speedAt(math.max(0, 2 - ballZ)) * Config.Power.Mult
+	local window = math.max(gc.AheadDistance, pace * gc.AheadSeconds)
+	local target = ballZ - window
 	local budget = maxBuilds or Config.Generation.ChunkBuildsPerFrame
+	if self.gen.state.zEnd - target > gc.AheadDistance then
+		budget += 4
+	end
 	while self.gen.state.zEnd > target and budget > 0 do
 		self:buildChunk(self.gen:nextChunk())
 		budget -= 1

@@ -674,18 +674,29 @@ clutter); the bias is still seeded into the map itself.
 ## 9. Difficulty & speed
 
 Tier table is in `Config.Tiers` (milestones → chunk pool + width window).
-Speed itself is **one log curve**, not a tier column:
+Speed itself is **one hybrid curve**, not a tier column:
 
 ```
-speed(d) = Speed.Start + Speed.LogGain * ln(1 + d / Speed.LogDist)
-         = 34 + 49.3 * ln(1 + d / 625)
+speed(d) = Speed.Start + Speed.LogGain * ln(1 + d / Speed.LogDist)   d ≤ 2000m
+         = curve(2000m) + Speed.TailGain * (d - 2000m)               d > 2000m
+         = 34 + 49.3 * ln(1 + d / 625)        then   ~105 + 0.03·(d − 2000)
 ```
 
-Fit through the old step milestones — ≈48@200m, 63@500m, 78@900m,
-92@1400m, 105@2000m — then keeps rising slower than linear (~142@5km,
-~174@10km, ~197@20km). Start `34` is a shade under the old `40` opener:
-first-timer breathing room without a boring crawl. The ball eases
+The log half is fit through the old step milestones — ≈48@200m, 63@500m,
+78@900m, 92@1400m, 105@2000m. Start `34` is a shade under the old `40`
+opener: first-timer breathing room without a boring crawl. The ball eases
 toward the curve at `Accel` = `6 studs/s²`.
+
+Past `LinearKnee` (2000m) the ramp goes **linear** — `TailGain` = 0.03
+studs/s per meter ≈ +30 s/s per km, forever (~195@5km, ~345@10km,
+~795@25km). The log tail was unbounded in theory but decelerating in
+feel — a real endless game has no felt ceiling, so the tail is a straight
+line. Two systems carry the deep-end pace: `Generation.AheadSeconds`
+grows the stream window to seconds-of-travel at boosted pace (a fixed
+400-stud window collapses under ~400 s/s), and the client's swept-floor
+catch re-seats the ball when it out-steps the solver through the 1-stud
+deck (ray last→current each frame, snap onto any up-facing lane surface
+crossed — real gap falls hit nothing and stay free).
 
 Crossing a tier threshold:
 - new chunk types join the RNG pool
@@ -710,9 +721,10 @@ and its edge-margin gems make the lateral reach (Q/E dash, §4) pay off
 while the field is wide.
 
 **Endless mode** — there is no speed cap. Past the last listed tier
-(2000m), `Tiers.forDistance` extrapolates: the log curve keeps climbing
-(unbounded but decelerating — ~142 s/s at 5km vs ~174 at 10km, so the
-marginal squeeze shrinks the deeper you get) and the width floor eases
+(2000m), `Tiers.forDistance` extrapolates: the linear tail keeps climbing
+at a constant +30 s/s per kilometer (unbounded — the squeeze never
+decelerates; reaction-time-spaced obstacles scale to stay fair) and the
+width floor eases
 toward `EndlessWidthMinFloor` (12) — floored where a gate row + rim
 margin still fits, since below ~12 studs lethal rows can't generate and
 the run would paradoxically get easier. The ceiling stays pinned at 50

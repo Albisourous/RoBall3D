@@ -1,9 +1,9 @@
 --!strict
 -- Distance -> tier lookup, shared by server (generation) and client
 -- (speed pacing). Pure; driven by Config.Tiers.
--- Speed itself is NOT a tier column — it's the log curve in
--- Tiers.speedAt (Config.Speed): gentler early, forever-rising but
--- slower than linear. forDistance attaches it to the returned tier so
+-- Speed itself is NOT a tier column — it's the hybrid log+linear curve
+-- in Tiers.speedAt (Config.Speed): gentle early, linear endless tail,
+-- never capped. forDistance attaches it to the returned tier so
 -- `tier.speed` stays the single read for every consumer.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,10 +27,12 @@ end
 
 function Tiers.speedAt(dist: number): number
 	-- Uncapped by design: Config.Speed.Max only bounds normalization
-	-- norms. The curve is the whole ramp — no per-tier steps, no linear
-	-- tail: Start + K * ln(1 + d/D).
+	-- norms. Hybrid curve — log through LinearKnee (the tuned early
+	-- milestones), then a linear tail that never decelerates: Start +
+	-- K * ln(1 + min(d,Knee)/D) + TailGain * max(0, d - Knee).
 	local s = Config.Speed
-	return s.Start + s.LogGain * math.log(1 + dist / s.LogDist)
+	local curve = s.Start + s.LogGain * math.log(1 + math.min(dist, s.LinearKnee) / s.LogDist)
+	return curve + math.max(0, dist - s.LinearKnee) * s.TailGain
 end
 
 -- Scan-only variant (PERFORMANCE.md §1): per-frame callers that only need
@@ -59,8 +61,8 @@ function Tiers.forDistance(dist: number): TierDef
 	-- Endless mode (DESIGN.md §9): past the last listed tier, the width
 	-- floor keeps tightening toward its floor — the ceiling never does:
 	-- widthMax stays pinned so the deep game always spans the full
-	-- floor-to-full-width window. Speed needs no tail clause — the log
-	-- curve already climbs forever.
+	-- floor-to-full-width window. Speed needs no tail clause — the
+	-- curve's linear tail already climbs forever.
 	local last = Config.Tiers[#Config.Tiers] :: TierDef
 	local out = table.clone(best :: any)
 	out.speed = Tiers.speedAt(dist)
