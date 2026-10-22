@@ -1,5 +1,5 @@
 --!strict
--- AudioMix (AUDIO.md §7): the user's mixer state. Five channels ride
+-- AudioMix (AUDIO.md §7): the user's mixer state. Four channels ride
 -- dedicated graph taps inside MusicController + SfxController; this
 -- module is the single owner of the gain values — the menu AUDIO panel
 -- writes through AudioMix.set, server-pushed RoBallVol_<ch> attributes

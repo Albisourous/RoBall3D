@@ -802,12 +802,12 @@ Config.Audio = {
 	-- Menu mixer (AUDIO.md §7): the AUDIO panel's slider channels. Keys
 	-- are the attribute/profile/remote namespace (RoBallVol_<ch>); the
 	-- panel labels are player-facing. All sliders are attenuation-only
-	-- (0..1) — the mix is tuned at the sources. Defaults: MUSIC stays
-	-- full (it's the feature); the SFX channels start at half — the
-	-- sources are mixed hot and full-everything was deafening.
-	Channels = { "music", "gems", "dash", "wind", "stings" },
-	Defaults = { music = 1, gems = 0.5, dash = 0.5, wind = 0.5, stings = 0.5 },
-	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH", wind = "WIND", stings = "CUES" },
+	-- (0..1) — the mix is tuned at the sources. Defaults sit at half —
+	-- the sources are mixed hot, full-everything was deafening, and a
+	-- mid default leaves headroom both directions.
+	Channels = { "music", "gems", "dash", "wind" },
+	Defaults = { music = 0.5, gems = 0.5, dash = 0.5, wind = 0.5 },
+	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH", wind = "WIND" },
 	RemoteName = "SetAudio", -- RemoteFunction: SetAudio(ch, 0..1) -> bool
 	AttrPrefix = "RoBallVol_", -- per-channel attribute mirror
 }
@@ -929,13 +929,6 @@ Config.Music = {
 	OpenCutoffHz = 18000,
 	DeathCutoffHz = 700,
 	FilterSweepTime = 0.5,
-	-- Beat-quantized stings (AUDIO.md §6) — same id-or-URI rule as Stems;
-	-- these dev paths resolve in Studio, upload for production.
-	Stings = {
-		tierUp = 94736885697655,
-		deathFall = 88260413971234,
-		menuStart = 135814836741193,
-	},
 	-- Speed wind bed (AUDIO.md §7): looped noise faded/filtered by speed.
 	-- Ceiling is deliberately low — broadband noise fatigues fast, so the
 	-- mixer's WIND slider tops out at a whisper rather than a roar.

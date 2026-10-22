@@ -10,15 +10,15 @@
 -- Track rotation (AUDIO.md §3): each run plays SongMap.trackIdFor(seed,
 -- Tracklist) — GenCore stamps sections from the same pick. Switching
 -- tracks tears down and rebuilds the stem/single player set; the shared
--- bus tail (filter/shifter/analyzer) and stings persist.
+-- bus tail (filter/shifter/analyzer) persists.
 --
 -- Shared behavior either way:
 --   PlaybackSpeed ramps with ball speed on every player (the speed signature)
 --   AudioPitchShifter counters PitchCompensation of the squeak
 --   AudioFilter lowpass on the bus: menu muffle, death tape-stop sweep
 --   AudioAnalyzer tap feeds Music.sample() for audio-reactive visuals
---   Beat clock = lead.TimePosition -> SongBeats; tier stings quantize to
---   the next bar line; a watchdog snaps drifting stems on every loop.
+--   Beat clock = lead.TimePosition -> SongBeats; a watchdog snaps
+--   drifting stems on every loop.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -45,16 +45,14 @@ local shifter: any = nil
 local duckFader: any = nil
 local sfxFader: any = nil -- post-duck tap for one-shot voices (gem chimes)
 local musicFader: any = nil -- user MUSIC gain (AudioMix): post-duck, pre-output
-local stingFader: any = nil -- user CUES gain (AudioMix): stings tap into the music bus
 local windGain = 1 -- user WIND gain (AudioMix): scales the per-frame target
 local duckGen = 0 -- duck() generation: a newer dip cancels an older release
 local analyzer: any = nil
 local windPlayer: any = nil
 local windFilter: any = nil
 local windFader: any = nil
-local stingPlayers: { [string]: any } = {}
 
-local norm = 0 -- last speedNorm, kept so layer fades and stings see it
+local norm = 0 -- last speedNorm, kept so layer fades see it
 local tier = 1
 local pulseSmooth = 0
 local sampleAt = 0 -- os.clock() deadline for the next analyzer re-read
@@ -74,7 +72,7 @@ local function wire(src: Instance, dst: Instance)
 	w.Parent = root
 end
 
--- Stem/sting ids may be numeric (rbxassetid) or full ContentId strings —
+-- Stem ids may be numeric (rbxassetid) or full ContentId strings —
 -- rbxasset:// entries point at Studio's bundled content dir for local dev.
 local function contentId(v: any): string
 	return type(v) == "string" and v or "rbxassetid://" .. tostring(v)
@@ -164,20 +162,6 @@ local function setFilter(hz: number, secs: number)
 	end
 end
 
-local function playStingNowOrQueued(name: string)
-	local id = (m.Stings :: any)[name]
-	if id == nil or id == 0 or not root then
-		return
-	end
-	local p = stingPlayers[name]
-	if not p then
-		p = newPlayer(contentId(id), false)
-		wire(p, stingFader or lowpass) -- mixer tap when the graph is up
-		stingPlayers[name] = p
-	end
-	p:Play()
-end
-
 local function syncStems()
 	-- Equal-length streams hold sync, but verify: snap any follower that
 	-- drifted past SyncDriftMs against the lead's position.
@@ -193,7 +177,7 @@ local function syncStems()
 end
 
 -- Tear down the current track's player set (track switch at run start).
--- The bus tail, wind, and sting players are shared and survive.
+-- The bus tail and wind bed are shared and survive.
 local function teardownPlayers()
 	for _, p in ipairs(players) do
 		p:Destroy()
@@ -350,14 +334,6 @@ function Music.init()
 	wire(duckFader, musicFader)
 	wire(musicFader, output)
 
-	-- Cue tap (same mixer): stings keep entering the music bus through the
-	-- lowpass (menu muffle / death tape-stop still apply) but get their
-	-- own fader first — nested under the MUSIC gain by design.
-	stingFader = Instance.new("AudioFader")
-	stingFader.Volume = 1
-	stingFader.Parent = folder
-	wire(stingFader, lowpass)
-
 	-- SFX voices (gem chimes) tap the bus AFTER the duck fader — a pickup
 	-- ducks the music, never itself (true sidechain) — and stay clear of
 	-- the lowpass + shifter: the payout reads bright even under the menu
@@ -443,7 +419,6 @@ function Music.onStart(seed: number?)
 	tier = 1
 	applyLayers()
 	setFilter(m.OpenCutoffHz, 0.25)
-	playStingNowOrQueued("menuStart")
 end
 
 function Music.onDeath()
@@ -460,7 +435,6 @@ function Music.onDeath()
 	if windFader then
 		TweenService:Create(windFader, TweenInfo.new(m.FilterSweepTime), { Volume = 0 }):Play()
 	end
-	playStingNowOrQueued("deathFall")
 end
 
 -- Back to the menu (§18: the garage lives there): reverse the tape-stop —
@@ -495,16 +469,13 @@ function Music.bpm(): number
 	return (curMap and curMap.bpm or m.BaseBpm) * speed
 end
 
--- Tier index from the client drive loop: layer mix + beat-quantized sting.
+-- Tier index from the client drive loop: layer mix on tier-ups.
 function Music.setTier(t: number)
 	if t == tier then
 		return
 	end
 	tier = t
 	applyLayers()
-	if t > 1 then
-		Music.playSting("tierUp")
-	end
 end
 
 -- Song-beats elapsed in the composition (asset time — PlaybackSpeed only
@@ -528,16 +499,13 @@ end
 -- previous release so dips re-trigger cleanly instead of fighting.
 -- User mixer gain (AudioMix, AUDIO.md §7): each channel lands on its own
 -- tap — music on the post-duck masterFader, gems on the SFX one-shot tap,
--- stings on the cue fader (nested inside the music bus on purpose — cues
--- ARE scored music events), wind folded into its per-frame target.
--- "dash" has no graph node: its plain Sounds scale at spawn in Sfx.
+-- wind folded into its per-frame target. "dash" has no graph node: its
+-- plain Sounds scale at spawn in Sfx.
 function Music.setGain(ch: string, v: number)
 	if ch == "music" and musicFader then
 		musicFader.Volume = v
 	elseif ch == "gems" and sfxFader then
 		sfxFader.Volume = v
-	elseif ch == "stings" and stingFader then
-		stingFader.Volume = v
 	elseif ch == "wind" then
 		windGain = v
 	end
@@ -642,24 +610,6 @@ function Music.nextGridDelay(subdiv: number, cap: number): number
 	local nextB = math.ceil(beatsNow * subdiv - 1e-4) / subdiv
 	local delay = (nextB - beatsNow) * 60 / (curMap.bpm * ps())
 	return delay <= cap and delay or 0
-end
-
--- Beat-quantized one-shots (AUDIO.md §6): the sting waits for the next
--- bar line so it lands ON the grid, GD-trigger style.
-function Music.playSting(name: string)
-	local id = (m.Stings :: any)[name]
-	if id == nil or id == 0 or not lead or not lead.IsPlaying then
-		return
-	end
-	local beatsNow = Music.beatPos()
-	local nextBar = math.ceil(beatsNow / curMap.beatsPerBar) * curMap.beatsPerBar
-	local delay = math.max(0, (nextBar - beatsNow) / (curMap.bpm * ps() / 60))
-	if delay > 4 then
-		return -- pathological; a bar is never this far out
-	end
-	task.delay(delay, function()
-		playStingNowOrQueued(name)
-	end)
 end
 
 -- Audio-reactive pulse for visuals (AUDIO.md §8): smoothed 0..1 energy

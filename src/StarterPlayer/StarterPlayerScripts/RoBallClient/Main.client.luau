@@ -1042,7 +1042,7 @@ RunService.Heartbeat:Connect(function(dt)
 	-- tempo, not last frame's.
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 	ui:setSpeedo(fwdSpeed, Music.bpm(), powerCharge, boosting, powerSpent, braking, dashing, dashDeniedAt)
-	Music.setTier(Tiers.indexAt(dist)) -- layer mix + sting on tier-ups
+	Music.setTier(Tiers.indexAt(dist)) -- layer mix on tier-ups
 	Ghost.tick(dt, b.Position) -- record this run + advance the PB echo
 	-- Pace delta (§12): live "±N vs PB" — ghost position IS the PB's
 	-- position at this elapsed time on this same map.

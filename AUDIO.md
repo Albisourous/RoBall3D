@@ -90,7 +90,6 @@ Per track, alongside `track.ogg` (the full mix, for menu/fallback):
 |---|---|---|
 | `stems/{pad,bass,drums,lead,arp,air}.ogg` | Each bus rendered solo, **same sample count** `N_OUT` | Vertical mixing: fade layers by tier. Identical lengths = sample-locked sync. |
 | `SongMap_<id>.luau` | Generated module per track: `{ id, bpm, beatsPerBar, loopBeats, sections, accentBeats, scale ladders }` | The generator's chart. Checked into `src/` — pure data, no audio parse at runtime. |
-| `stings/{tier_up,death_fall,menu_start}.ogg` | One-shots rendered in-key | Beat-quantized stingers (§6). |
 
 `generate_audio.py` emits **WAV masters only** — encoding is a separate,
 deliberate step because Vorbis decode overshoots source peaks on sharp
@@ -171,7 +170,6 @@ everything below:
 AudioPlayer[stem] ──► AudioFader[stem] ─┐
 AudioPlayer[stem] ──► AudioFader[stem] ─┤   (players stay sample-locked:
 ...  4–6 stems ──►  ...               ──┤    same length, Play() same frame)
-AudioPlayer[sting] ─────────────────────┤
 AudioPlayer[wind] ─► AudioFilter ─► AudioFader
                                         ▼
                       AudioFilter[lowpass] ─► AudioPitchShifter ─► AudioFader[duck] ─► AudioDeviceOutput
@@ -214,9 +212,6 @@ e.g. a `RoBallAudio` Folder in `PlayerGui`):
   (§8). Client-only by design (server reads zero); visuals are decorative,
   so that's fine. The tap sits *post-duck* (`AudioFader[duck]` → analyzer):
   the world pulses on the same sidechain dips the ear hears.
-- **SFX players** — one `AudioPlayer` per stinger; a shared SFX asset with
-  `PlaybackRegion` slices is an option if we pack multiple stingers in one
-  file (GD's SFX-library trick).
 - **One-shot SFX tap (post-duck)** — gem chimes are `AudioPlayer` voices
   on a dedicated `AudioFader` wired straight to the output, *after* the
   duck fader: the pickup ducks the music, never itself (true sidechain),
@@ -319,10 +314,6 @@ Documented, not solved.
 
 Anything that *sounds* musical lands on the grid:
 
-- **Tier-up sting** — `stings/tier_up`: triggered when a tier boundary
-  crosses; the player computes `delay = (nextAccentBeat − beatPos) /
-  heardRate` and plays it then — the sting arrives *on* the downbeat, GD
-  trigger-style.
 - **Restart** — track restarts per run (GD default: rehear the intro, own
   the first ten seconds). `Music.SeedStartOffset` (bool, default off): if
   on, the start offset rotates to a seeded `accentBeat` so repeat seeds
@@ -374,17 +365,16 @@ Anything that *sounds* musical lands on the grid:
   doesn't zipper the filter. The speed you hear is wind + tempo — two
   channels of the same signal.
 - **Menu mixer** (`Config.Audio`, `AudioMix`) — the garage's `AUDIO`
-  page: five stacked sliders `MUSIC / GEMS / DASH / WIND / CUES`, each
+  page: four stacked sliders `MUSIC / GEMS / DASH / WIND`, each
   0–100%, live-dragged (apply on every move, persist on release).
-  Defaults come from `Config.Audio.Defaults` — MUSIC at unity (the
-  killer feature) and the SFX channels at half, since the sources are
-  mixed hot and full-everything was deafening. Gains land on dedicated
-  taps: `musicFader` post-duck, `sfxFader` for
-  pickup voices, `stingFader` inserted pre-lowpass for the cues,
-  `windFader`'s per-frame target scaled, and dash one-shots multiplied
-  at spawn. State round-trips through `RoBallVol_<ch>` attributes +
-  `profile.audio` — the `RoBallEq_*` equip pattern — so a mix survives
-  sessions; the attribute echo never re-invokes the remote.
+  Defaults come from `Config.Audio.Defaults` — all four at half, since
+  the sources are mixed hot and full-everything was deafening. Gains
+  land on dedicated taps: `musicFader` post-duck, `sfxFader` for
+  pickup voices, `windFader`'s per-frame target scaled, and dash
+  one-shots multiplied at spawn. State round-trips through
+  `RoBallVol_<ch>` attributes + `profile.audio` — the `RoBallEq_*`
+  equip pattern — so a mix survives sessions; the attribute echo never
+  re-invokes the remote.
 
 ## 8. Audio-reactive visuals (analyzer)
 
@@ -433,7 +423,7 @@ Config.MusicSync = {
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| A1 | Pipeline v2: stems + `SongMap.luau` + stings | `SongMap` required from `src/`; stems uploaded, same length verified |
+| A1 | Pipeline v2: stems + `SongMap.luau` | `SongMap` required from `src/`; stems uploaded, same length verified |
 | A2 | Beat clock + songform chunks | `barPosAt` unit-verified vs config numbers; chunk histograms shift by section energy with seed fixed |
 | A3 | Audio-graph migration | stems sample-locked under load; layer faders follow tiers; drift watchdog passes a 3-lap soak |
 | A4 | Phrase quantization + section-aware gems | lethal features land on downbeats in log; drop sections roll denser clusters |

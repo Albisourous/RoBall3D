@@ -253,18 +253,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     appended on every clean run end, also session-only until the first
     save) and mirrors them to the client as the `RoBallHistory`
     `s,d,z;…` CSV attribute
-  - Audio console — an `AUDIO` garage page, five channel sliders stacked
-    one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
+  - Audio console — an `AUDIO` garage page, four channel sliders stacked
+    one per row (`MUSIC / GEMS / DASH / WIND`, 0–100%) riding the
     mixer taps in AUDIO.md §7, persisted via `profile.audio` →
     `RoBallVol_<ch>` attributes so a mix survives sessions. Defaults
-    (`Config.Audio.Defaults`): MUSIC unity, SFX channels at half — the
-    sources are mixed hot; full-everything was deafening.
-  - Personal best label
-  - Audio console — an `AUDIO` garage page, five channel sliders stacked
-    one per row (`MUSIC / GEMS / DASH / WIND / CUES`, 0–100%) riding the
-    mixer taps in AUDIO.md §7, persisted via `profile.audio` →
-    `RoBallVol_<ch>` attributes so a mix survives sessions. Defaults
-    (`Config.Audio.Defaults`): MUSIC unity, SFX channels at half — the
+    (`Config.Audio.Defaults`): all four at half — the
     sources are mixed hot; full-everything was deafening.
   - Personal best label
 - **Run start**: `Config.Steering.SettleSeconds` (0.8s) "rolling…" settle,
@@ -965,7 +958,7 @@ Full spec: `AUDIO.md`. Binding decisions:
 
 - Music is a **generation input**, not background. The renderer
   (`roball3d-audio/generate_audio.py`) owns the soundtrack: it emits the
-  loop, per-bus stems, stingers, and a `SongMap.luau` beat/section chart
+  loop, per-bus stems, and a `SongMap.luau` beat/section chart
   that GenCore reads. Self-rendered = free stems, free beat maps, zero
   copyright surface.
 - Shipped catalog: ten FlowMusic loops (`Config.Music.Tracklist`,
@@ -984,8 +977,7 @@ Full spec: `AUDIO.md`. Binding decisions:
   (`beats/m = BaseBpm·ps(v)/(60·v)`), so GenCore weights chunk families
   by the section energy under the ball — drops roll lethal/spectacle,
   breaks roll breathers. Selection bias only; every §8.1 legality rule
-  still gates what's allowed. Tier-up stings and set-pieces quantize to
-  phrase downbeats. Boost drift vs the nominal speed schedule is
+  still gates what's allowed. Boost drift vs the nominal speed schedule is
   bounded and accepted.
 - Gems stay on the heard beat grid (§8.4); `Music.BaseBpm` must equal
   `SongMap.bpm` or everything drifts. The pickup chime keeps the
