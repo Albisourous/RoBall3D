@@ -444,6 +444,19 @@ runs the loop below and does not stop until you say **stop**.
     canRun all honest on the scaled window). SQUEEZE ×0.82 and
     EXPANSE ×1.18 — a seed's whole map runs tighter or roomier)*
 
+63. **Sun pushed back + sun skins** *(done — SunDist 380→640, radius
+    90→80, lift 34→48: the disk reads a distant horizon sunset (~half
+    the angular size). New sixth cosmetic slot `sun` restyles the
+    strip stack via `Art.SunStyles` (colors, dome fraction, strip
+    taper, radius scale) — SYNTH SUN free + PALE MOON, ACID SUN,
+    PRISM RISE, WIREFRAME, 24K NOON, ECLIPSE à-la-carte, POLAR CAP
+    on the solstice window; SUNKISSED pass bundles eclipse+noon+
+    wireframe)*
+
+63. **Sway chunk** *(done — the bank oscillates left-right, a slalom
+    for the roll axis; integer sine periods exit level, `RateMax`
+    caps deg/stud. Technical family, pools ≥200m, no canRun gate)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

@@ -1050,6 +1050,14 @@ RunService.Heartbeat:Connect(function(dt)
 	-- Inside a flip zone vY is pinned to +Lift so gravity can't pull the
 	-- ball off the ceiling; at the zone edge the pin drops and gravity
 	-- takes over — the ball falls ClearH back to the deck.
+	-- Zero-bounce landing (§11): arriving harder than the deck's own
+	-- descent pops the ball back up even at elasticity 0 — the solver's
+	-- impact response is the bounce. When the lane probe sees ground
+	-- inside ClampReach, cap the approach at slope-following speed +
+	-- ImpactPad. Over a gap the probe finds nothing: falls stay free.
+	if not inFlip and drop and drop.Position.Y > bp.Y - Config.Ball.Diameter / 2 - Config.Landing.ClampReach then
+		vY = math.max(vY, -fwdSpeed * Config.Generation.Grade - Config.Landing.ImpactPad)
+	end
 	b.AssemblyLinearVelocity = Vector3.new(lateralVel, vY, -fwdSpeed)
 	lastBallPos = b.Position
 

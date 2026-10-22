@@ -139,8 +139,13 @@ explainable.
 
 Ball: 3-stud `Ball`-shape Part, unanchored, `CustomPhysicalProperties`
 (density 0.7, friction 0.6, elasticity 0, **elasticity weight 100** — the
-ball's zero restitution dominates every contact, so high pad-arc landings
-come down dead: no rebound hop). Server drives
+ball's zero restitution dominates every contact). Elasticity alone still
+bounces on fast landings — the solver's impact response pops the ball —
+so once the lane probe sees deck within `Landing.ClampReach` the client
+caps the approach at the deck's own descent rate (`Grade*fwdSpeed`)
+plus `Landing.ImpactPad`: the ball lands flat, **never hops**, and a
+bounce can't throw it into the next hole. Over a gap the probe finds
+nothing — falls stay free. Server drives
 `AssemblyLinearVelocity` each `Heartbeat`: `Vector3(lateral, naturalY, forward)`.
 Y velocity is untouched — gravity handles falls, slopes, ramp arcs.
 
@@ -327,6 +332,7 @@ narrow. Then the seeded generator takes over.
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
 | `Terrace` | Deck descends in lips — each drop rides a real ~10° ramp over the tread's back half so a slow/mid-hop ball can't snag the edge | Free ballistic spectacle | 2+ |
 | `Swell` | Full-width ribbon undulating in y — a pump line of gentle crests; integer sine periods land the exit on the entry height, and a slope cap (`Swell.SlopeMax`) keeps crests as hops, not launches | Kinesthetic rest | 2+ |
+| `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave | Hold the line | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |
 | `Blackout` | Flat geometry, grid/center neon dims to rails+gems only — break sections only | Atmosphere | 3+ |
 | `Chicane` | Wall rows with gaps pinned to alternating rails | S-steer combo | 4+ |
@@ -683,9 +689,12 @@ leaves the line off.
   per tower, recycled per row for parallax, each tower tint-jittered along
   the vaporwave wheel so the skyline mixes cyan/magenta/violet. A giant
   **striped synthwave sun** (a solid Neon dome, orange crown → magenta
-  base, dissolving into strips below `SunSolidFrac` with gaps widening
-  downward) rides at a fixed distance + lift ahead of the ball so it
-  hangs low in the upper frame like a sunset at the end of the slope. Bases follow the deck's
+  base, dissolving into strips below the style's solid fraction with
+  gaps widening downward) rides `SunDist`/`SunLift` ahead of the ball —
+  pushed ~640 studs out so it hangs small on the horizon like a far
+  sunset, not a looming wall. The **sun** cosmetic slot (§18) restyles
+  the same strip stack via `Art.SunStyles` — colors, dome fraction,
+  strip taper, radius scale (moons read smaller). Bases follow the deck's
   downhill grade so the canyon hugs the slope. **Backdrop is client-local**
   (`Backdrop.luau`): zero replication cost. The Atmosphere dims towers past
   ~600 studs; `CitySpan` stays inside the visible band.
@@ -1061,9 +1070,12 @@ All have designed-for extension points (chunk features, `datamodel` hooks)
 **Phase 1 = cosmetics only.** The leaderboard is the replay hook, so v1
 sells looks, never power. Death stays final — revives were considered and
 explicitly rejected (a paid continue is just buying board position). Every
-item is a pure visual in one of five slots: `skin`, `trail`, `gemFx`,
-`deathFx`, `world` — `world` swaps the entire side-scenery theme (§12:
-city canyon ↔ NEON PEAKS ridge field), the first environment-tier DLC.
+item is a pure visual in one of six slots: `skin`, `trail`, `gemFx`,
+`deathFx`, `world`, `sun` — `world` swaps the entire side-scenery theme
+(§12: city canyon ↔ NEON PEAKS ridge field), the first environment-tier
+DLC; `sun` restyles the horizon disk the run chases (§12 `Art.SunStyles`),
+the second. The **SUNKISSED** bundle packs ECLIPSE + 24K NOON +
+WIREFRAME; **POLAR CAP** rides the seasonal SOLSTICE window.
 
 **Catalog**: items live in `Cosmetics.luau` (ReplicatedStorage) — each is a
 data record `{ slot, name, ...colors/params }`, so a new look is config,

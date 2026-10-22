@@ -1007,6 +1007,44 @@ function ChunkDefs.Swell(rng: Random, st: GenState, _tier): ChunkSpec
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
 end
 
+-- Sway: the ribbon's bank oscillates left-right — a slalom for the roll
+-- axis. Integer periods land the exit level; the rate cap keeps the
+-- bank rolling like a wave, not a whip. No blockers, no canRun gate —
+-- the reach band stays full, the slide is feel not threat.
+function ChunkDefs.Sway(rng: Random, st: GenState, _tier): ChunkSpec
+	local C = Config.Sway
+	local length = rng:NextInteger(C.LenMin, C.LenMax)
+	local periods = rng:NextInteger(C.PeriodsMin, C.PeriodsMax)
+	-- Phase-anchored sine: (sin − sin φ) spans ±2, so the true peak bank is
+	-- amp — halve the gain — and the peak rate is amp*π*periods/length
+	-- (deg/stud), capped by RateMax.
+	local ampHi = math.max(C.AmpMin, math.min(C.AmpMax, C.RateMax * length / (math.pi * periods)))
+	local amp = rng:NextNumber(C.AmpMin, ampHi)
+	local phase = rng:NextNumber(0, math.pi * 2)
+	local r0 = math.sin(phase) -- seam anchor: rollAt(0) = 0
+	-- Centerline gems — the read is "hold the line while the floor leans".
+	local gems = gemRhythmLine(
+		rng,
+		Tiers.speedAt(st.dist),
+		length,
+		0.15,
+		0.75,
+		0,
+		Config.Gems.ValueSafe,
+		nil,
+		energyOf(st),
+		bpmOf(st)
+	)
+	return spec("Sway", st, length, function(t)
+		return {
+			width = st.width,
+			centerX = st.centerX,
+			y = st.y,
+			rollDeg = amp * 0.5 * (math.sin(phase + t * periods * math.pi * 2) - r0),
+		}
+	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+end
+
 -- Chained-row chunks (SnakeField/Chicane) size their length around the
 -- row spacing instead of cramming rows into a standard chunk: at speed,
 -- ReactionTime between lethal reads needs more studs than 90 of deck.

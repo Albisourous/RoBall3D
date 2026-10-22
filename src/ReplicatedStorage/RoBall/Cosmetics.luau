@@ -15,15 +15,16 @@ local Palette = require(script.Parent.Palette)
 
 local Cosmetics = {}
 
-export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world"
+export type Slot = "skin" | "trail" | "gemFx" | "deathFx" | "world" | "sun"
 
-Cosmetics.Slots = { "skin", "trail", "gemFx", "deathFx", "world" } :: { Slot }
+Cosmetics.Slots = { "skin", "trail", "gemFx", "deathFx", "world", "sun" } :: { Slot }
 Cosmetics.SlotName = {
 	skin = "SKIN",
 	trail = "TRAIL",
 	gemFx = "GEM FX",
 	deathFx = "DEATH FX",
 	world = "WORLD",
+	sun = "SUN",
 } :: { [Slot]: string }
 
 -- Per-slot params:
@@ -36,6 +37,8 @@ Cosmetics.SlotName = {
 --            colorA/colorB accents
 --   world:   theme "city"|"peaks"|"void"|"grid"|"aurora"|"reef"|"meteor" —
 --            picks the side scenery Backdrop draws
+--   sun:     sun = a key into Config.Art.SunStyles — restyles the striped
+--            horizon disk Backdrop parks down the slope
 -- Any color param may instead be the string "customA"/"customB"/"customC"
 -- (COLOR LAB §18): it resolves through that RoBallHue* channel — ringA→A,
 -- ringB→B, trail/gemFx→C.
@@ -53,6 +56,7 @@ export type Item = {
 	colorA: Color3?,
 	colorB: Color3?,
 	theme: string?,
+	sun: string?,
 }
 
 local CYAN = Color3.fromRGB(0, 230, 255)
@@ -381,6 +385,18 @@ Cosmetics.Items = {
 	world_aurora = { slot = "world", name = "BOREALIS SKY", gemPrice = 900, theme = "aurora" },
 	world_reef = { slot = "world", name = "NEON REEF", gemPrice = 800, theme = "reef" },
 	world_meteor = { slot = "world", name = "METEOR SHOWER", gemPrice = 900, theme = "meteor" },
+
+	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
+	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
+	-- read, "moon"/"eclipse" pack them into a solid body)
+	sun_classic = { slot = "sun", name = "SYNTH SUN", free = true, sun = "classic" },
+	sun_moon = { slot = "sun", name = "PALE MOON", gemPrice = 400, sun = "moon" },
+	sun_acid = { slot = "sun", name = "ACID SUN", gemPrice = 500, sun = "acid" },
+	sun_prism = { slot = "sun", name = "PRISM RISE", gemPrice = 600, sun = "prism" },
+	sun_grid = { slot = "sun", name = "WIREFRAME SUN", gemPrice = 700, sun = "grid" },
+	sun_midas = { slot = "sun", name = "24K NOON", gemPrice = 750, sun = "midas" },
+	sun_eclipse = { slot = "sun", name = "ECLIPSE", gemPrice = 800, sun = "eclipse" },
+	sun_frost = { slot = "sun", name = "POLAR CAP", gemPrice = 600, sun = "frost" },
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -463,6 +479,16 @@ Cosmetics.Order = {
 		"world_reef",
 		"world_meteor",
 	},
+	sun = {
+		"sun_classic",
+		"sun_moon",
+		"sun_acid",
+		"sun_prism",
+		"sun_grid",
+		"sun_midas",
+		"sun_eclipse",
+		"sun_frost",
+	},
 } :: { [string]: { string } }
 
 Cosmetics.Defaults = {
@@ -471,6 +497,7 @@ Cosmetics.Defaults = {
 	gemFx = "gemfx_gold",
 	deathFx = "deathfx_shatter",
 	world = "world_city",
+	sun = "sun_classic",
 } :: { [string]: string }
 
 -- Themed bundle gamepasses (§18): one pass = a matched set across slots.
@@ -557,12 +584,20 @@ Cosmetics.Bundles = {
 		items = { "skin_custom", "trail_custom", "gemfx_custom" },
 	},
 	{
+		-- Sun pack (§18 "sun" slot): the premium horizon swaps ride the
+		-- same bundle path as the world themes.
+		id = "sunkissed",
+		name = "SUNKISSED",
+		desc = "eclipse · 24k noon · wireframe suns",
+		items = { "sun_eclipse", "sun_midas", "sun_grid" },
+	},
+	{
 		-- Seasonal slot (§18): Config.Monetization.Seasonal holds the UTC
 		-- window; Ui derives this row's desc from it at build time.
 		id = "solstice",
 		name = "SOLSTICE",
 		desc = "frost set · avalanche death",
-		items = { "skin_frost", "trail_frost", "gemfx_frost", "deathfx_avalanche" },
+		items = { "skin_frost", "trail_frost", "gemfx_frost", "deathfx_avalanche", "sun_frost" },
 	},
 }
 
@@ -585,6 +620,7 @@ function Cosmetics.defaults(): { [string]: string }
 		gemFx = Cosmetics.Defaults.gemFx,
 		deathFx = Cosmetics.Defaults.deathFx,
 		world = Cosmetics.Defaults.world,
+		sun = Cosmetics.Defaults.sun,
 	}
 end
 

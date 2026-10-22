@@ -128,6 +128,14 @@ Config.EdgeWarn = {
 Config.Landing = {
 	MaxDrop = 40, -- studs below the ball the probe can still find ground
 	ContactPad = 0.7,
+	-- Zero-bounce landing: a fast fall arrives past the solver's quiet-
+	-- contact range and the impact pops the ball back up — a bounce
+	-- that throws the player into the next hole. Once ground is inside
+	-- ClampReach, downward speed caps at the deck's own descent rate
+	-- (Grade*fwdSpeed) plus ImpactPad — contact is flat, always. Over
+	-- a gap the probe finds nothing, so the fall stays free.
+	ClampReach = 1.8, -- studs under the ball where the cap engages
+	ImpactPad = 10, -- studs/s of true impact allowed over slope-following
 }
 
 -- Danger vignette (§12): a red screen-frame stroke that tightens as the
@@ -288,6 +296,7 @@ Config.Features = {
 		WallSlot = "WALL SLOT",
 		Terrace = "TERRACES",
 		Swell = "SWELL",
+		Sway = "SWAY",
 		SnakeField = "SNAKE FIELD",
 		Blackout = "BLACKOUT",
 		Chicane = "CHICANE",
@@ -409,6 +418,19 @@ Config.Swell = {
 	SlopeMax = 0.22, -- peak added slope; past this a crest launches, not pops
 }
 
+Config.Sway = {
+	-- Deck-shape chunk (DESIGN.md §8.3): the ribbon's bank oscillates
+	-- left-right. Integer periods land the exit level; RateMax caps the
+	-- peak deg/stud so the bank rolls like a wave, not a whip.
+	LenMin = 90,
+	LenMax = 150,
+	PeriodsMin = 1,
+	PeriodsMax = 2,
+	AmpMin = 7,
+	AmpMax = 14,
+	RateMax = 0.7,
+}
+
 Config.Orbs = {
 	-- JumpOrbs stretch (DESIGN.md §8.6, flag-off): lime rings floating over
 	-- voids. A jump input while inside Radius re-kicks vY — the tap extends
@@ -433,7 +455,7 @@ Config.Tiers = {
 	{ dist = 0, chunkPool = { "Flat", "Slalom" }, widthMin = 40, widthMax = 50 },
 	{
 		dist = 200,
-		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate", "Terrace", "Swell" },
+		chunkPool = { "Flat", "Slalom", "Narrow", "BlockGate", "Terrace", "Swell", "Sway" },
 		widthMin = 34,
 		widthMax = 48,
 	},
@@ -449,6 +471,7 @@ Config.Tiers = {
 			"BlockField",
 			"Terrace",
 			"Swell",
+			"Sway",
 			"SnakeField",
 			"Blackout",
 		},
@@ -470,6 +493,7 @@ Config.Tiers = {
 			"WallSlot",
 			"Terrace",
 			"Swell",
+			"Sway",
 			"SnakeField",
 			"Blackout",
 			"Chicane",
@@ -494,6 +518,7 @@ Config.Tiers = {
 			"WallSlot",
 			"Terrace",
 			"Swell",
+			"Sway",
 			"SnakeField",
 			"Blackout",
 			"Chicane",
@@ -521,6 +546,7 @@ Config.Tiers = {
 			"WallSlot",
 			"Terrace",
 			"Swell",
+			"Sway",
 			"SnakeField",
 			"Blackout",
 			"Chicane",
@@ -889,6 +915,7 @@ Config.MusicSync = {
 		Blackout = "breather",
 		Terrace = "technical",
 		Swell = "breather",
+		Sway = "technical",
 		Slalom = "technical",
 		Narrow = "technical",
 		Widen = "technical",
@@ -1083,18 +1110,76 @@ Config.Art = {
 	MeteorWhite = 0.45, -- fraction painted pure white (hot heads)
 	-- Synthwave sun: a neon disk parked far down the slope, riding the
 	-- descent so it hangs on the horizon. The crown is a solid dome
-	-- (orange -> magenta), the bottom SunSolidFrac->1 dissolves into the
+	-- (orange -> magenta), the bottom `solid`->1 dissolves into the
 	-- classic horizontal strips with gaps widening downward.
-	SunDist = 380, -- studs ahead; close enough that atmosphere doesn't fade it
-	SunRadius = 90,
-	SunLift = 34, -- studs above the ball — disk center sits inside the
+	SunDist = 640, -- studs ahead — pushed back so the disk reads distant,
+	-- not looming (about half the old angular size)
+	SunRadius = 80,
+	SunLift = 48, -- studs above the ball — disk center sits inside the
 	-- frame's upper band against the camera's downward pitch
 	SunStrips = 16,
-	SunSolidFrac = 0.55, -- top share of strips abut into a solid dome
 	SunDepth = 3, -- strip thickness along z
-	SunTopColor = Color3.fromRGB(255, 176, 64), -- hot orange crown
-	SunBottomColor = Color3.fromRGB(255, 46, 160), -- magenta base
-	SunMinStripH = 0.5, -- thinnest strips at the bottom (classic fade)
+	-- Sun skins (§18 "sun" slot): each style restyles the strip stack —
+	-- crown/base colors, the solid-dome fraction, the thinnest strip,
+	-- and a radius multiplier (moons read smaller than suns).
+	SunStyles = {
+		classic = {
+			top = Color3.fromRGB(255, 176, 64),
+			bottom = Color3.fromRGB(255, 46, 160),
+			solid = 0.55,
+			gap = 0.5,
+			scale = 1,
+		},
+		moon = {
+			top = Color3.fromRGB(245, 238, 255),
+			bottom = Color3.fromRGB(140, 150, 190),
+			solid = 0.95,
+			gap = 0.4,
+			scale = 0.72,
+		},
+		acid = {
+			top = Color3.fromRGB(170, 255, 60),
+			bottom = Color3.fromRGB(80, 255, 170),
+			solid = 0.55,
+			gap = 0.5,
+			scale = 1,
+		},
+		frost = {
+			top = Color3.fromRGB(228, 246, 255),
+			bottom = Color3.fromRGB(70, 150, 255),
+			solid = 0.7,
+			gap = 0.45,
+			scale = 0.85,
+		},
+		prism = {
+			top = Color3.fromRGB(0, 230, 255),
+			bottom = Color3.fromRGB(255, 64, 190),
+			solid = 0.55,
+			gap = 0.5,
+			scale = 1,
+		},
+		grid = {
+			top = Color3.fromRGB(0, 230, 255),
+			bottom = Color3.fromRGB(175, 80, 255),
+			solid = 0.1,
+			gap = 0.25,
+			scale = 1,
+		},
+		midas = {
+			top = Color3.fromRGB(255, 240, 170),
+			bottom = Color3.fromRGB(255, 212, 64),
+			solid = 0.9,
+			gap = 0.4,
+			scale = 0.95,
+		},
+		eclipse = {
+			top = Color3.fromRGB(210, 200, 255),
+			bottom = Color3.fromRGB(20, 8, 34),
+			solid = 1,
+			gap = 0.5,
+			scale = 0.9,
+		},
+	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
 	RingA = Color3.fromRGB(0, 230, 255),
 	RingB = Color3.fromRGB(255, 64, 190),
@@ -1180,6 +1265,7 @@ Config.Monetization = {
 		inferno = 0, -- INFERNO — ember set + corona death (~149)
 		candy = 0, -- CANDY GLOSS — pink-mono set + pink slip death (~149)
 		colorlab = 0, -- COLOR LAB — custom-hue skin+trail+pop + sliders (~249)
+		sunkissed = 0, -- SUNKISSED — eclipse + 24k noon + wireframe suns (~149)
 	},
 	Price = {
 		starter = 49,
@@ -1197,6 +1283,7 @@ Config.Monetization = {
 		inferno = 149,
 		candy = 149,
 		colorlab = 249,
+		sunkissed = 149,
 	},
 	-- Seasonal slot (§18): ONE rotating bundle gated on a yearly UTC
 	-- window so the garage always has something coming or going. The

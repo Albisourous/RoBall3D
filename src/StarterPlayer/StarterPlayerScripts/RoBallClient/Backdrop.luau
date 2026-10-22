@@ -513,11 +513,12 @@ local function stepMeteors(anchor: Vector3, dt: number)
 	meteorSeeded = true
 end
 
--- The synthwave sun is built once as a stack of horizontal strips:
--- chord width follows the disk's circle, color slides orange -> magenta
--- top to bottom. The top SunSolidFrac of strips abut into a solid dome;
--- below that they taper to slivers so the disk dissolves into the
--- horizon (the classic striped-sunset read).
+-- The synthwave sun is built as a stack of horizontal strips:
+-- chord width follows the disk's circle, color slides style.top ->
+-- style.bottom top to bottom (Config.Art.SunStyles — the §18 "sun" slot
+-- picks the style). The top `solid` fraction of strips abut into a
+-- solid dome; below that they taper to slivers so the disk dissolves
+-- into the horizon (the classic striped-sunset read).
 -- Sun strips keep their authored sizes so the analyzer pulse can breathe
 -- the disk without drifting (AUDIO.md §8).
 local sunParts: { { part: Part, base: Vector3 } } = {}
@@ -529,10 +530,18 @@ local sunPulse = 0
 local bloom: BloomEffect? = nil
 local bloomBase = 0
 
-local function makeSun(parent: Instance): Model
+-- A sun style (Config.Art.SunStyles key — §18 "sun" slot) restyles the
+-- stack: crown/base colors, the solid-dome fraction, the thinnest strip,
+-- and a radius multiplier. `sunStyle` tracks the live key so setSun can
+-- no-op on repeats.
+type SunStyle = { top: Color3, bottom: Color3, solid: number, gap: number, scale: number? }
+local SUN_STYLES: { [string]: SunStyle } = Art.SunStyles
+local sunStyle = "classic"
+
+local function makeSun(parent: Instance, st: SunStyle): Model
 	local model = Instance.new("Model")
 	model.Name = "Sun"
-	local r = Art.SunRadius
+	local r = Art.SunRadius * (st.scale or 1)
 	local n = math.max(Art.SunStrips, 2)
 	local yTop, yBot = 0.92 * r, -0.92 * r
 	local spacing = (yTop - yBot) / (n - 1)
@@ -541,20 +550,20 @@ local function makeSun(parent: Instance): Model
 		local y = yTop - (yTop - yBot) * t
 		local halfChord = math.sqrt(math.max(r * r - y * y, 0))
 		-- Solid crown: strips overlap their pitch so the dome has no gaps.
-		-- Below the solid fraction, heights ease spacing -> SunMinStripH.
+		-- Below the solid fraction, heights ease spacing -> st.gap.
 		local h
-		if t < Art.SunSolidFrac then
+		if t < st.solid then
 			h = spacing * 1.04
 		else
-			local u = (t - Art.SunSolidFrac) / math.max(1 - Art.SunSolidFrac, 0.001)
-			h = spacing + (Art.SunMinStripH - spacing) * u
+			local u = (t - st.solid) / math.max(1 - st.solid, 0.001)
+			h = spacing + (st.gap - spacing) * u
 		end
 		local strip = Instance.new("Part")
 		strip.Anchored = true
 		strip.CanCollide = false
 		strip.CastShadow = false
 		strip.Material = Enum.Material.Neon
-		strip.Color = Art.SunTopColor:Lerp(Art.SunBottomColor, t)
+		strip.Color = st.top:Lerp(st.bottom, t)
 		strip.Size = Vector3.new(halfChord * 2, h, Art.SunDepth)
 		strip.Position = Vector3.new(0, y, 0)
 		strip.Parent = model
@@ -568,7 +577,7 @@ function Backdrop.init()
 	root = Instance.new("Folder")
 	root.Name = "RoBallBackdrop"
 	root.Parent = workspace
-	sun = makeSun(root)
+	sun = makeSun(root, SUN_STYLES[sunStyle])
 	-- Mid-band bloom punch — bind the server's named WorldBloom first (a stale
 	-- authored Bloom may sit earlier in child order with hot defaults), keeping
 	-- its tuned intensity as the pulse baseline.
@@ -608,6 +617,32 @@ function Backdrop.init()
 	end
 	player:GetAttributeChangedSignal("RoBallEq_world"):Connect(themeFromAttr)
 	themeFromAttr()
+
+	-- Sun skin (§18 "sun" slot): same attribute-driven swap — the equipped
+	-- SunStyles key restyles the strip stack in place.
+	local function sunFromAttr()
+		local item = Cosmetics.item(player:GetAttribute("RoBallEq_sun") :: string?)
+		Backdrop.setSun(if item and item.sun then item.sun else "classic")
+	end
+	player:GetAttributeChangedSignal("RoBallEq_sun"):Connect(sunFromAttr)
+	sunFromAttr()
+end
+
+-- Sun swap (§18 sun slot): rebuild the strip stack under the new style —
+-- ~16 parts, so a destroy+rebuild beats restyling strips in place. The
+-- update loop re-anchors it next frame; sunParts repopulates for the
+-- audio pulse.
+function Backdrop.setSun(name: string)
+	local st = SUN_STYLES[name]
+	if not st or name == sunStyle then
+		return
+	end
+	sunStyle = name
+	table.clear(sunParts)
+	if sun then
+		sun:Destroy()
+	end
+	sun = makeSun(root, st)
 end
 
 local seeded = false
