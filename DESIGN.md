@@ -936,10 +936,9 @@ that caused them.
   first equip so any swap restores it verbatim), a two-green grass
   checkerboard floor rides the descent `SkyFloorDrop` studs below the
   deck as solid SmoothPlastic tile rows recycled on a shared frontier,
-  a tropical sea spreads to the horizon `SkySeaDrop` studs under deck
-  grade (wide flat slabs re-parked on the descent each frame), sandy
-  grass-domed **islets** each crowned with a lone palm recycle past on
-  the water like the cloud field, chunky four-lobe puff clouds drift
+  sandy grass-domed **islets** each crowned with a lone palm float past
+  in the open blue `SkyIsleDrop` studs under deck grade, chunky
+  four-lobe puff clouds drift
   beside the track on a lazy
   sine bob, re-entering ahead once they slip behind, and a **day-palm
   grove** lines the course — the same palm pool/frontier as MIAMI
@@ -1510,7 +1509,7 @@ simmer beside the lane), `world_reef` → NEON REEF, `world_empty` → NULL
 (the `"empty"` theme draws no scenery at all — lane, sun, skybox; the
 silence is the product), `world_sky` → APE BALL (the day-shift world —
 SKY COURT re-times Lighting to midday, lays a two-green checkerboard
-below the deck over a tropical sea dotted with palm-topped islets, and
+below the deck with palm-topped islets afloat in the blue, and
 drifts puff clouds beside the track), and
 `world_polar` is shared —
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for

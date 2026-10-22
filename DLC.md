@@ -196,11 +196,11 @@ the preview can render the whole look and nothing in the box is filler.
 | APE BALL | CAPSULE · SKY COURT world · CHECKER DECK floor · BANANA WAKE · (no trail — `trail_none` lands last) · BANANA POP · PARTY POP · HIGH NOON · DAY GLOW | 199 |
 | 2X BANK | permanent 2× bank perk | 99 |
 
-**APE BALL** is the rolling-party-ball homage — bright midday sky,
-green/dark-green grass checkerboard below the deck AND under the ball
-(CHECKER
-DECK tiles the lane itself), a tropical sea with palm-topped islets
-under it, cartoon clouds, a day-palm grove, a
+**APE BALL** is the rolling-party-ball homage — the whole world a
+bright midday blue, green/dark-green grass checkerboard below the deck
+AND under the ball (CHECKER
+DECK tiles the lane itself), palm-topped islets floating in the blue,
+cartoon clouds, a day-palm grove, a
 50/50-clear glass capsule ball with a toy monkey riding UPRIGHT inside
 (it yaws to face velocity like the arcade original — the WebMonkeyBall
 decomp's `updateApeOrientation` ported to an AlignOrientation rig,

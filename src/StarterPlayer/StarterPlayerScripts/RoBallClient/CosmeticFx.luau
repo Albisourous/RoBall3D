@@ -103,7 +103,11 @@ local ROLL_SPEED = Config.Speed.Start -- real opener pace, studs/s
 -- the browsed DEATH FX bursts at the impact point, the wrap respawns.
 local WALL_H = Config.Obstacles.BlockHeight
 local WALL_T = 1.2
-local WALL_Z = ROLL_Z0 - ROLL_LEN - BALL_D / 2 - WALL_T / 2 -- face meets the ball's nose
+local WALL_ET = 0.3 -- neon edge-strip thickness: the strips sit ET proud of the slab face
+-- The effective obstacle face is the frame's front, not the slab's —
+-- park the wall so the strips' near plane kisses the ball's nose
+-- exactly; anything less reads as the ball clipping inside the frame.
+local WALL_Z = ROLL_Z0 - ROLL_LEN - BALL_D / 2 - WALL_T / 2 - WALL_ET
 local DEAD_T = 0.85 -- seconds holding on the burst before the respawn
 local CYCLE = ROLL_LEN + ROLL_SPEED * DEAD_T
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
@@ -117,6 +121,8 @@ local function deckTopAt(z: number): number
 end
 
 local wmodel: WorldModel? = nil
+local vpFrame: ViewportFrame? = nil
+local vpBg0: Color3? = nil -- the panel's authored background; restored for non-sky worlds
 local vpCam: Camera? = nil
 local vpBall: BasePart? = nil
 local vpRings: { { BasePart } } = {}
@@ -297,6 +303,8 @@ end
 -- camera driven by the live chase-cam transform (step() re-aims it at
 -- the rolling ball every frame). FOV uses the real speed curve.
 function Fx.mountViewport(vp: ViewportFrame)
+	vpFrame = vp
+	vpBg0 = vp.BackgroundColor3
 	local wm = Instance.new("WorldModel")
 	wm.Parent = vp
 	wmodel = wm
@@ -477,7 +485,7 @@ function Fx.preview(items: { [string]: any })
 	local wall = vpart(Vector3.new(LANE_W - 1, WALL_H, WALL_T), wallCf.Position, Config.Obstacles.FaceColor)
 	wall.Name = "PreviewWall"
 	wall.CFrame = wallCf
-	local ET = 0.3
+	local ET = WALL_ET
 	local halfW = (LANE_W - 1) / 2
 	for _, f in ipairs({
 		{ size = Vector3.new(ET, WALL_H, ET), off = CFrame.new(-halfW + ET / 2, 0, WALL_T / 2 + ET / 2) },
@@ -493,7 +501,12 @@ function Fx.preview(items: { [string]: any })
 	-- World + sun: one static window of the REAL Backdrop generation —
 	-- same lay functions, same tunables, same seeded lattice as the live
 	-- scenery — anchored on the ball's start so deckEst lands the
-	-- scenery exactly where the lane's surface sits.
+	-- scenery exactly where the lane's surface sits. The "sky" world
+	-- also repaints the window's own background — Lighting can't reach
+	-- inside a ViewportFrame, so its open blue comes from the frame.
+	if vpFrame then
+		vpFrame.BackgroundColor3 = if worldI and worldI.theme == "sky" then Art.SkyBgd else vpBg0 :: Color3
+	end
 	local scene = Instance.new("Model")
 	scene.Name = "Scene"
 	scene.Parent = wm

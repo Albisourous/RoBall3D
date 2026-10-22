@@ -1359,11 +1359,10 @@ Config.Art = {
 	PalmSwayRate = 1.1, -- rad/s breeze
 	PalmValue = 0.9, -- neon brightness for fronds
 	-- SKY COURT (§18 "sky" world, APE BALL pack): the day-shift look —
-	-- the client re-times Lighting to midday so the skybox goes blue
-	-- with a real sun, a two-green grass checkerboard rides the descent
-	-- below the deck, a tropical sea spreads to the horizon under that,
-	-- palm-topped islets drift past on it, and chunky cartoon clouds
-	-- hang beside the track.
+	-- the client re-times Lighting to midday so the whole sky goes
+	-- arcade blue with a real sun, a two-green grass checkerboard rides
+	-- the descent below the deck, palm-topped islets float past in the
+	-- blue, and chunky cartoon clouds hang beside the track.
 	SkyClockTime = 14.2,
 	SkyAmbient = Color3.fromRGB(120, 132, 160),
 	SkyOutdoorAmbient = Color3.fromRGB(170, 180, 205),
@@ -1376,16 +1375,14 @@ Config.Art = {
 	SkyFloorRows = 18, -- tile rows covering the window
 	SkyFloorA = Color3.fromRGB(158, 206, 80), -- arcade grass, light tile
 	SkyFloorB = Color3.fromRGB(50, 130, 54), -- arcade grass, dark tile
-	-- Tropical sea + islets (SMB's stage-over-water read): wide flat
-	-- slabs tile the horizon under the checker corridor, re-parked on
-	-- the descent every frame; grass-domed motes with a lone palm
-	-- recycle past on it like the cloud field.
-	SkySeaDrop = 230, -- ocean depth below deck grade
-	SkySeaSpan = 2048, -- z-length per slab (engine part-axis cap)
-	SkySeaWidth = 2048, -- every slab spans the whole horizon window
-	SkySeaSlabs = 2, -- ~4k studs of sea coverage down-course
-	SkySeaColor = Color3.fromRGB(58, 170, 212),
-	SkyIslands = 6, -- grass-domed islets afloat on the sea
+	-- Floating islets in the open blue (SMB's islands-in-the-sky read):
+	-- grass-domed motes with a lone palm recycle past like the cloud
+	-- field, hung at SkyIsleDrop below deck grade. SkyBgd is the blue
+	-- wash itself — the garage diorama paints its ViewportFrame with it
+	-- (Lighting's midday rig already blues the live sky).
+	SkyIsleDrop = 230, -- islet altitude below deck grade
+	SkyBgd = Color3.fromRGB(92, 168, 235), -- the open blue the whole world reads
+	SkyIslands = 6, -- grass-domed islets adrift in the sky
 	SkyIslandMinX = 260, -- closest drift from lane center (checker corridor ends ~117)
 	SkyIslandDX = 380, -- lateral spread beyond MinX
 	SkyIslandZMin = 350, -- nearest re-entry ahead of the ball
