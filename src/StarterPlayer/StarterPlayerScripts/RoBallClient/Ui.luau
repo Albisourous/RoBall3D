@@ -200,16 +200,13 @@ local function spring(pos: number, vel: number, target: number, dt: number): (nu
 	return pos + vel * dt, vel
 end
 
--- Grid-snapped UI hitsounds (MENU.md §5): hover lands a tick, activate
--- lands a kick — the gem-chime trick on quieter voices. Activated covers
--- mouse click AND gamepad A (the menu buttons are Selectable), so one
--- pass arms both input paths.
+-- Grid-snapped UI hitsounds (MENU.md §5): activate lands a kick — the
+-- gem-chime trick on a quieter voice. Activated covers mouse click AND
+-- gamepad A (the menu buttons are Selectable), so one pass arms both
+-- input paths. No hover tick — it read as noise, not percussion.
 local function wireTick(b: GuiButton)
-	b.MouseEnter:Connect(function()
-		Sfx.uiTick("hover")
-	end)
 	b.Activated:Connect(function()
-		Sfx.uiTick("click")
+		Sfx.uiTick()
 	end)
 end
 
@@ -496,11 +493,6 @@ function Ui.new(): Ui
 	seedStroke.Parent = seedBox
 	seedBox.Parent = seedRow
 	self.seedBox = seedBox
-	-- §5: the seed box is the menu's one text field — keyboard players
-	-- "hover" it by focusing, so focus lands the tick.
-	seedBox.Focused:Connect(function()
-		Sfx.uiTick("hover")
-	end)
 
 	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip —
 	-- run-scoped, so it rides the hero column, not the garage.
@@ -2699,13 +2691,15 @@ function Ui.new(): Ui
 	padHint.Text = "drag to steer · tap-tap to dash"
 	padHint.Parent = zone
 
-	-- First-run coach line (§6): one device-aware sentence mid-screen,
-	-- shown only on a fresh profile's first run (Main decides — best==0),
-	-- self-hiding after TutHintSec so it never outlives the lesson.
+	-- First-run coach line (§6): one device-aware sentence, top-center
+	-- under the toast slot (achToast owns y90–114) — the center cone
+	-- stays clear for the track read at speed. Shown only on a fresh
+	-- profile's first run (Main decides — best==0), self-hiding after
+	-- TutHintSec so it never outlives the lesson.
 	local runHint = Instance.new("TextLabel")
 	runHint.Name = "RunHint"
 	runHint.AnchorPoint = Vector2.new(0.5, 0)
-	runHint.Position = UDim2.fromScale(0.5, 0.6)
+	runHint.Position = UDim2.new(0.5, 0, 0, 122)
 	runHint.Size = UDim2.fromOffset(560, 40)
 	runHint.BackgroundTransparency = 1
 	runHint.Font = F_DATA

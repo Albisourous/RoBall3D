@@ -27,9 +27,10 @@ Stripped to mechanisms, the osu! menu is seven things:
    slot-machine spin through the same physics, not a jump. Choosing is
    *play*, pre-play.
 3. **Chrome breathes on the beat.** The cookie thumps to the song,
-   panels settle with spring overshoot, hover lands a tick, click lands
-   a kick — and the hitsounds are quantized to the heard grid, so every
-   interaction reads as percussion on the track, not UI noise.
+   panels settle with spring overshoot, every activate lands a kick —
+   and the hitsounds are quantized to the heard grid, so every
+   interaction reads as percussion on the track, not UI noise. (Hover
+   stays silent — a per-mouse-over tick read as noise, not rhythm.)
 4. **Selection re-skins the room.** The picked beatmap's art fades in
    behind everything, dimmed — the pick owns the frame before it owns
    the level. The choice is ambient.
@@ -48,7 +49,7 @@ Stripped to mechanisms, the osu! menu is seven things:
 | Beatmap audio plays in menus; play commits the same stream | The picker auditions — the start is a lift, not a cut | `Music.preview(id)` — the TRACK row swaps the muffled menu bed to the browsed song; PLAY opens the filter on it (§3) |
 | Carousel with inertia, snap, tilt | The picker is a toy; browsing is fun itself | A 1-DOF spring on the TRACK row and STYLE cyclers — every cycle overshoots and settles; wheel/drag feeds velocity (§4) |
 | All chrome thumps on the beat | The menu is a rhythm instrument | `Music.sample()` already lands on `self.pulse` every frame — spend it on PLAY + the horizon rule while the menu is up (§2) |
-| Hover/click hitsounds quantized to the grid | UI noise becomes percussion on the song | `Sfx.uiTick` — a hover tick and click kick snapped via `Music.nextGridDelay`, exactly like the gem chime (§5) |
+| Activate hitsounds quantized to the grid | UI noise becomes percussion on the song | `Sfx.uiTick` — a click kick snapped via `Music.nextGridDelay`, exactly like the gem chime (§5; hover stays silent) |
 | Picked map's art owns the frame | The choice is ambient before it's played | Divergence kept: the opaque shop floor stands — the pick re-skins the room through the diorama + accent tint, not a live backdrop (§6) |
 | Grade stamp + one-key retry | The report card has weight; the loop is free | Score hero + `★ NEW BEST` stamp in on a Back ease with a duck punch; retry stays `R` (§7) |
 | Menu visualizer / idle motion | Idle is never dead | `Music.spectrum()` scope strip under the horizon rule — menu-mode only, write-gated like `setWave` (§8) |
@@ -172,25 +173,25 @@ section count — the picker's stat line, one caption row.
 
 The gem chime already proved the trick: `Music.nextGridDelay` snaps a
 sound onto the heard grid so it lands *on* the track, capped so it never
-adds latency. Menu sounds are the same play with quieter voices —
-hover = a flattened blip at a high octave, click/confirm = a low kick
-plus a duck. Wire `MouseEnter` → tick, `Activated` → kick on PLAY, the
-arrows, tabs, and the seed box.
+adds latency. Menu sounds are the same play with a quieter voice —
+click/confirm = a low kick plus a duck. Hover is deliberately SILENT:
+a per-mouse-over tick reads as noise, not percussion. Wire `Activated`
+→ kick on PLAY, the arrows, and the tabs.
 
 ```luau
 -- SfxController.luau — MENU.md §5: UI hitsounds quantized to the heard
--- grid (the gem-chime trick, quieter). Hover reads as a hat tick,
--- click as a kick that knocks the bed — osu!'s percussion-menu feel.
-function Sfx.uiTick(kind: string)
+-- grid (the gem-chime trick, quieter). Click lands as a kick that
+-- knocks the bed — osu!'s percussion-menu feel; hover stays silent.
+function Sfx.uiTick()
 	local cfg = Config.Menu.UiTick
 	local delay = Music.nextGridDelay(cfg.Subdiv, cfg.Cap)
 	task.delay(delay, function()
 		local s = Instance.new("Sound")
 		s.Name = "UiTick"
 		s.SoundId = assetUri(Config.DashSfx)
-		s.Volume = (if kind == "click" then cfg.ClickVol else cfg.HoverVol) * AudioMix.gain("dash")
+		s.Volume = cfg.ClickVol * AudioMix.gain("dash")
 		local ps = Instance.new("PitchShiftSoundEffect")
-		ps.Octave = if kind == "click" then cfg.ClickOct else cfg.HoverOct
+		ps.Octave = cfg.ClickOct
 		ps.Parent = s
 		s.Parent = SoundService
 		s:Play()
@@ -198,9 +199,7 @@ function Sfx.uiTick(kind: string)
 			s:Destroy()
 		end)
 	end)
-	if kind == "click" then
-		Music.duck(cfg.ClickDuck, cfg.ClickRelease) -- the kick punches the bed
-	end
+	Music.duck(cfg.ClickDuck, cfg.ClickRelease) -- the kick punches the bed
 end
 ```
 
