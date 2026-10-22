@@ -437,6 +437,19 @@ Config.Swell = {
 	SlopeMax = 0.36, -- peak added slope; past this a crest launches hard, not pops
 }
 
+-- Roll ramp (DESIGN.md §9): banked chunks (Tilt, Sway) grow steeper with
+-- distance — rollScale = 1 + min(dist/RampDist, 1) * (seededMax - 1).
+-- The per-seed max multiplier is rolled inside [MaxLo, MaxHi] on the
+-- mutator stream, so each run's tilt ceiling differs. Cap is the absolute
+-- sanity bound — BankPull at ~42° is ~20 s/s vs 26 max steer: survivable
+-- with counter-steer, no longer ignorable.
+Config.Roll = {
+	RampDist = 6000, -- meters of run to reach full tilt scale
+	MaxLo = 1.4, -- per-seed max-multiplier range
+	MaxHi = 2.4,
+	Cap = 42, -- absolute bank cap, degrees
+}
+
 Config.Sway = {
 	-- Deck-shape chunk (DESIGN.md §8.3): the ribbon's bank oscillates
 	-- left-right. Integer periods land the exit level; RateMax caps the

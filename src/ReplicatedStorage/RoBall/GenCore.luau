@@ -96,6 +96,9 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 		beatPos = self.beatPos,
 		section = songSection,
 		map = self.map,
+		-- Tilt ramp (DESIGN.md §9): banked chunks steepen with distance
+		-- toward the seed's rolled ceiling.
+		rollScale = 1 + math.min(st.dist / Config.Roll.RampDist, 1) * (self.mutator.rollMax - 1),
 	}
 
 	if self.onlyType then

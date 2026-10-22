@@ -15,6 +15,7 @@ export type Flavor = {
 	fams: { [string]: number },
 	types: { [string]: number },
 	width: number, -- tier width-window multiplier (1 = no shape bias)
+	rollMax: number, -- seeded tilt-ramp ceiling (DESIGN.md §9 Config.Roll)
 }
 
 local Mutator = {}
@@ -24,12 +25,14 @@ function Mutator.forSeed(seed: number): Flavor
 	local rng = Random.new(seed + M.Salt)
 	local id = M.Order[rng:NextInteger(1, #M.Order)]
 	local m = M.List[id]
+	local R = Config.Roll
 	return {
 		id = id,
 		label = m.label,
 		fams = m.fams or {},
 		types = m.types or {},
 		width = m.width or 1,
+		rollMax = R.MaxLo + rng:NextNumber() * (R.MaxHi - R.MaxLo),
 	}
 end
 

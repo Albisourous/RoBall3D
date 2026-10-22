@@ -39,6 +39,9 @@ export type GenState = {
 	-- The run's SongMap (per-track bpm/accent data). Optional — falls back
 	-- to the default track's map for hand-built specs and tests.
 	map: any?,
+	-- Tilt ramp (DESIGN.md §9): banked-chunk amplitude multiplier for this
+	-- distance. Optional — hand-built specs default to 1.
+	rollScale: number?,
 }
 
 export type Section = {
@@ -475,7 +478,10 @@ end
 -- Tilt: bank the ribbon, hold, return level. Always exits flat.
 function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
 	local length = rng:NextInteger(40, 70)
-	local roll = rng:NextNumber(8, 20) * (rng:NextInteger(0, 1) * 2 - 1)
+	-- Roll ramp (§9): the bank ceiling steepens with distance toward the
+	-- seed's rolled max; Cap is the absolute sanity bound.
+	local rollHi = math.min(20 * (st.rollScale or 1), Config.Roll.Cap)
+	local roll = rng:NextNumber(8, rollHi) * (rng:NextInteger(0, 1) * 2 - 1)
 	local rollAt = function(t: number)
 		-- ramp in over first 25%, hold, ramp out over last 25%
 		if t < 0.25 then
@@ -1040,8 +1046,10 @@ function ChunkDefs.Sway(rng: Random, st: GenState, _tier): ChunkSpec
 	local periods = rng:NextInteger(C.PeriodsMin, C.PeriodsMax)
 	-- Phase-anchored sine: (sin − sin φ) spans ±2, so the true peak bank is
 	-- amp — halve the gain — and the peak rate is amp*π*periods/length
-	-- (deg/stud), capped by RateMax.
-	local ampHi = math.max(C.AmpMin, math.min(C.AmpMax, C.RateMax * length / (math.pi * periods)))
+	-- (deg/stud), capped by RateMax. AmpMax itself rides the §9 roll ramp —
+	-- AmpMin stays flat so early chunks keep their gentle read.
+	local ampMax = math.min(C.AmpMax * (st.rollScale or 1), Config.Roll.Cap)
+	local ampHi = math.max(C.AmpMin, math.min(ampMax, C.RateMax * length / (math.pi * periods)))
 	local amp = rng:NextNumber(C.AmpMin, ampHi)
 	local phase = rng:NextNumber(0, math.pi * 2)
 	local r0 = math.sin(phase) -- seam anchor: rollAt(0) = 0

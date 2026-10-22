@@ -352,7 +352,7 @@ narrow. Then the seeded generator takes over.
 | `Slalom` | Ribbon, centerline sways via sine | Steering warmup | 1+ |
 | `Narrow` | Width lerps down over the chunk | Precision | 2+ |
 | `Widen` | Deck opens to the tier window's upper half in ~35%, then holds; twin edge-margin gem lines | Relief + lateral reach (dash's job) | 5+ |
-| `Tilt` | Ribbon rolls around its long axis ±(8–20°) — bank pull drags the ball toward the low edge | Momentum management | 3+ |
+| `Tilt` | Ribbon rolls around its long axis ±(8–20°→cap, steepens with distance via the §9 roll ramp) — bank pull drags the ball toward the low edge | Momentum management | 3+ |
 | `Pinch` | Width collapses to 2–3 studs mid-chunk, reopens | Burst precision | 3+ |
 | `SplitGap` | Center channel removed → two side ribbons; void-adjacent edges glow **lethal red** (void = kill geometry) so the split reads from the horizon | Route choice | 4+ |
 | `Bowl` | Banked walls rise on both edges | Rest + dense gem canyon | 4+ |
@@ -362,7 +362,7 @@ narrow. Then the seeded generator takes over.
 | `WallSlot` | Red wall spanning the deck, single opening | Commit-to-a-lane | 4+ |
 | `Terrace` | Deck descends in soft lips — each tread is one whole cosine ease: flat at both seams, steepest mid-tread. No up-slopes, no lip edge, no foot-V — a flying ball only ever meets surfaces sloping away | Free ballistic spectacle | 2+ |
 | `Swell` | Full-width ribbon undulating in y — rolling hills, up and down 3–6 times a chunk (amp 2–7); integer sine periods land the exit on the entry height, and `Swell.SlopeMax` keeps crests as air-popping hops, never walls | Kinesthetic rest | 2+ |
-| `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave, and bank pull surfs the ball with each crest | Hold the line | 2+ |
+| `Sway` | Ribbon bank oscillates left-right — a slalom for the roll axis; integer sine periods land the exit level, `Sway.RateMax` caps deg/stud so the bank rolls like a wave, `AmpMax` steepens with the §9 roll ramp, and bank pull surfs the ball with each crest | Hold the line | 2+ |
 | `SnakeField` | Edge-flush blocks alternating sides on a long chunk | Beat weave | 3+ |
 | `Blackout` | Flat geometry, grid/center neon dims to rails+gems only — break sections only | Atmosphere | 3+ |
 | `Chicane` | Wall rows with gaps pinned to alternating rails | S-steer combo | 4+ |
@@ -613,6 +613,11 @@ toward the curve at `Accel` = `6 studs/s²`.
 
 Crossing a tier threshold:
 - new chunk types join the RNG pool
+- banked chunks steepen: `Config.Roll` ramps a `rollScale` multiplier
+  over `RampDist` (6km) toward a per-seed ceiling in `[MaxLo, MaxHi]`
+  (rolled on the salted mutator stream — each run's tilt ceiling differs,
+  `Cap` = 42° absolute). Tilt's held bank and Sway's `AmpMax` both ride
+  it, so deep runs bank hard enough that bank pull is a real threat
 - the width floor tightens (34 → 10 min) — the ceiling NEVER does:
   `widthMax` is pinned at 50 on every tier, so the window itself is the
   difficulty and deep runs span razor-thin to full-width
