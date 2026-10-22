@@ -170,8 +170,8 @@ end
 
 local function saveNow(player: Player)
 	local eq = equipped[player]
-	if not eq then
-		return
+	if not eq or not profileReady[player] then
+		return -- pre-load writes would snapshot defaults over the stored profile
 	end
 	dirty[player] = false
 	-- Snapshot everything: the spawned save serializes later, and a live
@@ -533,6 +533,10 @@ function ShopService.claimPass(player: Player, key: string): (boolean, string)
 	if not Config.Monetization.FreeForTesting then
 		return false, "unavailable"
 	end
+	if not profileReady[player] then
+		return false, "loading" -- same gate as buyItem: a pre-load claim would
+		-- be wiped when queryPasses rebuilds owned[] at profile land
+	end
 	if Config.Monetization.Passes[key] == nil then
 		return false, "unknown pass"
 	end
@@ -558,6 +562,9 @@ end
 function ShopService.claimGemPack(player: Player, key: string): (boolean, string)
 	if not Config.Monetization.FreeForTesting then
 		return false, "unavailable"
+	end
+	if not profileReady[player] then
+		return false, "loading"
 	end
 	local gems = Config.Monetization.ProductGems[key]
 	if gems == nil then
