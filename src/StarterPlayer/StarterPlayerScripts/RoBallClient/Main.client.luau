@@ -885,11 +885,13 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 
 	local steer = Config.Steering
-	-- Bank pull (§4): a rolled deck nudges the ball toward its low edge —
-	-- the lane probe's surface normal carries the bank (-normal.X = sin
-	-- roll), so the pull rides the same velocity-ease as steering: idle
-	-- drifts downhill, counter-steer still wins but pays the pull out of
-	-- MaxLateralSpeed. Airborne reads no surface — pull stays zero.
+	-- Bank pull (§4): a rolled deck drags the ball toward its low edge —
+	-- the lane probe's surface normal carries the bank (normal.X =
+	-- -sin(rollDeg); a +roll deck dips -X), so the pull is proportional
+	-- to Normal.X — always toward the downhill rail. It rides the same
+	-- velocity-ease as steering: idle drifts downhill, counter-steer
+	-- still wins but pays the pull out of MaxLateralSpeed. Airborne reads
+	-- no surface — pull stays zero.
 	local bp = b.Position
 	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
 	local grounded = drop ~= nil
@@ -897,7 +899,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local bankPull = 0
 	bankRollRad = 0
 	if grounded and drop then
-		bankPull = -drop.Normal.X * steer.BankPull
+		bankPull = drop.Normal.X * steer.BankPull
 		-- Deck roll for the camera: normal.X = -sin(roll) on a banked
 		-- surface — same read the pull uses, kept as an angle for the
 		-- horizon lean.
