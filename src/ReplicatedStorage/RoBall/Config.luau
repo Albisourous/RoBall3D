@@ -879,11 +879,12 @@ Config.Music = {
 		palm_screens = { AssetId = 107610795649189 }, -- "PALM SCREENS"
 	},
 	Volume = 0.5,
-	-- Default track tempo — the fallback beat grid for code paths without a
-	-- run map (beat interval = 60 / (bpm * heard PlaybackSpeed)). Must equal
-	-- the parked track's SongMap.bpm — palm_screens (the menu bed) is
-	-- 105.38. Per-run lookups use the run map's own bpm; this is only the
-	-- non-run default.
+	-- Reference grid tempo — the beat grid EVERY run generates against
+	-- (beat interval = 60 / (bpm * heard PlaybackSpeed)). Must equal the
+	-- MenuTrack map's SongMap.bpm — palm_screens is 105.38. The seeded
+	-- track pick only chooses the heard audio; keeping generation on this
+	-- one tempo is what makes gem spacing, mover periods, and section
+	-- energy identical across songs (AUDIO.md §5.2 fairness contract).
 	BaseBpm = 105.38,
 	PlaybackSpeedMin = 0.9,
 	PlaybackSpeedMax = 1.35,
