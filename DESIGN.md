@@ -170,7 +170,9 @@ explainable.
     hold boost/brake, `RB`/`LB` dash right/left, `START` restarts like
     `R`. Menu nav is engine-native: the primary buttons are `Selectable`
     and `GuiService.SelectedObject` follows the shown card (PLAY on
-    menu, RETRY on death), so `A` clicks through.
+    menu, RETRY on death), so `A` clicks through. Rumble rides the same
+    verbs (`Controls.Rumble`): a high zip on dash fire, a faint click on
+    a denied press, the one big shake on the wreck.
   - *Touch* — an invisible drag zone under the left thumb is analog
     steer (floating origin, full lock at `PadTravelPx`); a quick release
     under `PadTapPx` is a tap and a same-side pair inside
