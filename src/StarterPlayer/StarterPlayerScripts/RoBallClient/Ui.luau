@@ -1941,7 +1941,7 @@ function Ui.new(): Ui
 	local scope = Instance.new("Frame")
 	scope.Name = "BpmScope"
 	scope.AnchorPoint = Vector2.new(1, 0.5)
-	scope.Position = UDim2.new(0.985, 0, 1, -46)
+	scope.Position = UDim2.new(0.82, 0, 1, -38)
 	scope.Size = UDim2.fromOffset(BPM_W, BPM_H)
 	scope.Rotation = -4
 	scope.BackgroundColor3 = C_BG
