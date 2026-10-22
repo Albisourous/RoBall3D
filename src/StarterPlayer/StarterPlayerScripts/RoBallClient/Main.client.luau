@@ -326,12 +326,12 @@ end
 
 --============================== wiring ==============================--
 
--- TRACK cycler (AUDIO.md §3): item 1 = SEEDED — the run seed picks the
+-- TRACK cycler (AUDIO.md §3): item 1 = RANDOM — the run seed picks the
 -- song; items 2+ = ActiveTracklist entries. A pick sends a seed in that
 -- track's residue class so trackIdFor(seed) lands on it and the gen
 -- charts the song the player hears. Explicit seed text / "daily" still
 -- wins over the pick — the seed box is the stronger intent.
-local trackItems = { "SEEDED" }
+local trackItems = { "RANDOM" }
 for _, id in ipairs(Config.Music.ActiveTracklist) do
 	table.insert(trackItems, (id:gsub("_", " "):upper()))
 end

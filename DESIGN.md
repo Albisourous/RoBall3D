@@ -1261,7 +1261,7 @@ returning `PurchaseGranted`; unknown ids or an unready profile return
 `NotProcessedYet` so Roblox retries instead of eating a payment.
 
 **TRACK row (music packs, early P3)**: a sixth cycler under the equip
-slots picks the run's song — `SEEDED` keeps the seeded pick; a named
+slots picks the run's song — `RANDOM` keeps the seeded pick; a named
 track sends a seed in its residue class so `SongMap.trackIdFor` lands on
 it and the gen stamps that track's map (seed-box text / `daily` still
 wins). The row browses `Config.Music.ActiveTracklist` — every uploaded

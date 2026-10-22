@@ -415,7 +415,7 @@ function Ui.new(): Ui
 	trkName.Font = F_DATA
 	trkName.TextSize = 15
 	trkName.TextColor3 = C_WHITE
-	trkName.Text = "SEEDED"
+	trkName.Text = "RANDOM"
 	trkName.Position = UDim2.fromOffset(92, 0)
 	trkName.Size = UDim2.fromOffset(160, 30)
 	trkName.TextXAlignment = Enum.TextXAlignment.Center

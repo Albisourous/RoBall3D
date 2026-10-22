@@ -144,7 +144,7 @@ watchdog path already tolerates that). Grow the canon by adding a
 `SaveService` records `trackId` next to the seed.
 
 **TRACK cycler (garage):** the `TRACK` row under the equip slots lets
-the player pick a song like an equip — `SEEDED` (default) keeps the
+the player pick a song like an equip — `RANDOM` (default) keeps the
 seeded pick; a named track sends a seed in that track's residue class
 (`idx-1 mod #ActiveTracklist`) so `trackIdFor(seed)` lands on it and the
 gen charts the song the player hears. Seed-box text / `daily` wins over
