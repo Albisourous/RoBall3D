@@ -239,15 +239,32 @@ end
 
 -- Preview push (§18): the garage's ViewportFrame diorama dresses the
 -- BROWSED items — cycling a slot previews unowned merch before the buy,
--- which is the conversion lever. Filter rides along as a Gui overlay.
+-- which is the conversion lever. An open PACK overrides the browse set
+-- entirely: tapping a pack's header dresses the whole diorama in that
+-- bundle's 7-slot look (world, sun, skin, trail, fx, filter) — the set
+-- sells itself as a set. Filter rides along as a Gui overlay.
+local packPreviewId: string? = nil
 local function previewPush()
 	local items: { [string]: any } = {}
-	for _, slot in ipairs(Cosmetics.Slots) do
-		items[slot] = Cosmetics.item(browseId(slot))
+	if packPreviewId then
+		for _, b in ipairs(Cosmetics.Bundles) do
+			if b.id == packPreviewId then
+				for _, iid in ipairs(b.items) do
+					local it = Cosmetics.item(iid)
+					if it then
+						items[it.slot] = it
+					end
+				end
+				break
+			end
+		end
+	else
+		for _, slot in ipairs(Cosmetics.Slots) do
+			items[slot] = Cosmetics.item(browseId(slot))
+		end
 	end
 	CosmeticFx.preview(items)
-	local f = items.filter
-	ui:setPreviewFilter(if f then f.filter else "off")
+	ui:setPreviewFilter(items.filter)
 end
 
 local function refreshGarage()
@@ -357,7 +374,16 @@ ui.onRetry = requestStart
 -- Equip arrows: browse the WHOLE slot order, wrap around. Owned items
 -- equip as they come into view (server re-validates — this is only a
 -- suggestion); unowned ones just display their price until clicked.
+-- Pack accordion notify (§18): an open pack's contents take over the
+-- preview diorama; closing hands it back to the browse set. The locked-
+-- item funnel lands here too — focusPack opens the row, the set renders.
+ui.onPackOpen = function(id)
+	packPreviewId = id
+	previewPush()
+end
+
 ui.onEquipCycle = function(slot, dir)
+	packPreviewId = nil -- browsing a slot reclaims the preview
 	local order = Cosmetics.Order[slot]
 	local i = browseIdx[slot] or 1
 	browseIdx[slot] = ((i - 1 + dir) % #order) + 1

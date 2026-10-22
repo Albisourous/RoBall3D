@@ -40,8 +40,10 @@ Cosmetics.SlotName = {
 --            "palms"|"polar" — picks the scenery Backdrop draws
 --   sun:     sun = a key into Config.Art.SunStyles — restyles the striped
 --            horizon disk Backdrop parks down the slope
---   filter:  filter = "off"|"scan"|"pixel" — a screen overlay the
---            ScreenFilter module draws UNDER the HUD text layer
+--   filter:  filter = "off"|"scan"|"pixel"|"tint"|"vignette" — a screen
+--            overlay the ScreenFilter module draws UNDER the HUD text
+--            layer; tint/alpha recolor the wash, pitch/bar/alpha override
+--            the lattice recipe for scan/pixel variants
 -- Any color param may instead be the string "customA"/"customB"/"customC"
 -- (COLOR LAB §18): it resolves through that RoBallHue* channel — ringA→A,
 -- ringB→B, trail/gemFx→C.
@@ -61,6 +63,10 @@ export type Item = {
 	theme: string?,
 	sun: string?,
 	filter: string?,
+	tint: Color3?,
+	alpha: number?,
+	pitch: number?,
+	bar: number?,
 }
 
 local CYAN = Color3.fromRGB(0, 230, 255)
@@ -404,12 +410,44 @@ Cosmetics.Items = {
 	sun_midas = { slot = "sun", name = "24K NOON", gemPrice = 750, sun = "midas" },
 	sun_eclipse = { slot = "sun", name = "ECLIPSE", gemPrice = 800, sun = "eclipse" },
 	sun_frost = { slot = "sun", name = "POLAR CAP", gemPrice = 600, sun = "frost" },
+	sun_halo = { slot = "sun", name = "HALO RISE", gemPrice = 600, sun = "halo" },
+	sun_tide = { slot = "sun", name = "NEAP TIDE", gemPrice = 600, sun = "tide" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
-	-- renders it under the HUD so text stays readable)
+	-- renders it under the HUD so text stays readable). One per bundle:
+	-- every pack carries a full 7-slot look, so the filter families span
+	-- the lattice modes (scan/pixel) plus the wash modes (tint/vignette).
 	filter_off = { slot = "filter", name = "CLEAN", free = true, filter = "off" },
 	filter_scan = { slot = "filter", name = "SCANLINES", gemPrice = 450, filter = "scan" },
+	filter_phosphor = {
+		slot = "filter",
+		name = "PHOSPHOR",
+		gemPrice = 450,
+		filter = "scan",
+		pitch = 4,
+		bar = 1,
+		alpha = 0.35,
+	},
 	filter_pixel = { slot = "filter", name = "PIXEL GLASS", gemPrice = 600, filter = "pixel" },
+	filter_vignette = { slot = "filter", name = "VIGNETTE", gemPrice = 550, filter = "vignette" },
+	filter_gild = { slot = "filter", name = "GOLD HOUR", gemPrice = 500, filter = "tint", tint = GOLD },
+	filter_verdant = {
+		slot = "filter",
+		name = "VERDANT VEIL",
+		gemPrice = 500,
+		filter = "tint",
+		tint = AURORA_G,
+	},
+	filter_toxin = { slot = "filter", name = "TOXIN", gemPrice = 500, filter = "tint", tint = LIME },
+	filter_abyss = { slot = "filter", name = "ABYSS", gemPrice = 550, filter = "tint", tint = DEEP_ICE },
+	filter_snowblind = {
+		slot = "filter",
+		name = "SNOWBLIND",
+		gemPrice = 550,
+		filter = "tint",
+		tint = FROST,
+		alpha = 0.16,
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -504,11 +542,20 @@ Cosmetics.Order = {
 		"sun_midas",
 		"sun_eclipse",
 		"sun_frost",
+		"sun_halo",
+		"sun_tide",
 	},
 	filter = {
 		"filter_off",
 		"filter_scan",
+		"filter_phosphor",
 		"filter_pixel",
+		"filter_vignette",
+		"filter_gild",
+		"filter_verdant",
+		"filter_toxin",
+		"filter_abyss",
+		"filter_snowblind",
 	},
 } :: { [string]: { string } }
 
@@ -522,136 +569,181 @@ Cosmetics.Defaults = {
 	filter = "filter_off",
 } :: { [string]: string }
 
--- Themed bundle gamepasses (§18): one pass = a matched set across slots.
--- `id` is the pass key into Config.Monetization.Passes / .Price.
+-- Themed bundle gamepasses (§18): one pass = a COMPLETE look — exactly
+-- one item per STYLE slot, so a pack is a head-to-toe outfit the preview
+-- can render whole. `id` is the pass key into Config.Monetization.Passes
+-- / .Price. world_polar sits in two packs on purpose (POLARIS is the
+-- permanent shelf item; SOLSTICE borrows it for the winter window) —
+-- bundleOf resolves shared items to the non-seasonal bundle.
 Cosmetics.Bundles = {
 	{
 		id = "starter",
 		name = "STARTER NEON",
-		desc = "solar skin · sunset trail + pop",
-		items = { "skin_solar", "trail_sunset", "gemfx_sunset" },
+		desc = "full sunset set · palms world",
+		items = {
+			"skin_solar",
+			"world_palms",
+			"trail_sunset",
+			"gemfx_sunset",
+			"deathfx_nova",
+			"sun_prism",
+			"filter_scan",
+		},
 	},
 	{
 		id = "synthwave",
 		name = "SYNTHWAVE",
-		desc = "prism set · supernova death",
-		items = { "skin_prism", "trail_prism", "gemfx_prism", "deathfx_nova" },
+		desc = "full prism set · grid world",
+		items = {
+			"skin_prism",
+			"world_grid",
+			"trail_prism",
+			"gemfx_prism",
+			"deathfx_violet",
+			"sun_grid",
+			"filter_pixel",
+		},
 	},
 	{
 		id = "midas",
 		name = "MIDAS",
-		desc = "24k set · collapse death",
-		items = { "skin_midas", "trail_bullion", "gemfx_jackpot", "deathfx_implode" },
+		desc = "full 24k set · meteor world",
+		items = {
+			"skin_midas",
+			"world_meteor",
+			"trail_bullion",
+			"gemfx_jackpot",
+			"deathfx_implode",
+			"sun_midas",
+			"filter_gild",
+		},
 	},
 	{
 		id = "vip",
 		name = "VOID VIP",
-		desc = "void set · event horizon",
-		items = { "skin_void", "trail_uv", "gemfx_amethyst", "deathfx_horizon" },
-	},
-	{
-		id = "peaks",
-		name = "NEON PEAKS",
-		desc = "wireframe ridge world",
-		items = { "world_peaks" },
+		desc = "full void set · star-well world",
+		items = {
+			"skin_void",
+			"world_void",
+			"trail_uv",
+			"gemfx_amethyst",
+			"deathfx_horizon",
+			"sun_eclipse",
+			"filter_vignette",
+		},
 	},
 	{
 		id = "aurora",
 		name = "AURORA",
-		desc = "green-polar set · borealis death + sky",
-		items = { "skin_aurora", "trail_aurora", "gemfx_aurora", "deathfx_borealis", "world_aurora" },
+		desc = "full borealis set · aurora sky",
+		items = {
+			"skin_aurora",
+			"world_aurora",
+			"trail_aurora",
+			"gemfx_aurora",
+			"deathfx_borealis",
+			"sun_moon",
+			"filter_verdant",
+		},
 	},
 	{
-		id = "phantom",
-		name = "PHANTOM",
-		desc = "ghost-mono set · static death",
-		items = { "skin_phantom", "trail_spectre", "gemfx_spectre", "deathfx_static" },
+		id = "polaris",
+		name = "POLARIS",
+		desc = "full phantom set · polar sky",
+		items = {
+			"skin_phantom",
+			"world_polar",
+			"trail_spectre",
+			"gemfx_spectre",
+			"deathfx_static",
+			"sun_halo",
+			"filter_phosphor",
+		},
 	},
 	{
-		id = "deepspace",
-		name = "DEEP SPACE",
-		desc = "star well + grid + meteor worlds",
-		items = { "world_void", "world_grid", "world_meteor" },
-	},
-	{
-		-- Wave-2 packs (§18): the new palette families + the COLOR LAB
-		-- custom-hue unlock. The reef pack carries a world item like peaks.
 		id = "acid",
 		name = "TOXIC SLUDGE",
-		desc = "acid set · meltdown death",
-		items = { "skin_acid", "trail_volt", "gemfx_volt", "deathfx_meltdown" },
+		desc = "full acid set · peaks world",
+		items = {
+			"skin_acid",
+			"world_peaks",
+			"trail_volt",
+			"gemfx_volt",
+			"deathfx_meltdown",
+			"sun_acid",
+			"filter_toxin",
+		},
 	},
 	{
 		id = "reef",
 		name = "NEON REEF",
-		desc = "lagoon set · reed-field world",
-		items = { "skin_lagoon", "trail_mint", "gemfx_mint", "world_reef" },
-	},
-	{
-		id = "inferno",
-		name = "INFERNO",
-		desc = "ember set · corona death",
-		items = { "skin_ember", "trail_inferno", "gemfx_inferno", "deathfx_corona" },
-	},
-	{
-		id = "candy",
-		name = "CANDY GLOSS",
-		desc = "candy set · pink slip death",
-		items = { "skin_candy", "trail_peach", "gemfx_peach", "deathfx_pinkslip" },
-	},
-	{
-		id = "colorlab",
-		name = "COLOR LAB",
-		desc = "custom-hue skin·trail·pop + sliders",
-		items = { "skin_custom", "trail_custom", "gemfx_custom" },
-	},
-	{
-		-- Sun pack (§18 "sun" slot): the premium horizon swaps ride the
-		-- same bundle path as the world themes.
-		id = "sunkissed",
-		name = "SUNKISSED",
-		desc = "eclipse · 24k noon · wireframe suns",
-		items = { "sun_eclipse", "sun_midas", "sun_grid" },
-	},
-	{
-		-- Scenery pair (§18): the palm grove world + the prism sun it
-		-- pairs with on the box art.
-		id = "miami",
-		name = "MIAMI NIGHTS",
-		desc = "palm-grove world + prism sun",
-		items = { "world_palms", "sun_prism" },
-	},
-	{
-		-- The overhead aurora (§18 "polar" world): ribbons slung across
-		-- the night sky + a pale moon — BOREALIS SKY's cousin, overhead.
-		id = "polaris",
-		name = "POLARIS",
-		desc = "northern-lights sky + pale moon",
-		items = { "world_polar", "sun_moon" },
-	},
-	{
-		-- Screen filters (§18 "filter" slot): the whole 3D view goes
-		-- retro — HUD text renders above the overlay and stays crisp.
-		id = "vhs",
-		name = "VHS DECK",
-		desc = "pixel glass + scanline filters",
-		items = { "filter_pixel", "filter_scan" },
+		desc = "full lagoon set · reef world",
+		items = {
+			"skin_lagoon",
+			"world_reef",
+			"trail_mint",
+			"gemfx_mint",
+			"deathfx_geyser",
+			"sun_tide",
+			"filter_abyss",
+		},
 	},
 	{
 		-- Seasonal slot (§18): Config.Monetization.Seasonal holds the UTC
-		-- window; Ui derives this row's desc from it at build time.
+		-- window; Ui derives this row's desc from it at build time. Borrows
+		-- world_polar — the northern-lights sky IS the winter look.
 		id = "solstice",
 		name = "SOLSTICE",
-		desc = "frost set · avalanche death",
-		items = { "skin_frost", "trail_frost", "gemfx_frost", "deathfx_avalanche", "sun_frost" },
+		desc = "full frost set · polar sky",
+		items = {
+			"skin_frost",
+			"world_polar",
+			"trail_frost",
+			"gemfx_frost",
+			"deathfx_avalanche",
+			"sun_frost",
+			"filter_snowblind",
+		},
 	},
 }
 
--- itemId -> bundle id, built once at require time.
-local bundleIndex: { [string]: string } = {}
+-- itemId -> {bundle ids}, built once at require time. Membership can
+-- overlap (see world_polar) so the index is a list, not a scalar.
+local bundleIndex: { [string]: { string } } = {}
 for _, b in ipairs(Cosmetics.Bundles) do
 	for _, id in ipairs(b.items) do
-		bundleIndex[id] = b.id
+		local list = bundleIndex[id]
+		if list == nil then
+			list = {}
+			bundleIndex[id] = list
+		end
+		table.insert(list, b.id)
+	end
+end
+
+-- Retired bundle ids (§18): passes sunset in the catalog but already-SOLD
+-- passes keep granting their original contents forever — owns() consults
+-- this map so a deleted pack never claws back what someone bought.
+Cosmetics.LegacyBundles = {
+	peaks = { "world_peaks" },
+	phantom = { "skin_phantom", "trail_spectre", "gemfx_spectre", "deathfx_static" },
+	deepspace = { "world_void", "world_grid", "world_meteor" },
+	inferno = { "skin_ember", "trail_inferno", "gemfx_inferno", "deathfx_corona" },
+	candy = { "skin_candy", "trail_peach", "gemfx_peach", "deathfx_pinkslip" },
+	colorlab = { "skin_custom", "trail_custom", "gemfx_custom" },
+	sunkissed = { "sun_eclipse", "sun_midas", "sun_grid" },
+	miami = { "world_palms", "sun_prism" },
+	vhs = { "filter_pixel", "filter_scan" },
+}
+local legacyIndex: { [string]: { string } } = {}
+for bid, items in pairs(Cosmetics.LegacyBundles) do
+	for _, id in ipairs(items) do
+		local list = legacyIndex[id]
+		if list == nil then
+			list = {}
+			legacyIndex[id] = list
+		end
+		table.insert(list, bid)
 	end
 end
 
@@ -671,8 +763,23 @@ function Cosmetics.defaults(): { [string]: string }
 	}
 end
 
+-- itemId -> the bundle the shop should route to. Shared memberships
+-- resolve to the NON-seasonal pack (the always-on shelf item) so a
+-- borrowed item like world_polar never inherits the seasonal gate —
+-- the locked-item funnel and the off-season à-la-carte check both
+-- read this.
 function Cosmetics.bundleOf(itemId: string): string?
-	return bundleIndex[itemId]
+	local list = bundleIndex[itemId]
+	if not list then
+		return nil
+	end
+	local seasonal = Config.Monetization.Seasonal.Bundle
+	for _, id in ipairs(list) do
+		if id ~= seasonal then
+			return id
+		end
+	end
+	return list[1]
 end
 
 -- Does `owned` cover this item? The set mixes bundle keys (pass ownership)
@@ -686,8 +793,17 @@ function Cosmetics.owns(owned: { [string]: boolean }, itemId: string): boolean
 	if item.free or owned[itemId] then
 		return true
 	end
-	local b = bundleIndex[itemId]
-	return b ~= nil and owned[b] == true
+	for _, b in ipairs(bundleIndex[itemId] or {}) do
+		if owned[b] then
+			return true
+		end
+	end
+	for _, b in ipairs(legacyIndex[itemId] or {}) do
+		if owned[b] then
+			return true
+		end
+	end
+	return false
 end
 
 -- Resolve a color param to a Color3: Color3 passthrough, "palette" samples

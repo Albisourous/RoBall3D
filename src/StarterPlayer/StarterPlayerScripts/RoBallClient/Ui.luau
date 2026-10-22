@@ -940,16 +940,19 @@ function Ui.new(): Ui
 	end
 
 	local openPack: Frame? = nil
-	-- One accordion open at a time — shared by the header tap and by
-	-- focusPack (the locked-item funnel landing on a specific bundle).
-	local function setPackOpen(row: Frame, open: boolean)
+	local lastPackNotice: string? = nil
+	-- Pack-open notifications drive the diorama preview (§18): an open
+	-- pack dresses the preview ball/scene in ITS contents — the try-on
+	-- is the pitch. `inner` suppresses the close-other-pass notify so a
+	-- pack swap doesn't flash the browse set between packs.
+	local function setPackOpen(row: Frame, open: boolean, inner: boolean?)
 		local contents = row:FindFirstChild("Contents")
 		if not contents then
 			return
 		end
 		if open then
 			if openPack and openPack ~= row then
-				setPackOpen(openPack, false)
+				setPackOpen(openPack, false, true)
 			end
 			openPack = row
 			contents.Visible = true
@@ -960,6 +963,15 @@ function Ui.new(): Ui
 			end
 			contents.Visible = false
 			row.Size = UDim2.new(1, 0, 0, 36)
+		end
+		if not inner then
+			local id = openPack and openPack:GetAttribute("PackId") :: string?
+			if id ~= lastPackNotice then
+				lastPackNotice = id
+				if self.onPackOpen then
+					self.onPackOpen(id)
+				end
+			end
 		end
 	end
 	local function packRow(
@@ -977,6 +989,7 @@ function Ui.new(): Ui
 		row.Size = UDim2.new(1, 0, 0, 36)
 		row.LayoutOrder = order or 0
 		row:SetAttribute("ItemCount", #(items or {}))
+		row:SetAttribute("PackId", id)
 		if y then
 			row.Position = UDim2.fromOffset(0, y)
 		end
@@ -1106,7 +1119,7 @@ function Ui.new(): Ui
 		return string.format("%s · %s–%s", desc, md(S.Start), md(S.End))
 	end
 	local pagePacks = gPages.PACKS
-	local packHint = label(pagePacks, "tap a pack · see what's inside", 10, F_DATA, C_DIM, 0)
+	local packHint = label(pagePacks, "tap a pack · preview its full set", 10, F_DATA, C_DIM, 0)
 	packHint.Position = UDim2.fromOffset(0, 2)
 	packHint.TextTransparency = 0.35
 	local scroll = Instance.new("ScrollingFrame")
@@ -2705,12 +2718,15 @@ function Ui:setTrackRow(text: string)
 end
 
 -- Preview filter (§18): re-paint the screen-filter look inside the
--- garage's preview window — mirrors the ScreenFilter bars on a small
--- scale so PIXEL GLASS / SCANLINES sell themselves in the diorama.
-function Ui:setPreviewFilter(f: string)
+-- garage's preview window — mirrors the ScreenFilter modes on a small
+-- scale so the overlay sells itself in the diorama. Takes the item
+-- record (tint/alpha recolor the wash, the lattice modes keep the
+-- small-scale bar recipe).
+function Ui:setPreviewFilter(item: any)
 	local fov = self.previewFilterFrame
 	fov:ClearAllChildren()
-	local col = Config.Art.PixelColor
+	local mode = if item then item.filter else "off"
+	local col = if item and item.tint then item.tint else Config.Art.PixelColor
 	local function bar(x: number, y: number, w: number, h: number)
 		local b = Instance.new("Frame")
 		b.BackgroundColor3 = col
@@ -2720,16 +2736,41 @@ function Ui:setPreviewFilter(f: string)
 		b.Size = UDim2.fromScale(w, h)
 		b.Parent = fov
 	end
-	if f == "scan" then
+	if mode == "scan" then
 		for i = 0, 15 do
 			bar(0, i / 15, 1, 0.035)
 		end
-	elseif f == "pixel" then
+	elseif mode == "pixel" then
 		for i = 0, 15 do
 			bar(0, i / 15, 1, 0.02)
 		end
 		for i = 0, 26 do
 			bar(i / 26, 0, 0.007, 1)
+		end
+	elseif mode == "tint" then
+		local w = Instance.new("Frame")
+		w.BorderSizePixel = 0
+		w.Size = UDim2.fromScale(1, 1)
+		w.BackgroundColor3 = col
+		w.BackgroundTransparency = 1 - (if item.alpha then item.alpha else 0.12)
+		w.Parent = fov
+	elseif mode == "vignette" then
+		local keys = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.55),
+			NumberSequenceKeypoint.new(0.35, 0.9),
+			NumberSequenceKeypoint.new(0.65, 0.9),
+			NumberSequenceKeypoint.new(1, 0.55),
+		})
+		for _, rot in ipairs({ 0, 90 }) do
+			local f = Instance.new("Frame")
+			f.BorderSizePixel = 0
+			f.Size = UDim2.fromScale(1, 1)
+			f.BackgroundColor3 = col
+			f.Parent = fov
+			local g = Instance.new("UIGradient")
+			g.Rotation = rot
+			g.Transparency = keys
+			g.Parent = f
 		end
 	end
 end

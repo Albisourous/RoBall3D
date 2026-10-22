@@ -1339,6 +1339,23 @@ Config.Art = {
 			gap = 0.5,
 			scale = 0.9,
 		},
+		halo = {
+			-- POLARIS pack: a thin spectral ring — barely a disk, mostly
+			-- outline, like the polar sun that never quite rises.
+			top = Color3.fromRGB(245, 238, 255),
+			bottom = Color3.fromRGB(190, 120, 255),
+			solid = 0.15,
+			gap = 0.25,
+			scale = 0.9,
+		},
+		tide = {
+			-- NEON REEF pack: lagoon cyan sinking into deep-water blue.
+			top = Color3.fromRGB(0, 230, 255),
+			bottom = Color3.fromRGB(70, 150, 255),
+			solid = 0.6,
+			gap = 0.45,
+			scale = 0.9,
+		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
 	RingA = Color3.fromRGB(0, 230, 255),
@@ -1423,25 +1440,28 @@ Config.Monetization = {
 	-- like the real grants. Flip false (or remove) when real ids land.
 	FreeForTesting = true,
 	Passes = {
-		starter = 0, -- STARTER NEON — solar skin + sunset trail + sunset pop (~49)
-		synthwave = 0, -- SYNTHWAVE — full prism set, rainbow fx (~149)
-		midas = 0, -- MIDAS — full gold set (~149)
-		vip = 0, -- VOID VIP — violet set + pulse skin (~199)
+		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
+		starter = 0, -- STARTER NEON — sunset set + palms world (~49)
+		synthwave = 0, -- SYNTHWAVE — prism set + grid world (~149)
+		midas = 0, -- MIDAS — gold set + meteor world (~149)
+		vip = 0, -- VOID VIP — violet set + star-well world (~199)
 		bank2x = 0, -- 2X BANK — every pickup banks double, forever (~99)
-		peaks = 0, -- NEON PEAKS — wireframe ridge world theme (~149)
-		aurora = 0, -- AURORA — green-polar set + borealis death + sky (~149)
-		phantom = 0, -- PHANTOM — ghost-mono set + static death (~199)
-		deepspace = 0, -- DEEP SPACE — star well + grid + meteor worlds (~149)
-		solstice = 0, -- SOLSTICE — seasonal frost set + avalanche death (~149)
-		acid = 0, -- TOXIC SLUDGE — lime set + meltdown death (~149)
-		reef = 0, -- NEON REEF — lagoon set + reed-field world (~199)
-		inferno = 0, -- INFERNO — ember set + corona death (~149)
-		candy = 0, -- CANDY GLOSS — pink-mono set + pink slip death (~149)
-		colorlab = 0, -- COLOR LAB — custom-hue skin+trail+pop + sliders (~249)
-		sunkissed = 0, -- SUNKISSED — eclipse + 24k noon + wireframe suns (~149)
-		miami = 0, -- MIAMI NIGHTS — palm-grove world + prism sun (~149)
-		vhs = 0, -- VHS DECK — pixel glass + scanline screen filters (~99)
-		polaris = 0, -- POLARIS — overhead northern-lights world + pale moon (~149)
+		aurora = 0, -- AURORA — borealis set + aurora sky (~149)
+		polaris = 0, -- POLARIS — phantom set + polar sky (~149)
+		acid = 0, -- TOXIC SLUDGE — acid set + peaks world (~149)
+		reef = 0, -- NEON REEF — lagoon set + reef world (~199)
+		solstice = 0, -- SOLSTICE — seasonal frost set + polar sky (~149)
+		-- Retired ids: no longer sold, but already-owned passes keep
+		-- granting their contents through Cosmetics.LegacyBundles.
+		peaks = 0,
+		phantom = 0,
+		deepspace = 0,
+		inferno = 0,
+		candy = 0,
+		colorlab = 0,
+		sunkissed = 0,
+		miami = 0,
+		vhs = 0,
 	},
 	Price = {
 		starter = 49,

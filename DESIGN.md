@@ -226,7 +226,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     next to every ◊ price. PACKS is a scrolling list — each row is an
     accordion whose body lists the bundle's actual contents
     (`bundle.items` → `SLOT · ITEM NAME`, tinted to each item's own
-    color), one open at a time, so a purchase is never a guess.
+    color), one open at a time, so a purchase is never a guess. An open
+    pack also takes over the PREVIEW window — the diorama dresses in
+    the bundle's full 7-slot look so the set sells itself as a set;
+    closing it (or cycling a STYLE row) hands the preview back to the
+    browse set.
   - **PREVIEW window** — pinned to the bottom of the garage rail: a
     `ViewportFrame` playing a REAL-SCALE slice of the game (§18) — a
     straight Flat ribbon, the dressed ball rolling down-grade at the
@@ -1207,18 +1211,25 @@ item is a pure visual in one of seven slots: `skin`, `world`, `trail`,
 side-scenery theme (§12: city canyon ↔ NEON PEAKS ridge field ↔ MIAMI
 NIGHTS palm grove), the first environment-tier DLC; `sun` restyles the
 horizon disk the run chases (§12 `Art.SunStyles`), the second. `filter`
-draws a retro screen overlay (PIXEL GLASS lattice / SCANLINES raster) on
-a dedicated low-DisplayOrder ScreenGui — the whole 3D view pixelates
-while HUD text renders above it and stays crisp. The **SUNKISSED**
-bundle packs ECLIPSE + 24K NOON + WIREFRAME; **POLAR CAP** rides the
-seasonal SOLSTICE window; **MIAMI NIGHTS** bundles the palm grove with
-PRISM RISE; **POLARIS** bundles the overhead-aurora world (NORTHERN
-LIGHTS) with PALE MOON; **VHS DECK** bundles both filters.
+draws a retro screen overlay on a dedicated low-DisplayOrder ScreenGui —
+lattice modes (PIXEL GLASS grid / SCANLINES·PHOSPHOR raster) plus wash
+modes (GOLD HOUR·VERDANT VEIL·TOXIN·ABYSS·SNOWBLIND color grades and the
+VIGNETTE dark-edge falloff) — while HUD text renders above it and stays
+crisp. **Every bundle is a complete look**: exactly one item per slot,
+nine packs total — STARTER NEON (sunset set + palms), SYNTHWAVE (prism +
+grid), MIDAS (gold + meteor), VOID VIP (void + star well + eclipse),
+AURORA (borealis + aurora sky), POLARIS (phantom + polar sky + HALO
+RISE), TOXIC SLUDGE (acid + peaks), NEON REEF (lagoon + reef + NEAP
+TIDE), and seasonal SOLSTICE (frost set + POLAR CAP + the shared
+NORTHERN LIGHTS sky). Retired pass ids stay sold-but-hidden in
+`Cosmetics.LegacyBundles` — already-owned passes keep granting their
+original contents forever.
 
 **Catalog**: items live in `Cosmetics.luau` (ReplicatedStorage) — each is a
 data record `{ slot, name, ...colors/params }`, so a new look is config,
-not code. Items ship in **themed bundle gamepasses** (one pass = a matched
-set across slots): passes are the platform's permanent-unlock primitive and
+not code. Items ship in **themed bundle gamepasses** (one pass = a
+complete outfit, one item per slot — seven members each): passes are the
+platform's permanent-unlock primitive and
 keep the dashboard surface small. Pass ids live in
 `Config.Monetization.Passes`; `0` means the pass isn't created on the
 Creator Dashboard yet — the shop shows SOON and everything else still works
@@ -1330,18 +1341,22 @@ strobe is a fast hue flicker, wave flows the run palette across the rings;
 render loop. The `world` slot rides the same plumbing: `RoBallEq_world`
 lands on the client and `Backdrop.setTheme` re-seeds whichever scenery
 system takes over — in the menu it shows up as the diorama's scene.
-`world_peaks` sells as its own bundle pass (`Passes.peaks`) or à-la-carte
-for ◊800 — the flagship grind target. **DEEP SPACE** (`Passes.deepspace`)
-packs three world themes — `world_void` (STAR WELL), `world_grid`
-(GRID PLANE), `world_meteor` (METEOR SHOWER), each also ◊800–900
-à-la-carte. **AURORA** (`Passes.aurora`) adds `world_aurora` (BOREALIS
-SKY) to its green-polar set; **NEON REEF** (`Passes.reef`) carries
-`world_reef`. Wave 2 also fills the acid/lagoon/ember/candy/chrome
-families, the animated **CHROMA** (strobe) and **IRIS** (wave) prestige
-skins, and the **COLOR LAB** bundle — all inside color law.
+Every world theme anchors exactly one bundle (§18's complete-set rule):
+`world_palms` → STARTER NEON, `world_grid` → SYNTHWAVE, `world_meteor` →
+MIDAS, `world_void` → VOID VIP, `world_aurora` → AURORA, `world_peaks` →
+TOXIC SLUDGE, `world_reef` → NEON REEF, and `world_polar` is shared —
+POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for
+the winter window (`Cosmetics.bundleOf` resolves shared membership to
+the non-seasonal pack, so the sky never inherits the seasonal gate).
+Wave 2 also fills the acid/lagoon/ember/candy/chrome families, the
+animated **CHROMA** (strobe) and **IRIS** (wave) prestige skins, and the
+COLOR LAB singles — all inside color law; retired bundles' contents
+folded into the new packs or back to à-la-carte, with `LegacyBundles`
+preserving already-sold passes.
 
-**COLOR LAB (custom hues)**: the `colorlab` bundle unlocks
-`skin_custom` / `trail_custom` / `gemfx_custom` — items whose color params
+**COLOR LAB (custom hues)**: `skin_custom` / `trail_custom` /
+`gemfx_custom` — prestige à-la-carte singles (the retired `colorlab`
+pass still grants them via `LegacyBundles`) — items whose color params
 are the strings `"customA"` / `"customB"` / `"customC"` instead of a fixed
 Color3. They resolve through three replicated hue channels —
 `RoBallHueA` (ring set A + accents), `RoBallHueB` (ring set B),
@@ -1360,9 +1375,9 @@ The wave-2 drop widens every slot à-la-carte: five more skin families
 (chroma, iris), matching trail/gemfx pairs (volt, peach, mint, ghost,
 inferno), six death-fx styles, and three new world themes —
 `world_aurora` (BOREALIS SKY), `world_reef` (NEON REEF), `world_meteor`
-(METEOR SHOWER) at ◊800–900; `world_aurora` also joins the AURORA bundle.
-`world_palms` (MIAMI NIGHTS) anchors the miami pass and `world_polar`
-(NORTHERN LIGHTS, ◊900) anchors polaris with `sun_moon` (PALE MOON).
+(METEOR SHOWER) at ◊800–900. `world_palms` (MIAMI NIGHTS) anchors the
+STARTER NEON sunset set and `world_polar` (NORTHERN LIGHTS, ◊900)
+anchors POLARIS (and rides SOLSTICE's winter window).
 
 **COLOR LAB**: `skin_custom`/`trail_custom`/`gemfx_custom` take the
 string params `customA`/`customB`/`customC`, resolved client-side through
@@ -1377,8 +1392,9 @@ Dec 15 → Jan 8). Inside the window the pack sells like any other; outside
 it the button reads `IN Nd` (days until opening) and the server refuses
 both the bundle claim and à-la-carte gem buys of its member items.
 Ownership already granted is permanent — scarcity gates acquisition, not
-use. Currently **SOLSTICE**: frost skin/trail/gemfx + AVALANCHE death
-(shatter style in the ice palette). `Daily.seasonalStatus` is the shared
+use. Currently **SOLSTICE**: the full frost set (skin/trail/gemfx +
+AVALANCHE death + POLAR CAP sun + SNOWBLIND filter) plus the shared
+NORTHERN LIGHTS sky. `Daily.seasonalStatus` is the shared
 UTC math so client display and server enforcement agree.
 
 **Score integrity contract**: the leaderboard meta row carries
