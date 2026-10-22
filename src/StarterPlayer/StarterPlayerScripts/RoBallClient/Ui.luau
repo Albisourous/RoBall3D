@@ -187,21 +187,8 @@ function Ui.new(): Ui
 	-- conversion needs the merch always visible + a try-before-you-buy
 	-- preview), center poster column (title / PLAY / dash / seed /
 	-- track / best / missions ticker), right LEADERBOARD rail. The
-	-- missions card is the only pop-up: a deck card over the caption row.
-	local deckPages: { [string]: GuiObject } = {}
-	local deckOpen: string? = nil
-	local function openDeck(name: string?)
-		if deckOpen == name then
-			name = nil
-		end
-		deckOpen = name
-		for n, pg in pairs(deckPages) do
-			pg.Visible = n == name
-		end
-	end
-	self.closeDeck = function()
-		openDeck(nil)
-	end
+	-- missions card rides the bottom edge permanently — today's quests
+	-- are part of the poster, not a pop-up.
 
 	local function deckPanel(name: string, w: number, h: number): Frame
 		local f = Instance.new("Frame")
@@ -439,19 +426,16 @@ function Ui.new(): Ui
 
 	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 10)
 
-	-- Missions ticker: one dim line under BEST — "missions 2/3 · awards
-	-- 4/8 ›" — click floats the missions card over the caption row.
-	self.missionTicker = ghostButton(menuCol, "missions ›", 13, 11, C_DIM)
+	-- Missions ticker: one dim line under BEST — the poster's one-line
+	-- summary; the card itself is already up, so this is read-only.
+	self.missionTicker = label(menuCol, "missions ›", 13, F_DATA, C_DIM, 11)
 	self.missionTicker.AutomaticSize = Enum.AutomaticSize.X
-	self.missionTicker.MouseButton1Click:Connect(function()
-		openDeck("missions")
-	end)
 
-	-- Missions deck (§14): today's three seeded missions — ✓ gold when
+	-- Missions card (§14): today's three seeded missions — ✓ gold when
 	-- done, ◇ dim while open; the bank quest shows today's running
-	-- total and the footer counts the award tally.
+	-- total and the footer counts the award tally. Always visible.
 	local missions = deckPanel("MissionsPage", 420, 132)
-	deckPages.missions = missions
+	missions.Visible = true
 
 	label(missions, "TODAY'S MISSIONS", 12, F_DATA, C_DIM, 0).Position = UDim2.fromOffset(0, 8)
 	self.questLines = {}
@@ -2025,9 +2009,6 @@ function Ui:focusPack(id: string)
 end
 
 function Ui:showMenu(best: number)
-	if self.closeDeck then
-		self.closeDeck() -- every menu visit opens on the clean poster
-	end
 	self.menu.Visible = true
 	self.death.Visible = false
 	self.hud.Visible = false
@@ -2248,12 +2229,12 @@ function Ui:toast(text: string)
 end
 
 -- Achievement tally on the menu (§14): "awards n/total".
--- Hero ticker ("missions 2/3 · awards 4/8 ›"): the poster's one-line
--- summary of the missions deck — setQuests/setAchievements keep it
--- current, click opens the page.
+-- Hero ticker ("missions 2/3 · awards 4/8"): the poster's one-line
+-- summary of the always-on missions card — setQuests/setAchievements
+-- keep it current.
 function Ui:paintMissionTicker()
 	self.missionTicker.Text = string.format(
-		"missions %d/%d · awards %d/%d ›",
+		"missions %d/%d · awards %d/%d",
 		self._questDone or 0,
 		self._questTotal or #Daily.quests(),
 		self._achDone or 0,

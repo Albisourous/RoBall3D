@@ -217,9 +217,9 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
   - **TRACK row** — under the seed row; `‹ name ›` cycler picks the
     run's song (AUDIO.md §3).
   - **Missions ticker** — one dim line under BEST (`missions n/3 ·
-    awards n/N ›`), fed by `setQuests`/`setAchievements`; a click opens
-    the missions deck card (`◇` open / `✓` done quests + award tally,
-    §14).
+    awards n/N`), fed by `setQuests`/`setAchievements`; the missions
+    card itself rides the bottom edge permanently (`◇` open / `✓`
+    done quests + award tally, §14) — no click to reveal it.
   - **GARAGE rail** — tabbed `STYLE | PACKS | BANK | AUDIO`: equip
     cyclers, bundle passes, the gem bank, and the audio mixer (§18).
     The bank balance lives in the garage header — spendable gems sit
