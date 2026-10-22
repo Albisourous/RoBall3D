@@ -104,6 +104,12 @@ explainable.
   pull out of `MaxLateralSpeed`, and a downhill steer exceeds it (gravity
   assist). Airborne reads no surface — jumps stay clean. This is what makes
   Tilt/Sway a verb instead of scenery.
+- **Slope tracking** (`Config.Landing.SlopeSmooth`): while grounded the
+  drive vector projects onto the surface (`drive − (drive·n)n`, the probe
+  normal eased so slice seams don't pop Y), and the projection's Y becomes
+  the vertical velocity — the ball pushes itself down hills and rides over
+  crests instead of launching (Monkey Ball feel). Fresh pad/orb kicks and
+  real airtime keep physics Y — gravity still owns an actual fall.
 - **Power meter** (`Config.Power`): one shared resource bar driving all
   three verbs — hold `W`/`↑` = ×`Mult` (1.5) boost, hold `S`/`↓` = ÷`Mult`
   brake, tap `Q`/`E` = dash (below). The ~1.2s charge drains while a held

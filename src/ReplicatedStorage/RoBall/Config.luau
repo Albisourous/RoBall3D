@@ -159,6 +159,12 @@ Config.Landing = {
 	ClampReach = 1.8, -- studs under the ball where the cap engages
 	ImpactPad = 10, -- studs/s of true impact allowed over slope-following
 	KickGrace = 0.25, -- seconds a pad/orb kick is exempt from the squash
+	-- Slope tracking (§4): grounded Y follows the surface — the drive
+	-- vector is projected onto the probe's plane so the ball pushes
+	-- itself down hills instead of launching off crests (Monkey Ball
+	-- feel). SlopeSmooth eases the read normal (seconds, τ) so slice
+	-- seams don't pop Y velocity; airborne balls ignore it and fall free.
+	SlopeSmooth = 0.05,
 }
 
 -- Danger vignette (§12): a red screen-frame stroke that tightens as the

@@ -164,7 +164,7 @@ function Ui.new(): Ui
 	menu.Name = "Menu"
 	menu.Size = UDim2.fromScale(1, 1)
 	menu.BackgroundColor3 = C_BG
-	menu.BackgroundTransparency = 0.12
+	menu.BackgroundTransparency = 0 -- opaque: the world is not the menu's backdrop (§6)
 	menu.BorderSizePixel = 0
 	menu.Visible = true
 	menu.Parent = gui
@@ -179,13 +179,15 @@ function Ui.new(): Ui
 	})
 	grad.Parent = menu
 
-	-- VAPOR HORIZON layout (§6): the center is a sparse movie poster —
-	-- title, PLAY, best, missions ticker — and every panel lives in the
-	-- DOCK, a bottom command strip whose chips swap one anchored page
-	-- above it (run setup / missions / board / garage). Clicking the lit
-	-- chip again collapses the deck back to the strip.
+	-- SHOP-FLOOR layout (§6): the menu is opaque — the world is NOT the
+	-- backdrop (a live scene behind the merch buries it, and the DLC
+	-- preview belongs in a framed window, not the whole screen). Three
+	-- permanent zones: left GARAGE rail (the shop is zero clicks away —
+	-- conversion needs the merch always visible + a try-before-you-buy
+	-- preview), center poster column (title / PLAY / dash / seed /
+	-- track / best / missions ticker), right LEADERBOARD rail. The
+	-- missions card is the only pop-up: a deck card over the caption row.
 	local deckPages: { [string]: GuiObject } = {}
-	local chipDeck: { [TextButton]: string } = {}
 	local deckOpen: string? = nil
 	local function openDeck(name: string?)
 		if deckOpen == name then
@@ -195,17 +197,11 @@ function Ui.new(): Ui
 		for n, pg in pairs(deckPages) do
 			pg.Visible = n == name
 		end
-		for b, n in pairs(chipDeck) do
-			b.TextColor3 = if n == name then C_PINK else C_DIM
-		end
 	end
 	self.closeDeck = function()
 		openDeck(nil)
 	end
 
-	-- Shared panel chrome for every dock page: near-opaque card (tall
-	-- pages overlap the poster — translucency would bleed PLAY through),
-	-- dim rim, bottom-anchored so it rises straight out of the strip.
 	local function deckPanel(name: string, w: number, h: number): Frame
 		local f = Instance.new("Frame")
 		f.Name = name
@@ -213,7 +209,7 @@ function Ui.new(): Ui
 		f.BackgroundTransparency = 0
 		f.BorderSizePixel = 0
 		f.AnchorPoint = Vector2.new(0.5, 1)
-		f.Position = UDim2.new(0.5, 0, 1, -98)
+		f.Position = UDim2.new(0.5, 0, 1, -42)
 		f.Size = UDim2.fromOffset(w, h)
 		f.Visible = false
 		f.Parent = menu
@@ -228,14 +224,28 @@ function Ui.new(): Ui
 		return f
 	end
 
+	local function arrowButton(parent, text, x, y)
+		local b = Instance.new("TextButton")
+		b.BackgroundTransparency = 1
+		b.AutoButtonColor = false
+		b.Font = F_DATA
+		b.TextSize = 20
+		b.TextColor3 = C_CYAN
+		b.Text = text
+		b.Position = UDim2.fromOffset(x, y - 2)
+		b.Size = UDim2.fromOffset(26, 30)
+		b.Parent = parent
+		return b
+	end
+
 	local menuCol = Instance.new("Frame")
 	menuCol.Name = "Hero"
 	menuCol.BackgroundTransparency = 1
-	menuCol.Size = UDim2.fromOffset(560, 420) -- poster column: title, PLAY, best, ticker
-	menuCol.Position = UDim2.fromScale(0.5, 0.42)
+	menuCol.Size = UDim2.fromOffset(560, 500) -- poster column: title, PLAY, run controls, best, ticker
+	menuCol.Position = UDim2.fromScale(0.5, 0.44)
 	menuCol.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuCol.Parent = menu
-	vlist(menuCol, 10)
+	vlist(menuCol, 8)
 
 	local title = label(menuCol, spaced("ROBALL3D"), 72, F_HERO, C_WHITE, 1)
 	local tgrad = Instance.new("UIGradient")
@@ -302,102 +312,59 @@ function Ui.new(): Ui
 
 	label(menuCol, "press ENTER / R to roll", 13, F_DATA, C_DIM, 6).TextTransparency = 0.25
 
-	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 7)
-
-	-- Missions ticker: one dim line under BEST — "missions 2/3 · awards
-	-- 4/8 ›" — so the poster still whispers "there's more" without
-	-- pinning the whole card on screen. Click opens the dock page.
-	self.missionTicker = ghostButton(menuCol, "missions ›", 13, 8, C_DIM)
-	self.missionTicker.AutomaticSize = Enum.AutomaticSize.X
-	self.missionTicker.MouseButton1Click:Connect(function()
-		openDeck("missions")
+	-- DASH button (§4): its own bordered chip right under PLAY — cycles
+	-- keys / double-tap / both; the server mirrors + saves the pick, so
+	-- this button IS the whole pref.
+	local dash = Instance.new("TextButton")
+	dash.Name = "DashToggle"
+	dash.BackgroundColor3 = C_BG
+	dash.BackgroundTransparency = 0.3
+	dash.AutoButtonColor = false
+	dash.Font = F_DATA
+	dash.TextSize = 15
+	dash.TextColor3 = C_GOLD
+	dash.Text = "DASH STYLE"
+	dash.Size = UDim2.fromOffset(340, 34)
+	dash.LayoutOrder = 7
+	dash.Parent = menuCol
+	local dashCorner = Instance.new("UICorner")
+	dashCorner.CornerRadius = UDim.new(0, 8)
+	dashCorner.Parent = dash
+	local dashStroke = Instance.new("UIStroke")
+	dashStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	dashStroke.Color = C_GOLD
+	dashStroke.Thickness = 1
+	dashStroke.Transparency = 0.4
+	dashStroke.Parent = dash
+	dash.MouseEnter:Connect(function()
+		dash.TextColor3 = C_CYAN
+		dashStroke.Color = C_CYAN
 	end)
+	dash.MouseLeave:Connect(function()
+		dash.TextColor3 = C_GOLD
+		dashStroke.Color = C_GOLD
+	end)
+	self.dashToggle = dash
 
-	--============================= STRIP ============================--
-	-- Bottom command strip: row 1 is the this-run verbs (seed / track /
-	-- dash style), row 2 the deck pages. ghostButton chips auto-size to
-	-- their text so long seeds and mode labels never clip.
-	local strip = Instance.new("Frame")
-	strip.Name = "Strip"
-	strip.BackgroundTransparency = 1
-	strip.AnchorPoint = Vector2.new(0.5, 1)
-	strip.Position = UDim2.new(0.5, 0, 1, -8)
-	strip.Size = UDim2.new(1, -32, 0, 84)
-	strip.Parent = menu
+	-- SEED row: empty means "daily" — the placeholder IS the default, no
+	-- chip to flip; typed text seeds the map (keywords stay live, §14).
+	local seedRow = Instance.new("Frame")
+	seedRow.Name = "SeedRow"
+	seedRow.BackgroundTransparency = 1
+	seedRow.Size = UDim2.fromOffset(340, 32)
+	seedRow.LayoutOrder = 8
+	seedRow.Parent = menuCol
 
-	local function hlist(parent: Frame, gap: number)
-		local l = Instance.new("UIListLayout")
-		l.FillDirection = Enum.FillDirection.Horizontal
-		l.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		l.VerticalAlignment = Enum.VerticalAlignment.Center
-		l.SortOrder = Enum.SortOrder.LayoutOrder
-		l.Padding = UDim.new(0, gap)
-		l.Parent = parent
-	end
-
-	local row1 = Instance.new("Frame")
-	row1.Name = "RunVerbs"
-	row1.BackgroundTransparency = 1
-	row1.Size = UDim2.new(1, 0, 0, 26)
-	row1.Parent = strip
-	hlist(row1, 30)
-
-	local row2 = Instance.new("Frame")
-	row2.Name = "DeckChips"
-	row2.BackgroundTransparency = 1
-	row2.Position = UDim2.fromOffset(0, 32)
-	row2.Size = UDim2.new(1, 0, 0, 26)
-	row2.Parent = strip
-	hlist(row2, 30)
-
-	-- Deck chip: ghost mono text that lights pink while its page is open.
-	-- The extra MouseLeave re-seats the lit tint — ghostButton's own
-	-- hover handler would fall back to the dim base otherwise.
-	local function stripChip(parent: Frame, text: string, order: number, key: string): TextButton
-		local b = ghostButton(parent, text, 13, order, C_DIM)
-		b.AutomaticSize = Enum.AutomaticSize.X
-		b.Size = UDim2.fromOffset(0, 24)
-		local pp = Instance.new("UIPadding")
-		pp.PaddingLeft = UDim.new(0, 10)
-		pp.PaddingRight = UDim.new(0, 10)
-		pp.Parent = b
-		chipDeck[b] = key
-		b.MouseButton1Click:Connect(function()
-			openDeck(key)
-		end)
-		b.MouseLeave:Connect(function()
-			b.TextColor3 = if chipDeck[b] == deckOpen then C_PINK else C_DIM
-		end)
-		return b
-	end
-
-	local runChip = stripChip(row1, "run › daily", 1, "run")
-	self.trackChip = stripChip(row1, "track ›", 2, "run")
-	self.dashToggle = ghostButton(row1, "DASH ›", 13, 3, C_GOLD)
-	self.dashToggle.AutomaticSize = Enum.AutomaticSize.X
-	self.dashToggle.Size = UDim2.fromOffset(0, 24)
-	local dashPad = Instance.new("UIPadding")
-	dashPad.PaddingLeft = UDim.new(0, 10)
-	dashPad.PaddingRight = UDim.new(0, 10)
-	dashPad.Parent = self.dashToggle
-
-	stripChip(row2, "garage ›", 1, "garage")
-	stripChip(row2, "board ›", 2, "board")
-	stripChip(row2, "missions ›", 3, "missions")
-
-	-- Keymap line (dashHint): third strip row — the poster owns the
-	-- middle, so the controls read like a footer caption.
-	self.dashHint = label(strip, "", 12, F_DATA, C_DIM, 0)
-	self.dashHint.Position = UDim2.fromOffset(0, 62)
-	self.dashHint.TextTransparency = 0.3
-
-	--============================ RUN PAGE ==========================--
-	-- RUN deck (§6): everything that shapes THIS run — one-tap
-	-- DAILY/RANDOM chips write the seed box, or type a custom seed, and
-	-- the TRACK cycler picks the song. Lives in the dock now; the strip's
-	-- run/track chips both open it.
-	local setup = deckPanel("RunPage", 420, 136)
-	deckPages.run = setup
+	local sl = Instance.new("TextLabel")
+	sl.BackgroundTransparency = 1
+	sl.Font = F_DATA
+	sl.TextSize = 12
+	sl.TextColor3 = C_DIM
+	sl.Text = "SEED"
+	sl.TextXAlignment = Enum.TextXAlignment.Left
+	sl.Position = UDim2.fromOffset(2, 3)
+	sl.Size = UDim2.fromOffset(50, 26)
+	sl.Parent = seedRow
 
 	local seedBox = Instance.new("TextBox")
 	seedBox.Name = "SeedBox"
@@ -405,70 +372,30 @@ function Ui.new(): Ui
 	seedBox.BackgroundTransparency = 0.3
 	seedBox.BorderSizePixel = 0
 	seedBox.Font = F_DATA
-	seedBox.TextSize = 17
+	seedBox.TextSize = 16
 	seedBox.TextColor3 = C_PINK
-	seedBox.PlaceholderText = "or type a seed"
+	seedBox.PlaceholderText = "daily"
 	seedBox.PlaceholderColor3 = C_DIM
-	seedBox.Text = "daily" -- default: race today's shared board, not a throwaway
-	seedBox.Position = UDim2.fromOffset(18, 48)
-	seedBox.Size = UDim2.fromOffset(384, 30)
+	seedBox.Text = "" -- blank = today's shared seed; anything typed is a seeded run
+	seedBox.Position = UDim2.fromOffset(60, 0)
+	seedBox.Size = UDim2.fromOffset(278, 32)
 	seedBox.ClearTextOnFocus = false
 	local seedStroke = Instance.new("UIStroke")
 	seedStroke.Color = C_DIM
 	seedStroke.Transparency = 0.5
 	seedStroke.Parent = seedBox
-	seedBox.Parent = setup
+	seedBox.Parent = seedRow
 	self.seedBox = seedBox
 
-	-- Seed chips: segmented quick-pick — RANDOM or DAILY. Lit chip
-	-- = what PLAY will run; a typed seed unlatches them all (custom read).
-	local chipBtns: { [string]: TextButton } = {}
-	local function paintChips()
-		local t = string.lower(seedBox.Text)
-		local lit = if t == "" then "random" elseif Daily.isKeyword(t) then "daily" else ""
-		for key, b in pairs(chipBtns) do
-			local on = key == lit
-			b.TextColor3 = on and C_PINK or C_DIM
-			local st = b:FindFirstChildOfClass("UIStroke")
-			if st then
-				st.Color = b.TextColor3
-			end
-		end
-		-- Strip mirror: the run chip always reads what PLAY will launch —
-		-- keyword name or the literal seed.
-		runChip.Text = "run › " .. if lit ~= "" then lit else "#" .. seedBox.Text
-	end
-	for i, key in ipairs({ "daily", "random" }) do
-		local b = Instance.new("TextButton")
-		b.Name = "Chip" .. key
-		b.BackgroundColor3 = C_BG
-		b.BackgroundTransparency = 0.3
-		b.AutoButtonColor = false
-		b.Font = F_DATA
-		b.TextSize = 13
-		b.TextColor3 = C_DIM
-		b.Text = string.upper(key)
-		b.Position = UDim2.fromOffset(18 + (i - 1) * 193, 14)
-		b.Size = UDim2.fromOffset(184, 26)
-		b.Parent = setup
-		local bc = Instance.new("UICorner")
-		bc.CornerRadius = UDim.new(0, 6)
-		bc.Parent = b
-		local bs = Instance.new("UIStroke")
-		bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		bs.Color = C_DIM
-		bs.Thickness = 1
-		bs.Parent = b
-		chipBtns[key] = b
-		b.MouseButton1Click:Connect(function()
-			seedBox.Text = if key == "random" then "" else key
-		end)
-	end
-	seedBox:GetPropertyChangedSignal("Text"):Connect(paintChips)
-	paintChips()
-
 	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip —
-	-- run-scoped, so it lives in the setup cluster, not the garage.
+	-- run-scoped, so it rides the hero column, not the garage.
+	local trkRow = Instance.new("Frame")
+	trkRow.Name = "TrackRow"
+	trkRow.BackgroundTransparency = 1
+	trkRow.Size = UDim2.fromOffset(340, 30)
+	trkRow.LayoutOrder = 9
+	trkRow.Parent = menuCol
+
 	local trkLabel = Instance.new("TextLabel")
 	trkLabel.BackgroundTransparency = 1
 	trkLabel.Font = F_DATA
@@ -476,9 +403,9 @@ function Ui.new(): Ui
 	trkLabel.TextColor3 = C_DIM
 	trkLabel.TextXAlignment = Enum.TextXAlignment.Left
 	trkLabel.Text = "TRACK"
-	trkLabel.Position = UDim2.fromOffset(18, 90)
+	trkLabel.Position = UDim2.fromOffset(2, 2)
 	trkLabel.Size = UDim2.fromOffset(56, 26)
-	trkLabel.Parent = setup
+	trkLabel.Parent = trkRow
 
 	local trkName = Instance.new("TextButton")
 	trkName.Name = "TrackName"
@@ -488,34 +415,20 @@ function Ui.new(): Ui
 	trkName.TextSize = 15
 	trkName.TextColor3 = C_WHITE
 	trkName.Text = "SEEDED"
-	trkName.Position = UDim2.fromOffset(110, 90)
-	trkName.Size = UDim2.fromOffset(196, 26)
+	trkName.Position = UDim2.fromOffset(92, 0)
+	trkName.Size = UDim2.fromOffset(160, 30)
 	trkName.TextXAlignment = Enum.TextXAlignment.Center
-	trkName.Parent = setup
+	trkName.Parent = trkRow
 	self.trackName = trkName
 
-	local function arrowButton(parent, text, x, y)
-		local b = Instance.new("TextButton")
-		b.BackgroundTransparency = 1
-		b.AutoButtonColor = false
-		b.Font = F_DATA
-		b.TextSize = 20
-		b.TextColor3 = C_CYAN
-		b.Text = text
-		b.Position = UDim2.fromOffset(x, y - 2)
-		b.Size = UDim2.fromOffset(26, 30)
-		b.Parent = parent
-		return b
-	end
-
-	local trkLeft = arrowButton(setup, "<", 82, 90)
+	local trkLeft = arrowButton(trkRow, "<", 64, 2)
 	trkLeft.Name = "TrackPrev"
 	trkLeft.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
 			self.onTrackCycle(-1)
 		end
 	end)
-	local trkRight = arrowButton(setup, ">", 312, 90)
+	local trkRight = arrowButton(trkRow, ">", 258, 2)
 	trkRight.Name = "TrackNext"
 	trkRight.MouseButton1Click:Connect(function()
 		if self.onTrackCycle then
@@ -523,9 +436,19 @@ function Ui.new(): Ui
 		end
 	end)
 
-	-- Missions deck (§14): today's three seeded missions, same card chrome
-	-- as RUN — ✓ gold when done, ◇ dim while open; the bank quest shows
-	-- today's running total and the footer counts the award tally.
+	self.bestLabel = label(menuCol, "BEST 0", 18, F_DATA, C_CYAN, 10)
+
+	-- Missions ticker: one dim line under BEST — "missions 2/3 · awards
+	-- 4/8 ›" — click floats the missions card over the caption row.
+	self.missionTicker = ghostButton(menuCol, "missions ›", 13, 11, C_DIM)
+	self.missionTicker.AutomaticSize = Enum.AutomaticSize.X
+	self.missionTicker.MouseButton1Click:Connect(function()
+		openDeck("missions")
+	end)
+
+	-- Missions deck (§14): today's three seeded missions — ✓ gold when
+	-- done, ◇ dim while open; the bank quest shows today's running
+	-- total and the footer counts the award tally.
 	local missions = deckPanel("MissionsPage", 420, 132)
 	deckPages.missions = missions
 
@@ -539,8 +462,18 @@ function Ui.new(): Ui
 	self.achLine = label(missions, "", 12, F_DATA, C_GOLD, 0)
 	self.achLine.Position = UDim2.fromOffset(0, 102)
 
-	-- Dash style toggle (§4): cycles keys / double-tap / both — the
-	-- server mirrors + saves the pick, so the chip is the whole pref.
+	-- Bottom caption: just the keymap — every other control is a visible
+	-- rail or a hero button now.
+	local strip = Instance.new("Frame")
+	strip.Name = "Strip"
+	strip.BackgroundTransparency = 1
+	strip.AnchorPoint = Vector2.new(0.5, 1)
+	strip.Position = UDim2.new(0.5, 0, 1, -8)
+	strip.Size = UDim2.new(1, -32, 0, 22)
+	strip.Parent = menu
+	self.dashHint = label(strip, "", 12, F_DATA, C_DIM, 0)
+	self.dashHint.TextTransparency = 0.3
+
 	self.dashToggle.MouseButton1Click:Connect(function()
 		if self.onDashMode then
 			self.onDashMode()
@@ -563,17 +496,15 @@ function Ui.new(): Ui
 	local RECENT_H = 16 + Config.Leaderboard.HistoryShown * 17 + 6
 	local board = Instance.new("Frame")
 	board.Name = "Leaderboard"
-	-- Dock page: rises out of the strip like every other panel — closed
-	-- until the "board ›" chip opens it.
-	board.AnchorPoint = Vector2.new(0.5, 1)
-	board.Position = UDim2.new(0.5, 0, 1, -98)
+	-- Right rail, always on: the board is the retention ad — your rank
+	-- sits next to PLAY on every menu visit, no click needed.
+	board.AnchorPoint = Vector2.new(1, 0.5)
+	board.Position = UDim2.fromScale(0.965, 0.5)
 	board.Size = UDim2.fromOffset(340, 78 + TOP_N * 25 + RECENT_H)
 	board.BackgroundColor3 = C_PANEL
 	board.BackgroundTransparency = 0
 	board.BorderSizePixel = 0
-	board.Visible = false
 	board.Parent = menu
-	deckPages.board = board
 	local boardCorner = Instance.new("UICorner")
 	boardCorner.CornerRadius = UDim.new(0, 10)
 	boardCorner.Parent = board
@@ -718,25 +649,40 @@ function Ui.new(): Ui
 	self.recent = recent
 
 	--============================ GARAGE ============================--
-	-- Neon shop (DESIGN.md §18): a dock page like the rest — tabbed STYLE
-	-- (equip cyclers), PACKS (bundle gamepasses), BANK (gem packs + 2X
-	-- pass), AUDIO (mixer). Opens from the "garage ›" strip chip.
+	-- Neon shop (DESIGN.md §18): the left rail, always on — conversion
+	-- needs the merch zero clicks away. Tabbed STYLE (equip cyclers),
+	-- PACKS (bundle gamepasses), BANK (gem packs + 2X pass), AUDIO
+	-- (mixer). The PREVIEW window at the bottom dresses the BROWSED
+	-- items in a ViewportFrame diorama — unowned merch previews too,
+	-- that's the try-before-you-buy lever.
 	local garage = Instance.new("Frame")
 	garage.Name = "Garage"
-	garage.AnchorPoint = Vector2.new(0.5, 1)
-	garage.Position = UDim2.new(0.5, 0, 1, -98)
-	garage.Size = UDim2.fromOffset(340, 430)
+	garage.AnchorPoint = Vector2.new(0, 0.5)
+	garage.Position = UDim2.fromScale(0.035, 0.5)
+	garage.Size = UDim2.fromOffset(340, 640)
 	garage.BackgroundColor3 = C_PANEL
 	garage.BackgroundTransparency = 0
 	garage.BorderSizePixel = 0
-	garage.Visible = false
 	garage.Parent = menu
-	deckPages.garage = garage
 	local gcorner = Instance.new("UICorner")
 	gcorner.CornerRadius = UDim.new(0, 10)
 	gcorner.Parent = garage
 
 	label(garage, "GARAGE", 20, F_DISPLAY, C_PINK, 0).Position = UDim2.fromOffset(0, 8)
+
+	-- Bank balance in the header: spendable gems always in view, so the
+	-- ◊ prices on unowned items read against it at a glance.
+	local bal = Instance.new("TextLabel")
+	bal.BackgroundTransparency = 1
+	bal.Font = F_DATA
+	bal.TextSize = 13
+	bal.TextColor3 = C_GOLD
+	bal.TextXAlignment = Enum.TextXAlignment.Right
+	bal.Position = UDim2.new(1, -140, 0, 12)
+	bal.Size = UDim2.fromOffset(126, 20)
+	bal.Text = "◊ 0"
+	bal.Parent = garage
+	self.bankLabel = bal
 
 	local gTabs: { [string]: TextButton } = {}
 	local gPages: { [string]: Frame } = {}
@@ -757,7 +703,7 @@ function Ui.new(): Ui
 		pg.Name = "Page" .. name
 		pg.BackgroundTransparency = 1
 		pg.Position = UDim2.fromOffset(0, 72)
-		pg.Size = UDim2.new(1, 0, 1, -72)
+		pg.Size = UDim2.new(1, 0, 1, -262) -- bottom 190px is the preview window
 		pg.Visible = i == 1
 		pg.Parent = garage
 		gPages[name] = pg
@@ -777,22 +723,58 @@ function Ui.new(): Ui
 	end
 	setGarageTab("STYLE")
 
+	-- PREVIEW (§18): the try-before-you-buy mannequin — a ViewportFrame
+	-- diorama CosmeticFx dresses from the BROWSED items (skin rings,
+	-- trail, sun, world motif, gem, death shards), so the merch sells
+	-- itself before the purchase. A Gui overlay re-paints the screen
+	-- filter effect inside the window's bounds.
+	local pvLabel = label(garage, "PREVIEW", 11, F_DATA, C_DIM, 0)
+	pvLabel.AnchorPoint = Vector2.new(0, 1)
+	pvLabel.Position = UDim2.new(0, 0, 1, -176)
+	local vp = Instance.new("ViewportFrame")
+	vp.Name = "Preview"
+	vp.BackgroundColor3 = C_BG
+	vp.BorderSizePixel = 0
+	vp.AnchorPoint = Vector2.new(0, 1)
+	vp.Position = UDim2.new(0, 12, 1, -14)
+	vp.Size = UDim2.new(1, -24, 0, 150)
+	vp.Ambient = Color3.fromRGB(160, 145, 200)
+	vp.LightColor = Color3.fromRGB(255, 245, 255)
+	vp.LightDirection = Vector3.new(-0.4, -1, -0.35)
+	vp.Parent = garage
+	local vpc = Instance.new("UICorner")
+	vpc.CornerRadius = UDim.new(0, 8)
+	vpc.Parent = vp
+	local vps = Instance.new("UIStroke")
+	vps.Color = C_DIM
+	vps.Thickness = 1
+	vps.Transparency = 0.4
+	vps.Parent = vp
+	self.previewView = vp
+	local fov = Instance.new("Frame")
+	fov.Name = "FilterOverlay"
+	fov.BackgroundTransparency = 1
+	fov.Size = UDim2.fromScale(1, 1)
+	fov.ZIndex = 5
+	fov.Parent = vp
+	self.previewFilterFrame = fov
+
 	-- Slot rows: "SKIN   < ITEM NAME >". Cycling browses the full catalog;
 	-- the name itself is the buy button for priced-but-unowned items.
 	self.slotItem = {}
 	local pageStyle = gPages.STYLE
 	for i, slot in ipairs(Cosmetics.Slots) do
 		local y = 6 + (i - 1) * 30
-		local sl = Instance.new("TextLabel")
-		sl.BackgroundTransparency = 1
-		sl.Font = F_DATA
-		sl.TextSize = 12
-		sl.TextColor3 = C_DIM
-		sl.TextXAlignment = Enum.TextXAlignment.Left
-		sl.Text = Cosmetics.SlotName[slot]
-		sl.Position = UDim2.fromOffset(14, y)
-		sl.Size = UDim2.fromOffset(56, 28)
-		sl.Parent = pageStyle
+		local slotLabel = Instance.new("TextLabel")
+		slotLabel.BackgroundTransparency = 1
+		slotLabel.Font = F_DATA
+		slotLabel.TextSize = 12
+		slotLabel.TextColor3 = C_DIM
+		slotLabel.TextXAlignment = Enum.TextXAlignment.Left
+		slotLabel.Text = Cosmetics.SlotName[slot]
+		slotLabel.Position = UDim2.fromOffset(14, y)
+		slotLabel.Size = UDim2.fromOffset(56, 28)
+		slotLabel.Parent = pageStyle
 
 		local nm = Instance.new("TextButton")
 		nm.BackgroundTransparency = 1
@@ -1141,18 +1123,9 @@ function Ui.new(): Ui
 	-- 2X BANK pass row. Everything degrades to SOON until the ids are
 	-- created on the dashboard — the buttons only arm via setGarage.
 	local pageBank = gPages.BANK
+	-- Balance reads in the garage header now (always visible) — this page
+	-- is just the spend surface.
 	label(pageBank, "BANK", 14, F_DISPLAY, C_DIM, 0).Position = UDim2.fromOffset(0, 6)
-	local bal = Instance.new("TextLabel")
-	bal.BackgroundTransparency = 1
-	bal.Font = F_DATA
-	bal.TextSize = 16
-	bal.TextColor3 = C_GOLD
-	bal.TextXAlignment = Enum.TextXAlignment.Right
-	bal.Text = "◊ 0"
-	bal.Position = UDim2.fromOffset(150, 4)
-	bal.Size = UDim2.fromOffset(166, 20)
-	bal.Parent = pageBank
-	self.bankLabel = bal
 
 	-- Gem packs: three equal buttons "◊300\nR$49". Enabled state arrives via
 	-- setGarage's gemPacks list (SOON until product ids exist).
@@ -2698,7 +2671,36 @@ end
 
 function Ui:setTrackRow(text: string)
 	self.trackName.Text = text
-	self.trackChip.Text = "track › " .. string.lower(text)
+end
+
+-- Preview filter (§18): re-paint the screen-filter look inside the
+-- garage's preview window — mirrors the ScreenFilter bars on a small
+-- scale so PIXEL GLASS / SCANLINES sell themselves in the diorama.
+function Ui:setPreviewFilter(f: string)
+	local fov = self.previewFilterFrame
+	fov:ClearAllChildren()
+	local col = Config.Art.PixelColor
+	local function bar(x: number, y: number, w: number, h: number)
+		local b = Instance.new("Frame")
+		b.BackgroundColor3 = col
+		b.BackgroundTransparency = Config.Art.PixelAlpha
+		b.BorderSizePixel = 0
+		b.Position = UDim2.fromScale(x, y)
+		b.Size = UDim2.fromScale(w, h)
+		b.Parent = fov
+	end
+	if f == "scan" then
+		for i = 0, 15 do
+			bar(0, i / 15, 1, 0.035)
+		end
+	elseif f == "pixel" then
+		for i = 0, 15 do
+			bar(0, i / 15, 1, 0.02)
+		end
+		for i = 0, 26 do
+			bar(i / 26, 0, 0.007, 1)
+		end
+	end
 end
 
 return Ui

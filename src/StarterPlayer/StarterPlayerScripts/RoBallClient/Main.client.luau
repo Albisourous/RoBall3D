@@ -79,6 +79,7 @@ local ball: BasePart? = nil
 local lateralVel = 0
 local fwdSpeed = Config.Speed.Start
 local bankRollRad = 0 -- grounded deck's bank angle (rad) — horizon lean + pull
+local surfNormal = Vector3.yAxis -- eased ground normal — slope tracking
 local bankLeanCur = 0 -- eased bank lean actually applied to the camera
 local currentSeed: number? = nil
 local controlAt = 0 -- steering unlocks after the "rolling…" settle
@@ -262,6 +263,7 @@ local function bindBall(b: Instance)
 		lateralVel = 0
 		fwdSpeed = Config.Speed.Start
 		bankRollRad = 0
+		surfNormal = Vector3.yAxis
 		bankLeanCur = 0
 		powerCharge = 1
 		powerSpent = false
@@ -905,6 +907,11 @@ RunService.Heartbeat:Connect(function(dt)
 		-- horizon lean.
 		bankRollRad = -math.asin(math.clamp(drop.Normal.X, -1, 1))
 	end
+	-- Eased surface normal for slope tracking: seam/facet pops in the
+	-- raw read would pop Y velocity — relax toward the live normal (or
+	-- straight up when airborne) so the projection below flows.
+	local wantN = if grounded and drop then drop.Normal else Vector3.yAxis
+	surfNormal = (surfNormal + (wantN - surfNormal) * (1 - math.exp(-dt / Config.Landing.SlopeSmooth))).Unit
 	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
 	-- — the target pins to dash Speed and the accel is ~13x, so the dart
@@ -1137,6 +1144,17 @@ RunService.Heartbeat:Connect(function(dt)
 	-- Inside a flip zone vY is pinned to +Lift so gravity can't pull the
 	-- ball off the ceiling; at the zone edge the pin drops and gravity
 	-- takes over — the ball falls ClearH back to the deck.
+	-- Slope tracking (§4): while grounded, the drive vector projects onto
+	-- the eased surface — drive - (drive·n)n is the plane projection (same
+	-- as n×(drive×n)); its Y becomes the vertical target, so the ball
+	-- pushes itself down hills and carries over crests instead of
+	-- launching (Monkey Ball feel). Fresh pad/orb kicks and genuine
+	-- airtime keep physics Y — gravity owns a real fall.
+	local kickAt = b:GetAttribute("KickAt") or 0
+	local kicked = vY > 0 and now - kickAt <= Config.Landing.KickGrace
+	if not inFlip and now >= unstickUntil and grounded and not kicked then
+		local drive = Vector3.new(lateralVel, 0, -fwdSpeed)
+		vY = (drive - surfNormal * drive:Dot(surfNormal)).Y
 	-- Zero-bounce landing (§11): arriving harder than the deck's own
 	-- descent pops the ball back up even at elasticity 0 — the solver's
 	-- impact response is the bounce. Stage one: the lane probe looks
@@ -1146,13 +1164,12 @@ RunService.Heartbeat:Connect(function(dt)
 	-- solver pop, squashed flat — unless a pad/orb kick stamped KickAt
 	-- inside the grace window. Over a gap the probe finds nothing:
 	-- falls stay free.
-	if not inFlip and now >= unstickUntil and drop then
+	elseif not inFlip and now >= unstickUntil and drop then
 		local gap = bp.Y - Config.Ball.Diameter / 2 - drop.Position.Y
 		if gap <= Config.Landing.ClampReach + math.max(0, -vY) * dt then
 			vY = math.max(vY, -fwdSpeed * Config.Generation.Grade - Config.Landing.ImpactPad)
 		end
-		local kickAt = b:GetAttribute("KickAt") or 0
-		if gap <= Config.Landing.ContactPad and vY > 0 and now - kickAt > Config.Landing.KickGrace then
+		if gap <= Config.Landing.ContactPad and vY > 0 and not kicked then
 			vY = 0
 		end
 	end
