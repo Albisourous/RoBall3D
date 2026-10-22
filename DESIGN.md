@@ -816,7 +816,10 @@ that caused them.
   recycled tiles meet in perfect seams and terrain generates fresh
   forever downhill; a lateral ramp keeps a flat valley at the road edge
   (innerX 55 clears the deck's worst lateral reach ~39) and a slow
-  along-z envelope lets ranges arrive in passes. Same client-local,
+  along-z envelope lets ranges arrive in passes without ever flattening
+  away (`PeaksEnvFloor`). A summit-emphasis exponent (`PeaksPeakPow`)
+  needles the crests into a serrated skyline over ~200-stud-tall ridge
+  bands. Same client-local,
   palette-driven rules — edges sample `Palette.dimAt` per stroke with an
   outer-column dim for depth. Two more worlds round out the slot:
   **STAR WELL** (`void`) replaces the flanks with a shell of neon motes

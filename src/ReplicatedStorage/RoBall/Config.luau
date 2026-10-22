@@ -1123,11 +1123,17 @@ Config.Art = {
 	PeaksRows = 10, -- grid quads along z per tile
 	PeaksCellZ = 70, -- studs per row
 	PeaksTiles = 2, -- tiles per side covering the visible window
-	PeaksMaxH = 170, -- ridge amplitude at the outermost column
-	PeaksRampPow = 0.85, -- lateral ramp exponent (0 at road edge = valley)
-	PeaksFreqX = 0.16, -- ridged-noise frequency per column step
-	PeaksFreqZ = 0.055, -- ridged-noise frequency per lattice row
+	PeaksMaxH = 700, -- ridge amplitude at the outermost column
+	PeaksPeakPow = 2.2, -- summit-emphasis exponent on the crest signal —
+	-- crest^p sinks the rolling mid-field into valleys while crests keep
+	-- their needle, so the silhouette reads as separate sharp peaks
+	PeaksRampPow = 0.5, -- lateral ramp exponent (0 at road edge = valley)
+	PeaksFreqX = 0.28, -- ridged-noise frequency per column step — higher
+	-- samples more crests per column span = serrated skyline
+	PeaksFreqZ = 0.09, -- ridged-noise frequency per lattice row
 	PeaksEnvF = 0.012, -- range-swell frequency per lattice row (passes)
+	PeaksEnvFloor = 0.3, -- envelope never flattens past this share of
+	-- full height — passes dip, the mountain band never vanishes
 	PeaksSeed = 71, -- math.noise seed — terrain identity is world-fixed
 	PeaksSkirt = 9, -- ridge base sinks this far below the deck plane
 	PeaksLine = 0.45, -- wireframe edge thickness (Neon parts)

@@ -188,9 +188,10 @@ local function peakRidge(side: number, c: number, row: number): number
 	local n = math.noise(c * Art.PeaksFreqX + side * 61.7, row * Art.PeaksFreqZ, Art.PeaksSeed)
 	local d = math.noise(c * Art.PeaksFreqX * 2.7 + 31.4, row * Art.PeaksFreqZ * 2.7 - side * 17.9, Art.PeaksSeed + 101)
 	local crest = math.max(0, 0.5 - math.abs(n)) * 2
-	local h = crest * 0.82 + (d + 0.5) * 0.18
+	local h = (crest ^ Art.PeaksPeakPow) * 0.85 + (d + 0.5) * 0.15
 	local ramp = ((c + 0.3) / Art.PeaksCols) ^ Art.PeaksRampPow
-	local env = math.clamp(0.62 + math.noise(row * Art.PeaksEnvF, side * 9.13, Art.PeaksSeed + 57) * 1.5, 0.05, 1)
+	local env =
+		math.clamp(0.62 + math.noise(row * Art.PeaksEnvF, side * 9.13, Art.PeaksSeed + 57) * 1.5, Art.PeaksEnvFloor, 1)
 	return h * ramp * env
 end
 
@@ -1424,11 +1425,39 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 		return
 	end
 	if t == "polar" then
-		-- The canopy is live particles — it animates inside the preview.
-		local f = makePolarFan(parent)
-		f.zOff = Art.PolarFanZ
-		f.part.CFrame = CFrame.new(anchor.X, anchor.Y + Art.PolarFanY, anchor.Z - f.zOff) * CFrame.Angles(0, f.yaw, 0)
-		f.emitter.Enabled = true
+		-- ParticleEmitters don't render inside a ViewportFrame — same
+		-- stroke-swap as the tower outlines: the canopy's fan-arc layout
+		-- is approximated with seeded translucent veils overhead so the
+		-- preview still sells the sky.
+		local veilColors = {
+			Color3.fromRGB(141, 255, 133),
+			Color3.fromRGB(165, 243, 255),
+			Color3.fromRGB(108, 255, 120),
+			Color3.fromRGB(233, 255, 241),
+			Color3.fromRGB(247, 255, 174),
+		}
+		for i = 1, 8 do
+			local v = Instance.new("Part")
+			v.Anchored = true
+			v.CanCollide = false
+			v.CanQuery = false
+			v.CanTouch = false
+			v.CastShadow = false
+			v.Material = Enum.Material.Neon
+			v.Transparency = 0.5 + rng:NextNumber(0, 0.25)
+			v.Size = Vector3.new(Art.PolarSpan, 20 + rng:NextNumber(0, 45), Art.PolarThick)
+			local arc = (i - 1) / 7 -- 0..1 down-course
+			local z = anchor.Z - Art.PolarFanZ - (arc - 0.5) * Art.PolarFanZGap + rng:NextNumber(-40, 40)
+			local y = anchor.Y + 60 + math.sin(arc * math.pi) * 110 + rng:NextNumber(-15, 15)
+			v.CFrame = CFrame.new(anchor.X, y, z)
+				* CFrame.Angles(
+					rng:NextNumber(-0.3, 0.3),
+					rng:NextNumber(-Art.PolarFanYaw, Art.PolarFanYaw),
+					rng:NextNumber(-0.35, 0.35)
+				)
+			v.Color = veilColors[(i - 1) % #veilColors + 1]
+			v.Parent = parent
+		end
 		for _ = 1, Art.PolarStars do
 			local s = Instance.new("Part")
 			s.Anchored = true
