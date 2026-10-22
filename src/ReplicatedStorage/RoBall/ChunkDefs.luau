@@ -1306,12 +1306,6 @@ end
 function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
 	local length = rng:NextInteger(45, 65)
 	local padT = 0.3
-	-- Arc math uses the PAD-TIME speed — that's the forward speed the ball
-	-- actually carries through the flight. The audit evaluates the same
-	-- point; an exit-speed model is faster and plants the strip ~a stud
-	-- past the honest window's trailing edge.
-	local speed = Tiers.speedAt(st.dist + padT * length)
-	local speedLand = Tiers.speedAt(st.dist + length) -- exit: landing margin
 	local stripD = if debut then 5 else rng:NextNumber(Config.Pads.StripMin, Config.Pads.StripMax)
 	local stripH = Config.Pads.StripH
 	local padW = if debut then Config.Pads.DebutWidth else Config.Pads.Width
@@ -1325,26 +1319,41 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	local span = stripD + Config.Pads.Length + 2
 	local rLo = Config.Pads.SlowCrossFrac
 	local rHi = Config.Power.Mult
-	-- Intersection width = v*[rLo*(tA+wSec/2) - rHi*(tA-wSec/2)] must hold
-	-- the whole span; iterate wSec since tA grows with the kick it forces.
-	local wSec = span / speed
-	local tApex = math.sqrt(2 * h / G)
-	for _ = 1, 6 do
-		wSec = 2 * (span / speed + tApex * (rHi - rLo)) / (rLo + rHi)
-		tApex = math.sqrt(2 * (h + G * wSec * wSec / 8) / G)
+	-- Arc math uses the PAD-TIME speed — that's the forward speed the ball
+	-- actually carries through the flight. The audit evaluates the same
+	-- point; an exit-speed model is faster and plants the strip ~a stud
+	-- past the honest window's trailing edge. The catch: length grows to
+	-- fit the landing below, and the pad rides padT of the FINAL chunk —
+	-- so the solve re-evaluates speed at the grown pad/exit positions
+	-- until length settles (monotone: faster ⇒ longer ⇒ faster).
+	local kick = 0
+	local stripZ = 0
+	local speed = 0
+	for _ = 1, 4 do
+		speed = Tiers.speedAt(st.dist + padT * length)
+		local speedLand = Tiers.speedAt(st.dist + length) -- exit: landing margin
+		-- Intersection width = v*[rLo*(tA+wSec/2) - rHi*(tA-wSec/2)] must
+		-- hold the whole span; iterate wSec since tA grows with the kick
+		-- it forces.
+		local wSec = span / speed
+		local tApex = math.sqrt(2 * h / G)
+		for _ = 1, 6 do
+			wSec = 2 * (span / speed + tApex * (rHi - rLo)) / (rLo + rHi)
+			tApex = math.sqrt(2 * (h + G * wSec * wSec / 8) / G)
+		end
+		kick = G * tApex
+		-- Strip centered in the intersection: its leading edge sits just
+		-- inside the boosted arc's above-h opening, its trailing edge
+		-- inside the slow arc's — every entry speed crosses it airborne.
+		local zLo = rHi * speed * (tApex - wSec / 2)
+		local zHi = rLo * speed * (tApex + wSec / 2)
+		stripZ = (zLo + zHi) / 2
+		-- The kick is inviolable (closed-form clearance). If the strip or
+		-- the landing wouldn't fit inside the chunk, the CHUNK grows —
+		-- never the kick shrinking below what the crossing demands.
+		local landZ = 2 * speedLand * tApex -- symmetric: lands back on deck level
+		length = math.max(length, math.ceil(stripZ / (0.78 - padT)), math.ceil(landZ / (0.95 - padT)))
 	end
-	local kick = G * tApex
-	-- Strip centered in the intersection: its leading edge sits just inside
-	-- the boosted arc's above-h opening, its trailing edge inside the slow
-	-- arc's — every entry speed crosses it airborne.
-	local zLo = rHi * speed * (tApex - wSec / 2)
-	local zHi = rLo * speed * (tApex + wSec / 2)
-	local stripZ = (zLo + zHi) / 2
-	-- The kick is inviolable (closed-form clearance). If the strip or the
-	-- landing wouldn't fit inside the chunk, the CHUNK grows — never the
-	-- kick shrinking below what the crossing demands.
-	local landZ = 2 * speedLand * tApex -- symmetric: lands back on deck level
-	length = math.max(length, math.ceil(stripZ / (0.78 - padT)), math.ceil(landZ / (0.95 - padT)))
 	local stripT = padT + stripZ / length
 	local obstacles = { { t = stripT, xOff = 0, w = st.width - 2, h = stripH, d = stripD } }
 	local gems = {}

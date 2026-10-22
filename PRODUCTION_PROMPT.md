@@ -47,8 +47,11 @@ entirely.
 
 ## 4. Generation & fairness
 
-- [ ] `GenVerify` sweep ≥ 8 seeds × 600 chunks, **0 violations**
-      (PressRow fix landed; re-sweep before launch).
+- [x] `GenVerify` sweep — 24 seeds × 600 chunks, **0 violations**
+      (PadHop pad-position drift found + fixed: the builder sampled tier
+      speed at `padT × initial length` while the pad rides `padT` of the
+      *grown* chunk — sub-stud under the old log tail, ~4 studs under the
+      linear tail. Re-sweep after any ChunkDefs/Tiers touch).
 - [ ] Purity check: no `math.random`, no Instance creation in
       `GenCore`/`ChunkDefs` — grep before tagging the build.
 - [ ] `StreamingEnabled` off, `CharacterAutoLoads` off,
