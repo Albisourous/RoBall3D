@@ -100,7 +100,26 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 
 	if self.onlyType then
 		-- TODO(debug-seed): forced single-feature track for testing.
-		spec = ChunkDefs[self.onlyType](self.rng, snap, Tiers.forDistance(st.dist))
+		if self.introIndex == 0 then
+			-- Short flat runway first: the ball spawns ~15 studs from the
+			-- track head, so the feature needs approach room to be seen
+			-- (and for jump-arcs to land) before it starts.
+			self.introIndex = 1
+			local runway = Config.Debug.FeatureRunway
+			spec = {
+				type = "Intro_Flat",
+				length = runway,
+				startZ = snap.zEnd,
+				section = ChunkDefs.wrapGrade(runway, introSection(snap, { type = "Flat", widthOut = snap.width })),
+				endState = {
+					centerX = snap.centerX,
+					width = snap.width,
+					y = snap.y - Config.Generation.Grade * runway,
+				},
+			}
+		else
+			spec = ChunkDefs[self.onlyType](self.rng, snap, Tiers.forDistance(st.dist))
+		end
 	elseif self.introIndex < #self.intro then
 		self.introIndex += 1
 		local chunk = self.intro[self.introIndex]

@@ -274,9 +274,11 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
 - TODO(debug-seed): a seed-box keyword matching a chunk type or label
   (`pressrow`, `TERRACES`, "press row") forces a run where every chunk is
   that feature — intro/debuts/pool weighting all bypassed, and the text
-  still hashes to the seed so the same word replays the same layout.
-  Debug-only; remove all `TODO(debug-seed)` sites together
-  (`ChunkDefs.matchFeature`, `GenCore.onlyType`, `Main.server` resolveSeed).
+  still hashes to the seed so the same word replays the same layout. A
+  `Debug.FeatureRunway`-long flat lead-in runs first so the element is
+  visible on approach. Debug-only; remove all `TODO(debug-seed)` sites
+  together (`ChunkDefs.matchFeature`, `GenCore.onlyType`, `Main.server`
+  resolveSeed, `Config.Debug.FeatureRunway`).
 
 ## 8. World generation
 

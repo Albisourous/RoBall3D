@@ -1433,6 +1433,9 @@ Config.Debug = {
 	-- generated chunk. 0 seeds = off (production playtests stay clean).
 	VerifySeeds = 0,
 	VerifyChunks = 600,
+	-- TODO(debug-seed): flat approach runway in front of a feature-forced
+	-- track so the element is visible on the roll-in. ~3s at Speed.Start.
+	FeatureRunway = 100,
 }
 
 return Config
