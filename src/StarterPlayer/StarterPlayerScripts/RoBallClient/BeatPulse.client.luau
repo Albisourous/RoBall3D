@@ -60,11 +60,17 @@ RunService.RenderStepped:Connect(function(dt)
 		scanT = 0
 		table.clear(near)
 		for g, base in pairs(bases) do
-			local d = g.Position - camPos
-			if d.X * d.X + d.Y * d.Y + d.Z * d.Z <= r2 then
-				table.insert(near, g)
-			elseif g.Size ~= base then
-				g.Size = base
+			if g.Parent == nil then
+				-- Collected gems are destroyed server-side; the removal
+				-- signal defers a tick, so a frame can land on a dead part.
+				bases[g] = nil
+			else
+				local d = g.Position - camPos
+				if d.X * d.X + d.Y * d.Y + d.Z * d.Z <= r2 then
+					table.insert(near, g)
+				elseif g.Size ~= base then
+					g.Size = base
+				end
 			end
 		end
 	end
@@ -76,7 +82,7 @@ RunService.RenderStepped:Connect(function(dt)
 
 	for _, g in ipairs(near) do
 		local base = bases[g]
-		if base then
+		if base and g.Parent ~= nil then
 			local d = g.Position - camPos
 			if d.X * d.X + d.Y * d.Y + d.Z * d.Z <= r2 then
 				g.Size = base * scale

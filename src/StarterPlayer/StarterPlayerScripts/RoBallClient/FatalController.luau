@@ -58,6 +58,12 @@ local function rebuildList()
 	for p in lethal do
 		table.insert(lethalList, p)
 	end
+	-- FilterDescendantsInstances COPIES contents at assignment — and the
+	-- radar's lethalParts() can be the caller that consumes listDirty.
+	-- Re-seat the cast filter inside rebuild so no caller leaves the
+	-- spherecast testing a stale lethal set (a tunneled block would read
+	-- as a pass-through).
+	castParams.FilterDescendantsInstances = lethalList
 	listDirty = false
 end
 
@@ -93,7 +99,6 @@ function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolea
 		end
 		if listDirty then
 			rebuildList()
-			castParams.FilterDescendantsInstances = lethalList
 		end
 		local pos = b.Position
 		-- Swept sphere along this frame's travel: at 200+ s/s a hitch can

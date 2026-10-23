@@ -57,6 +57,16 @@ local customHues: { [Player]: { a: number, b: number, c: number } } = {}
 -- Dash style (§4): "keys"|"tap" — a control pref mirrored as the
 -- RoBallDashMode attribute; persists in profile.dashMode like the mixer.
 local dashModes: { [Player]: string } = {}
+-- Dev-product receipts (§18 P2): PurchaseId -> true. Persisted in
+-- profile.receipts so redelivery on ANY server finds the mark — session
+-- memory alone can't dedup a retry that lands after a crash or hop.
+local receipts: { [Player]: { [string]: boolean } } = {}
+-- Save coalescing: a burst of saveNow calls collapses into one in-flight
+-- write plus at most one trailing write of the LATEST snapshot — remote
+-- spam can't stack a write per invoke and drain the DataStore budget.
+local saveFlying: { [Player]: boolean } = {}
+local saveAgain: { [Player]: boolean } = {}
+local pendingSnap: { [Player]: SaveService.Profile } = {}
 
 local function defaultHues(): { a: number, b: number, c: number }
 	local d = Config.CustomHue.Defaults
@@ -167,21 +177,11 @@ local function itemArray(player: Player): { string }
 	return list
 end
 
-local function saveNow(player: Player)
-	local eq = equipped[player]
-	if not eq or not profileReady[player] then
-		return -- pre-load writes would snapshot defaults over the stored profile
-	end
-	dirty[player] = false
-	-- Snapshot everything: the spawned save serializes later, and a live
-	-- table reference would write whatever state exists at that moment.
-	local eqSnapshot = table.clone(eq)
-	local bankSnapshot = bank[player] or 0
-	local itemsSnapshot = itemArray(player)
-	local daySnapshot = dailyDay[player] or ""
-	local streakSnapshot = dailyStreak[player] or 0
-	local questDaySnapshot = questDayTag[player] or ""
-	local questBankedSnapshot = questBanked[player] or 0
+-- Snapshot everything NOW: the write serializes later, and a live table
+-- reference would write whatever state exists at that moment. Captured
+-- before the flying check so a leave-flush queued while PlayerRemoving
+-- clears session tables still writes real state, not nils.
+local function snapshotProfile(player: Player): SaveService.Profile
 	local questDoneSnapshot = {}
 	for id in pairs(questDone[player] or {}) do
 		table.insert(questDoneSnapshot, id)
@@ -190,34 +190,66 @@ local function saveNow(player: Player)
 	for id in pairs(achDone[player] or {}) do
 		table.insert(achSnapshot, id)
 	end
-	local audioSnapshot = table.clone(audioVol[player] or {})
-	local huesSnapshot = table.clone(customHues[player] or defaultHues())
-	local dashSnapshot = dashModes[player] or Config.Dash.Modes[1]
-	-- Snapshot entries too — a shallow clone would alias the live history.
 	local histSnapshot = {}
 	for _, r in ipairs(history[player] or {}) do
 		table.insert(histSnapshot, { s = r.s, d = r.d, z = r.z })
 	end
+	return {
+		equipped = table.clone(equipped[player] or {}),
+		bank = bank[player] or 0,
+		items = itemArray(player),
+		dailyDay = dailyDay[player] or "",
+		dailyStreak = dailyStreak[player] or 0,
+		questDay = questDayTag[player] or "",
+		questDone = questDoneSnapshot,
+		questBanked = questBanked[player] or 0,
+		achievements = achSnapshot,
+		statsGems = statsGems[player] or 0,
+		statsRuns = statsRuns[player] or 0,
+		statsBestDist = statsBestDist[player] or 0,
+		audio = table.clone(audioVol[player] or {}),
+		hues = table.clone(customHues[player] or defaultHues()),
+		dashMode = dashModes[player] or Config.Dash.Modes[1],
+		history = histSnapshot,
+		receipts = table.clone(receipts[player] or {}),
+	}
+end
+
+local function saveNow(player: Player)
+	local eq = equipped[player]
+	if not eq or not profileReady[player] then
+		return -- pre-load writes would snapshot defaults over the stored profile
+	end
+	dirty[player] = false
+	pendingSnap[player] = snapshotProfile(player)
+	if saveFlying[player] then
+		saveAgain[player] = true -- collapse this burst into the trailing write
+		return
+	end
+	saveFlying[player] = true
 	task.spawn(function()
-		SaveService.saveProfile(player.UserId, {
-			equipped = eqSnapshot,
-			bank = bankSnapshot,
-			items = itemsSnapshot,
-			dailyDay = daySnapshot,
-			dailyStreak = streakSnapshot,
-			questDay = questDaySnapshot,
-			questDone = questDoneSnapshot,
-			questBanked = questBankedSnapshot,
-			achievements = achSnapshot,
-			statsGems = statsGems[player] or 0,
-			statsRuns = statsRuns[player] or 0,
-			statsBestDist = statsBestDist[player] or 0,
-			audio = audioSnapshot,
-			hues = huesSnapshot,
-			dashMode = dashSnapshot,
-			history = histSnapshot,
-		})
+		repeat
+			saveAgain[player] = false
+			local snap = pendingSnap[player]
+			pendingSnap[player] = nil
+			if snap then
+				SaveService.saveProfile(player.UserId, snap)
+			end
+		until not saveAgain[player]
+		saveFlying[player] = nil
 	end)
+end
+
+-- Awaited write (receipt path): the caller must KNOW the save landed
+-- before it answers — a spawned coalesced write can't give that. Same
+-- snapshot, same retry, synchronous so ProcessReceipt can refuse the ack
+-- when the store is down.
+local function saveNowSync(player: Player): boolean
+	if not profileReady[player] or equipped[player] == nil then
+		return false
+	end
+	dirty[player] = false
+	return SaveService.saveProfileSync(player.UserId, snapshotProfile(player))
 end
 
 -- Checkpoint write (§18 P2): bank credits live per pickup but only persists
@@ -395,10 +427,9 @@ function ShopService.buyItem(player: Player, itemId: string): (boolean, string)
 	end
 	-- Weekly drop gate (§18): member items of an unreleased wave refuse
 	-- à-la-carte gem buys until their pack hits the teaser→live boundary —
-	-- same acquisition-only gate as the seasonal window. bundleOf is the
-	-- shop oracle, so shared members must keep a live-pack listing (DLC.md).
-	local bid = Cosmetics.bundleOf(itemId)
-	if bid ~= nil and Daily.rolloutStatus(bid) ~= "live" then
+	-- same acquisition-only gate as the seasonal window. bestRollout covers
+	-- shared members: an item is live if ANY pack containing it is.
+	if Cosmetics.bestRollout(itemId) ~= "live" then
 		return false, "unreleased"
 	end
 	if ShopService.ownsItem(player, itemId) then
@@ -536,6 +567,12 @@ end
 -- pre-paywall path. A garage click "buys" instantly — no prompt, no
 -- dashboard id — but lands through the same ownership/equip/save pipeline
 -- as a real purchase. Dead ends once the flag is off.
+local claimable: { [string]: boolean } = {}
+for _, b in ipairs(Cosmetics.Bundles) do
+	claimable[b.id] = true
+end
+claimable["bank2x"] = true -- perk pass owns no items
+
 function ShopService.claimPass(player: Player, key: string): (boolean, string)
 	if not Config.Monetization.FreeForTesting then
 		return false, "unavailable"
@@ -544,7 +581,9 @@ function ShopService.claimPass(player: Player, key: string): (boolean, string)
 		return false, "loading" -- same gate as buyItem: a pre-load claim would
 		-- be wiped when queryPasses rebuilds owned[] at profile land
 	end
-	if Config.Monetization.Passes[key] == nil then
+	-- Retired pass ids stay in Passes for ownership lookup but aren't
+	-- sellable — a hand-rolled client must not claim sunset contents.
+	if not claimable[key] then
 		return false, "unknown pass"
 	end
 	if key == Config.Monetization.Seasonal.Bundle and not seasonalLive() then
@@ -605,6 +644,7 @@ function ShopService.onPlayerAdded(player: Player)
 	audioVol[player] = {}
 	customHues[player] = defaultHues()
 	history[player] = {}
+	receipts[player] = {}
 	profileReady[player] = false
 	task.spawn(function()
 		local eq = equipped[player]
@@ -708,6 +748,13 @@ function ShopService.onPlayerAdded(player: Player)
 				statsBestDist[player],
 				if typeof(prof.statsBestDist) == "number" then prof.statsBestDist else 0
 			)
+			-- Paid-purchase marks restore unconditionally — a redelivered
+			-- receipt must find its mark wherever the profile last saved it.
+			if typeof(prof.receipts) == "table" then
+				for pid in pairs(prof.receipts) do
+					receipts[player][pid :: string] = true
+				end
+			end
 		end
 		queryPasses(player)
 		if equipped[player] == nil then
@@ -753,6 +800,9 @@ function ShopService.onPlayerRemoving(player: Player)
 	customHues[player] = nil
 	dashModes[player] = nil
 	history[player] = nil
+	receipts[player] = nil
+	-- saveFlying/saveAgain/pendingSnap intentionally NOT cleared: a queued
+	-- leave-flush must still drain its captured snapshot after teardown.
 end
 
 function ShopService.init()
@@ -781,13 +831,15 @@ function ShopService.init()
 	-- Dev-product receipts (§18 P2 gem packs): the ONLY ProcessReceipt
 	-- handler in the game — it must answer every product id the client can
 	-- prompt. Unknown/unfinished work returns NotProcessedYet so Roblox
-	-- retries instead of silently eating a purchase. PurchaseId dedup
-	-- covers same-session redelivery (a retry that lands after grant).
+	-- retries instead of silently eating a purchase.
+	--
+	-- Grant -> persist -> ACK: PurchaseGranted spends the money and stops
+	-- redelivery, so the profile write must have landed before we return
+	-- it. The PurchaseId mark lives in profile.receipts and is set BEFORE
+	-- the credit so every racing snapshot carries it — dedup survives a
+	-- crash or a server hop that pure session memory would lose.
 	local seenReceipts = {}
 	MarketplaceService.ProcessReceipt = function(receipt)
-		if seenReceipts[receipt.PurchaseId] then
-			return Enum.ProductPurchaseDecision.PurchaseGranted
-		end
 		local productKey = nil
 		for key, id in pairs(Config.Monetization.Products) do
 			if id > 0 and id == receipt.ProductId then
@@ -805,17 +857,30 @@ function ShopService.init()
 		-- Wait for the profile: granting before it loads would be clobbered
 		-- by the stored baseline overwriting the credit.
 		local deadline = os.clock() + 10
-		while not profileReady[player] and os.clock() < deadline do
+		while not profileReady[player] and player.Parent ~= nil and os.clock() < deadline do
 			task.wait(0.25)
 		end
-		if not profileReady[player] then
+		if not profileReady[player] or player.Parent == nil then
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 		local granted = Config.Monetization.ProductGems[productKey] or 0
-		ShopService.grantGems(player, granted)
-		seenReceipts[receipt.PurchaseId] = true
-		print("[RoBall3D] gem pack", productKey, "+", granted, "->", player.Name)
-		return Enum.ProductPurchaseDecision.PurchaseGranted
+		if not seenReceipts[receipt.PurchaseId] and not (receipts[player] or {})[receipt.PurchaseId] then
+			if not receipts[player] then
+				receipts[player] = {}
+			end
+			receipts[player][receipt.PurchaseId] = true
+			seenReceipts[receipt.PurchaseId] = true
+			bank[player] = (bank[player] or 0) + granted
+			player:SetAttribute("RoBallBank", bank[player])
+			print("[RoBall3D] gem pack", productKey, "+", granted, "->", player.Name)
+		end
+		-- The credit is live in-session either way; the ack only means
+		-- "the write landed". Session-marked retries still re-drive the
+		-- durable write so a redelivery can't be acked on memory alone.
+		if saveNowSync(player) then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
 	Players.PlayerRemoving:Connect(function(player)

@@ -78,8 +78,8 @@ local function ensureStores(): boolean
 end
 
 -- Transient backend errors are common enough that a one-shot pcall loses real
--- saves. Linear backoff (1s, 2s, ...); UpdateAsync's internal CAS retry is
--- separate from this.
+-- saves. Exponential backoff (1s, 2s, 4s, capped); UpdateAsync's internal CAS
+-- retry is separate from this.
 local function retry(label: string, fn: () -> ()): boolean
 	local tries = math.max(1, Config.Leaderboard.SaveRetryCount)
 	for i = 1, tries do
@@ -88,7 +88,7 @@ local function retry(label: string, fn: () -> ()): boolean
 			return true
 		end
 		if i < tries then
-			task.wait(i)
+			task.wait(math.min(2 ^ (i - 1), 8))
 		else
 			warn(("[RoBall3D] %s failed after %d tries: %s"):format(label, tries, tostring(err)))
 		end
@@ -159,6 +159,10 @@ export type Profile = {
 	-- Recent runs (§14): newest-first { s=score, d=dist, z=seed } entries,
 	-- capped at Config.Leaderboard.HistoryCount. Display + replay data.
 	history: { { s: number, d: number, z: number } }?,
+	-- Dev-product receipts (§18 P2): PurchaseId -> true — durable dedup so
+	-- a redelivered receipt on any server can find its mark. Marks are set
+	-- before the credit applies, so every snapshot carries them.
+	receipts: { [string]: boolean }?,
 }
 
 function SaveService.loadProfile(userId: number): Profile?
@@ -166,7 +170,12 @@ function SaveService.loadProfile(userId: number): Profile?
 		return nil
 	end
 	local ok, data = pcall(function()
-		return (profileStore :: DataStore):GetAsync("u" .. userId)
+		-- The profile is the authoritative economy record — a same-server
+		-- instant rejoin must not read the ~4s GetAsync cache and then
+		-- write a stale baseline over the save that just landed.
+		local opts = Instance.new("DataStoreGetOptions")
+		opts.UseCache = false
+		return (profileStore :: DataStore):GetAsync("u" .. userId, opts)
 	end)
 	if ok and typeof(data) == "table" then
 		return data
@@ -174,12 +183,134 @@ function SaveService.loadProfile(userId: number): Profile?
 	return nil
 end
 
-function SaveService.saveProfile(userId: number, profile: Profile)
-	if not ensureStores() or not profileStore then
-		return
+-- Field-merge rules for the profile write (hop-safe): ownership and unlock
+-- sets union so concurrent sessions can't lose grants, lifetime counters
+-- keep-max, day-tagged streak/quest state goes to the newer tag, and pref
+-- fields take the newest writer. `bank` is a spendable balance — not a
+-- monotone counter — so it can't merge: the newest snapshot wins it, and
+-- the paid-gem path closes its own race by acking only after the write
+-- lands (ProcessReceipt → saveNowSync). Every rule is idempotent —
+-- UpdateAsync may re-run the transform on CAS contention.
+local function mergeProfiles(stored: any, new: Profile): Profile
+	local s: { [string]: any } = if typeof(stored) == "table" then stored else {}
+	local out: { [string]: any } = {}
+
+	out.equipped = if new.equipped ~= nil then new.equipped else s.equipped
+	out.audio = if new.audio ~= nil then new.audio else s.audio
+	out.hues = if new.hues ~= nil then new.hues else s.hues
+	out.dashMode = if new.dashMode ~= nil then new.dashMode else s.dashMode
+	out.bank = if new.bank ~= nil then new.bank else s.bank
+
+	-- Two shapes: receipts is a {PurchaseId -> true} map (keys matter);
+	-- items/achievements/questDone are id arrays (values matter).
+	local function unionMap(a: any, b: any): { [string]: boolean }
+		local set: { [string]: boolean } = {}
+		for k in pairs(if typeof(a) == "table" then a else {}) do
+			set[k] = true
+		end
+		for k in pairs(if typeof(b) == "table" then b else {}) do
+			set[k] = true
+		end
+		return set
 	end
-	retry("saveProfile", function()
-		(profileStore :: DataStore):SetAsync("u" .. userId, profile)
+	local function unionList(a: any, b: any): { string }
+		local set: { [string]: boolean } = {}
+		for _, v in pairs(if typeof(a) == "table" then a else {}) do
+			set[v] = true
+		end
+		for _, v in pairs(if typeof(b) == "table" then b else {}) do
+			set[v] = true
+		end
+		local list = {}
+		for k in pairs(set) do
+			table.insert(list, k)
+		end
+		table.sort(list)
+		return list
+	end
+
+	out.items = unionList(s.items, new.items)
+	out.achievements = unionList(s.achievements, new.achievements)
+	out.receipts = unionMap(s.receipts, new.receipts)
+
+	out.statsGems = math.max(if typeof(s.statsGems) == "number" then s.statsGems else 0, new.statsGems or 0)
+	out.statsRuns = math.max(if typeof(s.statsRuns) == "number" then s.statsRuns else 0, new.statsRuns or 0)
+	out.statsBestDist =
+		math.max(if typeof(s.statsBestDist) == "number" then s.statsBestDist else 0, new.statsBestDist or 0)
+
+	-- Day tags are %Y%m%d — fixed-width, so string compare orders them.
+	local sDay = if typeof(s.dailyDay) == "string" then s.dailyDay else ""
+	local nDay = new.dailyDay or ""
+	if nDay >= sDay then
+		out.dailyDay = nDay
+		out.dailyStreak = math.max(
+			if nDay == sDay and typeof(s.dailyStreak) == "number" then s.dailyStreak else 0,
+			new.dailyStreak or 0
+		)
+	else
+		out.dailyDay = sDay
+		out.dailyStreak = if typeof(s.dailyStreak) == "number" then s.dailyStreak else 0
+	end
+
+	local sQDay = if typeof(s.questDay) == "string" then s.questDay else ""
+	local nQDay = new.questDay or ""
+	if nQDay > sQDay then
+		out.questDay = nQDay
+		out.questDone = new.questDone or {}
+		out.questBanked = new.questBanked or 0
+	elseif nQDay == sQDay then
+		out.questDay = nQDay
+		out.questDone = unionList(s.questDone, new.questDone)
+		out.questBanked = math.max(if typeof(s.questBanked) == "number" then s.questBanked else 0, new.questBanked or 0)
+	else
+		out.questDay = sQDay
+		out.questDone = if typeof(s.questDone) == "table" then s.questDone else {}
+		out.questBanked = if typeof(s.questBanked) == "number" then s.questBanked else 0
+	end
+
+	-- History: union by (s,d,z), newest-session entries first, capped.
+	local seen: { [string]: boolean } = {}
+	local hist = {}
+	local function pushRows(rows: any, clone: boolean)
+		for _, r in ipairs(if typeof(rows) == "table" then rows else {}) do
+			if
+				typeof(r) == "table"
+				and typeof(r.s) == "number"
+				and typeof(r.d) == "number"
+				and typeof(r.z) == "number"
+			then
+				local k = string.format("%d,%d,%d", r.s, r.d, r.z)
+				if not seen[k] then
+					seen[k] = true
+					table.insert(hist, if clone then { s = r.s, d = r.d, z = r.z } else r)
+				end
+			end
+		end
+	end
+	pushRows(new.history, false)
+	pushRows(s.history, true)
+	while #hist > Config.Leaderboard.HistoryCount do
+		table.remove(hist)
+	end
+	out.history = hist
+
+	return out :: Profile
+end
+
+function SaveService.saveProfile(userId: number, profile: Profile)
+	SaveService.saveProfileSync(userId, profile)
+end
+
+-- The awaited variant: callers that must know the write landed before
+-- answering (dev-product receipts) use this instead of fire-and-forget.
+function SaveService.saveProfileSync(userId: number, profile: Profile): boolean
+	if not ensureStores() or not profileStore then
+		return false
+	end
+	return retry("saveProfile", function()
+		(profileStore :: DataStore):UpdateAsync("u" .. userId, function(old)
+			return mergeProfiles(old, profile)
+		end)
 	end)
 end
 

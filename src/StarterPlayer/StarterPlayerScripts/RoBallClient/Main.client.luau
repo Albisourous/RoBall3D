@@ -177,8 +177,9 @@ local function buildShopOrder()
 	for _, slot in ipairs(Cosmetics.Slots) do
 		local list = {}
 		for _, id in ipairs(Cosmetics.Order[slot]) do
-			local bid = Cosmetics.bundleOf(id)
-			if bid == nil or Daily.rolloutStatus(bid) ~= "later" then
+			-- bestRollout covers shared members: "later" only hides an item
+			-- when EVERY pack containing it is still unreleased.
+			if Cosmetics.bestRollout(id) ~= "later" then
 				table.insert(list, id)
 			end
 		end
@@ -195,6 +196,9 @@ end
 
 local function browseId(slot: string): string?
 	local order = shopOrder[slot] or Cosmetics.Order[slot]
+	if #order == 0 then
+		return nil -- a slot whose catalog is entirely later-waved (math.clamp needs min<=max)
+	end
 	return order[math.clamp(browseIdx[slot] or 1, 1, #order)]
 end
 
@@ -499,6 +503,9 @@ end
 ui.onEquipCycle = function(slot, dir)
 	packPreviewId = nil -- browsing a slot reclaims the preview
 	local order = shopOrder[slot] or Cosmetics.Order[slot]
+	if #order == 0 then
+		return -- nothing browsable in this slot yet (% #order would NaN)
+	end
 	local i = browseIdx[slot] or 1
 	browseIdx[slot] = ((i - 1 + dir) % #order) + 1
 	local id = order[browseIdx[slot]]
@@ -609,9 +616,11 @@ ui.onBuyItem = function(itemId)
 	end
 	-- Weekly drop gate: contents rows of an unreleased pack funnel back to
 	-- the pack row (IN Nd teaser / hidden) instead of a doomed server call.
-	local bid = Cosmetics.bundleOf(itemId)
-	if bid and Daily.rolloutStatus(bid) ~= "live" then
-		ui:focusPack(bid)
+	if Cosmetics.bestRollout(itemId) ~= "live" then
+		local bid = Cosmetics.bundleOf(itemId)
+		if bid then
+			ui:focusPack(bid)
+		end
 		return
 	end
 	pcall(function()
@@ -908,8 +917,12 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	Ghost.stop()
 	Ghost.beginRecord()
 	task.spawn(function()
-		local g = fnGetGhost:InvokeServer(seed)
-		if mode ~= "running" or not g then
+		-- pcall like the sibling board fetch: a server-side error must not
+		-- surface as an unhandled thread error in the client console.
+		local ok, g = pcall(function()
+			return fnGetGhost:InvokeServer(seed)
+		end)
+		if mode ~= "running" or not ok or not g then
 			return
 		end
 		if g.s == seed then

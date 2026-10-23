@@ -1693,6 +1693,19 @@ Config.Monetization = {
 	-- click with no purchase prompt. MUST be false before release —
 	-- production state prompts real dashboard ids, 0-id entries show SOON (§18).
 	FreeForTesting = true,
+	-- Per-player min-interval gates on the shop RemoteFunctions: each
+	-- invoke does catalog work and queues a profile save, so a hand-rolled
+	-- client running at the remote cap would drain the write budget and
+	-- starve legitimate saves. Seconds between accepted calls.
+	RemoteRate = {
+		EquipItem = 0.25,
+		SetAudio = 0.25,
+		SetHues = 0.25,
+		SetDashMode = 0.5,
+		BuyItem = 0.5,
+		BuyPack = 0.5,
+		BuyGems = 0.5,
+	},
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
 		starter = 0, -- STARTER NEON — sunset set + palms world (~49)

@@ -35,6 +35,9 @@ end
 
 -- Deterministic seeded pick shared by the generator and the runtime.
 function SongMap.trackIdFor(seed: number, tracklist: { string }): string
+	if #tracklist == 0 then
+		return "palm_screens" -- empty ActiveTracklist (every AssetId unwired)
+	end
 	return tracklist[seed % #tracklist + 1]
 end
 

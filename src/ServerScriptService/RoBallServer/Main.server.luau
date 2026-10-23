@@ -171,6 +171,27 @@ local lbCooldown: { [Player]: number } = {}
 local statsOf: { [Player]: { best: IntValue, score: IntValue } } = {}
 local nextLane = 0
 
+-- Per-player rate gate on the shop RemoteFunctions (§18): every invoke
+-- does catalog work, writes mirror attributes, and queues a profile save —
+-- spammed at the remote cap that's a DataStore-budget drain plus an attr
+-- flood to every client. Config.Monetization.RemoteRate holds the minimum
+-- seconds between accepted calls per remote; a dropped call just returns
+-- the failure value the client already handles.
+local rateAt: { [Player]: { [string]: number } } = {}
+local function allowRate(player: Player, key: string, minInterval: number): boolean
+	local now = os.clock()
+	local slots = rateAt[player]
+	if not slots then
+		slots = {}
+		rateAt[player] = slots
+	end
+	if now - (slots[key] or -math.huge) < minInterval then
+		return false
+	end
+	slots[key] = now
+	return true
+end
+
 local function randomSeed(): number
 	return math.floor(tick() * 1000) % 2147483647 + math.random(1, 1000000)
 end
@@ -701,8 +722,10 @@ fnGetLeaderboard.OnServerInvoke = function(player, board)
 	return SaveService.getTop(Config.Leaderboard.TopCount, cool)
 end
 
+local RATE = Config.Monetization.RemoteRate
+
 fnEquipItem.OnServerInvoke = function(player, itemId)
-	if typeof(itemId) ~= "string" then
+	if typeof(itemId) ~= "string" or not allowRate(player, "EquipItem", RATE.EquipItem) then
 		return false
 	end
 	return ShopService.equip(player, itemId)
@@ -711,7 +734,12 @@ end
 -- Mixer writes (AUDIO.md §7): pure preference state — validate the
 -- channel + range, then store/mirror like an equip.
 fnSetAudio.OnServerInvoke = function(player, ch, v)
-	if typeof(ch) ~= "string" or typeof(v) ~= "number" or v ~= v then
+	if
+		typeof(ch) ~= "string"
+		or typeof(v) ~= "number"
+		or v ~= v
+		or not allowRate(player, "SetAudio", RATE.SetAudio)
+	then
 		return false
 	end
 	return ShopService.setAudio(player, ch, v)
@@ -720,28 +748,28 @@ end
 -- Dash style (§4): "keys"|"tap" — a control pref, mirrored +
 -- saved like a mixer gain.
 fnSetDashMode.OnServerInvoke = function(player, m)
-	if typeof(m) ~= "string" then
+	if typeof(m) ~= "string" or not allowRate(player, "SetDashMode", RATE.SetDashMode) then
 		return false
 	end
 	return ShopService.setDashMode(player, m)
 end
 
 fnBuyItem.OnServerInvoke = function(player, itemId)
-	if typeof(itemId) ~= "string" then
+	if typeof(itemId) ~= "string" or not allowRate(player, "BuyItem", RATE.BuyItem) then
 		return false, "bad arg"
 	end
 	return ShopService.buyItem(player, itemId)
 end
 
 fnBuyPack.OnServerInvoke = function(player, key)
-	if typeof(key) ~= "string" then
+	if typeof(key) ~= "string" or not allowRate(player, "BuyPack", RATE.BuyPack) then
 		return false, "bad arg"
 	end
 	return ShopService.claimPass(player, key)
 end
 
 fnBuyGems.OnServerInvoke = function(player, key)
-	if typeof(key) ~= "string" then
+	if typeof(key) ~= "string" or not allowRate(player, "BuyGems", RATE.BuyGems) then
 		return false, "bad arg"
 	end
 	return ShopService.claimGemPack(player, key)
@@ -750,7 +778,7 @@ end
 -- COLOR LAB (§18): hue slider releases — the server gates ownership and
 -- clamps the band; the client only suggests.
 fnSetHues.OnServerInvoke = function(player, h)
-	if typeof(h) ~= "table" then
+	if typeof(h) ~= "table" or not allowRate(player, "SetHues", RATE.SetHues) then
 		return false
 	end
 	return ShopService.setHues(player, h)
@@ -884,6 +912,7 @@ Players.PlayerRemoving:Connect(function(player)
 	startCooldown[player] = nil
 	statsOf[player] = nil
 	ghostBusy[player] = nil
+	rateAt[player] = nil
 end)
 
 -- Shutdown flush: PlayerRemoving's task.spawn'd saveBest can lose the race

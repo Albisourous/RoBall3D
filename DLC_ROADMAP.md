@@ -31,6 +31,11 @@ Two packs per week, staggered forever. `Config.Monetization.Rollout`:
   in any wave**; its `Seasonal` yearly window gates it instead.
 - Owned unreleased packs (only possible via debug claims) stay visible
   and usable — the gate blocks acquisition, never use.
+- Item-side membership is a list, not a scalar:
+  `Cosmetics.bestRollout(itemId)` returns `live` if ANY containing pack
+  is live — so shared members (e.g. `world_polar` in `polaris` +
+  `solstice`) can't hide behind whichever bundle `bundleOf` lists first,
+  and a closed seasonal window doesn't count as a live path.
 - Platform caveat: once a real gamepass id exists, a player could buy it
   through the Roblox website regardless of in-game visibility. Harmless
   (ownership is derived from `UserOwnsGamePassAsync`), but don't create

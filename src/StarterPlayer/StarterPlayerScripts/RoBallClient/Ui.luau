@@ -3350,12 +3350,17 @@ end
 
 -- Achievement toast (§14): "◈ NAME · +N gems" — a ribbon for the unlock
 -- moment. Back-to-back unlocks queue visually by overwriting the text.
+local toastGen = 0 -- stale timer guard: only the newest toast hides itself
 function Ui:toast(text: string)
+	toastGen += 1
+	local gen = toastGen
 	self.achToast.Text = text
 	self.achToast.Visible = true
 	local toast = self.achToast
 	task.delay(4, function()
-		toast.Visible = false
+		if gen == toastGen then
+			toast.Visible = false
+		end
 	end)
 end
 

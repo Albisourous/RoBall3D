@@ -1390,7 +1390,8 @@ of the reachable space, and the server re-clamps so a hand-rolled client
 can't mix a lethal look either.
 
 **Persistence**: `RoBall3D_Profile_v1` stores `equipped` ids, the `bank`
-balance, and `items` (ids bought with gems). Bundle ownership is derived
+balance, `items` (ids bought with gems), and `receipts` (paid PurchaseId
+marks — durable dedup for dev-product redelivery). Bundle ownership is derived
 live from `UserOwnsGamePassAsync` so passes are the single source of truth
 for their items and nothing can desync — gem purchases have no platform
 record, so the profile's `items` array is theirs. The server caches
@@ -1421,9 +1422,24 @@ grinding feels fair. `BuyItem` re-validates everything server-side
 (catalog record, ownership, balance), deducts, records the item id, and
 auto-equips — same post-purchase delight rule as bundle passes. Gem packs
 are dev products (`Config.Monetization.Products`): `ProcessReceipt` waits
-for the profile, grants `ProductGems`, and saves immediately before
-returning `PurchaseGranted`; unknown ids or an unready profile return
-`NotProcessedYet` so Roblox retries instead of eating a payment.
+for the profile, marks `PurchaseId` in `profile.receipts` BEFORE crediting
+(so every save carries durable dedup — redelivery on any server finds the
+mark), credits the bank, and only returns `PurchaseGranted` after the
+profile write actually lands — grant, persist, then acknowledge, because
+the ack spends the money and stops redelivery. Unknown ids, an unready
+profile, or a failed-after-retries save return `NotProcessedYet` so
+Roblox retries instead of eating a payment.
+
+**Write discipline**: profile saves coalesce — a burst of `saveNow` calls
+collapses to one in-flight write plus one trailing write of the latest
+snapshot (`RemoteRate` per-remote intervals gate the invokes themselves,
+so a spammed slider/equip can't stack writes per call). `saveProfile`
+writes through `UpdateAsync` with a field merge — ownership/unlock sets
+union, lifetime counters keep-max, day-tagged streak/quest state goes to
+the newer tag — so a fast server-hop can't lose grants to a stale
+snapshot overwrite. `bank` is a spendable balance (not monotone), so it
+follows the newest writer; the paid-gem path is exempt from that race by
+the ack-after-write rule above.
 
 **TRACK row (music packs, early P3)**: a sixth cycler under the equip
 slots picks the run's song — `RANDOM` keeps the seeded pick; a named
@@ -1593,9 +1609,11 @@ whole season ships in one publish — no per-drop code push).
 garage as `IN Nd` teasers (buy disabled, accordion + preview still work
 — hype is free); **later** waves are invisible — no PACKS row, member
 items filtered out of the browse catalog, and the server refuses both
-the bundle claim and à-la-carte gem buys (`buyItem`/`claimPass` gate on
-the `bundleOf` oracle, so a shared member must keep a live-pack listing
-first). The gate blocks acquisition, never use — an owned pack stays
+the bundle claim and à-la-carte gem buys. Item-side checks route through
+`Cosmetics.bestRollout(itemId)` — an item is live if ANY pack containing
+it is live (shared members like `world_polar` can't hide behind an
+unreleased listing), and a closed seasonal window doesn't count as a
+live path. The gate blocks acquisition, never use — an owned pack stays
 playable. `Config.Debug.Enabled` lifts the schedule entirely for dev.
 SOLSTICE stays exempt — the `Seasonal` window is its gate. Passes are
 still created on the dashboard as waves approach; a bought-elsewhere

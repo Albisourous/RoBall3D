@@ -43,7 +43,12 @@ local function hook(part: Instance)
 	if type(kind) ~= "string" or typeof(base) ~= "Vector3" then
 		-- Attributes can replicate a tick after the tag fires — retry
 		-- when the waveform lands instead of silently skipping the mover.
+		-- Arm BOTH signals: whichever field arrives LAST re-triggers —
+		-- a MoverKind that's already set would otherwise dead-end here.
 		p:GetAttributeChangedSignal("MoverKind"):Once(function()
+			hook(p)
+		end)
+		p:GetAttributeChangedSignal("MoverBase"):Once(function()
 			hook(p)
 		end)
 		return

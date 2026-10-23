@@ -11,6 +11,7 @@
 -- family + gold + sun-orange + mono only — red stays lethal.
 
 local Config = require(script.Parent.Config)
+local Daily = require(script.Parent.Daily)
 local Palette = require(script.Parent.Palette)
 
 local Cosmetics = {}
@@ -1048,6 +1049,33 @@ function Cosmetics.bundleOf(itemId: string): string?
 		end
 	end
 	return list[1]
+end
+
+-- Weekly drop gate, item-side (§18): membership is a LIST (world_polar sits
+-- in two packs), so a shared member's release can't hang on which bundle
+-- bundleOf happens to return first — the item is "live" if ANY pack
+-- containing it is live, "next" if one is in teaser range, else "later".
+-- A closed seasonal pack is NOT a live acquisition path: off-season
+-- solstice can't leak world_polar into the shop early.
+function Cosmetics.bestRollout(itemId: string): Daily.RolloutStatus
+	local list = bundleIndex[itemId]
+	if not list then
+		return "live"
+	end
+	local seasonal = Config.Monetization.Seasonal.Bundle
+	local seasonalOpen = Daily.seasonalStatus()
+	local seenNext = false
+	for _, bid in ipairs(list) do
+		if bid ~= seasonal or seasonalOpen then
+			local s = Daily.rolloutStatus(bid)
+			if s == "live" then
+				return "live"
+			elseif s == "next" then
+				seenNext = true
+			end
+		end
+	end
+	return if seenNext then "next" else "later"
 end
 
 -- Does `owned` cover this item? The set mixes bundle keys (pass ownership)
