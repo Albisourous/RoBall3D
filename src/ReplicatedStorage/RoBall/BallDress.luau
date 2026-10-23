@@ -84,9 +84,11 @@ local function syncCap(ball: BasePart, d: number, capsule: boolean)
 			cap.Parent = ball
 		elseif cap then
 			cap:Destroy()
-		elseif ball.Parent then
+		elseif ball.Parent and ball:GetAttribute("CapSeq") == seq then
 			-- CSG unavailable: degrade to a whole-shell red tint so the
 			-- skin still reads "red capsule", just without the split.
+			-- The seq check matters here too — a failed build must not
+			-- tint a ball that was re-dressed mid-flight.
 			ball.Color = Config.Art.CapsuleRed
 		end
 	end)
