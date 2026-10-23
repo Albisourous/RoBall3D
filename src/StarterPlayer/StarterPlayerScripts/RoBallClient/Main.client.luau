@@ -115,6 +115,7 @@ local dashBuffered: { dir: number, at: number }? = nil -- press during burst/coo
 local dashDeniedAt = 0 -- last broke/latched press — Ui flickers the bar dim
 local bestDist = 0 -- RoBallBestDist: the PB gate's z; 0 = no marked record
 local passedBest = false -- set when this run crosses it (one flash only)
+local lastTier = 1 -- tier band for the run's tier-up callout (§9)
 local wasDashing = false
 local stuckT = 0 -- sustained wedge time (§11 unstick hop)
 local unstickUntil = 0 -- hop impulse window
@@ -835,6 +836,7 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	combo = 0
 	lastGemPts = 0
 	passedBest = false
+	lastTier = 1
 	statMaxFwd = 0
 	statBoostDist = 0
 	statGroundT = 0
@@ -1255,7 +1257,12 @@ RunService.Heartbeat:Connect(function(dt)
 	-- tempo, not last frame's.
 	Music.setSpeedNorm((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start))
 	ui:setSpeedo(fwdSpeed, Music.bpm(), powerCharge, boosting, powerSpent, braking, dashing, dashDeniedAt)
-	Music.setTier(Tiers.indexAt(dist)) -- layer mix on tier-ups
+	local tierIdx = Tiers.indexAt(dist)
+	if tierIdx > lastTier then
+		ui:flashTier(tierIdx) -- tier boundary = faster + new hazards (§9)
+	end
+	lastTier = tierIdx
+	Music.setTier(tierIdx) -- layer mix on tier-ups
 	Ghost.tick(dt, b.Position) -- record this run + advance the PB echo
 	-- Pace delta (§12): live "±N vs PB" — ghost position IS the PB's
 	-- position at this elapsed time on this same map.

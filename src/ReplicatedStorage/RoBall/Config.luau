@@ -781,6 +781,7 @@ Config.Score = {
 	PbMarkerViewDist = 140,
 	-- Crossing the line flashes "★ NEW BEST" under the HUD score.
 	PbFlashSeconds = 3,
+	TierFlashSec = 1.6, -- tier-up callout under the score — cue for the speed/hazard step
 	-- Near-miss trickle (§10): crossing a hazard's plane within Range
 	-- studs of its lethal face — or anywhere inside a rotor's marked
 	-- sweep disc — without dying pays Points of score. Per-obstacle,
@@ -1851,7 +1852,7 @@ Config.Debug = {
 	-- GenVerify solvability sweep (DESIGN.md §8.6): Studio-only audit that
 	-- walks seeds asserting corridor/reaction/ballistic invariants on every
 	-- generated chunk. 0 seeds = off (production playtests stay clean).
-	VerifySeeds = 0,
+	VerifySeeds = 8,
 	VerifyChunks = 600,
 	-- Feature-seed runway (DESIGN.md §7): flat approach in front of a
 	-- feature-forced track so the element is visible on the roll-in.

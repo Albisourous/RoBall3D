@@ -1938,6 +1938,23 @@ function Ui.new(): Ui
 	bestGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 170, 120))
 	bestGrad.Parent = bestFlash
 
+	-- Tier-up callout (§9): the tier boundary also widens the chunk pool,
+	-- so crossing one means "faster + new hazards" — a short cyan tag
+	-- under the score pairs the music layer lift with a visual cue.
+	local tierFlash = Instance.new("TextLabel")
+	tierFlash.BackgroundTransparency = 1
+	tierFlash.Font = F_DATA
+	tierFlash.TextSize = 13
+	tierFlash.TextColor3 = C_CYAN
+	tierFlash.TextStrokeTransparency = 0.5
+	tierFlash.TextXAlignment = Enum.TextXAlignment.Right
+	tierFlash.Position = UDim2.fromOffset(0, 118)
+	tierFlash.Size = UDim2.new(1, 0, 0, 16)
+	tierFlash.Text = ""
+	tierFlash.Visible = false
+	tierFlash.Parent = hud
+	self.tierFlash = tierFlash
+
 	-- Pace delta (§12): while the PB echo replays (same-seed runs), a
 	-- persistent "+N vs PB" / "-N vs PB" line — cyan ahead, pink behind.
 	local paceText = Instance.new("TextLabel")
@@ -2923,6 +2940,7 @@ function Ui:showHud()
 	self.menu.Visible = false
 	self.death.Visible = false
 	self.bestFlash.Visible = false -- reset for the new run's own crossing
+	self.tierFlash.Visible = false
 	self.hud.Visible = true
 	self.bpmScope.Visible = true
 	self.powerBar.Visible = true
@@ -3208,6 +3226,17 @@ function Ui:flashBest()
 	local flash = self.bestFlash
 	task.delay(Config.Score.PbFlashSeconds, function()
 		flash.Visible = false
+	end)
+end
+
+-- Tier-up callout (§9): "TIER n" under the score for a beat — pairs the
+-- music layer lift with a visual cue that the speed/hazard band stepped.
+function Ui:flashTier(tierIdx: number)
+	local tag = self.tierFlash
+	tag.Text = string.format("TIER %d", tierIdx)
+	tag.Visible = true
+	task.delay(Config.Score.TierFlashSec, function()
+		tag.Visible = false
 	end)
 end
 
