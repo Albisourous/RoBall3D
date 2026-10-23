@@ -16,8 +16,8 @@ place publishes to the live universe (10771950941 / placeId 129613959669994).
 | Flag | Dev state | Release state | Status |
 |---|---|---|---|
 | `Config.Debug.Enabled` | `true` — feature-seed keywords resolve ("swell", "pressrow", …) and force single-chunk tracks for debugging | **`false`** — keywords become plain hashed seeds | ☐ flip before publish |
-| `Config.Debug.VerifySeeds` | `0` — `GenVerifyRunner` inert in Studio | keep `0` in prod (sweep manually, see §4) | ☐ confirm |
-| `Config.Monetization.FreeForTesting` | ~~`true`~~ | **`false`** — real Marketplace prompts | ☑ done |
+| `Config.Debug.VerifySeeds` | `8` — `GenVerifyRunner` sweeps on every Studio boot (still Studio-only; prod servers never run it) | `0` preferred — silence boot noise; safe either way (Studio gate holds) | ☐ confirm |
+| `Config.Monetization.FreeForTesting` | `true` — **re-enabled deliberately for testing** | **`false`** — real Marketplace prompts | ☐ flip before publish |
 | `Config.Power.Capacity` / `Dash.Cost` | was 10× test values (12 / 0.03) | `1.2` / `0.3` | ☑ done |
 
 Debug runs already cannot touch production state: `run.debug` makes
@@ -27,7 +27,10 @@ entirely.
 
 ## 2. Monetization — Creator Dashboard work (human-blocked today)
 
-- [ ] Create the 11 gamepasses + `bank2x` pass listed in `DLC.md`.
+- [ ] Create the 12 gamepasses + `bank2x` pass listed in `DLC.md`
+      (12 bundle passes: starter, peaks, synthwave, midas, vip, aurora,
+      polaris, acid, reef, null, solstice, apeball — the 8 retired keys
+      in `Config.Monetization.Passes` need no dashboard ids).
 - [ ] Create the 3 developer products (gem packs) listed in `DLC.md`.
 - [ ] Paste real ids into `Config.Monetization.Passes` / `.Products`
       (everything is `0` → shop shows SOON until then — safe, not broken).
@@ -70,9 +73,12 @@ entirely.
       wrong expected type at Studio session/rojo-push transitions — a
       stale reference inside a Studio built-in/plugin asset. Harmless;
       nothing game code can do. Verify in a real client.
-- [x] Menu/stem assets all load; the scope waveform is procedural
-      (`WaveFns`) — no analyzer taps at all.
-- [ ] SFX ids (gem pickup, dash, UI) all resolve.
+- [x] Menu/stem assets all load; the scope waveform rides one
+      `AudioAnalyzer` tap on the music bus (`GetSpectrum` throttled to
+      `Config.Music.AnalyzerHz` — MusicController.luau:337-343,595-605).
+- [x] SFX ids resolve — gem pickup `87429654015431`, dash zip
+      `88208694516408`, both with `rbxasset://` built-in fallbacks so a
+      failed fetch degrades, never silences. Heard live every playtest.
 
 ## 6. Presentation & UX
 
@@ -80,10 +86,12 @@ entirely.
       17 Pro, Galaxy A06 (low-end), iPad Pro M5 13" — pills scale on
       narrow screens, hold buttons clear the TEMPO capsule + radar,
       daily-seed placeholder + coach hint read correctly.
-- [ ] HUD clutter law holds: score top-right, radar right, meter
-      bottom-left, BPM+wave bottom-right — nothing else perma-on-screen.
-- [ ] Menu → run → death → retry and menu → run → death → rerun-seed
-      flows clean; death cam settles; RECENT strip clicks fill the seed box.
+- [x] HUD clutter law holds: score top-right, radar right, meter
+      bottom-left, BPM+wave bottom-right — nothing else perma-on-screen
+      (verified live captures, all device sims).
+- [x] Menu → run → death → retry and menu → run → death → rerun-seed
+      flows clean — exercised across this session's playtests incl. the
+      312 km GradeFloor run; death cam settles, M/R nav on the card.
 
 ## 7. Launch steps (in order)
 

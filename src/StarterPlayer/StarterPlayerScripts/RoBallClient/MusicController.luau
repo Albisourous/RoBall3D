@@ -280,6 +280,15 @@ local function selectTrack(id: string)
 		Music.duck(0.45, 0.35)
 	end
 	buildPlayers(curAssets)
+	-- A swap is a splice, not a stop: the old set was audible so the new
+	-- one starts immediately (Play queues until IsReady). Callers still
+	-- retune speed/volume/position after — onStart's seek, onMenu's speed
+	-- tween. Without this, preview()/onMenu() left the menu bed dead.
+	if wasLive then
+		for _, p in ipairs(players) do
+			p:Play()
+		end
+	end
 end
 
 function Music.init()
