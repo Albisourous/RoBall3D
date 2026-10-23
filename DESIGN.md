@@ -1590,7 +1590,9 @@ construction, not by auditing picks.
 **Seasonal slot**: `Config.Monetization.Seasonal` holds one bundle id plus
 a yearly UTC `[Start, End]` month/day window (wrap-around legal, e.g.
 Dec 15 → Jan 8). Inside the window the pack sells like any other; outside
-it the button reads `IN Nd` (days until opening) and the server refuses
+it the button reads `IN Nd` once the window is within `Seasonal.TeaserDays`
+(14) — a far-out countdown reads as a bug and `IN Nd` already means
+next-wave rollout — and `SOON` otherwise. The server refuses
 both the bundle claim and à-la-carte gem buys of its member items.
 Ownership already granted is permanent — scarcity gates acquisition, not
 use. Currently **SOLSTICE**: the full frost set (skin/trail/gemfx +

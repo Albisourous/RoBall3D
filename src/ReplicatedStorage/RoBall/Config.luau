@@ -2015,13 +2015,17 @@ Config.Monetization = {
 	-- Seasonal slot (§18): ONE rotating bundle gated on a yearly UTC
 	-- window so the garage always has something coming or going. The
 	-- window recurs annually; wrap-around ranges (Dec → Jan) are legal.
-	-- Outside the window the pack button shows "IN Nd" and the server
-	-- refuses the bundle AND its member items à-la-carte — owned pieces
-	-- keep working year-round once granted.
+	-- Outside the window the pack button counts down near the window and
+	-- the server refuses the bundle AND its member items à-la-carte —
+	-- owned pieces keep working year-round once granted.
 	Seasonal = {
 		Bundle = "solstice", -- Cosmetics.Bundles id the window gates
 		Start = { 12, 15 }, -- {month, day} UTC, inclusive
 		End = { 1, 8 }, -- {month, day} UTC, inclusive
+		-- Off-season label: "IN Nd" only reads as a teaser when the window
+		-- is near — further out the row shows SOON (a 53-day countdown
+		-- looks like a bug, and IN Nd already means next-wave rollout).
+		TeaserDays = 14,
 	},
 	-- Weekly DLC rollout (§18 — DLC_ROADMAP.md is the canonical schedule):
 	-- bundle passes unlock in waves of TWO packs, one wave per 7 days, so

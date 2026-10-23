@@ -269,11 +269,18 @@ local function packStates(): { [string]: { label: string, enabled: boolean, visi
 		end
 		-- Seasonal slot (§18): outside the yearly window the pack shows a
 		-- countdown instead of a price — the server refuses the buy too.
+		-- Far-out counts read as SOON: an "IN 53D" looks like a bug, and
+		-- IN Nd already carries the next-wave rollout meaning.
 		if key == Config.Monetization.Seasonal.Bundle and not owned[key] then
 			local live, days = Daily.seasonalStatus()
 			offSeason = not live
 			if offSeason then
-				states[key] = { label = string.format("IN %dD", days), enabled = false }
+				states[key] = {
+					label = if days <= Config.Monetization.Seasonal.TeaserDays
+						then string.format("IN %dD", days)
+						else "SOON",
+					enabled = false,
+				}
 			end
 		end
 		if not offSeason then
