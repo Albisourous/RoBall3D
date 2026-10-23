@@ -19,6 +19,10 @@
 --   "matrix"— MAINFRAME: phosphor code-rain — bright-headed bar columns
 --             falling straight down on real velocities, a dim headless
 --             far field behind them; meteor-style recycle.
+--   "fireworks"
+--           — FESTIVAL: night-fair — ParticleEmitter shells bursting at
+--             random spots beside the lane, a smoke wisp overhead, and
+--             warm lantern festoons sagging across the track.
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
@@ -73,6 +77,7 @@ type Theme =
 	| "reef"
 	| "meteor"
 	| "matrix"
+	| "fireworks"
 	| "palms"
 	| "polar"
 	| "empty"
@@ -111,6 +116,15 @@ type MatrixDrop = { head: Part?, tail: Part, y: number, len: number, speed: numb
 local matrixDrops: { MatrixDrop } = {}
 local matrixSeeded = false
 local matrixClock = os.clock()
+
+-- FESTIVAL pool (§18 "fireworks") — same lazy-build / park-on-swap contract.
+type FireLauncher = { part: Part, emitter: ParticleEmitter, nextAt: number }
+type Festoon = { poles: { Part }, beads: { Part }, z: number }
+local fireLaunchers: { FireLauncher } = {}
+local fireSmoke: { part: Part, emitter: ParticleEmitter }? = nil
+local festoons: { Festoon } = {}
+local lanternFrontZ = 0
+local fireSeeded = false
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
 -- lazy/park contract.
@@ -887,6 +901,174 @@ local function stepMatrix(anchor: Vector3, dt: number)
 	matrixSeeded = true
 end
 
+--=========================== FESTIVAL (fireworks) =========================--
+-- Night-fair (§18 "fireworks" world): invisible launcher parts each hold
+-- a Rate=0 burst emitter — on its own timer a launcher fires one shell
+-- (Emit), then relocates to a fresh spot in the span ahead so bursts
+-- never repeat from the same point. One slow smoke wisp rides overhead,
+-- and festoon strings of warm lantern beads sag across the lane on the
+-- palm frontier.
+
+local FIRE_COLORS = {
+	ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 170)),
+		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 176, 64)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 90, 40)),
+	}),
+	ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 200, 255)),
+		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(175, 80, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 60, 180)),
+	}),
+	ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 255, 230)),
+		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(120, 230, 180)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 140, 110)),
+	}),
+}
+local LANTERN_WARM = Color3.fromRGB(255, 190, 90)
+local LANTERN_POLE = Color3.fromRGB(30, 22, 40)
+
+local function makeFirePart(parent: Instance): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Transparency = 1
+	p.Size = Vector3.one
+	p.CFrame = PARK
+	p.Parent = parent
+	return p
+end
+
+local function makeLauncher(parent: Instance, i: number): FireLauncher
+	local p = makeFirePart(parent)
+	local em = Instance.new("ParticleEmitter")
+	em.Texture = Art.PolarTexture
+	em.Color = FIRE_COLORS[(i - 1) % #FIRE_COLORS + 1]
+	em.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.7, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	em.Brightness = 2
+	em.LightEmission = 1
+	em.LightInfluence = 0
+	em.Orientation = Enum.ParticleOrientation.VelocityParallel -- radial streaks
+	em.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.6),
+		NumberSequenceKeypoint.new(1, 0.2),
+	})
+	em.Lifetime = NumberRange.new(1.0, 1.8)
+	em.Rate = 0 -- shells fire on Emit() only
+	em.Speed = NumberRange.new(35, 85)
+	em.SpreadAngle = Vector2.new(180, 180)
+	em.Drag = 1.5 -- the arc settles instead of flying forever
+	em.EmissionDirection = Enum.NormalId.Top
+	em.Enabled = false
+	em.Parent = p
+	return { part = p, emitter = em, nextAt = 0 }
+end
+
+local function layLauncher(l: FireLauncher, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(0, Art.FireworkSpan)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local x = anchor.X + side * rng:NextNumber(Art.FireworkMinX, Art.FireworkMaxX)
+	local y = deckEst(anchor, z) + rng:NextNumber(Art.FireworkAltMin, Art.FireworkAltMax)
+	l.part.CFrame = CFrame.new(x, y, z)
+end
+
+local function layFestoon(f: Festoon, anchor: Vector3, z: number)
+	local deckY = deckEst(anchor, z)
+	local topY = deckY + Art.LanternPoleH
+	for i, pole in ipairs(f.poles) do
+		local px = anchor.X + (if i == 1 then -Art.LanternPoleX else Art.LanternPoleX)
+		pole.Size = Vector3.new(0.5, Art.LanternPoleH, 0.5)
+		pole.CFrame = CFrame.new(px, deckY + Art.LanternPoleH / 2, z)
+		pole.Color = LANTERN_POLE
+	end
+	local n = #f.beads
+	for i, bead in ipairs(f.beads) do
+		local t = (i - 1) / (n - 1)
+		local x = anchor.X - Art.LanternPoleX + 2 * Art.LanternPoleX * t
+		-- Shallow catenary sag: 4·t·(1-t) peaks at 1 mid-string.
+		local y = topY - Art.LanternSag * 4 * t * (1 - t)
+		bead.Shape = Enum.PartType.Ball
+		bead.Size = Vector3.one * 0.9
+		bead.Color = if i % 3 == 2 then WHITE else LANTERN_WARM
+		bead.Position = Vector3.new(x, y, z)
+	end
+	f.z = z
+end
+
+local function ensureFireworks()
+	if #fireLaunchers > 0 then
+		return
+	end
+	for i = 1, Art.FireworkLaunchers do
+		table.insert(fireLaunchers, makeLauncher(root, i))
+	end
+	local p = makeFirePart(root)
+	local em = Instance.new("ParticleEmitter")
+	em.Texture = Art.PolarTexture
+	em.Color = ColorSequence.new(Color3.fromRGB(150, 140, 170))
+	em.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.85),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	em.LightEmission = 0
+	em.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 6),
+		NumberSequenceKeypoint.new(1, 18),
+	})
+	em.Lifetime = NumberRange.new(4, 7)
+	em.Rate = 1.5
+	em.Speed = NumberRange.new(1.5, 4)
+	em.SpreadAngle = Vector2.new(25, 25)
+	em.Drag = 0.4
+	em.EmissionDirection = Enum.NormalId.Top
+	em.Enabled = false
+	em.Parent = p
+	fireSmoke = { part = p, emitter = em }
+	for _ = 1, Art.LanternRows do
+		local f: Festoon = { poles = {}, beads = {}, z = math.huge }
+		for _ = 1, 2 do
+			table.insert(f.poles, makePeakPart(root, false))
+		end
+		for _ = 1, Art.LanternBeads do
+			table.insert(f.beads, makePeakPart(root, true))
+		end
+		table.insert(festoons, f)
+	end
+end
+
+local function stepFireworks(anchor: Vector3, now: number)
+	for _, l in ipairs(fireLaunchers) do
+		if now >= l.nextAt then
+			l.emitter:Emit(Art.FireworkBurst) -- world-space: relocating loses nothing
+			layLauncher(l, anchor)
+			l.nextAt = now + rng:NextNumber(Art.FireworkEveryMin, Art.FireworkEveryMax)
+		end
+	end
+	local smoke = fireSmoke
+	if smoke then
+		smoke.emitter.Enabled = true
+		smoke.part.CFrame = CFrame.new(anchor.X, deckEst(anchor, anchor.Z - 400) + Art.FireworkSmokeAlt, anchor.Z - 400)
+	end
+	if not fireSeeded then
+		lanternFrontZ = anchor.Z + BACK_MARGIN
+		fireSeeded = true
+	end
+	for _, f in ipairs(festoons) do
+		if f.z > anchor.Z + BACK_MARGIN then
+			lanternFrontZ -= Art.LanternSpacing
+			layFestoon(f, anchor, lanternFrontZ)
+		end
+	end
+end
+
 --============================ PALMS ============================--
 -- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
 -- blades fanning out of the crown on cyan→magenta, two bead coconuts.
@@ -1441,6 +1623,26 @@ local function parkMatrix()
 	matrixSeeded = false
 end
 
+local function parkFireworks()
+	for _, l in ipairs(fireLaunchers) do
+		parkPart(l.part)
+	end
+	local smoke = fireSmoke
+	if smoke then
+		smoke.emitter.Enabled = false -- parked emitters would still churn
+		parkPart(smoke.part)
+	end
+	for _, f in ipairs(festoons) do
+		for _, p in ipairs(f.poles) do
+			parkPart(p)
+		end
+		for _, p in ipairs(f.beads) do
+			parkPart(p)
+		end
+	end
+	fireSeeded = false
+end
+
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -1490,6 +1692,7 @@ local parkers: { [Theme]: () -> () } = {
 	reef = parkReef,
 	meteor = parkMeteors,
 	matrix = parkMatrix,
+	fireworks = parkFireworks,
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
@@ -1505,6 +1708,7 @@ local THEMES: { [string]: Theme } = {
 	reef = "reef",
 	meteor = "meteor",
 	matrix = "matrix",
+	fireworks = "fireworks",
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
@@ -1693,6 +1897,14 @@ function Backdrop.update(anchor: Vector3)
 		local dt = math.clamp(now - matrixClock, 0, 0.12)
 		matrixClock = now
 		stepMatrix(anchor, dt)
+		return
+	end
+
+	-- FESTIVAL (§18 "fireworks"): shells on per-launcher timers, wisp +
+	-- festoons on the palm frontier cadence.
+	if theme == "fireworks" then
+		ensureFireworks()
+		stepFireworks(anchor, os.clock())
 		return
 	end
 
@@ -2005,6 +2217,38 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			local tail = makePeakPart(parent, true)
 			tail.Color = MATRIX_FAR
 			layMatrixDrop({ tail = tail, y = 0, len = 0, speed = 0, far = true }, anchor)
+		end
+		return
+	end
+	if t == "fireworks" then
+		-- ParticleEmitters don't render inside a ViewportFrame — sell the
+		-- burst as a frozen shell: a sparse sphere of tiny neon beads at
+		-- random launch spots, same anchor math as layLauncher. Festoons
+		-- are real parts — they preview for free.
+		for i = 1, Art.FireworkLaunchers do
+			local z = anchor.Z - rng:NextNumber(0, Art.FireworkSpan)
+			local side = if rng:NextNumber() < 0.5 then -1 else 1
+			local cx = anchor.X + side * rng:NextNumber(Art.FireworkMinX, Art.FireworkMaxX)
+			local cy = deckEst(anchor, z) + rng:NextNumber(Art.FireworkAltMin, Art.FireworkAltMax)
+			local shell = FIRE_COLORS[(i - 1) % #FIRE_COLORS + 1].Keypoints[2].Value
+			for _ = 1, 10 do
+				local s = makePeakPart(parent, true)
+				s.Shape = Enum.PartType.Ball
+				s.Size = Vector3.one * rng:NextNumber(0.6, 1.4)
+				s.Color = shell
+				local dir = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-1, 1), rng:NextNumber(-1, 1)).Unit
+				s.Position = Vector3.new(cx, cy, z) + dir * rng:NextNumber(6, 22)
+			end
+		end
+		for _ = 1, Art.LanternRows do
+			local f: Festoon = { poles = {}, beads = {}, z = math.huge }
+			for _ = 1, 2 do
+				table.insert(f.poles, makePeakPart(parent, false))
+			end
+			for _ = 1, Art.LanternBeads do
+				table.insert(f.beads, makePeakPart(parent, true))
+			end
+			layFestoon(f, anchor, anchor.Z + BACK_MARGIN - rng:NextNumber(0, Art.LanternRows * Art.LanternSpacing))
 		end
 		return
 	end

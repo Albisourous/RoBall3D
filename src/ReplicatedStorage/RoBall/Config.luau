@@ -1407,6 +1407,27 @@ Config.Art = {
 	MatrixLenMin = 8, -- tail bar length, studs
 	MatrixLenMax = 22,
 	MatrixDrop = 140, -- respawn once the head sinks this far under the deck
+	-- FESTIVAL (§18 world "fireworks"): night-fair — launcher parts burst
+	-- real ParticleEmitter shells at random spots ahead (Emit on a
+	-- per-launcher timer, then the launcher relocates), one smoke wisp
+	-- drifts the haze overhead, and festoon strings of warm lantern
+	-- beads sag across the lane on a palm-style z-frontier.
+	FireworkLaunchers = 6,
+	FireworkSpan = 900, -- z window ahead shells land in
+	FireworkMinX = 50, -- lateral shell band around the lane
+	FireworkMaxX = 170,
+	FireworkAltMin = 30, -- burst height above the deck plane
+	FireworkAltMax = 110,
+	FireworkEveryMin = 0.8, -- per-launcher seconds between shells
+	FireworkEveryMax = 2.4,
+	FireworkBurst = 26, -- particles per Emit call
+	FireworkSmokeAlt = 120, -- wisp emitter height above the deck
+	LanternRows = 5, -- festoons hanging across the lane
+	LanternBeads = 9, -- bulbs per string
+	LanternSpacing = 110, -- z gap between festoons
+	LanternSag = 6, -- peak-to-middle droop, studs
+	LanternPoleX = 34, -- posts this far off lane center
+	LanternPoleH = 20,
 	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
 	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
 	-- rustle a few degrees on wall-clock sine; bases sit just under the
@@ -1618,6 +1639,15 @@ Config.Art = {
 			-- block, stripes only ghosting through the bottom sliver.
 			top = Color3.fromRGB(190, 255, 220),
 			bottom = Color3.fromRGB(60, 200, 110),
+			solid = 0.85,
+			gap = 0.4,
+			scale = 0.85,
+		},
+		lantern = {
+			-- FESTIVAL pack: a warm paper-lantern moon — dense warm disk
+			-- cooling to dusk embers at the rim.
+			top = Color3.fromRGB(255, 200, 140),
+			bottom = Color3.fromRGB(200, 120, 80),
 			solid = 0.85,
 			gap = 0.4,
 			scale = 0.85,
