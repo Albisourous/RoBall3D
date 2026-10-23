@@ -1388,6 +1388,25 @@ Config.Art = {
 	MeteorDrop = 160, -- respawn once this far below the deck plane
 	MeteorValue = 1.0,
 	MeteorWhite = 0.45, -- fraction painted pure white (hot heads)
+	-- MAINFRAME rain (§18 world "matrix"): vertical code-rain — bar
+	-- columns with bright heads falling on real velocities, recycled
+	-- meteor-style past the deck or behind the ball. A dim far field of
+	-- headless bars sells the depth the near rain can't reach.
+	MatrixDrops = 26, -- near rain columns (head + tail bar each)
+	MatrixFar = 18, -- dim far-field bars, no heads
+	MatrixSpan = 1200, -- z window ahead of the ball they spawn inside
+	MatrixMinX = 44, -- near lateral band around the lane
+	MatrixMaxX = 300,
+	MatrixFarMinX = 320, -- the far field sits past the near band entirely
+	MatrixFarMaxX = 620,
+	MatrixAltMin = 30, -- spawn height above the deck plane
+	MatrixAltMax = 220,
+	MatrixSpeedMin = 55, -- studs/s fall rate (near)
+	MatrixSpeedMax = 115,
+	MatrixFarSpeed = 0.5, -- far-field fall rate as a share of near
+	MatrixLenMin = 8, -- tail bar length, studs
+	MatrixLenMax = 22,
+	MatrixDrop = 140, -- respawn once the head sinks this far under the deck
 	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
 	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
 	-- rustle a few degrees on wall-clock sine; bases sit just under the
@@ -1593,6 +1612,15 @@ Config.Art = {
 			solid = 0.85,
 			gap = 0.4,
 			scale = 1,
+		},
+		cursor = {
+			-- MAINFRAME pack: a terminal caret — mostly-solid pale-phosphor
+			-- block, stripes only ghosting through the bottom sliver.
+			top = Color3.fromRGB(190, 255, 220),
+			bottom = Color3.fromRGB(60, 200, 110),
+			solid = 0.85,
+			gap = 0.4,
+			scale = 0.85,
 		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.

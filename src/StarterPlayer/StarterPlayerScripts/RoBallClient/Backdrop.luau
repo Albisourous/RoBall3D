@@ -16,6 +16,9 @@
 --             kelp on a wireframe reef.
 --   "meteor"— METEOR SHOWER: thin neon streaks slanting through the sky
 --             on real velocities, respawning ahead.
+--   "matrix"— MAINFRAME: phosphor code-rain — bright-headed bar columns
+--             falling straight down on real velocities, a dim headless
+--             far field behind them; meteor-style recycle.
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
@@ -69,6 +72,7 @@ type Theme =
 	| "aurora"
 	| "reef"
 	| "meteor"
+	| "matrix"
 	| "palms"
 	| "polar"
 	| "empty"
@@ -101,6 +105,12 @@ type Meteor = { part: Part, vel: Vector3, speed: number }
 local meteors: { Meteor } = {}
 local meteorSeeded = false
 local meteorClock = os.clock() -- dt source for real streak motion
+
+-- MAINFRAME pool (§18 "matrix") — same lazy-build / park-on-swap contract.
+type MatrixDrop = { head: Part?, tail: Part, y: number, len: number, speed: number, far: boolean }
+local matrixDrops: { MatrixDrop } = {}
+local matrixSeeded = false
+local matrixClock = os.clock()
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
 -- lazy/park contract.
@@ -811,6 +821,72 @@ local function stepMeteors(anchor: Vector3, dt: number)
 	meteorSeeded = true
 end
 
+--=========================== MAINFRAME (matrix) ==========================--
+-- Green-phosphor code-rain (§18 "matrix" world): near columns fall as a
+-- bright head leading a tail bar on real velocities; a dim far field of
+-- headless bars sells the depth. Meteor-style recycle — spent drops
+-- respawn somewhere in the span ahead.
+
+local MATRIX_HEAD = Color3.fromRGB(190, 255, 220)
+local MATRIX_TAIL = Color3.fromRGB(80, 255, 120)
+local MATRIX_FAR = Color3.fromRGB(16, 70, 34)
+
+local function ensureMatrix()
+	if #matrixDrops > 0 then
+		return
+	end
+	for _ = 1, Art.MatrixDrops do
+		local tail = makePeakPart(root, true)
+		tail.Color = MATRIX_TAIL
+		local head = makePeakPart(root, true)
+		head.Color = MATRIX_HEAD
+		table.insert(matrixDrops, { head = head, tail = tail, y = 0, len = 0, speed = 0, far = false })
+	end
+	for _ = 1, Art.MatrixFar do
+		local tail = makePeakPart(root, true)
+		tail.Color = MATRIX_FAR
+		table.insert(matrixDrops, { tail = tail, y = 0, len = 0, speed = 0, far = true })
+	end
+end
+
+local function layMatrixDrop(m: MatrixDrop, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(0, Art.MatrixSpan)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local xMin = if m.far then Art.MatrixFarMinX else Art.MatrixMinX
+	local xMax = if m.far then Art.MatrixFarMaxX else Art.MatrixMaxX
+	local x = anchor.X + side * rng:NextNumber(xMin, xMax)
+	m.y = deckEst(anchor, z) + rng:NextNumber(Art.MatrixAltMin, Art.MatrixAltMax)
+	m.len = rng:NextNumber(Art.MatrixLenMin, Art.MatrixLenMax)
+	m.speed = rng:NextNumber(Art.MatrixSpeedMin, Art.MatrixSpeedMax) * (if m.far then Art.MatrixFarSpeed else 1)
+	local tail = m.tail
+	tail.Size = Vector3.new(0.7, m.len, 0.7)
+	tail.CFrame = CFrame.new(x, m.y + m.len / 2, z)
+	local head = m.head
+	if head then
+		head.Size = Vector3.new(1.1, 1.1, 1.1)
+		head.CFrame = CFrame.new(x, m.y, z)
+	end
+end
+
+local function stepMatrix(anchor: Vector3, dt: number)
+	for _, m in ipairs(matrixDrops) do
+		m.y -= m.speed * dt
+		local tail = m.tail
+		local z = tail.Position.Z
+		if not matrixSeeded or m.y < deckEst(anchor, z) - Art.MatrixDrop or z > anchor.Z + 40 then
+			layMatrixDrop(m, anchor)
+		else
+			local x = tail.Position.X
+			tail.Position = Vector3.new(x, m.y + m.len / 2, z)
+			local head = m.head
+			if head then
+				head.Position = Vector3.new(x, m.y, z)
+			end
+		end
+	end
+	matrixSeeded = true
+end
+
 --============================ PALMS ============================--
 -- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
 -- blades fanning out of the crown on cyan→magenta, two bead coconuts.
@@ -1355,6 +1431,16 @@ local function parkMeteors()
 	meteorSeeded = false
 end
 
+local function parkMatrix()
+	for _, m in ipairs(matrixDrops) do
+		parkPart(m.tail)
+		if m.head then
+			parkPart(m.head)
+		end
+	end
+	matrixSeeded = false
+end
+
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -1403,6 +1489,7 @@ local parkers: { [Theme]: () -> () } = {
 	aurora = parkAurora,
 	reef = parkReef,
 	meteor = parkMeteors,
+	matrix = parkMatrix,
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
@@ -1417,6 +1504,7 @@ local THEMES: { [string]: Theme } = {
 	aurora = "aurora",
 	reef = "reef",
 	meteor = "meteor",
+	matrix = "matrix",
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
@@ -1594,6 +1682,17 @@ function Backdrop.update(anchor: Vector3)
 		local dt = math.clamp(now - meteorClock, 0, 0.12)
 		meteorClock = now
 		stepMeteors(anchor, dt)
+		return
+	end
+
+	-- MAINFRAME (§18 "matrix"): code-rain falls on real velocities like
+	-- the meteors — same wall-clock dt, same clamp.
+	if theme == "matrix" then
+		ensureMatrix()
+		local now = os.clock()
+		local dt = math.clamp(now - matrixClock, 0, 0.12)
+		matrixClock = now
+		stepMatrix(anchor, dt)
 		return
 	end
 
@@ -1889,6 +1988,23 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 	if t == "meteor" then
 		for _ = 1, Art.MeteorCount do
 			layMeteor({ part = makePeakPart(parent, true), vel = Vector3.new(0, -1, 0), speed = 0 }, anchor)
+		end
+		return
+	end
+	if t == "matrix" then
+		-- Frozen mid-fall scatter: same lay math, no stepping — heads and
+		-- tails are plain parts, so the preview is the real thing.
+		for _ = 1, Art.MatrixDrops do
+			local tail = makePeakPart(parent, true)
+			tail.Color = MATRIX_TAIL
+			local head = makePeakPart(parent, true)
+			head.Color = MATRIX_HEAD
+			layMatrixDrop({ head = head, tail = tail, y = 0, len = 0, speed = 0, far = false }, anchor)
+		end
+		for _ = 1, Art.MatrixFar do
+			local tail = makePeakPart(parent, true)
+			tail.Color = MATRIX_FAR
+			layMatrixDrop({ tail = tail, y = 0, len = 0, speed = 0, far = true }, anchor)
 		end
 		return
 	end

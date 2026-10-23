@@ -53,7 +53,7 @@ Drops land Mondays 00:00 UTC. Order alternates price tiers and mood
 | W3 | 2026-11-09 | AURORA `aurora` R$149 | NEON REEF `reef` R$199 | shipped |
 | W4 | 2026-11-16 | VOID VIP `vip` R$199 | NULL `null` R$149 | shipped |
 | W5 | 2026-11-23 | POLARIS `polaris` R$149 | APE BALL `apeball` R$199 | shipped |
-| W6 | 2026-11-30 | MAINFRAME `mainframe` R$149 | FESTIVAL `festival` R$149 | **designed** (§3) |
+| W6 | 2026-11-30 | MAINFRAME `mainframe` R$149 | FESTIVAL `festival` R$149 | mainframe **built** · festival **designed** (§3) |
 | W7 | 2026-12-07 | HYPNOTUBE `hypnotube` R$149 | CATHEDRAL `cathedral` R$199 | **designed** (§3) |
 | W8 | 2026-12-14 | PAPERCRAFT `papercraft` R$149 | MYCELIUM `mycelium` R$149 | **designed** (§3) |
 | W9 | 2026-12-21 | INKWELL `inkwell` R$149 | HYPERDRIVE `hyperdrive` R$199 | **designed** (§3) |

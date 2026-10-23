@@ -39,7 +39,7 @@ Cosmetics.SlotName = {
 --   deathFx: style "pop"|"shatter"|"nova"|"implode"|"geyser"|"corona",
 --            colorA/colorB accents
 --   world:   theme "city"|"peaks"|"void"|"grid"|"aurora"|"reef"|"meteor"|
---            "palms"|"polar" — picks the scenery Backdrop draws
+--            "matrix"|"palms"|"polar" — picks the scenery Backdrop draws
 --   floor:   deck = slab base color (still DeckTint-lerped toward the
 --            palette unless deckB is set); deckB + deckCell = checker
 --            partner color + tile size in studs (no palette lerp);
@@ -107,6 +107,9 @@ local LIME = Color3.fromRGB(170, 255, 60) -- toxic/acid family
 local MINT = Color3.fromRGB(140, 255, 220)
 local PEACH = Color3.fromRGB(255, 196, 140)
 local BANANA = Color3.fromRGB(255, 226, 92) -- ape-ball toy family
+local PHOSPHOR = Color3.fromRGB(80, 255, 120) -- mainframe terminal green
+local PHOSPHOR_HI = Color3.fromRGB(190, 255, 220) -- phosphor near-white
+local PHOSPHOR_MID = Color3.fromRGB(140, 255, 180) -- phosphor mid
 
 Cosmetics.Items = {
 	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball
@@ -302,6 +305,16 @@ Cosmetics.Items = {
 	-- a glossy two-tone capsule ball: half-clear Glass shell under a
 	-- translucent red hemisphere cap, the split tumbling with the roll
 	-- (BallDress.buildCap CSG hemisphere, APEBALL.md §2).
+	skin_mainframe = {
+		slot = "skin",
+		name = "MAINFRAME",
+		gemPrice = 800,
+		ringA = PHOSPHOR,
+		ringB = PHOSPHOR_HI,
+		core = Color3.fromRGB(10, 26, 14),
+		fx = "pulse",
+		gemShape = "rod", -- code-rain bars
+	},
 	skin_capsule = {
 		slot = "skin",
 		name = "CAPSULE",
@@ -333,6 +346,7 @@ Cosmetics.Items = {
 	trail_null = { slot = "trail", name = "DRIFT", gemPrice = 450, color = SILVER },
 	trail_ridgeline = { slot = "trail", name = "RIDGELINE", gemPrice = 450, color = AURORA_B },
 	trail_banana = { slot = "trail", name = "BANANA WAKE", gemPrice = 450, color = BANANA },
+	trail_stream = { slot = "trail", name = "DATASTREAM", gemPrice = 450, color = PHOSPHOR },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -353,6 +367,7 @@ Cosmetics.Items = {
 	gemfx_null = { slot = "gemFx", name = "NULL POP", gemPrice = 400, color = SILVER },
 	gemfx_peak = { slot = "gemFx", name = "PEAK POP", gemPrice = 400, color = AURORA_B },
 	gemfx_banana = { slot = "gemFx", name = "BANANA POP", gemPrice = 400, color = BANANA },
+	gemfx_decrypt = { slot = "gemFx", name = "DECRYPT", gemPrice = 400, color = PHOSPHOR_MID },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -491,6 +506,14 @@ Cosmetics.Items = {
 		colorA = BANANA,
 		colorB = WHITE,
 	},
+	deathfx_segfault = {
+		slot = "deathFx",
+		name = "SEGFAULT",
+		gemPrice = 550,
+		style = "shatter",
+		colorA = PHOSPHOR,
+		colorB = PHOSPHOR_HI,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -507,6 +530,7 @@ Cosmetics.Items = {
 	-- gemStyle "ball" restyles every pickup as a banana-yellow capsule orb
 	-- (TrackStreamer stamps it server-side; §8.4).
 	world_sky = { slot = "world", name = "SKY COURT", gemPrice = 900, theme = "sky", gemStyle = "ball" },
+	world_matrix = { slot = "world", name = "MAINFRAME", gemPrice = 900, theme = "matrix" },
 
 	--==== FLOOR — the deck slab itself (TrackStreamer/CosmeticFx restyle
 	-- it). `deck` is the lane base color, still lerped toward the run
@@ -538,6 +562,13 @@ Cosmetics.Items = {
 		edge = Color3.fromRGB(28, 110, 50), -- grass-green rails, far from lethal
 		plain = true, -- the checker IS the pattern — no grid strips/center line
 	},
+	floor_matrix = {
+		slot = "floor",
+		name = "CIRCUIT DECK",
+		gemPrice = 350,
+		deck = Color3.fromRGB(8, 14, 10),
+		edge = PHOSPHOR,
+	},
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -555,6 +586,7 @@ Cosmetics.Items = {
 	sun_null = { slot = "sun", name = "DEAD SUN", gemPrice = 600, sun = "null" },
 	sun_alpine = { slot = "sun", name = "ALPINE SUN", gemPrice = 600, sun = "alpine" },
 	sun_noon = { slot = "sun", name = "HIGH NOON", gemPrice = 600, sun = "noon" },
+	sun_cursor = { slot = "sun", name = "TERMINAL SUN", gemPrice = 600, sun = "cursor" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
 	-- renders it under the HUD so text stays readable). One per bundle:
@@ -612,6 +644,15 @@ Cosmetics.Items = {
 		filter = "tint",
 		tint = Color3.fromRGB(150, 200, 255),
 	},
+	filter_terminal = {
+		slot = "filter",
+		name = "TERMINAL",
+		gemPrice = 500,
+		filter = "scan",
+		pitch = 6,
+		bar = 1,
+		alpha = 0.28,
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -637,6 +678,7 @@ Cosmetics.Order = {
 		"skin_null",
 		"skin_summit",
 		"skin_capsule",
+		"skin_mainframe",
 	},
 	trail = {
 		"trail_none",
@@ -658,6 +700,7 @@ Cosmetics.Order = {
 		"trail_null",
 		"trail_ridgeline",
 		"trail_banana",
+		"trail_stream",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -678,6 +721,7 @@ Cosmetics.Order = {
 		"gemfx_null",
 		"gemfx_peak",
 		"gemfx_banana",
+		"gemfx_decrypt",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -697,6 +741,7 @@ Cosmetics.Order = {
 		"deathfx_null",
 		"deathfx_landslide",
 		"deathfx_party",
+		"deathfx_segfault",
 	},
 	world = {
 		"world_city",
@@ -711,6 +756,7 @@ Cosmetics.Order = {
 		"world_empty",
 		"world_toxic",
 		"world_sky",
+		"world_matrix",
 	},
 	floor = {
 		"floor_neon",
@@ -727,6 +773,7 @@ Cosmetics.Order = {
 		"floor_trench",
 		"floor_blackout",
 		"floor_check",
+		"floor_matrix",
 	},
 	sun = {
 		"sun_classic",
@@ -742,6 +789,7 @@ Cosmetics.Order = {
 		"sun_null",
 		"sun_alpine",
 		"sun_noon",
+		"sun_cursor",
 	},
 	filter = {
 		"filter_off",
@@ -757,6 +805,7 @@ Cosmetics.Order = {
 		"filter_soot",
 		"filter_thinair",
 		"filter_day",
+		"filter_terminal",
 	},
 } :: { [string]: { string } }
 
@@ -972,6 +1021,23 @@ Cosmetics.Bundles = {
 			"deathfx_party",
 			"sun_noon",
 			"filter_day",
+		},
+	},
+	{
+		-- W6-A (DLC_ROADMAP.md §3): green-phosphor terminal set — code-rain
+		-- world, caret sun, raster filter.
+		id = "mainframe",
+		name = "MAINFRAME",
+		desc = "full phosphor set · code-rain world",
+		items = {
+			"skin_mainframe",
+			"world_matrix",
+			"floor_matrix",
+			"trail_stream",
+			"gemfx_decrypt",
+			"deathfx_segfault",
+			"sun_cursor",
+			"filter_terminal",
 		},
 	},
 }
