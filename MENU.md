@@ -146,9 +146,9 @@ The fuller port shipped: three procedural **track jackets**
 is `energy` and whose tint marks `kind` — the track's cover *is* its
 intensity curve, the same read osu's star graph gives. Side cards sit
 dimmed at `Jacket.SideDim`; the current card wears an accentA stroke
-and a name plate. RANDOM draws a `?` card. A stat caption under the
-strip reads `BPM · s · SECTIONS` ("the seed picks the song" for
-RANDOM), and one wheel notch cycles one card.
+and a name plate. RANDOM draws a `?` card. A stat caption rides the
+header's right edge — `TRACK · 110 BPM · 35s · 2 SECTIONS` ("the seed
+picks the song" for RANDOM) — and one wheel notch cycles one card.
 
 ```luau
 -- Jacket face (MENU.md §4): SongMap.sections -> a strip of energy bars.
@@ -278,7 +278,7 @@ Config.Menu = {
 	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
 	SpringDtMax = 1 / 20, -- §4 frame dt cap — a hitch must not slingshot
 	JacketPx = 40, -- §4 cycler overshoot amplitude in px
-	Jacket = { W = 104, H = 58, Gap = 14, SideDim = 0.5 }, -- §4 cards
+	Jacket = { W = 104, H = 52, Gap = 14, SideDim = 0.5 }, -- §4 cards
 	-- §5: no UiTick block — the menu is deliberately SFX-free.
 	StampSec = 0.25, -- §7 death-hero stamp duration
 	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
