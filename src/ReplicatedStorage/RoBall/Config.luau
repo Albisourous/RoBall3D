@@ -256,6 +256,10 @@ Config.Generation = {
 	-- one heartbeat with ~10 chunks (worse when several runs start
 	-- together).
 	ChunkBuildsPerFrame = 1,
+	-- Per-player RequestStart throttle: a start/restart rebuilds the
+	-- whole streamer — spam (double-click PLAY, R mashing) would churn
+	-- chunk builds for nothing. 0.35s sits below real retry cadence.
+	StartCooldown = 0.35,
 	BaseWidth = 48, -- widest deck — Slope-style broad slope face (~16 ball widths)
 	MinWidth = 4, -- narrowest allowed ribbon
 	TrackThickness = 1, -- studs
@@ -1634,7 +1638,7 @@ Config.Menu = {
 	-- card px dims, inter-card gap, and the dim factor side cards fade to.
 	Jacket = {
 		W = 104, -- card px width
-		H = 58, -- card px height
+		H = 52, -- card px height
 		Gap = 14, -- inter-card gap px
 		SideDim = 0.5, -- side-card dim factor under the focused pick
 	},

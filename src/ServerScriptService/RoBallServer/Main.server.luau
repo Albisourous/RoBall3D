@@ -598,7 +598,13 @@ evReportFatal.OnServerEvent:Connect(function(player, killerPart: Instance?)
 	end
 end)
 
+local startCooldown: { [Player]: number } = {}
 evRequestStart.OnServerEvent:Connect(function(player, seedText)
+	local now = os.clock()
+	if now - (startCooldown[player] or -math.huge) < Config.Generation.StartCooldown then
+		return -- spam: a start tears down + rebuilds the whole streamer
+	end
+	startCooldown[player] = now
 	seedPref[player] = typeof(seedText) == "string" and string.sub(seedText, 1, 64) or ""
 	local run = runs[player]
 	if run then
@@ -864,6 +870,7 @@ Players.PlayerRemoving:Connect(function(player)
 	ghostAuth[player] = nil
 	joinedOnce[player] = nil
 	lbCooldown[player] = nil
+	startCooldown[player] = nil
 	statsOf[player] = nil
 end)
 
