@@ -939,7 +939,10 @@ that caused them.
   allowed to touch the sky, and it snapshots the server's night rig on
   first equip so any swap restores it verbatim),
   sandy grass-domed **islets** each crowned with a lone palm float past
-  in the open blue `SkyIsleDrop` studs under deck grade, chunky
+  in the open blue `SkyIsleDrop` studs under deck grade, giant
+  two-tone **goal arches** stand across the lane — the SMB finish-gate
+  homage, the ball rolling through each ring's hole while its lower
+  arc swings beneath the deck — chunky
   four-lobe puff clouds drift
   beside the track on a lazy
   sine bob, re-entering ahead once they slip behind, and a **day-palm
@@ -1516,7 +1519,7 @@ simmer beside the lane), `world_reef` → NEON REEF, `world_empty` → NULL
 (the `"empty"` theme draws no scenery at all — lane, sun, skybox; the
 silence is the product), `world_sky` → APE BALL (the day-shift world —
 SKY COURT re-times Lighting to midday, floats palm-topped islets
-in the blue, and
+in the blue, threads striped goal arches down the course, and
 drifts puff clouds beside the track), and
 `world_polar` is shared —
 POLARIS keeps it on the permanent shelf while SOLSTICE borrows it for

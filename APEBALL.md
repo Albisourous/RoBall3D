@@ -224,6 +224,11 @@ missing slots from defaults — no migration.
 `skin_capsule`, `world_sky`, `floor_check`, `trail_banana`,
 `trail_none`, `gemfx_banana`, `deathfx_party`, `sun_noon`, `filter_day`.
 
+`world_sky`'s SKY COURT backdrop (`Backdrop.luau` `"sky"` theme): the
+whole world midday-arcade-blue, floating palm-topped islets, giant
+gold/ivory **goal arches** straddling the lane that the ball threads
+(the SMB finish-gate homage), puff clouds, and a day-palm grove.
+
 All other bundles append their floor item (8 items each).
 
 ## 6. File map

@@ -484,6 +484,12 @@ runs the loop below and does not stop until you say **stop**.
     for the roll axis; integer sine periods exit level, `RateMax`
     caps deg/stud. Technical family, pools ≥200m, no canRun gate)*
 
+67. **Sky goal arches** *(done — SKY COURT giant two-tone rings straddle
+    the lane (the SMB finish-gate homage); the ball rolls through each
+    ring's hole while the lower arc swings under the deck. Seeded
+    spaced ahead of the ball, recycled on pass, parked off-theme;
+    one frozen arch in the garage diorama threads the preview loop)*
+
 ## Standing rules for new work
 
 - New hazards go through `ChunkDefs` + `canRun` contracts + `GenVerify`

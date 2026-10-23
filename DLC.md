@@ -111,7 +111,7 @@ PEACH/GHOST/INFERNO (◊250–350, à-la-carte); LAB POP ◊1500 (prestige).
 | NORTHERN LIGHTS | particle-canopy aurora + stars | ◊900 | polaris + solstice |
 | VOIDSPACE | empty — lane + sun only | ◊900 | null |
 | TOXIC WASTES | rising acid bubbles | ◊800 | acid |
-| SKY COURT | day sky + islets + clouds | ◊900 | apeball |
+| SKY COURT | day sky + islets + goal arches + clouds | ◊900 | apeball |
 
 ### FLOOR — deck-surface restyle (14)
 
