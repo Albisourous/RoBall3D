@@ -23,6 +23,11 @@
 --           — FESTIVAL: night-fair — ParticleEmitter shells bursting at
 --             random spots beside the lane, a smoke wisp overhead, and
 --             warm lantern festoons sagging across the track.
+--   "tunnel"
+--           — HYPNOTUBE: dense concentric neon hoops threaded down the
+--             course on a fixed frontier, hue walking down the chain.
+--   "glass" — CATHEDRAL: jewel-tone pane columns beside the lane leaking
+--             translucent light shafts, dark arches overhead.
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
@@ -78,6 +83,8 @@ type Theme =
 	| "meteor"
 	| "matrix"
 	| "fireworks"
+	| "tunnel"
+	| "glass"
 	| "palms"
 	| "polar"
 	| "empty"
@@ -125,6 +132,31 @@ local fireSmoke: { part: Part, emitter: ParticleEmitter }? = nil
 local festoons: { Festoon } = {}
 local lanternFrontZ = 0
 local fireSeeded = false
+
+-- HYPNOTUBE pool (§18 "tunnel") — ring parts reuse the sky-arch shape.
+type TunnelHoop = { segs: { Part }, z: number, hue: number, col: Color3? }
+local tunnelHoops: { TunnelHoop } = {}
+local tunnelFrontZ = 0
+local tunnelHue = 0
+local tunnelSeeded = false
+
+-- CATHEDRAL pool (§18 "glass") — pane+shaft records on one frontier,
+-- dark arch silhouettes (tunnel-shaped, fixed color) on a wider one.
+type GlassPane = { pane: Part, shaft: Part, z: number }
+local glassPanes: { GlassPane } = {}
+local glassArches: { TunnelHoop } = {}
+local glassFrontZ = 0
+local glassArchFrontZ = 0
+local glassSeeded = false
+
+local GLASS_PALETTE = {
+	Color3.fromRGB(255, 64, 190), -- jewel rose
+	Color3.fromRGB(255, 190, 90), -- amber
+	Color3.fromRGB(0, 230, 255), -- saint cyan
+	Color3.fromRGB(175, 80, 255), -- violet
+	Color3.fromRGB(255, 212, 64), -- gold
+}
+local GLASS_DARK = Color3.fromRGB(20, 16, 36) -- arch silhouette
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
 -- lazy/park contract.
@@ -1069,6 +1101,121 @@ local function stepFireworks(anchor: Vector3, now: number)
 	end
 end
 
+--=========================== HYPNOTUBE (tunnel) ==========================--
+-- Infinite tunnel (§18 "tunnel" world): hoops reuse the sky-arch part
+-- shape — tangent boxes on a ring around the lane — but sit on a fixed
+-- spacing frontier (festoon-style) so they read as a tube the ball
+-- threads. Each recycled hoop takes the walking frontier hue, so the
+-- chain drifts through the spectrum the further it runs.
+
+local function ensureTunnel()
+	if #tunnelHoops > 0 then
+		return
+	end
+	for _ = 1, Art.TunnelHoops do
+		local segs: { Part } = {}
+		for _ = 1, Art.TunnelSegs do
+			table.insert(segs, makePeakPart(root, true))
+		end
+		table.insert(tunnelHoops, { segs = segs, z = math.huge, hue = 0 })
+	end
+end
+
+local function layTunnelHoop(h: TunnelHoop, anchor: Vector3, z: number)
+	h.z = z
+	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+	local cy = deckEst(anchor, z) + Art.TunnelLift
+	local step = math.pi * 2 / Art.TunnelSegs
+	local arc = Art.TunnelR * step + 0.4 -- slight overlap, no ring gaps
+	local col = h.col or Color3.fromHSV(h.hue % 1, 0.9, 1)
+	for i, s in ipairs(h.segs) do
+		local t = (i - 1) * step
+		s.Size = Vector3.new(arc, Art.TunnelThick, Art.TunnelThick)
+		s.CFrame = CFrame.new(laneX + math.cos(t) * Art.TunnelR, cy + math.sin(t) * Art.TunnelR, z)
+			* CFrame.Angles(0, 0, t + math.pi / 2)
+		s.Color = col
+	end
+end
+
+local function stepTunnel(anchor: Vector3)
+	if not tunnelSeeded then
+		tunnelFrontZ = anchor.Z + BACK_MARGIN
+		tunnelHue = rng:NextNumber(0, 1)
+		tunnelSeeded = true
+	end
+	for _, h in ipairs(tunnelHoops) do
+		if h.z > anchor.Z + BACK_MARGIN then
+			tunnelFrontZ -= Art.TunnelSpacing
+			h.hue = tunnelHue
+			tunnelHue += Art.TunnelHueStep
+			layTunnelHoop(h, anchor, tunnelFrontZ)
+		end
+	end
+end
+
+--=========================== CATHEDRAL (glass) =========================--
+-- Stained glass (§18 "glass" world): pane columns stand in a lateral
+-- band beside the lane, each leaking a long translucent shaft toward
+-- the track; sparse dark arch silhouettes (the tunnel ring shape,
+-- fixed silhouette color) span the course on a wider frontier. All
+-- frontier-recycled like the festoons.
+
+local function ensureGlass()
+	if #glassPanes > 0 then
+		return
+	end
+	for _ = 1, Art.GlassPanes do
+		table.insert(glassPanes, { pane = makePeakPart(root, true), shaft = makePeakPart(root, true), z = math.huge })
+	end
+	for _ = 1, Art.GlassArches do
+		local segs: { Part } = {}
+		for _ = 1, Art.TunnelSegs do
+			table.insert(segs, makePeakPart(root, true))
+		end
+		table.insert(glassArches, { segs = segs, z = math.huge, hue = 0, col = GLASS_DARK })
+	end
+end
+
+local function layGlassPane(p: GlassPane, anchor: Vector3, z: number)
+	p.z = z
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local x = anchor.X + side * rng:NextNumber(Art.GlassMinX, Art.GlassMaxX)
+	local h = rng:NextNumber(Art.GlassPaneHMin, Art.GlassPaneHMax)
+	local baseY = deckEst(anchor, z) + rng:NextNumber(Art.GlassAltMin, Art.GlassAltMax)
+	local col = GLASS_PALETTE[rng:NextInteger(1, #GLASS_PALETTE)]
+	p.pane.Size = Vector3.new(Art.GlassPaneW, h, 1.2)
+	p.pane.Position = Vector3.new(x, baseY + h / 2, z)
+	p.pane.Color = col
+	p.pane.Transparency = 0.3
+	-- Shaft: a long faint sliver tilted from the pane toward the lane —
+	-- the light the pane throws onto the course.
+	local sl = Art.GlassShaftLen
+	p.shaft.Size = Vector3.new(Art.GlassPaneW * 0.7, sl, 1)
+	p.shaft.CFrame = CFrame.new(x - side * sl * 0.42, baseY + h * 0.55, z) * CFrame.Angles(0, 0, side * 0.9)
+	p.shaft.Color = col
+	p.shaft.Transparency = 0.78
+end
+
+local function stepGlass(anchor: Vector3)
+	if not glassSeeded then
+		glassFrontZ = anchor.Z + BACK_MARGIN
+		glassArchFrontZ = anchor.Z + BACK_MARGIN
+		glassSeeded = true
+	end
+	for _, p in ipairs(glassPanes) do
+		if p.z > anchor.Z + BACK_MARGIN then
+			glassFrontZ -= Art.GlassSpacing
+			layGlassPane(p, anchor, glassFrontZ)
+		end
+	end
+	for _, a in ipairs(glassArches) do
+		if a.z > anchor.Z + BACK_MARGIN then
+			glassArchFrontZ -= Art.GlassArchSpacing
+			layTunnelHoop(a, anchor, glassArchFrontZ)
+		end
+	end
+end
+
 --============================ PALMS ============================--
 -- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
 -- blades fanning out of the crown on cyan→magenta, two bead coconuts.
@@ -1643,6 +1790,28 @@ local function parkFireworks()
 	fireSeeded = false
 end
 
+local function parkTunnel()
+	for _, h in ipairs(tunnelHoops) do
+		for _, s in ipairs(h.segs) do
+			parkPart(s)
+		end
+	end
+	tunnelSeeded = false
+end
+
+local function parkGlass()
+	for _, p in ipairs(glassPanes) do
+		parkPart(p.pane)
+		parkPart(p.shaft)
+	end
+	for _, a in ipairs(glassArches) do
+		for _, s in ipairs(a.segs) do
+			parkPart(s)
+		end
+	end
+	glassSeeded = false
+end
+
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -1693,6 +1862,8 @@ local parkers: { [Theme]: () -> () } = {
 	meteor = parkMeteors,
 	matrix = parkMatrix,
 	fireworks = parkFireworks,
+	tunnel = parkTunnel,
+	glass = parkGlass,
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
@@ -1709,6 +1880,8 @@ local THEMES: { [string]: Theme } = {
 	meteor = "meteor",
 	matrix = "matrix",
 	fireworks = "fireworks",
+	tunnel = "tunnel",
+	glass = "glass",
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
@@ -1905,6 +2078,20 @@ function Backdrop.update(anchor: Vector3)
 	if theme == "fireworks" then
 		ensureFireworks()
 		stepFireworks(anchor, os.clock())
+		return
+	end
+
+	-- HYPNOTUBE (§18 "tunnel"): hoops on a fixed-spacing frontier.
+	if theme == "tunnel" then
+		ensureTunnel()
+		stepTunnel(anchor)
+		return
+	end
+
+	-- CATHEDRAL (§18 "glass"): panes + shafts + arch silhouettes.
+	if theme == "glass" then
+		ensureGlass()
+		stepGlass(anchor)
 		return
 	end
 
@@ -2249,6 +2436,43 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				table.insert(f.beads, makePeakPart(parent, true))
 			end
 			layFestoon(f, anchor, anchor.Z + BACK_MARGIN - rng:NextNumber(0, Art.LanternRows * Art.LanternSpacing))
+		end
+		return
+	end
+	if t == "tunnel" then
+		-- Hoops are real parts — they preview verbatim, hue gradient and
+		-- all. Lay a staggered few down the diorama's window.
+		for i = 1, Art.TunnelHoops do
+			local segs: { Part } = {}
+			for _ = 1, Art.TunnelSegs do
+				table.insert(segs, makePeakPart(parent, true))
+			end
+			layTunnelHoop(
+				{ segs = segs, z = math.huge, hue = (i - 1) * Art.TunnelHueStep },
+				anchor,
+				anchor.Z + BACK_MARGIN - i * Art.TunnelSpacing
+			)
+		end
+		return
+	end
+	if t == "glass" then
+		for i = 1, Art.GlassPanes do
+			layGlassPane(
+				{ pane = makePeakPart(parent, true), shaft = makePeakPart(parent, true), z = math.huge },
+				anchor,
+				anchor.Z + BACK_MARGIN - i * Art.GlassSpacing
+			)
+		end
+		for i = 1, Art.GlassArches do
+			local segs: { Part } = {}
+			for _ = 1, Art.TunnelSegs do
+				table.insert(segs, makePeakPart(parent, true))
+			end
+			layTunnelHoop(
+				{ segs = segs, z = math.huge, hue = 0, col = GLASS_DARK },
+				anchor,
+				anchor.Z + BACK_MARGIN - i * Art.GlassArchSpacing
+			)
 		end
 		return
 	end

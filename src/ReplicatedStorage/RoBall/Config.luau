@@ -1428,6 +1428,33 @@ Config.Art = {
 	LanternSag = 6, -- peak-to-middle droop, studs
 	LanternPoleX = 34, -- posts this far off lane center
 	LanternPoleH = 20,
+	-- HYPNOTUBE (§18 world "tunnel"): dense concentric neon hoops
+	-- threaded down the course on a fixed z-frontier — same part-recycle
+	-- contract as SKY COURT's arches, but regularly spaced so the rings
+	-- read as a tube. Hue walks down the chain as hoops recycle.
+	TunnelHoops = 16, -- rings live at once
+	TunnelSegs = 20, -- arc segments per ring
+	TunnelSpacing = 80, -- z gap between hoops
+	TunnelR = 38, -- ring radius — wraps the lane, ball threads inside
+	TunnelLift = 16, -- ring center above deck grade
+	TunnelThick = 2.2,
+	TunnelHueStep = 0.055, -- HSV hue advance per recycled hoop
+	-- CATHEDRAL (§18 world "glass"): stained glass — tall jewel-tone
+	-- pane columns beside the lane, each leaking a translucent light
+	-- shaft toward the track, with sparse pointed-arch silhouettes
+	-- overhead on their own wider frontier.
+	GlassPanes = 10, -- pane columns live at once
+	GlassSpacing = 130, -- z gap between panes
+	GlassMinX = 60, -- lateral pane band off lane center
+	GlassMaxX = 180,
+	GlassAltMin = 10, -- pane base above deck grade
+	GlassAltMax = 60,
+	GlassPaneW = 7,
+	GlassPaneHMin = 26,
+	GlassPaneHMax = 58,
+	GlassShaftLen = 90,
+	GlassArches = 3, -- dark arch silhouettes overhead
+	GlassArchSpacing = 340,
 	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
 	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
 	-- rustle a few degrees on wall-clock sine; bases sit just under the
@@ -1651,6 +1678,24 @@ Config.Art = {
 			solid = 0.85,
 			gap = 0.4,
 			scale = 0.85,
+		},
+		aperture = {
+			-- HYPNOTUBE pack: a thin aperture ring — barely a disk,
+			-- cyan iris burning off into magenta at the rim.
+			top = Color3.fromRGB(0, 230, 255),
+			bottom = Color3.fromRGB(255, 64, 190),
+			solid = 0.18,
+			gap = 0.25,
+			scale = 1,
+		},
+		rose = {
+			-- CATHEDRAL pack: rose window — dense amber glass over a
+			-- jewel underlight, slightly oversized like a west window.
+			top = Color3.fromRGB(255, 190, 90),
+			bottom = Color3.fromRGB(200, 60, 160),
+			solid = 0.5,
+			gap = 0.3,
+			scale = 1.1,
 		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
