@@ -50,6 +50,7 @@ local analyzer: any = nil
 
 local norm = 0 -- last speedNorm, kept so layer fades see it
 local tier = 1
+local inRun = false -- preview() is menu-only; a mid-run selectTrack would teardown the live mix
 local pulseSmooth = 0
 local specBuf: { number } = {} -- smoothed waveform bands for the HUD trace (§12)
 local specRaw: { number } = {} -- per-band means before auto-gain normalization
@@ -361,6 +362,7 @@ function Music.onStart(seed: number?)
 	if not lead then
 		return
 	end
+	inRun = true
 	-- GD-style: every run opens on the grid. Instant restart is sacred —
 	-- no fade-in tax, filter snaps open on the count-in. The seed picks
 	-- the track AND rotates the opening accent across downbeats
@@ -403,6 +405,7 @@ end
 -- Back to the menu (§18: the garage lives there): reverse the tape-stop —
 -- playback speed and the lowpass ease back to the muffled menu bed.
 function Music.onMenu(previewId: string?)
+	inRun = false
 	selectTrack(previewId or m.menuTrackId()) -- parked bed follows the menu's browse pick
 	norm = 0
 	local speed = ps()
@@ -420,6 +423,9 @@ end
 -- Menu-only; the filter/volumes stay parked at menu values, so PLAY's
 -- filter-open is a lift on the same stream, not a cut.
 function Music.preview(id: string?)
+	if inRun then
+		return -- a mid-run selectTrack would rebuild the players under the live mix
+	end
 	selectTrack(id or m.menuTrackId()) -- nil/RANDOM re-parks the bed
 end
 
