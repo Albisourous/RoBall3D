@@ -1522,6 +1522,29 @@ Config.Art = {
 	WarpLenMin = 6, -- streak length at spawn radius
 	WarpLenMax = 30, -- at recycle radius
 	WarpIdleShare = 0.35, -- live fraction at standstill
+	-- MERCURY (§18 world "chrome"): liquid metal — low-poly mounds
+	-- heave slowly beside the lane, flat mirror pools sit at deck
+	-- level, and a cool-white rim glint caps each crest.
+	ChromeMounds = 8,
+	ChromePools = 6,
+	ChromeSpacing = 150, -- z gap per pool slot
+	ChromeMinX = 55,
+	ChromeMaxX = 150,
+	ChromeMoundMin = 18,
+	ChromeMoundMax = 34,
+	ChromeHeaveAmp = 3, -- mound undulation, studs
+	ChromeHeaveSpeed = 0.5,
+	-- KALEIDO (§18 world "kaleido"): the prestige build — mirrored
+	-- wedge pairs in two rings around the descent axis ahead,
+	-- counter-rotating slowly. Whole rings re-pose per frame.
+	KaleidoSegs = 12, -- wedge pairs per ring
+	KaleidoAxisZ = 520, -- mandala center this far ahead
+	KaleidoAxisY = 50, -- and this far above deck grade
+	KaleidoInnerR = 38,
+	KaleidoOuterR = 75,
+	KaleidoWedge = 8, -- wedge face size
+	KaleidoRotIn = 0.25, -- rad/s, inner ring
+	KaleidoRotOut = -0.18, -- rad/s, outer counter-rotates
 	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
 	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
 	-- rustle a few degrees on wall-clock sine; bases sit just under the
@@ -1798,6 +1821,24 @@ Config.Art = {
 			bottom = Color3.fromRGB(120, 200, 255),
 			solid = 0.8,
 			gap = 0.4,
+			scale = 1,
+		},
+		platinum = {
+			-- MERCURY pack: a solid platinum disk — near-mirror silver,
+			-- barely a stripe at the rim.
+			top = Color3.fromRGB(235, 240, 250),
+			bottom = Color3.fromRGB(150, 160, 180),
+			solid = 0.92,
+			gap = 0.4,
+			scale = 0.9,
+		},
+		mandala = {
+			-- KALEIDO pack: a mandala sun — jewel magenta dissolving
+			-- into cyan, more stained ring than disk.
+			top = Color3.fromRGB(255, 64, 190),
+			bottom = Color3.fromRGB(0, 230, 255),
+			solid = 0.4,
+			gap = 0.3,
 			scale = 1,
 		},
 	},

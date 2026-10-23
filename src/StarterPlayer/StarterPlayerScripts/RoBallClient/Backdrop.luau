@@ -36,6 +36,11 @@
 --             lane on a lifecycle; dark drop columns fall past.
 --   "warp"  — HYPERDRIVE: radial streaks stream out of a descent axis
 --             ahead; the live share ramps with measured run speed.
+--   "chrome"— MERCURY: metal mounds heave slowly beside the lane,
+--             mirror pools at deck level, white rim glints.
+--   "kaleido"
+--           — KALEIDO: mirrored wedge pairs in two counter-rotating
+--             rings around the descent axis ahead — the prestige build.
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
@@ -97,6 +102,8 @@ type Theme =
 	| "slime"
 	| "ink"
 	| "warp"
+	| "chrome"
+	| "kaleido"
 	| "palms"
 	| "polar"
 	| "empty"
@@ -225,6 +232,32 @@ local WARP_COLS = {
 	Color3.fromRGB(245, 248, 255),
 	Color3.fromRGB(160, 240, 255),
 	Color3.fromRGB(120, 200, 255),
+}
+
+-- MERCURY pool (§18 "chrome") — mounds heave on sine; pools and rim
+-- glints are static after lay.
+type ChromeMound = { dome: Part, glint: Part, x: number, y: number, z: number, r: number, phase: number }
+local chromeMounds: { ChromeMound } = {}
+local chromePools: { { part: Part, z: number } } = {}
+local chromeFrontZ = 0
+local chromeSeeded = false
+
+local CHROME_SKIN = Color3.fromRGB(180, 195, 215)
+local CHROME_GLOW = Color3.fromRGB(235, 240, 250)
+local CHROME_POOL = Color3.fromRGB(150, 165, 190)
+
+-- KALEIDO pool (§18 "kaleido") — mirrored wedge pairs, two rings.
+type KaleidoSeg = { part: Part, ring: number, slot: number, sign: number }
+local kaleidoSegs: { KaleidoSeg } = {}
+local kaleidoBaseIn = 0
+local kaleidoBaseOut = 0
+local kaleidoClock = os.clock()
+
+local KALEIDO_COLS = {
+	Color3.fromRGB(255, 64, 190),
+	Color3.fromRGB(0, 230, 255),
+	Color3.fromRGB(175, 80, 255),
+	Color3.fromRGB(255, 212, 64),
 }
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
@@ -1622,6 +1655,124 @@ local function stepWarp(anchor: Vector3, dt: number)
 	end
 end
 
+--============================ MERCURY (chrome) =======================--
+-- Liquid metal (§18 "chrome" world): flattened metal mounds heave a
+-- few studs on slow sine (cloud-bob cadence), each crested by a neon
+-- rim glint; flat mirror pools sit at deck level beside the lane and
+-- only re-lay on the frontier.
+
+local function layChromeMound(m: ChromeMound, anchor: Vector3, z: number)
+	m.z = z
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	m.x = anchor.X + side * rng:NextNumber(Art.ChromeMinX, Art.ChromeMaxX)
+	m.r = rng:NextNumber(Art.ChromeMoundMin, Art.ChromeMoundMax)
+	m.y = deckEst(anchor, z) - m.r * 0.55 -- crest rides just over the grade
+	m.phase = rng:NextNumber(0, math.pi * 2)
+	m.dome.Shape = Enum.PartType.Ball
+	m.dome.Material = Enum.Material.Metal
+	m.dome.Size = Vector3.new(m.r * 2.4, m.r * 1.1, m.r * 2.4)
+	m.dome.Color = CHROME_SKIN
+	m.glint.Shape = Enum.PartType.Ball
+	m.glint.Size = Vector3.one * 1.2
+	m.glint.Color = CHROME_GLOW
+end
+
+local function layChromePool(p: { part: Part, z: number }, anchor: Vector3, z: number)
+	p.z = z
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local x = anchor.X + side * rng:NextNumber(Art.ChromeMinX * 0.6, Art.ChromeMaxX)
+	local r = rng:NextNumber(6, 14)
+	p.part.Shape = Enum.PartType.Ball
+	p.part.Material = Enum.Material.Metal
+	p.part.Size = Vector3.new(r * 2, 0.5, r * 2)
+	p.part.Position = Vector3.new(x, deckEst(anchor, z) + 0.4, z)
+	p.part.Color = CHROME_POOL
+end
+
+local function ensureChrome()
+	if #chromeMounds > 0 then
+		return
+	end
+	for _ = 1, Art.ChromeMounds do
+		table.insert(chromeMounds, {
+			dome = makePeakPart(root, false),
+			glint = makePeakPart(root, true),
+			x = 0,
+			y = 0,
+			z = math.huge,
+			r = 0,
+			phase = 0,
+		})
+	end
+	for _ = 1, Art.ChromePools do
+		table.insert(chromePools, { part = makePeakPart(root, false), z = math.huge })
+	end
+end
+
+local function stepChrome(anchor: Vector3, now: number)
+	if not chromeSeeded then
+		chromeFrontZ = anchor.Z + BACK_MARGIN
+		chromeSeeded = true
+	end
+	for _, m in ipairs(chromeMounds) do
+		if m.z > anchor.Z + BACK_MARGIN or m.z == math.huge then
+			chromeFrontZ -= Art.ChromeSpacing
+			layChromeMound(m, anchor, chromeFrontZ)
+		end
+		local heave = math.sin(now * Art.ChromeHeaveSpeed + m.phase) * Art.ChromeHeaveAmp
+		m.dome.Position = Vector3.new(m.x, m.y + heave, m.z)
+		m.glint.Position = Vector3.new(m.x + m.r * 0.5, m.y + m.r * 0.5 + heave, m.z)
+	end
+	for i, p in ipairs(chromePools) do
+		if p.z > anchor.Z + BACK_MARGIN or p.z == math.huge then
+			layChromePool(p, anchor, anchor.Z - rng:NextNumber(50, Art.ChromeSpacing * Art.ChromePools))
+			p.z = anchor.Z - (i * Art.ChromeSpacing + rng:NextNumber(0, 60))
+		end
+	end
+end
+
+--============================ KALEIDO (kaleido) ======================--
+-- The prestige build (§18 "kaleido" world): mirrored wedge pairs —
+-- slot i of each ring places one wedge at angle a and its mirror at
+-- -a — in two rings around the descent axis, counter-rotating on
+-- wall-clock base angles. Every wedge re-poses each frame (48 writes),
+-- so the whole mandala turns as one body.
+
+local function ensureKaleido()
+	if #kaleidoSegs > 0 then
+		return
+	end
+	for ring = 1, 2 do
+		for slot = 1, Art.KaleidoSegs do
+			for sign = -1, 1, 2 do
+				local p = makePeakPart(root, true)
+				p.Shape = Enum.PartType.Wedge
+				table.insert(kaleidoSegs, { part = p, ring = ring, slot = slot, sign = sign })
+			end
+		end
+	end
+end
+
+local function stepKaleido(anchor: Vector3, dt: number)
+	kaleidoBaseIn += Art.KaleidoRotIn * dt
+	kaleidoBaseOut += Art.KaleidoRotOut * dt
+	local center = Vector3.new(
+		anchor.X,
+		deckEst(anchor, anchor.Z - Art.KaleidoAxisZ) + Art.KaleidoAxisY,
+		anchor.Z - Art.KaleidoAxisZ
+	)
+	local step = math.pi * 2 / Art.KaleidoSegs
+	for _, s in ipairs(kaleidoSegs) do
+		local r = if s.ring == 1 then Art.KaleidoInnerR else Art.KaleidoOuterR
+		local base = if s.ring == 1 then kaleidoBaseIn else kaleidoBaseOut
+		local a = base + (s.slot - 1) * step * s.sign
+		local pos = center + Vector3.new(math.cos(a) * r, math.sin(a) * r, 0)
+		s.part.Size = Vector3.new(Art.KaleidoWedge, Art.KaleidoWedge * 0.6, Art.KaleidoWedge * 2.2)
+		s.part.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, a)
+		s.part.Color = KALEIDO_COLS[(s.slot - 1) % #KALEIDO_COLS + 1]
+	end
+end
+
 --============================ PALMS ============================--
 -- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
 -- blades fanning out of the crown on cyan→magenta, two bead coconuts.
@@ -2271,6 +2422,25 @@ local function parkWarp()
 	warpPrevZ = 0
 end
 
+local function parkChrome()
+	for _, m in ipairs(chromeMounds) do
+		parkPart(m.dome)
+		parkPart(m.glint)
+		m.z = math.huge
+	end
+	for _, p in ipairs(chromePools) do
+		parkPart(p.part)
+		p.z = math.huge
+	end
+	chromeSeeded = false
+end
+
+local function parkKaleido()
+	for _, s in ipairs(kaleidoSegs) do
+		parkPart(s.part)
+	end
+end
+
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -2327,6 +2497,8 @@ local parkers: { [Theme]: () -> () } = {
 	slime = parkSlime,
 	ink = parkInk,
 	warp = parkWarp,
+	chrome = parkChrome,
+	kaleido = parkKaleido,
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
@@ -2349,6 +2521,8 @@ local THEMES: { [string]: Theme } = {
 	slime = "slime",
 	ink = "ink",
 	warp = "warp",
+	chrome = "chrome",
+	kaleido = "kaleido",
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
@@ -2600,6 +2774,23 @@ function Backdrop.update(anchor: Vector3)
 		local dt = math.clamp(now - warpClock, 0, 0.12)
 		warpClock = now
 		stepWarp(anchor, dt)
+		return
+	end
+
+	-- MERCURY (§18 "chrome"): heaving mounds + static pools.
+	if theme == "chrome" then
+		ensureChrome()
+		stepChrome(anchor, os.clock())
+		return
+	end
+
+	-- KALEIDO (§18 "kaleido"): the counter-rotating wedge mandala.
+	if theme == "kaleido" then
+		ensureKaleido()
+		local now = os.clock()
+		local dt = math.clamp(now - kaleidoClock, 0, 0.12)
+		kaleidoClock = now
+		stepKaleido(anchor, dt)
 		return
 	end
 
@@ -3039,6 +3230,53 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			local pos = axis + s.dir * s.r
 			s.part.Size = Vector3.new(0.5, 0.5, len)
 			s.part.CFrame = CFrame.lookAt(pos + s.dir * (len / 2), pos + s.dir * len)
+		end
+		return
+	end
+	if t == "chrome" then
+		for i = 1, Art.ChromeMounds do
+			local m = {
+				dome = makePeakPart(parent, false),
+				glint = makePeakPart(parent, true),
+				x = 0,
+				y = 0,
+				z = math.huge,
+				r = 0,
+				phase = 0,
+			}
+			layChromeMound(m, anchor, anchor.Z + BACK_MARGIN - i * Art.ChromeSpacing)
+			m.dome.Position = Vector3.new(m.x, m.y, m.z)
+			m.glint.Position = Vector3.new(m.x + m.r * 0.5, m.y + m.r * 0.5, m.z)
+		end
+		for i = 1, Art.ChromePools do
+			layChromePool(
+				{ part = makePeakPart(parent, false), z = math.huge },
+				anchor,
+				anchor.Z + BACK_MARGIN - i * Art.ChromeSpacing * 0.8
+			)
+		end
+		return
+	end
+	if t == "kaleido" then
+		local center = Vector3.new(
+			anchor.X,
+			deckEst(anchor, anchor.Z - Art.KaleidoAxisZ) + Art.KaleidoAxisY,
+			anchor.Z - Art.KaleidoAxisZ
+		)
+		local step = math.pi * 2 / Art.KaleidoSegs
+		for ring = 1, 2 do
+			local r = if ring == 1 then Art.KaleidoInnerR else Art.KaleidoOuterR
+			for slot = 1, Art.KaleidoSegs do
+				for sign = -1, 1, 2 do
+					local p = makePeakPart(parent, true)
+					p.Shape = Enum.PartType.Wedge
+					local a = (slot - 1) * step * sign
+					p.Size = Vector3.new(Art.KaleidoWedge, Art.KaleidoWedge * 0.6, Art.KaleidoWedge * 2.2)
+					p.CFrame = CFrame.new(center + Vector3.new(math.cos(a) * r, math.sin(a) * r, 0))
+						* CFrame.Angles(0, 0, a)
+					p.Color = KALEIDO_COLS[(slot - 1) % #KALEIDO_COLS + 1]
+				end
+			end
 		end
 		return
 	end

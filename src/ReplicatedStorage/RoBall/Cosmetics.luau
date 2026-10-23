@@ -122,6 +122,7 @@ local MOSS = Color3.fromRGB(120, 200, 90) -- mycelium green
 local INDIGO = Color3.fromRGB(70, 80, 200) -- inkwell sumi
 local INKW = Color3.fromRGB(220, 225, 240) -- ink-white
 local HOTW = Color3.fromRGB(245, 248, 255) -- hyperdrive white-hot
+local CHROME = Color3.fromRGB(220, 230, 240) -- mercury bright silver
 
 Cosmetics.Items = {
 	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball
@@ -394,6 +395,26 @@ Cosmetics.Items = {
 		fx = "strobe",
 		gemShape = "rod", -- star streaks
 	},
+	skin_mercury = {
+		slot = "skin",
+		name = "MERCURY",
+		gemPrice = 900,
+		ringA = CHROME,
+		ringB = SILVER,
+		core = Color3.fromRGB(200, 210, 225),
+		fx = "wave",
+		gemShape = "orb", -- liquid droplets
+	},
+	skin_kaleido = {
+		slot = "skin",
+		name = "KALEIDO",
+		gemPrice = 900,
+		ringA = MAGENTA,
+		ringB = CYAN,
+		core = Color3.fromRGB(30, 20, 50),
+		fx = "rainbow",
+		gemShape = "diamond", -- mirrored facets
+	},
 	skin_capsule = {
 		slot = "skin",
 		name = "CAPSULE",
@@ -433,6 +454,8 @@ Cosmetics.Items = {
 	trail_hypha = { slot = "trail", name = "HYPHA", gemPrice = 450, color = Color3.fromRGB(255, 200, 80) },
 	trail_ink = { slot = "trail", name = "INK TRAIL", gemPrice = 450, color = Color3.fromRGB(80, 70, 160) },
 	trail_warpline = { slot = "trail", name = "WARP LINE", gemPrice = 500, color = Color3.fromRGB(160, 240, 255) },
+	trail_quicksilver = { slot = "trail", name = "QUICKSILVER", gemPrice = 500, color = Color3.fromRGB(190, 200, 220) },
+	trail_tumble = { slot = "trail", name = "TUMBLE", gemPrice = 500, color = "rainbow" },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -461,6 +484,8 @@ Cosmetics.Items = {
 	gemfx_spore = { slot = "gemFx", name = "SPORE BURST", gemPrice = 400, color = Color3.fromRGB(200, 220, 120) },
 	gemfx_bleed = { slot = "gemFx", name = "BLEED", gemPrice = 400, color = Color3.fromRGB(110, 100, 220) },
 	gemfx_starburst = { slot = "gemFx", name = "STARBURST", gemPrice = 450, color = Color3.fromRGB(220, 245, 255) },
+	gemfx_chrome = { slot = "gemFx", name = "CHROME POP", gemPrice = 450, color = CHROME },
+	gemfx_facet = { slot = "gemFx", name = "FACET", gemPrice = 450, color = "rainbow" },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -663,6 +688,22 @@ Cosmetics.Items = {
 		colorA = HOTW,
 		colorB = CYAN,
 	},
+	deathfx_liquidate = {
+		slot = "deathFx",
+		name = "LIQUIDATE",
+		gemPrice = 600,
+		style = "implode",
+		colorA = CHROME,
+		colorB = SILVER,
+	},
+	deathfx_prismbreak = {
+		slot = "deathFx",
+		name = "PRISMBREAK",
+		gemPrice = 650,
+		style = "shatter",
+		colorA = MAGENTA,
+		colorB = CYAN,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -687,6 +728,8 @@ Cosmetics.Items = {
 	world_slime = { slot = "world", name = "MYCELIUM", gemPrice = 800, theme = "slime" },
 	world_ink = { slot = "world", name = "INKWELL", gemPrice = 800, theme = "ink" },
 	world_warp = { slot = "world", name = "HYPERDRIVE", gemPrice = 900, theme = "warp" },
+	world_chrome = { slot = "world", name = "QUICKSILVER", gemPrice = 900, theme = "chrome" },
+	world_kaleido = { slot = "world", name = "KALEIDO", gemPrice = 1000, theme = "kaleido" },
 
 	--==== FLOOR — the deck slab itself (TrackStreamer/CosmeticFx restyle
 	-- it). `deck` is the lane base color, still lerped toward the run
@@ -776,6 +819,20 @@ Cosmetics.Items = {
 		deck = Color3.fromRGB(10, 12, 26),
 		edge = Color3.fromRGB(160, 240, 255),
 	},
+	floor_chromedeck = {
+		slot = "floor",
+		name = "CHROME DECK",
+		gemPrice = 350,
+		deck = Color3.fromRGB(24, 26, 34),
+		edge = Color3.fromRGB(200, 210, 225),
+	},
+	floor_shard = {
+		slot = "floor",
+		name = "SHARD",
+		gemPrice = 350,
+		deck = Color3.fromRGB(20, 14, 36),
+		edge = MAGENTA,
+	},
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -801,6 +858,8 @@ Cosmetics.Items = {
 	sun_ferment = { slot = "sun", name = "FERMENT", gemPrice = 600, sun = "ferment" },
 	sun_inkmoon = { slot = "sun", name = "INK MOON", gemPrice = 600, sun = "inkmoon" },
 	sun_warpcore = { slot = "sun", name = "WARP CORE", gemPrice = 700, sun = "warpcore" },
+	sun_platinum = { slot = "sun", name = "PLATINUM", gemPrice = 700, sun = "platinum" },
+	sun_mandala = { slot = "sun", name = "MANDALA", gemPrice = 700, sun = "mandala" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
 	-- renders it under the HUD so text stays readable). One per bundle:
@@ -923,6 +982,22 @@ Cosmetics.Items = {
 		tint = Color3.fromRGB(140, 220, 255),
 		alpha = 0.10,
 	},
+	filter_polish = {
+		slot = "filter",
+		name = "POLISH",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(140, 150, 175),
+		alpha = 0.10,
+	},
+	filter_prismatic = {
+		slot = "filter",
+		name = "PRISMATIC",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(160, 80, 200),
+		alpha = 0.10,
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -956,6 +1031,8 @@ Cosmetics.Order = {
 		"skin_spore",
 		"skin_sumi",
 		"skin_lightyear",
+		"skin_mercury",
+		"skin_kaleido",
 	},
 	trail = {
 		"trail_none",
@@ -985,6 +1062,8 @@ Cosmetics.Order = {
 		"trail_hypha",
 		"trail_ink",
 		"trail_warpline",
+		"trail_quicksilver",
+		"trail_tumble",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -1013,6 +1092,8 @@ Cosmetics.Order = {
 		"gemfx_spore",
 		"gemfx_bleed",
 		"gemfx_starburst",
+		"gemfx_chrome",
+		"gemfx_facet",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -1040,6 +1121,8 @@ Cosmetics.Order = {
 		"deathfx_sporulate",
 		"deathfx_bloom",
 		"deathfx_signal",
+		"deathfx_liquidate",
+		"deathfx_prismbreak",
 	},
 	world = {
 		"world_city",
@@ -1062,6 +1145,8 @@ Cosmetics.Order = {
 		"world_slime",
 		"world_ink",
 		"world_warp",
+		"world_chrome",
+		"world_kaleido",
 	},
 	floor = {
 		"floor_neon",
@@ -1086,6 +1171,8 @@ Cosmetics.Order = {
 		"floor_humus",
 		"floor_inkwash",
 		"floor_darkmatter",
+		"floor_chromedeck",
+		"floor_shard",
 	},
 	sun = {
 		"sun_classic",
@@ -1109,6 +1196,8 @@ Cosmetics.Order = {
 		"sun_ferment",
 		"sun_inkmoon",
 		"sun_warpcore",
+		"sun_platinum",
+		"sun_mandala",
 	},
 	filter = {
 		"filter_off",
@@ -1132,6 +1221,8 @@ Cosmetics.Order = {
 		"filter_petri",
 		"filter_sumi",
 		"filter_lightspeed",
+		"filter_polish",
+		"filter_prismatic",
 	},
 } :: { [string]: { string } }
 
@@ -1481,6 +1572,40 @@ Cosmetics.Bundles = {
 			"deathfx_signal",
 			"sun_warpcore",
 			"filter_lightspeed",
+		},
+	},
+	{
+		-- W10-A (DLC_ROADMAP.md §3): liquid metal — chrome world,
+		-- platinum sun. À-la-carte CHROME skin stays a single.
+		id = "mercury",
+		name = "MERCURY",
+		desc = "full mirror set · chrome world",
+		items = {
+			"skin_mercury",
+			"world_chrome",
+			"floor_chromedeck",
+			"trail_quicksilver",
+			"gemfx_chrome",
+			"deathfx_liquidate",
+			"sun_platinum",
+			"filter_polish",
+		},
+	},
+	{
+		-- W10-B (DLC_ROADMAP.md §3): the prestige anchor — rotating
+		-- wedge-mandala world, rainbow skin fx.
+		id = "kaleido",
+		name = "KALEIDO",
+		desc = "full prism set · mandala world",
+		items = {
+			"skin_kaleido",
+			"world_kaleido",
+			"floor_shard",
+			"trail_tumble",
+			"gemfx_facet",
+			"deathfx_prismbreak",
+			"sun_mandala",
+			"filter_prismatic",
 		},
 	},
 }
