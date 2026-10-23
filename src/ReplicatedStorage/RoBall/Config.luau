@@ -911,6 +911,9 @@ Config.GemFx = {
 	PopupRise = 3, -- studs the popup climbs
 	PopupTime = 0.7,
 	PopupSize = 15, -- text px
+	-- "GRAZE +N" / "THREAD +N" — near-miss/thread awards get an ice-cyan
+	-- pop (gold stays pickup-exclusive, §10's close-call reads cool).
+	GrazeColor = Color3.fromRGB(150, 235, 255),
 }
 
 Config.Music = {

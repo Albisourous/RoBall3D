@@ -117,6 +117,9 @@ fnSetHues.Parent = remotes
 local evReportFatal = Instance.new("RemoteEvent")
 evReportFatal.Name = "ReportFatal"
 evReportFatal.Parent = remotes
+local evNearMiss = Instance.new("RemoteEvent")
+evNearMiss.Name = "NearMiss"
+evNearMiss.Parent = remotes
 local evSaveGhost = Instance.new("RemoteEvent")
 evSaveGhost.Name = "SaveGhost"
 evSaveGhost.Parent = remotes
@@ -817,27 +820,41 @@ end)
 -- seed matches) plus the seed champion's replay — the rival line. The
 -- champion is omitted when it's the requester's own record so nobody
 -- races a second copy of their best.
+-- Spam guard: each invoke costs DataStore reads behind retry backoff —
+-- an unthrottled RemoteFunction lets one client stack parallel fetches.
+-- One in flight per player; a second invoke gets an empty set (the
+-- client just skips echoes that run — never a run dependency).
+local ghostBusy: { [Player]: boolean } = {}
 fnGetGhost.OnServerInvoke = function(player, seed)
-	local own = SaveService.loadGhost(player.UserId)
-	local out: { s: number?, f: string?, c: SaveService.Champ?, r: SaveService.Champ? } = {}
-	if own then
-		out.s = own.s
-		out.f = own.f
+	if ghostBusy[player] then
+		return {}
 	end
-	if typeof(seed) == "number" then
-		local podium = SaveService.loadPodium(seed)
-		local champ = podium and podium.c
-		local runner = podium and podium.r
-		if champ and champ.u ~= player.UserId then
-			out.c = champ
+	ghostBusy[player] = true
+	local out = nil
+	local ok = pcall(function()
+		local own = SaveService.loadGhost(player.UserId)
+		local o: { s: number?, f: string?, c: SaveService.Champ?, r: SaveService.Champ? } = {}
+		if own then
+			o.s = own.s
+			o.f = own.f
 		end
-		-- Crowd ghost (§14): the seed's silver seat — the client only
-		-- replays it on the daily seed, where a field exists to race.
-		if runner and runner.u ~= player.UserId and (champ == nil or runner.u ~= champ.u) then
-			out.r = runner
+		if typeof(seed) == "number" then
+			local podium = SaveService.loadPodium(seed)
+			local champ = podium and podium.c
+			local runner = podium and podium.r
+			if champ and champ.u ~= player.UserId then
+				o.c = champ
+			end
+			-- Crowd ghost (§14): the seed's silver seat — the client only
+			-- replays it on the daily seed, where a field exists to race.
+			if runner and runner.u ~= player.UserId and (champ == nil or runner.u ~= champ.u) then
+				o.r = runner
+			end
 		end
-	end
-	return out
+		out = o
+	end)
+	ghostBusy[player] = nil
+	return if ok then out else {}
 end
 
 ShopService.init()
@@ -872,6 +889,7 @@ Players.PlayerRemoving:Connect(function(player)
 	lbCooldown[player] = nil
 	startCooldown[player] = nil
 	statsOf[player] = nil
+	ghostBusy[player] = nil
 end)
 
 -- Shutdown flush: PlayerRemoving's task.spawn'd saveBest can lose the race
@@ -1024,6 +1042,7 @@ RunService.Heartbeat:Connect(function(dt)
 					close = math.abs(bx - h.cx) <= h.halfW and drop >= Config.Press.ThreadMinDrop
 					if close then
 						run.nmPts += Config.Press.ThreadBonus
+						evNearMiss:FireClient(player, "THREAD", Config.Press.ThreadBonus)
 						writeScore(player, run)
 						close = false -- paid as a thread; skips the graze block
 					end
@@ -1034,6 +1053,7 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 				if close then
 					run.nmPts += nm.Points
+					evNearMiss:FireClient(player, "GRAZE", nm.Points)
 					writeScore(player, run)
 				end
 			end

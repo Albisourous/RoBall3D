@@ -113,7 +113,7 @@ end
 
 -- "+N" score float: the pickup's point value rises and fades — the
 -- immediate "that gem was worth it" read (DESIGN.md §8.4).
-local function popup(pos: Vector3, pts: number, color: Color3)
+local function popup(pos: Vector3, text: string, color: Color3)
 	local fx = Config.GemFx
 	local host = Instance.new("Part")
 	host.Name = "GemPopupFx"
@@ -134,7 +134,7 @@ local function popup(pos: Vector3, pts: number, color: Color3)
 	tl.TextSize = fx.PopupSize
 	tl.TextColor3 = color
 	tl.TextStrokeTransparency = 0.4
-	tl.Text = "+" .. tostring(pts)
+	tl.Text = text
 	tl.Parent = bb
 	host.Parent = workspace
 	Debris:AddItem(host, fx.PopupTime + 0.1)
@@ -164,7 +164,17 @@ local function burst(pts: number)
 	sparkle(workspace, pos, color)
 	ring(workspace, pos, color)
 	if pts > 0 then
-		popup(pos, pts, color)
+		popup(pos, "+" .. tostring(pts), color)
+	end
+end
+
+-- Close-call award (§10): the server's near-miss/press-thread cursor pays
+-- into the score silently — "GRAZE +N" / "THREAD +N" floats off the ball
+-- so the award lands when it happens, not just on the death card.
+function Fx.graze(tag: string, pts: number)
+	local pos = ballPos()
+	if pos then
+		popup(pos, string.format("%s +%d", tag, pts), Config.GemFx.GrazeColor)
 	end
 end
 

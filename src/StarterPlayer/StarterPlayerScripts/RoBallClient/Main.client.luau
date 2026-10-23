@@ -56,6 +56,7 @@ local evStart = remotes:WaitForChild("RequestStart") :: RemoteEvent
 local evRunStarted = remotes:WaitForChild("RunStarted") :: RemoteEvent
 local evRunEnded = remotes:WaitForChild("RunEnded") :: RemoteEvent
 local evReportFatal = remotes:WaitForChild("ReportFatal") :: RemoteEvent
+local evNearMiss = remotes:WaitForChild("NearMiss") :: RemoteEvent
 local evSaveGhost = remotes:WaitForChild("SaveGhost") :: RemoteEvent
 local fnGetGhost = remotes:WaitForChild("GetGhost") :: RemoteFunction
 local evCrown = remotes:WaitForChild("Crown") :: RemoteEvent
@@ -964,6 +965,12 @@ evRunEnded.OnClientEvent:Connect(
 -- Crown toast (§14): the server fires this when a PB upload dethrones
 -- the seed champion — the gold echo you were racing now wears your
 -- name. Empty name = the seed had no prior champion.
+-- Near-miss/thread award pop (§10): the server cursor pays nmPts silently —
+-- the client echoes each award as a GRAZE/THREAD float off the ball.
+evNearMiss.OnClientEvent:Connect(function(tag: string, pts: number)
+	GemFx.graze(tag, pts)
+end)
+
 evCrown.OnClientEvent:Connect(function(name: string)
 	if name ~= "" then
 		ui:toast(string.format("♛ CROWN TAKEN from %s", name))
