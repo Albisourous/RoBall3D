@@ -167,13 +167,34 @@ local productPrice: { [string]: number } = {} -- dev product prices by product k
 -- button buys on click.
 local browseIdx: { [string]: number } = {}
 
+-- Weekly drop gate (§18): items belonging to a hidden ("later") wave never
+-- surface in slot browse — the schedule stays secret until a pack's teaser
+-- week. Teaser ("next") items stay browsable: their pack row is already
+-- visible, so the diorama try-on is free hype. Rebuilt by refreshGarage
+-- so a wave unlocking mid-session shows up on the next menu open.
+local shopOrder: { [string]: { string } } = {}
+local function buildShopOrder()
+	for _, slot in ipairs(Cosmetics.Slots) do
+		local list = {}
+		for _, id in ipairs(Cosmetics.Order[slot]) do
+			local bid = Cosmetics.bundleOf(id)
+			if bid == nil or Daily.rolloutStatus(bid) ~= "later" then
+				table.insert(list, id)
+			end
+		end
+		shopOrder[slot] = list
+	end
+end
+buildShopOrder()
+
 local function syncBrowse(slot: string)
-	local idx = table.find(Cosmetics.Order[slot], equippedId(slot))
+	local order = shopOrder[slot] or Cosmetics.Order[slot]
+	local idx = table.find(order, equippedId(slot))
 	browseIdx[slot] = idx or 1
 end
 
 local function browseId(slot: string): string?
-	local order = Cosmetics.Order[slot]
+	local order = shopOrder[slot] or Cosmetics.Order[slot]
 	return order[math.clamp(browseIdx[slot] or 1, 1, #order)]
 end
 
@@ -220,7 +241,7 @@ local function slotRows(): {
 	return rows
 end
 
-local function packStates(): { [string]: { label: string, enabled: boolean } }
+local function packStates(): { [string]: { label: string, enabled: boolean, visible: boolean? } }
 	local owned = ownedSet()
 	local states = {}
 	-- Bundle passes + the bank2x perk pass — same lifecycle, one table.
@@ -230,9 +251,20 @@ local function packStates(): { [string]: { label: string, enabled: boolean } }
 	end
 	for _, key in ipairs(keys) do
 		local passId = Config.Monetization.Passes[key] or 0
+		-- Weekly drop gate (§18): "later" waves hide the row entirely;
+		-- "next" waves show an IN Nd teaser — the server refuses both.
+		-- An owned unreleased pack (debug claim) stays visible + usable.
+		local rollout, rdays = Daily.rolloutStatus(key)
+		local offSeason = false
+		if rollout == "later" and not owned[key] then
+			states[key] = { label = "SOON", enabled = false, visible = false }
+			continue
+		elseif rollout == "next" and not owned[key] then
+			states[key] = { label = string.format("IN %dD", rdays), enabled = false }
+			continue
+		end
 		-- Seasonal slot (§18): outside the yearly window the pack shows a
 		-- countdown instead of a price — the server refuses the buy too.
-		local offSeason = false
 		if key == Config.Monetization.Seasonal.Bundle and not owned[key] then
 			local live, days = Daily.seasonalStatus()
 			offSeason = not live
@@ -336,6 +368,7 @@ local function refreshGarage()
 	if not ui.menu.Visible then
 		return
 	end
+	buildShopOrder() -- a wave can unlock mid-session; re-derive the browse list
 	local owned = ownedSet()
 	ui:setGarage({
 		slots = slotRows(),
@@ -465,7 +498,7 @@ end
 
 ui.onEquipCycle = function(slot, dir)
 	packPreviewId = nil -- browsing a slot reclaims the preview
-	local order = Cosmetics.Order[slot]
+	local order = shopOrder[slot] or Cosmetics.Order[slot]
 	local i = browseIdx[slot] or 1
 	browseIdx[slot] = ((i - 1 + dir) % #order) + 1
 	local id = order[browseIdx[slot]]
@@ -486,11 +519,11 @@ ui.onRandomize = function()
 	packPreviewId = nil
 	local owned = ownedSet()
 	-- Each slot's owned subset as Order-index picks (browseIdx stays an
-	-- index into Cosmetics.Order, so a pick carries its order position).
+	-- index into shopOrder, so a pick carries its order position).
 	local pools: { [string]: { number } } = {}
 	for _, slot in ipairs(Cosmetics.Slots) do
 		local p = {}
-		for i, id in ipairs(Cosmetics.Order[slot]) do
+		for i, id in ipairs(shopOrder[slot] or Cosmetics.Order[slot]) do
 			if Cosmetics.owns(owned, id) then
 				table.insert(p, i)
 			end
@@ -506,7 +539,7 @@ ui.onRandomize = function()
 					pick = pool[math.random(#pool)]
 				end
 				browseIdx[slot] = pick
-				local id = Cosmetics.Order[slot][pick]
+				local id = (shopOrder[slot] or Cosmetics.Order[slot])[pick]
 				if commit and equippedId(slot) ~= id then
 					pcall(function()
 						fnEquipItem:InvokeServer(id)
@@ -572,6 +605,13 @@ end
 ui.onBuyItem = function(itemId)
 	local item = Cosmetics.item(itemId)
 	if not item or item.gemPrice == nil or Cosmetics.owns(ownedSet(), itemId) then
+		return
+	end
+	-- Weekly drop gate: contents rows of an unreleased pack funnel back to
+	-- the pack row (IN Nd teaser / hidden) instead of a doomed server call.
+	local bid = Cosmetics.bundleOf(itemId)
+	if bid and Daily.rolloutStatus(bid) ~= "live" then
+		ui:focusPack(bid)
 		return
 	end
 	pcall(function()

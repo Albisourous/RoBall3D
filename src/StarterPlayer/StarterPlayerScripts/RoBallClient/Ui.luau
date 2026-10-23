@@ -1552,8 +1552,8 @@ function Ui.new(): Ui
 	local packFlash = 0
 	self._focusPack = function(id: string)
 		local row = self.packRows[id]
-		if not row then
-			return
+		if not row or not row.Visible then
+			return -- hidden waves can't be focused until teaser range
 		end
 		setGarageTab("PACKS")
 		setPackOpen(row, true)
@@ -3614,7 +3614,7 @@ export type GarageState = {
 			color: Color3?, -- item's own swatch; nil = no chip color (rainbow/custom)
 		},
 	},
-	packs: { [string]: { label: string, enabled: boolean } },
+	packs: { [string]: { label: string, enabled: boolean, visible: boolean? } },
 	gemPacks: { [string]: { label: string, enabled: boolean } },
 	bank: number,
 	-- COLOR LAB (§18): visible = owns any lab item; hues = server state
@@ -3657,6 +3657,12 @@ function Ui:setGarage(state: GarageState)
 		btn.TextColor3 = enabled and C_PINK or C_DIM
 		self.packStroke[id].Color = enabled and C_PINK or C_DIM
 		self.packEnabled[id] = enabled
+		-- Weekly drop gate (§18): "later"-wave packs hide their row outright
+		-- until they reach teaser range; nil state stays visible (SOON).
+		local row = self.packRows[id]
+		if row then
+			row.Visible = st == nil or st.visible ~= false
+		end
 	end
 	for key, btn in pairs(self.gemPackBtn) do
 		local st = state.gemPacks[key]

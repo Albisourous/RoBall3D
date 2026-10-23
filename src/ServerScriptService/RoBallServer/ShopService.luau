@@ -393,6 +393,14 @@ function ShopService.buyItem(player: Player, itemId: string): (boolean, string)
 	if Cosmetics.bundleOf(itemId) == Config.Monetization.Seasonal.Bundle and not seasonalLive() then
 		return false, "offseason"
 	end
+	-- Weekly drop gate (§18): member items of an unreleased wave refuse
+	-- à-la-carte gem buys until their pack hits the teaser→live boundary —
+	-- same acquisition-only gate as the seasonal window. bundleOf is the
+	-- shop oracle, so shared members must keep a live-pack listing (DLC.md).
+	local bid = Cosmetics.bundleOf(itemId)
+	if bid ~= nil and Daily.rolloutStatus(bid) ~= "live" then
+		return false, "unreleased"
+	end
 	if ShopService.ownsItem(player, itemId) then
 		return false, "owned"
 	end
@@ -541,6 +549,11 @@ function ShopService.claimPass(player: Player, key: string): (boolean, string)
 	end
 	if key == Config.Monetization.Seasonal.Bundle and not seasonalLive() then
 		return false, "offseason"
+	end
+	-- Weekly drop gate (§18): unreleased waves refuse claims even in
+	-- FreeForTesting; Config.Debug.Enabled lifts the gate for dev.
+	if Daily.rolloutStatus(key) ~= "live" then
+		return false, "unreleased"
 	end
 	if ShopService.ownsPass(player, key) then
 		return false, "owned"

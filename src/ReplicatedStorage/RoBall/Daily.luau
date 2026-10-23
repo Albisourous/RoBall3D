@@ -68,6 +68,54 @@ function Daily.seasonalStatus(t: number?): (boolean, number)
 	return false, math.ceil(nearest / DAY_SECONDS)
 end
 
+-- Weekly DLC rollout (§18, DLC_ROADMAP.md): bundle passes unlock in waves
+-- of two, Weeks[w] opening at Rollout.Start + (w-1)*7d 00:00 UTC. The
+-- garage shows live packs plus ONE upcoming wave as "IN Nd" teasers;
+-- later waves stay hidden. Returns (status, days): "live" → buyable now;
+-- "next" → teaser, days until unlock; "later" → hidden, days until unlock.
+-- Config.Debug.Enabled forces every wave live; a bundle not in any wave
+-- is always live (the seasonal slot runs its own yearly window). Bundles
+-- listed before their items ship are inert — nothing queries them. Pure
+-- UTC math like seasonalStatus so client display and server enforcement
+-- agree.
+export type RolloutStatus = "live" | "next" | "later"
+
+local WEEK_SECONDS = 7 * DAY_SECONDS
+local rolloutWeek: { [string]: number }? = nil -- bundleId -> wave index
+
+local function weekOf(bundleId: string): number?
+	if rolloutWeek == nil then
+		local Config = require(script.Parent.Config)
+		local map: { [string]: number } = {}
+		for w, list in ipairs(Config.Monetization.Rollout.Weeks) do
+			for _, id in ipairs(list) do
+				map[id] = w
+			end
+		end
+		rolloutWeek = map
+	end
+	return (rolloutWeek :: { [string]: number })[bundleId]
+end
+
+function Daily.rolloutStatus(bundleId: string, t: number?): (RolloutStatus, number)
+	local Config = require(script.Parent.Config)
+	local w = weekOf(bundleId)
+	if Config.Debug.Enabled or w == nil then
+		return "live", 0
+	end
+	local S = Config.Monetization.Rollout.Start
+	local start = os.time({ year = S[1], month = S[2], day = S[3], hour = 0 })
+	local now = t or os.time()
+	local cur = math.floor((now - start) / WEEK_SECONDS) + 1
+	local days = math.max(1, math.ceil((start + (w - 1) * WEEK_SECONDS - now) / DAY_SECONDS))
+	if w <= cur then
+		return "live", 0
+	elseif w == cur + 1 then
+		return "next", days
+	end
+	return "later", days
+end
+
 -- Daily quests (§14): three seeded missions per UTC day. The day's seed
 -- picks one target per pool — every player gets the same quests, so the
 -- list is pure and identical on client and server (menu lines are drawn

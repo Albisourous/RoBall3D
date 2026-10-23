@@ -1582,6 +1582,25 @@ AVALANCHE death + POLAR CAP sun + SNOWBLIND filter) plus the shared
 NORTHERN LIGHTS sky. `Daily.seasonalStatus` is the shared
 UTC math so client display and server enforcement agree.
 
+**Weekly rollout**: packs don't all sell at once — they drip two per
+week so the shop always has a next drop and players buy as packs land
+(DLC_ROADMAP.md is the canonical schedule). `Config.Monetization.Rollout`
+holds `Start` (the UTC date wave 1 opens — launch day) and `Weeks` (two
+bundle ids per wave, opening `Start + (w-1)·7d` at 00:00 UTC, so the
+whole season ships in one publish — no per-drop code push).
+`Daily.rolloutStatus(bundleId)` is the shared pure-UTC gate, parallel to
+`seasonalStatus`: **live** waves sell; the **next** wave shows in the
+garage as `IN Nd` teasers (buy disabled, accordion + preview still work
+— hype is free); **later** waves are invisible — no PACKS row, member
+items filtered out of the browse catalog, and the server refuses both
+the bundle claim and à-la-carte gem buys (`buyItem`/`claimPass` gate on
+the `bundleOf` oracle, so a shared member must keep a live-pack listing
+first). The gate blocks acquisition, never use — an owned pack stays
+playable. `Config.Debug.Enabled` lifts the schedule entirely for dev.
+SOLSTICE stays exempt — the `Seasonal` window is its gate. Passes are
+still created on the dashboard as waves approach; a bought-elsewhere
+pass grants normally since ownership is platform-derived.
+
 **Score integrity contract**: the leaderboard meta row carries
 `assisted = false` today. Any future advantage item (bounded power-ups sit
 in the §17 backlog) must set it and submit to a separate `*_Assisted`

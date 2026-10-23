@@ -216,6 +216,25 @@ every already-sold pass granting its original contents forever:
 full NEON PEAKS set — same pass key, so early buyers keep their world
 and get the whole outfit.)
 
+## Release rollout — 2 packs/week
+
+Passes unlock in weekly waves instead of all at once:
+`Config.Monetization.Rollout.Weeks` lists two bundle ids per wave;
+`Rollout.Start` is the UTC date wave 1 opens (set it to launch day) and
+each wave opens `Start + (w-1)·7d` at 00:00 UTC — no republish needed.
+`Daily.rolloutStatus(bundleId)` is the shared gate: **live** packs sell
+normally, the **next** wave shows in the garage as `IN Nd` teasers
+(buy disabled — the accordion + diorama preview still sell the look),
+and **later** waves are hidden entirely — no row, member items filtered
+out of slot browse, and the server refuses both bundle claims and
+à-la-carte gem buys of their items (acquisition-gated, never use-gated:
+owned packs stay usable). `Config.Debug.Enabled` lifts the whole
+schedule for dev. SOLSTICE is exempt — it runs its own `Seasonal`
+window. The canonical schedule and the designed-but-unshipped pack specs
+live in **`DLC_ROADMAP.md`** — future-wave ids are already slotted in
+`Weeks`, so shipping a designed pack is data work (items → Order →
+bundle → sun/backdrop), not plumbing.
+
 ## Gem packs (dev products)
 
 | Pack | Grant | R$ |

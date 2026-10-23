@@ -1753,6 +1753,33 @@ Config.Monetization = {
 		Start = { 12, 15 }, -- {month, day} UTC, inclusive
 		End = { 1, 8 }, -- {month, day} UTC, inclusive
 	},
+	-- Weekly DLC rollout (§18 — DLC_ROADMAP.md is the canonical schedule):
+	-- bundle passes unlock in waves of TWO packs, one wave per 7 days, so
+	-- the shop always has a next drop coming and players buy as packs land.
+	-- Start is the UTC date wave 1 opens — set it to launch day; Weeks[w]
+	-- unlocks at Start + (w-1)*7d 00:00 UTC, no republish needed. The garage
+	-- shows live packs plus the NEXT wave as "IN Nd" teasers; later waves
+	-- stay fully hidden (rows gone, member items out of slot browse, server
+	-- refuses claims + à-la-carte buys — Daily.rolloutStatus is the shared
+	-- gate). Config.Debug.Enabled unlocks the whole schedule for dev. Ids
+	-- listed before their bundle ships are inert — pre-slotted future packs
+	-- land here so the roadmap needs no config edit. Bundles in NO wave
+	-- stay always-live (solstice runs its own yearly window instead).
+	Rollout = {
+		Start = { 2026, 10, 26 }, -- {year, month, day} UTC — wave 1 = launch
+		Weeks = {
+			{ "starter", "synthwave" }, -- W1 launch wave: entry + flagship look
+			{ "midas", "peaks" }, -- W2
+			{ "aurora", "reef" }, -- W3
+			{ "vip", "null" }, -- W4
+			{ "polaris", "apeball" }, -- W5 — APE BALL mid-schedule momentum
+			{ "mainframe", "festival" }, -- W6+ future packs (DLC_ROADMAP.md §3)
+			{ "hypnotube", "cathedral" },
+			{ "papercraft", "mycelium" },
+			{ "inkwell", "hyperdrive" },
+			{ "mercury", "kaleido" },
+		},
+	},
 	-- Gem bank (§18 P2): each pickup banks this many gems, credited live.
 	BankPerGem = 1,
 	-- Daily streak (§14): finishing a daily-seeded run pays
