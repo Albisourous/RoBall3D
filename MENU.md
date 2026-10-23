@@ -263,10 +263,9 @@ pairs with §2 so the chrome thumps (pulse) while the strip traces
   authority; distance is the only score.
 - **Chat panels / lobby chrome** — Roblox owns social; not our surface.
 
-**Shipped since**: cursor parallax (`Config.Menu.ParallaxPx = 6`) —
-the poster column drifts ±6px toward the cursor and the rails
-counter-drift at half strength, quantized to whole px and gated on
-`MouseEnabled` so touch never pays for it.
+- **Cursor parallax** — built (poster + rail drift, `ParallaxPx`) then
+  cut: chrome that slides under the cursor reads as *unstable*, not
+  deep — the shop floor's cards stay nailed.
 
 ## 10. Tunables
 
@@ -285,7 +284,7 @@ Config.Menu = {
 	StampDuck = 0.3, -- §7 duck depth when the card lands
 	StampDuckRelease = 0.5,
 	-- §8 cut: no MenuSpec* — §2's pulse carries idle motion alone.
-	ParallaxPx = 6, -- §9 poster drift toward cursor; 0 = off
+	-- §9 cut: no ParallaxPx — menu UI never drifts under the cursor.
 }
 ```
 
@@ -293,6 +292,7 @@ Plus `Config.Music.TrackAccents[id] = { accentA, accentB }` per track
 (§6) — the jacket face + poster accents' source pair.
 
 **Status**: §3 audition, §2 chrome pulse, §4 springs + jackets + stat
-line + wheel, §6 accents, §7 stamp, §9 parallax — shipped. §5
-hitsounds and the §8 scope strip were built then deliberately cut
-(menu silence reads better under the quiet bed).
+line + wheel, §6 accents, §7 stamp — shipped. §5 hitsounds, the §8
+scope strip, and §9 parallax were built then deliberately cut (menu
+silence reads better under the quiet bed; chrome that moves under the
+cursor reads as unstable).

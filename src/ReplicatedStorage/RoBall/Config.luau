@@ -1659,7 +1659,7 @@ Config.Menu = {
 	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
 	StampDuck = 0.3, -- §7 duck depth when the card lands
 	StampDuckRelease = 0.5,
-	ParallaxPx = 6, -- §9 cursor drift garnish on: ±6px poster drift; 0 = off
+	-- §9: no cursor parallax — menu UI never drifts under the mouse.
 }
 
 Config.Leaderboard = {

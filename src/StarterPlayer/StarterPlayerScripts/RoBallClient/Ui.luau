@@ -2924,17 +2924,6 @@ function Ui.new(): Ui
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitPills)
 	fitPills()
 
-	-- §9 parallax rig (MENU.md): base positions snapshotted once — the
-	-- poster column drifts toward the cursor ±ParallaxPx while the
-	-- garage + board rails counter-drift at half strength, so the shop
-	-- floor reads as layers instead of one flat card.
-	self._pxTargets = {
-		{ gui = menuCol, base = menuCol.Position, k = 1 },
-		{ gui = garage, base = garage.Position, k = -0.5 },
-		{ gui = board, base = board.Position, k = -0.5 },
-	}
-	self._pxQ = { 0, 0 } -- last quantized px offset written
-
 	return self
 end
 
@@ -3104,25 +3093,6 @@ function Ui:pulseMenu()
 		if sq ~= self._slotKick[slot] then
 			self._slotKick[slot] = sq
 			self.slotItem[slot].Position = self._slotPos[slot] + UDim2.fromOffset(sq * Config.Menu.JacketPx, 0)
-		end
-	end
-	-- §9 cursor parallax: the poster column drifts ±ParallaxPx toward
-	-- the mouse and the garage/board rails counter-drift at half
-	-- strength — depth, not motion. Whole-px quantized + write-gated
-	-- like the kicks; mouse-only, and must run ahead of the env
-	-- early-out below so a still song doesn't freeze the drift.
-	if Config.Menu.ParallaxPx > 0 and UserInputService.MouseEnabled then
-		local vp = self.gui.AbsoluteSize
-		local m = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
-		local p = Config.Menu.ParallaxPx * 2
-		local qx = math.floor((m.X / math.max(vp.X, 1) - 0.5) * p + 0.5)
-		local qy = math.floor((m.Y / math.max(vp.Y, 1) - 0.5) * p + 0.5)
-		if qx ~= self._pxQ[1] or qy ~= self._pxQ[2] then
-			self._pxQ[1] = qx
-			self._pxQ[2] = qy
-			for _, t in ipairs(self._pxTargets) do
-				t.gui.Position = t.base + UDim2.fromOffset(qx * t.k, qy * t.k)
-			end
 		end
 	end
 	local e8 = math.floor((self.pulse or 0) * 8 + 0.5) / 8
