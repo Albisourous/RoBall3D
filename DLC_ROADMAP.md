@@ -56,7 +56,7 @@ Drops land Mondays 00:00 UTC. Order alternates price tiers and mood
 | W6 | 2026-11-30 | MAINFRAME `mainframe` R$149 | FESTIVAL `festival` R$149 | **built** |
 | W7 | 2026-12-07 | HYPNOTUBE `hypnotube` R$149 | CATHEDRAL `cathedral` R$199 | **built** |
 | W8 | 2026-12-14 | PAPERCRAFT `papercraft` R$149 | MYCELIUM `mycelium` R$149 | **built** |
-| W9 | 2026-12-21 | INKWELL `inkwell` R$149 | HYPERDRIVE `hyperdrive` R$199 | **designed** (§3) |
+| W9 | 2026-12-21 | INKWELL `inkwell` R$149 | HYPERDRIVE `hyperdrive` R$199 | **built** |
 | W10 | 2026-12-28 | MERCURY `mercury` R$199 | KALEIDO `kaleido` R$199 | **designed** (§3) |
 | — | Dec 15–Jan 8 | SOLSTICE `solstice` R$149 | (seasonal window, not a wave) | shipped |
 

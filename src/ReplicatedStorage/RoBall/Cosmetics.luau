@@ -119,6 +119,9 @@ local PAPER = Color3.fromRGB(255, 244, 228) -- papercraft stock
 local CLAY = Color3.fromRGB(255, 150, 120) -- papercraft accent
 local HONEY = Color3.fromRGB(255, 190, 60) -- mycelium amber
 local MOSS = Color3.fromRGB(120, 200, 90) -- mycelium green
+local INDIGO = Color3.fromRGB(70, 80, 200) -- inkwell sumi
+local INKW = Color3.fromRGB(220, 225, 240) -- ink-white
+local HOTW = Color3.fromRGB(245, 248, 255) -- hyperdrive white-hot
 
 Cosmetics.Items = {
 	--==== SKIN — 3 axial rings (ringA) + 2 diagonals (ringB), core = ball
@@ -371,6 +374,26 @@ Cosmetics.Items = {
 		fx = "pulse",
 		gemShape = "orb", -- spore sacs
 	},
+	skin_sumi = {
+		slot = "skin",
+		name = "SUMI",
+		gemPrice = 800,
+		ringA = INDIGO,
+		ringB = INKW,
+		core = Color3.fromRGB(14, 16, 36),
+		fx = "wave",
+		gemShape = "orb", -- ink drops
+	},
+	skin_lightyear = {
+		slot = "skin",
+		name = "LIGHTYEAR",
+		gemPrice = 900,
+		ringA = HOTW,
+		ringB = CYAN,
+		core = Color3.fromRGB(10, 14, 34),
+		fx = "strobe",
+		gemShape = "rod", -- star streaks
+	},
 	skin_capsule = {
 		slot = "skin",
 		name = "CAPSULE",
@@ -408,6 +431,8 @@ Cosmetics.Items = {
 	trail_censer = { slot = "trail", name = "CENSER", gemPrice = 450, color = AMBER },
 	trail_crease = { slot = "trail", name = "CREASE", gemPrice = 450, color = Color3.fromRGB(255, 240, 220) },
 	trail_hypha = { slot = "trail", name = "HYPHA", gemPrice = 450, color = Color3.fromRGB(255, 200, 80) },
+	trail_ink = { slot = "trail", name = "INK TRAIL", gemPrice = 450, color = Color3.fromRGB(80, 70, 160) },
+	trail_warpline = { slot = "trail", name = "WARP LINE", gemPrice = 500, color = Color3.fromRGB(160, 240, 255) },
 
 	--==== GEM FX — the pickup flourish (pop diamond + sparkles + ring)
 	gemfx_gold = { slot = "gemFx", name = "GOLD POP", free = true, color = GOLD },
@@ -434,6 +459,8 @@ Cosmetics.Items = {
 	gemfx_glint = { slot = "gemFx", name = "GLINT", gemPrice = 400, color = GOLD },
 	gemfx_paper = { slot = "gemFx", name = "PAPER CUT", gemPrice = 400, color = Color3.fromRGB(255, 180, 150) },
 	gemfx_spore = { slot = "gemFx", name = "SPORE BURST", gemPrice = 400, color = Color3.fromRGB(200, 220, 120) },
+	gemfx_bleed = { slot = "gemFx", name = "BLEED", gemPrice = 400, color = Color3.fromRGB(110, 100, 220) },
+	gemfx_starburst = { slot = "gemFx", name = "STARBURST", gemPrice = 450, color = Color3.fromRGB(220, 245, 255) },
 
 	--==== DEATH FX — burst at the last ball position on run end
 	deathfx_shatter = {
@@ -620,6 +647,22 @@ Cosmetics.Items = {
 		colorA = HONEY,
 		colorB = MOSS,
 	},
+	deathfx_bloom = {
+		slot = "deathFx",
+		name = "BLOOM",
+		gemPrice = 550,
+		style = "implode", -- collapses then blooms
+		colorA = INDIGO,
+		colorB = INKW,
+	},
+	deathfx_signal = {
+		slot = "deathFx",
+		name = "SIGNAL LOST",
+		gemPrice = 600,
+		style = "nova",
+		colorA = HOTW,
+		colorB = CYAN,
+	},
 
 	--==== WORLD — the whole side-scenery theme (Backdrop.luau renders it)
 	world_city = { slot = "world", name = "NEON CITY", free = true, theme = "city" },
@@ -642,6 +685,8 @@ Cosmetics.Items = {
 	world_glass = { slot = "world", name = "CATHEDRAL", gemPrice = 900, theme = "glass" },
 	world_paper = { slot = "world", name = "PAPERCRAFT", gemPrice = 800, theme = "paper" },
 	world_slime = { slot = "world", name = "MYCELIUM", gemPrice = 800, theme = "slime" },
+	world_ink = { slot = "world", name = "INKWELL", gemPrice = 800, theme = "ink" },
+	world_warp = { slot = "world", name = "HYPERDRIVE", gemPrice = 900, theme = "warp" },
 
 	--==== FLOOR — the deck slab itself (TrackStreamer/CosmeticFx restyle
 	-- it). `deck` is the lane base color, still lerped toward the run
@@ -717,6 +762,20 @@ Cosmetics.Items = {
 		deck = Color3.fromRGB(22, 30, 18),
 		edge = HONEY,
 	},
+	floor_inkwash = {
+		slot = "floor",
+		name = "INK WASH",
+		gemPrice = 350,
+		deck = Color3.fromRGB(16, 18, 34),
+		edge = Color3.fromRGB(200, 205, 230),
+	},
+	floor_darkmatter = {
+		slot = "floor",
+		name = "DARK MATTER",
+		gemPrice = 350,
+		deck = Color3.fromRGB(10, 12, 26),
+		edge = Color3.fromRGB(160, 240, 255),
+	},
 
 	--==== SUN — the horizon disk the run chases (Backdrop.luau renders it
 	-- from Config.Art.SunStyles; "grid" thins the strips to a wireframe
@@ -740,6 +799,8 @@ Cosmetics.Items = {
 	sun_rose = { slot = "sun", name = "ROSE WINDOW", gemPrice = 700, sun = "rose" },
 	sun_paper = { slot = "sun", name = "PAPER SUN", gemPrice = 600, sun = "paper" },
 	sun_ferment = { slot = "sun", name = "FERMENT", gemPrice = 600, sun = "ferment" },
+	sun_inkmoon = { slot = "sun", name = "INK MOON", gemPrice = 600, sun = "inkmoon" },
+	sun_warpcore = { slot = "sun", name = "WARP CORE", gemPrice = 700, sun = "warpcore" },
 
 	--==== FILTER — a screen overlay over the 3D view (ScreenFilter.luau
 	-- renders it under the HUD so text stays readable). One per bundle:
@@ -846,6 +907,22 @@ Cosmetics.Items = {
 		tint = Color3.fromRGB(150, 140, 70),
 		alpha = 0.12,
 	},
+	filter_sumi = {
+		slot = "filter",
+		name = "SUMI",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(60, 60, 90),
+		alpha = 0.14,
+	},
+	filter_lightspeed = {
+		slot = "filter",
+		name = "LIGHTSPEED",
+		gemPrice = 500,
+		filter = "tint",
+		tint = Color3.fromRGB(140, 220, 255),
+		alpha = 0.10,
+	},
 } :: { [string]: Item }
 
 -- Equip-cycle order in the garage (matches the table above).
@@ -877,6 +954,8 @@ Cosmetics.Order = {
 		"skin_leaded",
 		"skin_fold",
 		"skin_spore",
+		"skin_sumi",
+		"skin_lightyear",
 	},
 	trail = {
 		"trail_none",
@@ -904,6 +983,8 @@ Cosmetics.Order = {
 		"trail_censer",
 		"trail_crease",
 		"trail_hypha",
+		"trail_ink",
+		"trail_warpline",
 	},
 	gemFx = {
 		"gemfx_gold",
@@ -930,6 +1011,8 @@ Cosmetics.Order = {
 		"gemfx_glint",
 		"gemfx_paper",
 		"gemfx_spore",
+		"gemfx_bleed",
+		"gemfx_starburst",
 	},
 	deathFx = {
 		"deathfx_shatter",
@@ -955,6 +1038,8 @@ Cosmetics.Order = {
 		"deathfx_rosefall",
 		"deathfx_unfold",
 		"deathfx_sporulate",
+		"deathfx_bloom",
+		"deathfx_signal",
 	},
 	world = {
 		"world_city",
@@ -975,6 +1060,8 @@ Cosmetics.Order = {
 		"world_glass",
 		"world_paper",
 		"world_slime",
+		"world_ink",
+		"world_warp",
 	},
 	floor = {
 		"floor_neon",
@@ -997,6 +1084,8 @@ Cosmetics.Order = {
 		"floor_nave",
 		"floor_kraft",
 		"floor_humus",
+		"floor_inkwash",
+		"floor_darkmatter",
 	},
 	sun = {
 		"sun_classic",
@@ -1018,6 +1107,8 @@ Cosmetics.Order = {
 		"sun_rose",
 		"sun_paper",
 		"sun_ferment",
+		"sun_inkmoon",
+		"sun_warpcore",
 	},
 	filter = {
 		"filter_off",
@@ -1039,6 +1130,8 @@ Cosmetics.Order = {
 		"filter_sanctuary",
 		"filter_matte",
 		"filter_petri",
+		"filter_sumi",
+		"filter_lightspeed",
 	},
 } :: { [string]: { string } }
 
@@ -1355,6 +1448,39 @@ Cosmetics.Bundles = {
 			"deathfx_sporulate",
 			"sun_ferment",
 			"filter_petri",
+		},
+	},
+	{
+		-- W9-A (DLC_ROADMAP.md §3): ink in water — blooming ink world.
+		id = "inkwell",
+		name = "INKWELL",
+		desc = "full sumi set · ink world",
+		items = {
+			"skin_sumi",
+			"world_ink",
+			"floor_inkwash",
+			"trail_ink",
+			"gemfx_bleed",
+			"deathfx_bloom",
+			"sun_inkmoon",
+			"filter_sumi",
+		},
+	},
+	{
+		-- W9-B (DLC_ROADMAP.md §3): starfield warp — the premium slot's
+		-- speed-reactive streak tunnel.
+		id = "hyperdrive",
+		name = "HYPERDRIVE",
+		desc = "full warp set · streak world",
+		items = {
+			"skin_lightyear",
+			"world_warp",
+			"floor_darkmatter",
+			"trail_warpline",
+			"gemfx_starburst",
+			"deathfx_signal",
+			"sun_warpcore",
+			"filter_lightspeed",
 		},
 	},
 }

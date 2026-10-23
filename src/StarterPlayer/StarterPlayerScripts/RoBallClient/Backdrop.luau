@@ -32,6 +32,10 @@
 --             faceted wedge islets below, paper planes cutting across.
 --   "slime" — MYCELIUM: glowing node beads + tendril links hugging both
 --             verges, pulses traveling the chains, spore motes rising.
+--   "ink"   — INKWELL: soft translucent blooms grow and thin beside the
+--             lane on a lifecycle; dark drop columns fall past.
+--   "warp"  — HYPERDRIVE: radial streaks stream out of a descent axis
+--             ahead; the live share ramps with measured run speed.
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
@@ -91,6 +95,8 @@ type Theme =
 	| "glass"
 	| "paper"
 	| "slime"
+	| "ink"
+	| "warp"
 	| "palms"
 	| "polar"
 	| "empty"
@@ -197,6 +203,29 @@ local slimeClock = os.clock()
 local SLIME_DARK = Color3.fromRGB(40, 60, 30) -- node base
 local SLIME_HI = Color3.fromRGB(255, 190, 60) -- pulse crest (honey)
 local SLIME_LINK = Color3.fromRGB(90, 160, 70) -- tendril moss
+
+-- INKWELL pool (§18 "ink") — blooms carry a grow+fade lifecycle;
+-- drops are dark falling columns (matrix-drop contract).
+type InkBloom = { part: Part, age: number, life: number, x: number, y: number, z: number, r0: number }
+local inkBlooms: { InkBloom } = {}
+local inkDrops: { { part: Part, len: number, speed: number } } = {}
+local inkClock = os.clock()
+
+local INK_DEEP = Color3.fromRGB(70, 80, 200)
+local INK_DROP = Color3.fromRGB(20, 24, 60)
+
+-- HYPERDRIVE pool (§18 "warp") — streaks stream radially off a
+-- descending axis ahead of the lane.
+type WarpStreak = { part: Part, dir: Vector3, r: number, live: boolean }
+local warpStreaks: { WarpStreak } = {}
+local warpPrevZ = 0
+local warpClock = os.clock()
+
+local WARP_COLS = {
+	Color3.fromRGB(245, 248, 255),
+	Color3.fromRGB(160, 240, 255),
+	Color3.fromRGB(120, 200, 255),
+}
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
 -- lazy/park contract.
@@ -1472,6 +1501,127 @@ local function stepSlime(anchor: Vector3, dt: number)
 	end
 end
 
+--=========================== INKWELL (ink) ===========================--
+-- Ink in water (§18 "ink" world): blooms are soft translucent spheres
+-- on a grow+fade lifecycle — they swell to InkBloomRMax while thinning
+-- out, then re-seed at a fresh spot ahead. Drop columns are the same
+-- falling-bar contract as the matrix rain, darker and slower.
+
+local function layInkBloom(b: InkBloom, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(60, 700)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	b.x = anchor.X + side * rng:NextNumber(Art.InkMinX, Art.InkMaxX)
+	b.y = deckEst(anchor, z) + rng:NextNumber(Art.InkAltMin, Art.InkAltMax)
+	b.z = z
+	b.age = 0
+	b.life = rng:NextNumber(Art.InkBloomLifeMin, Art.InkBloomLifeMax)
+	b.r0 = rng:NextNumber(Art.InkBloomRMin, Art.InkBloomRMin * 2)
+	b.part.Shape = Enum.PartType.Ball
+	b.part.Color = INK_DEEP
+end
+
+local function layInkDrop(d: { part: Part, len: number, speed: number }, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(0, 800)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	d.len = rng:NextNumber(Art.InkDropLenMin, Art.InkDropLenMax)
+	d.speed = rng:NextNumber(Art.InkDropSpeedMin, Art.InkDropSpeedMax)
+	d.part.Size = Vector3.new(0.9, d.len, 0.9)
+	d.part.Color = INK_DROP
+	d.part.Position = Vector3.new(
+		anchor.X + side * rng:NextNumber(Art.InkDropMinX, Art.InkDropMaxX),
+		deckEst(anchor, z) + Art.InkDropTop + rng:NextNumber(0, 80),
+		z
+	)
+end
+
+local function ensureInk()
+	if #inkBlooms > 0 then
+		return
+	end
+	for _ = 1, Art.InkBlooms do
+		table.insert(inkBlooms, { part = makePeakPart(root, false), age = 0, life = 0, x = 0, y = 0, z = 0, r0 = 0 })
+	end
+	for _ = 1, Art.InkDrops do
+		table.insert(inkDrops, { part = makePeakPart(root, false), len = 0, speed = 0 })
+	end
+end
+
+local function stepInk(anchor: Vector3, dt: number)
+	for _, b in ipairs(inkBlooms) do
+		b.age += dt
+		if b.age >= b.life or b.z > anchor.Z + BACK_MARGIN then
+			layInkBloom(b, anchor)
+		end
+		local t = b.age / b.life
+		local r = b.r0 + (Art.InkBloomRMax - b.r0) * t
+		b.part.Size = Vector3.one * r * 2
+		b.part.Transparency = 0.3 + 0.65 * t -- thins as it spreads
+		b.part.Position = Vector3.new(b.x, b.y, b.z)
+	end
+	for _, d in ipairs(inkDrops) do
+		local pos = d.part.Position
+		local deckY = deckEst(anchor, pos.Z)
+		if pos.Y < deckY - Art.InkDropKill or pos.Z > anchor.Z + BACK_MARGIN or d.len == 0 then
+			layInkDrop(d, anchor)
+		else
+			d.part.Position = Vector3.new(pos.X, pos.Y - d.speed * dt, pos.Z)
+		end
+	end
+end
+
+--=========================== HYPERDRIVE (warp) =======================--
+-- Starfield warp (§18 "warp" world): streaks spawn on a small radius
+-- around the descent axis ahead of the lane and stream outward on real
+-- velocities, stretching as they go — position and length both scale
+-- with r. The live share ramps with measured run speed (anchor z-delta
+-- per frame), so the tunnel thickens as the run speeds up.
+
+local function seedWarpStreak(s: WarpStreak)
+	local a = rng:NextNumber(0, math.pi * 2)
+	s.dir = Vector3.new(math.cos(a), math.sin(a), rng:NextNumber(-0.1, 0.1)).Unit
+	s.r = Art.WarpRMin + rng:NextNumber(0, 30)
+	s.part.Color = WARP_COLS[rng:NextInteger(1, #WARP_COLS)]
+end
+
+local function ensureWarp()
+	if #warpStreaks > 0 then
+		return
+	end
+	for _ = 1, Art.WarpStreaks do
+		local s: WarpStreak = { part = makePeakPart(root, true), dir = Vector3.zero, r = 0, live = false }
+		seedWarpStreak(s)
+		s.r = rng:NextNumber(Art.WarpRMin, Art.WarpRMax) -- scatter the field
+		table.insert(warpStreaks, s)
+	end
+end
+
+local function stepWarp(anchor: Vector3, dt: number)
+	local axis =
+		Vector3.new(anchor.X, deckEst(anchor, anchor.Z - Art.WarpAxisZ) + Art.WarpAxisY, anchor.Z - Art.WarpAxisZ)
+	-- Run speed from the anchor's own motion — no replicated tier needed.
+	local speed = warpPrevZ ~= 0 and math.max(0, (warpPrevZ - anchor.Z) / math.max(dt, 1e-4)) or 0
+	warpPrevZ = anchor.Z
+	local live = math.ceil(Art.WarpStreaks * math.clamp(Art.WarpIdleShare + speed / 600, 0, 1))
+	for i, s in ipairs(warpStreaks) do
+		if i > live then
+			if s.live then
+				s.live = false
+				parkPart(s.part)
+			end
+			continue
+		end
+		s.live = true
+		s.r += Art.WarpSpeed * dt * (0.6 + speed / 600) -- faster streaks at speed
+		if s.r > Art.WarpRMax then
+			seedWarpStreak(s)
+		end
+		local len = Art.WarpLenMin + (Art.WarpLenMax - Art.WarpLenMin) * (s.r / Art.WarpRMax)
+		local pos = axis + s.dir * s.r
+		s.part.Size = Vector3.new(0.5, 0.5, len)
+		s.part.CFrame = CFrame.lookAt(pos + s.dir * (len / 2), pos + s.dir * len)
+	end
+end
+
 --============================ PALMS ============================--
 -- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
 -- blades fanning out of the crown on cyan→magenta, two bead coconuts.
@@ -2102,6 +2252,25 @@ local function parkSlime()
 	slimeSeeded = false
 end
 
+local function parkInk()
+	for _, b in ipairs(inkBlooms) do
+		parkPart(b.part)
+		b.age = b.life -- forces a fresh lay on next activation
+	end
+	for _, d in ipairs(inkDrops) do
+		parkPart(d.part)
+		d.len = 0
+	end
+end
+
+local function parkWarp()
+	for _, s in ipairs(warpStreaks) do
+		s.live = false
+		parkPart(s.part)
+	end
+	warpPrevZ = 0
+end
+
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -2156,6 +2325,8 @@ local parkers: { [Theme]: () -> () } = {
 	glass = parkGlass,
 	paper = parkPaper,
 	slime = parkSlime,
+	ink = parkInk,
+	warp = parkWarp,
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
@@ -2176,6 +2347,8 @@ local THEMES: { [string]: Theme } = {
 	glass = "glass",
 	paper = "paper",
 	slime = "slime",
+	ink = "ink",
+	warp = "warp",
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
@@ -2407,6 +2580,26 @@ function Backdrop.update(anchor: Vector3)
 		local dt = math.clamp(now - slimeClock, 0, 0.12)
 		slimeClock = now
 		stepSlime(anchor, dt)
+		return
+	end
+
+	-- INKWELL (§18 "ink"): bloom lifecycles + falling columns.
+	if theme == "ink" then
+		ensureInk()
+		local now = os.clock()
+		local dt = math.clamp(now - inkClock, 0, 0.12)
+		inkClock = now
+		stepInk(anchor, dt)
+		return
+	end
+
+	-- HYPERDRIVE (§18 "warp"): radial streaks, speed-reactive share.
+	if theme == "warp" then
+		ensureWarp()
+		local now = os.clock()
+		local dt = math.clamp(now - warpClock, 0, 0.12)
+		warpClock = now
+		stepWarp(anchor, dt)
 		return
 	end
 
@@ -2816,6 +3009,36 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 		end
 		for _ = 1, Art.SlimeMotes do
 			laySlimeMote({ part = makePeakPart(parent, true), baseY = 0 }, anchor)
+		end
+		return
+	end
+	if t == "ink" then
+		for i = 1, Art.InkBlooms do
+			local b = { part = makePeakPart(parent, false), age = 0, life = 1, x = 0, y = 0, z = 0, r0 = 0 }
+			layInkBloom(b, anchor)
+			b.age = b.life * ((i - 1) / Art.InkBlooms) -- scatter the cycle
+			local tt = b.age / b.life
+			local r = b.r0 + (Art.InkBloomRMax - b.r0) * tt
+			b.part.Size = Vector3.one * r * 2
+			b.part.Transparency = 0.3 + 0.65 * tt
+			b.part.Position = Vector3.new(b.x, b.y, b.z)
+		end
+		for _ = 1, Art.InkDrops do
+			layInkDrop({ part = makePeakPart(parent, false), len = 0, speed = 0 }, anchor)
+		end
+		return
+	end
+	if t == "warp" then
+		local axis =
+			Vector3.new(anchor.X, deckEst(anchor, anchor.Z - Art.WarpAxisZ) + Art.WarpAxisY, anchor.Z - Art.WarpAxisZ)
+		for _ = 1, Art.WarpStreaks do
+			local s: WarpStreak = { part = makePeakPart(parent, true), dir = Vector3.zero, r = 0, live = true }
+			seedWarpStreak(s)
+			s.r = rng:NextNumber(Art.WarpRMin, Art.WarpRMax)
+			local len = Art.WarpLenMin + (Art.WarpLenMax - Art.WarpLenMin) * (s.r / Art.WarpRMax)
+			local pos = axis + s.dir * s.r
+			s.part.Size = Vector3.new(0.5, 0.5, len)
+			s.part.CFrame = CFrame.lookAt(pos + s.dir * (len / 2), pos + s.dir * len)
 		end
 		return
 	end

@@ -1489,6 +1489,39 @@ Config.Art = {
 	SlimeMoteMaxX = 70,
 	SlimeMoteRise = 6, -- studs/s upward drift
 	SlimeMoteSpan = 60, -- recycle after rising this far
+	-- INKWELL (§18 world "ink"): ink in water — soft translucent blooms
+	-- grow and thin on a lifecycle beside the lane; dark drop columns
+	-- fall past on real velocities like a slower, heavier code-rain.
+	InkBlooms = 8,
+	InkBloomLifeMin = 4, -- seconds grow+fade cycle
+	InkBloomLifeMax = 8,
+	InkBloomRMin = 5, -- start radius
+	InkBloomRMax = 24, -- full-bloom radius
+	InkMinX = 50,
+	InkMaxX = 160,
+	InkAltMin = 5,
+	InkAltMax = 70,
+	InkDrops = 12, -- dark columns falling past
+	InkDropSpeedMin = 40,
+	InkDropSpeedMax = 90,
+	InkDropLenMin = 10,
+	InkDropLenMax = 30,
+	InkDropMinX = 20,
+	InkDropMaxX = 90,
+	InkDropTop = 160, -- respawn height above the deck
+	InkDropKill = 60, -- respawn once this far under the deck
+	-- HYPERDRIVE (§18 world "warp"): radial star-streaks — thin long
+	-- parts stream outward from a descent axis ahead of the lane on
+	-- real velocities; the live share ramps with measured run speed.
+	WarpStreaks = 40,
+	WarpAxisZ = 500, -- streaks radiate from a point this far ahead
+	WarpAxisY = 40, -- axis this far above deck grade
+	WarpRMin = 30, -- spawn radius
+	WarpRMax = 320, -- recycle radius
+	WarpSpeed = 130, -- radial studs/s
+	WarpLenMin = 6, -- streak length at spawn radius
+	WarpLenMax = 30, -- at recycle radius
+	WarpIdleShare = 0.35, -- live fraction at standstill
 	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
 	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
 	-- rustle a few degrees on wall-clock sine; bases sit just under the
@@ -1748,6 +1781,24 @@ Config.Art = {
 			solid = 0.7,
 			gap = 0.4,
 			scale = 0.9,
+		},
+		inkmoon = {
+			-- INKWELL pack: a pale ink-moon — flat lavender-grey disk,
+			-- cool and watery.
+			top = Color3.fromRGB(220, 220, 240),
+			bottom = Color3.fromRGB(120, 120, 160),
+			solid = 0.9,
+			gap = 0.4,
+			scale = 0.85,
+		},
+		warpcore = {
+			-- HYPERDRIVE pack: a white-hot warp core — blazing disk
+			-- cooling to reactor blue at the rim.
+			top = Color3.fromRGB(245, 248, 255),
+			bottom = Color3.fromRGB(120, 200, 255),
+			solid = 0.8,
+			gap = 0.4,
+			scale = 1,
 		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.
