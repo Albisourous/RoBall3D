@@ -1088,13 +1088,16 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- Thumbstick steer (§4): the analog X reads straight into steerIntent,
--- deadzoned so a resting stick can't creep.
+-- deadzoned AND rescaled so the zone edge eases off 0 instead of jumping
+-- to it, and full throw still lands at ±1.
 UserInputService.InputChanged:Connect(function(input, gameProcessed)
 	if gameProcessed or input.KeyCode ~= Enum.KeyCode.Thumbstick1 then
 		return
 	end
 	local x = input.Position.X
-	padSteer = if math.abs(x) < Config.Controls.PadDeadzone then 0 else x
+	local dz = Config.Controls.PadDeadzone
+	local ax = math.abs(x)
+	padSteer = if ax < dz then 0 else math.sign(x) * math.min(1, (ax - dz) / (1 - dz))
 end)
 
 -- Device hints (§6): the menu's controls line + play/death prompts track
