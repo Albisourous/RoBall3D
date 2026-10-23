@@ -143,17 +143,17 @@ local ChunkDefs = {}
 -- Grade per stud of travel, so the whole track visibly descends and the
 -- auto-roll reads as "rolling downhill". Applied here so all chunk types
 -- inherit it.
-local function applyGrade(length: number, section: (t: number) -> Section): (t: number) -> Section
-	local grade = Config.Generation.Grade
+local function applyGrade(y0: number, length: number, section: (t: number) -> Section): (t: number) -> Section
+	local gradeDrop = Config.Generation.gradeDrop
 	return function(t: number)
 		local s = section(t)
-		s.y -= grade * t * length
+		s.y -= gradeDrop(y0, t * length)
 		return s
 	end
 end
 
-function ChunkDefs.wrapGrade(length: number, section: (t: number) -> Section): (t: number) -> Section
-	return applyGrade(length, section)
+function ChunkDefs.wrapGrade(y0: number, length: number, section: (t: number) -> Section): (t: number) -> Section
+	return applyGrade(y0, length, section)
 end
 
 local function spec(
@@ -165,9 +165,12 @@ local function spec(
 	obstacles: { Obstacle }?,
 	gems: { GemSpot }?
 ): ChunkSpec
-	local graded = applyGrade(length, section)
-	local gradedEnd =
-		{ centerX = endState.centerX, width = endState.width, y = endState.y - Config.Generation.Grade * length }
+	local graded = applyGrade(st.y, length, section)
+	local gradedEnd = {
+		centerX = endState.centerX,
+		width = endState.width,
+		y = endState.y - Config.Generation.gradeDrop(st.y, length),
+	}
 	return {
 		type = name,
 		length = length,
@@ -904,9 +907,9 @@ local G = 196.2 -- workspace gravity, studs/s^2
 -- section plane): launch height + parabola + the grade the deck keeps
 -- dropping under the arc.
 local PAD_LAUNCH_H = 1.7 -- ball-center height at pad contact (radius + pad top)
-local function padArcH(kick: number, speed: number, u: number): number
+local function padArcH(y0: number, kick: number, speed: number, u: number): number
 	local tf = u / math.max(speed, 1)
-	return PAD_LAUNCH_H + kick * tf - 0.5 * G * tf * tf + Config.Generation.Grade * u
+	return PAD_LAUNCH_H + kick * tf - 0.5 * G * tf * tf + Config.Generation.gradeDrop(y0, u)
 end
 
 -- Wall row with the gap pinned to gx — Chicane/DropGate force alternating
@@ -1356,6 +1359,7 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	end
 	local stripT = padT + stripZ / length
 	local obstacles = { { t = stripT, xOff = 0, w = st.width - 2, h = stripH, d = stripD } }
+	local padDeckY = st.y - Config.Generation.gradeDrop(st.y, padT * length)
 	local gems = {}
 	for i = 0, 3 do
 		local f = (i + 0.5) / 4
@@ -1365,7 +1369,7 @@ function ChunkDefs.PadHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 				t = t,
 				xOff = padX,
 				value = Config.Gems.ValueGapArc,
-				yOff = padArcH(kick, speed, (t - padT) * length),
+				yOff = padArcH(padDeckY, kick, speed, (t - padT) * length),
 			})
 		end
 	end
@@ -1402,7 +1406,7 @@ function ChunkDefs.PadVoid(rng: Random, st: GenState, _tier, debut: boolean?): C
 	for i = 0, 3 do
 		local f = (i + 0.5) / 4
 		local gz = runupLen + f * gapLen
-		local hgt = padArcH(kick, speed, gz - padCZ)
+		local hgt = padArcH(st.y - Config.Generation.gradeDrop(st.y, padCZ), kick, speed, gz - padCZ)
 		if hgt > -drop + 0.5 then -- still airborne at nominal; deeper sits past the landing
 			table.insert(gems, {
 				t = gz / length,
@@ -1695,11 +1699,24 @@ function ChunkDefs.OrbHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	-- Grade-aware arc-1 landing: applyGrade drops the deck grade*z more,
 	-- so the true fall pad->landing lip is drop + grade*u where u is the
 	-- pad->lip distance. Solve u = speed*(k1+sqrt(k1^2+2G(drop+grade·u)))/G
-	-- as a quadratic in u.
+	-- as a quadratic in u. When the deck floor levels off under the arc
+	-- (deckDrop saturates at avail), the sloped solve overshoots — re-solve
+	-- against the flat plane at the capped fall.
+	local padDeckY = st.y - Config.Generation.gradeDrop(st.y, padZ)
+	local avail = math.max(0, padDeckY - Config.Generation.GradeFloor)
 	local A = G / (speed * speed)
-	local B = -(2 * kick1 / speed + 2 * grade)
 	local C = -2 * drop
-	local u = (-B + math.sqrt(B * B - 4 * A * C)) / (2 * A)
+	local function solveLandU(): number
+		local B = -(2 * kick1 / speed + 2 * grade)
+		local u = (-B + math.sqrt(B * B - 4 * A * C)) / (2 * A)
+		if grade * u > avail then
+			local B0 = -(2 * kick1 / speed)
+			local C0 = C - 2 * avail
+			u = (-B0 + math.sqrt(B0 * B0 - 4 * A * C0)) / (2 * A)
+		end
+		return u
+	end
+	local u = solveLandU()
 	-- The landing lip sits 6 studs PAST where the pad arc reaches deck
 	-- level: orb-or-die by construction (the audit asserts arc-1 cannot
 	-- clear the gap alone).
@@ -1713,7 +1730,7 @@ function ChunkDefs.OrbHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	-- to the lip. Iterate: each step shrinks remaining ~the deficit.
 	for _ = 1, 4 do
 		local remaining = u + 6 - orbD
-		local orbDropH = apexH + drop + grade * remaining -- conservative
+		local orbDropH = apexH + drop + math.min(grade * remaining, avail) -- conservative
 		local t2 = (kick2 + math.sqrt(kick2 * kick2 + 2 * G * orbDropH)) / G
 		if speed * t2 >= remaining * 1.08 or orbD <= lipZ + 10 - padZ then
 			break
@@ -1721,8 +1738,7 @@ function ChunkDefs.OrbHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 		orbD = math.max(orbD - (remaining * 1.08 - speed * t2) / 1.08, lipZ + 10 - padZ)
 		kick1 = G * orbD / speed
 		apexH = kick1 * kick1 / (2 * G)
-		B = -(2 * kick1 / speed + 2 * grade)
-		u = (-B + math.sqrt(B * B - 4 * A * C)) / (2 * A)
+		u = solveLandU()
 		gapLen = math.max(u + padZ - lipZ + 6, 30)
 	end
 	local landLen = 45
@@ -1732,7 +1748,7 @@ function ChunkDefs.OrbHop(rng: Random, st: GenState, _tier, debut: boolean?): Ch
 	for i = 0, 3 do
 		local f = (i + 0.5) / 4
 		local gz = lipZ + f * gapLen
-		local hgt = padArcH(kick1, speed, gz - padZ)
+		local hgt = padArcH(padDeckY, kick1, speed, gz - padZ)
 		if hgt > 1 then -- past arc-1's dip the void has claimed the ball
 			table.insert(gems, {
 				t = gz / length,

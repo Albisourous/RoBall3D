@@ -408,10 +408,9 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 			local orb = spec.orbs[1]
 			local speed = Tiers.speedAt(dist + pad.t * spec.length)
 			local orbD = (orb.t - pad.t) * spec.length
-			local grade = Config.Generation.Grade
 			-- orb.yOff is measured from the graded void plane at orb.t;
-			-- height above the pad deck is yOff - grade*orbD.
-			local orbAbovePad = orb.yOff - grade * orbD
+			-- height above the pad deck is yOff - deckDrop over orbD.
+			local orbAbovePad = orb.yOff - Config.Generation.gradeDrop(spec.section(pad.t).y, orbD)
 			local tOrb = orbD / speed
 			local hAtOrb = pad.kickY * tOrb - GRAV * tOrb * tOrb / 2
 			if math.abs(hAtOrb - orbAbovePad) > orb.radius then

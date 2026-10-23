@@ -115,11 +115,15 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				type = "Intro_Flat",
 				length = runway,
 				startZ = snap.zEnd,
-				section = ChunkDefs.wrapGrade(runway, introSection(snap, { type = "Flat", widthOut = snap.width })),
+				section = ChunkDefs.wrapGrade(
+					snap.y,
+					runway,
+					introSection(snap, { type = "Flat", widthOut = snap.width })
+				),
 				endState = {
 					centerX = snap.centerX,
 					width = snap.width,
-					y = snap.y - Config.Generation.Grade * runway,
+					y = snap.y - Config.Generation.gradeDrop(snap.y, runway),
 				},
 			}
 		else
@@ -128,7 +132,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 	elseif self.introIndex < #self.intro then
 		self.introIndex += 1
 		local chunk = self.intro[self.introIndex]
-		local section = ChunkDefs.wrapGrade(chunk.length, introSection(snap, chunk))
+		local section = ChunkDefs.wrapGrade(snap.y, chunk.length, introSection(snap, chunk))
 		spec = {
 			type = "Intro_" .. chunk.type,
 			length = chunk.length,
@@ -138,7 +142,7 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				centerX = (chunk.type == "Slalom") and snap.centerX + chunk.amp * math.sin(chunk.periods * math.pi * 2)
 					or snap.centerX,
 				width = chunk.widthOut or snap.width,
-				y = snap.y - Config.Generation.Grade * chunk.length,
+				y = snap.y - Config.Generation.gradeDrop(snap.y, chunk.length),
 			},
 			gems = chunk.gems and ChunkDefs.gemRhythmLine(
 				self.rng,

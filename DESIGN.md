@@ -366,6 +366,13 @@ descends and the auto-roll reads as rolling downhill (the Slope cue). Deck
 heights accumulate, so chunk `y` values drift down over a run; the kill plane
 always follows the local deck height via `yAt(z)`.
 
+The descent **bottoms out at `Generation.GradeFloor`** (-46000): the linear
+grade would cross `FallenPartsDestroyHeight` (~313km in — the property clamps
+at -50000 and would engine-destroy deck and ball mid-run), so past ~287km the
+track runs level. `Generation.gradeDrop(y0, u)` models the level-off — chunk
+builders, ballistic solves, the verifier, and the client backdrop all call
+it, so every consumer agrees on deck height at any distance.
+
 **Closure contract**: section functions are evaluated lazily (at build time,
 and again later by `yAt`), after the generator state has advanced — so
 `nextChunk` hands every builder a frozen snapshot of the entry state

@@ -244,7 +244,12 @@ end
 -- chunks only subtract), so min() with the ball-derived grade keeps the
 -- strip glued through RampGap drops without ballooning on jump arcs.
 local function deckEst(anchor: Vector3, z: number): number
-	return math.min(Gen.StartY + Gen.Grade * z, anchor.Y - Gen.Grade * (anchor.Z - z))
+	-- Both estimates floor at GradeFloor — the real deck levels out there
+	-- (Config.Generation.gradeDrop); the linear form would keep diving.
+	return math.min(
+		math.max(Gen.StartY + Gen.Grade * z, Gen.GradeFloor),
+		math.max(anchor.Y - Gen.Grade * (anchor.Z - z), Gen.GradeFloor)
+	)
 end
 
 local function makePeakPart(parent: Instance, neon: boolean): Part
@@ -944,7 +949,7 @@ local function stepPalms(anchor: Vector3, sty: PalmStyle)
 			palmFrontZ[key] = z
 			local x = anchor.X + palm.side * (Art.PalmMinX + (palm.row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
 			local ahead = math.max(anchor.Z - z, 0)
-			local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(4, 10)
+			local baseY = math.max(anchor.Y - Gen.Grade * ahead, Gen.GradeFloor) - rng:NextNumber(4, 10)
 			layPalm(palm, x, baseY, z, sty)
 		end
 		local sway = breeze * math.cos(palm.phase)
@@ -1699,7 +1704,7 @@ function Backdrop.update(anchor: Vector3)
 			frontZ[key] = z
 			local x = anchor.X + tower.side * (Art.CityMinX + (tower.row - 1) * Art.CityRowDX + rng:NextNumber(0, 40))
 			local ahead = math.max(anchor.Z - z, 0)
-			local baseY = anchor.Y - Config.Generation.Grade * ahead - rng:NextNumber(8, 30)
+			local baseY = math.max(anchor.Y - Config.Generation.Grade * ahead, Gen.GradeFloor) - rng:NextNumber(8, 30)
 			-- Hue jitter per tower so the skyline mixes cyan/magenta/violet
 			-- instead of marching in lockstep.
 			local tint =
@@ -1894,7 +1899,8 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				for _ = 1, math.floor(Art.PalmSpan / Art.PalmSpacing) do
 					z -= Art.PalmSpacing
 					local x = anchor.X + side * (Art.PalmMinX + (row - 1) * Art.PalmRowDX + rng:NextNumber(0, 14))
-					local baseY = anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0) - rng:NextNumber(4, 10)
+					local baseY = math.max(anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0), Gen.GradeFloor)
+						- rng:NextNumber(4, 10)
 					layPalm(makePalm(parent, side, row), x, baseY, z, MIAMI_PALM)
 				end
 			end
@@ -2003,7 +2009,8 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			for _ = 1, 4 do
 				z -= Art.PalmSpacing
 				local x = anchor.X + side * (Art.PalmMinX + rng:NextNumber(0, 14))
-				local baseY = anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0) - rng:NextNumber(4, 10)
+				local baseY = math.max(anchor.Y - Gen.Grade * math.max(anchor.Z - z, 0), Gen.GradeFloor)
+					- rng:NextNumber(4, 10)
 				layPalm(makePalm(parent, side, 1), x, baseY, z, SKY_PALM)
 			end
 		end
@@ -2021,7 +2028,7 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				local tower = makeTower(parent, side, row)
 				local x = anchor.X + side * (Art.CityMinX + (row - 1) * Art.CityRowDX + rng:NextNumber(0, 40))
 				local ahead = math.max(anchor.Z - z, 0)
-				local baseY = anchor.Y - Gen.Grade * ahead - rng:NextNumber(8, 30)
+				local baseY = math.max(anchor.Y - Gen.Grade * ahead, Gen.GradeFloor) - rng:NextNumber(8, 30)
 				local tint =
 					Palette.dimAt(dist + ahead * 0.5 + rng:NextNumber(0, 300), Art.CityValue / (1 + (row - 1) * 0.35))
 				layTower(tower, x, baseY, z, tint)

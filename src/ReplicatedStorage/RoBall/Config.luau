@@ -239,6 +239,16 @@ Config.Death = {
 	StallGraceDist = 10, -- meters of travel before the watchdog arms (spawn settle)
 }
 
+-- Deck descent is NOT linear forever: deckY drops Grade studs per stud
+-- traveled until GradeFloor, then runs level. The floor exists because
+-- FallenPartsDestroyHeight clamps at -50000 and a linear grade crosses it
+-- ~313km in — the engine destroys deck and ball mid-run. Every consumer
+-- (chunk builders, arc solves, the verifier, the client backdrop) calls
+-- this one function so they can never disagree about deck height.
+local function gradeDrop(y0: number, u: number): number
+	return math.min(Config.Generation.Grade * math.max(u, 0), math.max(0, y0 - Config.Generation.GradeFloor))
+end
+
 Config.Generation = {
 	TravelAxis = Vector3.new(0, 0, -1), -- runs go toward -Z
 	ChunkMinLength = 30, -- studs
@@ -265,11 +275,16 @@ Config.Generation = {
 	TrackThickness = 1, -- studs
 	StartY = 50, -- deck height runs start at
 	Grade = 0.16, -- studs of drop per stud traveled — constant downhill (~9deg)
+	-- Deck descent bottoms out here, ~4k studs above FallenDestroyY — past
+	-- ~287km the track runs level instead of riding the grade into the
+	-- engine kill plane. Deepest scenery hangs ~250 studs below deck.
+	GradeFloor = -46000,
+	gradeDrop = gradeDrop,
 	RowSpacing = 600, -- per-player run lanes are this far apart in X
 	-- Deck crosses y=-500 around ~3.4km in (50 - Grade*dist); Roblox's default
 	-- FallenPartsDestroyHeight is -500 and silently Destroy()s any unanchored
 	-- part below it — the ball — leaving the run hung with a frozen HUD.
-	-- -50k (engine minimum) buys ~310km of track before the void wins.
+	-- -50k is the engine minimum; GradeFloor keeps the deck above it forever.
 	FallenDestroyY = -50000,
 }
 
