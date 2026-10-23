@@ -562,7 +562,7 @@ function Ui.new(): Ui
 	local trkRow = Instance.new("Frame")
 	trkRow.Name = "TrackRow"
 	trkRow.BackgroundTransparency = 1
-	trkRow.Size = UDim2.fromOffset(340, J.H + 54) -- caption + strip + name plate + stat line
+	trkRow.Size = UDim2.fromOffset(340, J.H + 36) -- header (TRACK + stats) + strip + name plate
 	trkRow.LayoutOrder = 9
 	trkRow.Parent = menuCol
 
@@ -576,6 +576,19 @@ function Ui.new(): Ui
 	trkLabel.Position = UDim2.fromOffset(2, 0)
 	trkLabel.Size = UDim2.fromOffset(56, 14)
 	trkLabel.Parent = trkRow
+
+	-- Stat caption rides the header's right edge (REA #6 density —
+	-- "TRACK · 110 BPM · 35s · 2 SECTIONS"): informed pick without a
+	-- second caption line, so the row stays one line shorter.
+	self.trkStat = Instance.new("TextLabel")
+	self.trkStat.BackgroundTransparency = 1
+	self.trkStat.Font = F_DATA
+	self.trkStat.TextSize = 11
+	self.trkStat.TextColor3 = C_DIM
+	self.trkStat.TextXAlignment = Enum.TextXAlignment.Right
+	self.trkStat.Position = UDim2.new(1, -200, 0, 1)
+	self.trkStat.Size = UDim2.fromOffset(200, 13)
+	self.trkStat.Parent = trkRow
 
 	-- The strip is the carousel window: 3*W + 2*Gap fills the row's 340
 	-- exactly. pulseMenu slides it on the §4 spring residual, so each
@@ -611,12 +624,10 @@ function Ui.new(): Ui
 		self._trkCards[slot + 2] = card
 	end
 
-	-- Name plate + stat caption under the strip (REA #6 density): the
-	-- pick's display name, then its map stats — choosing is informed.
+	-- Name plate under the strip: the pick's display name. Stats live in
+	-- the header's right edge (self.trkStat above), not a second line.
 	self.trackName = label(trkRow, "RANDOM", 15, F_DATA, C_WHITE, 0)
-	self.trackName.Position = UDim2.fromOffset(0, 16 + J.H + 2)
-	self.trkStat = label(trkRow, "", 11, F_DATA, C_DIM, 0)
-	self.trkStat.Position = UDim2.fromOffset(0, 16 + J.H + 22)
+	self.trackName.Position = UDim2.fromOffset(0, 16 + J.H + 3)
 
 	-- < / > flank the strip, overlaid on its outer edges like osu's
 	-- carousel arrows — the dimmed side cards sit behind them.
@@ -665,7 +676,7 @@ function Ui.new(): Ui
 	-- Missions card (§14): today's three seeded missions — ✓ gold when
 	-- done, ◇ dim while open; the bank quest shows today's running
 	-- total and the footer counts the award tally. Always visible.
-	local missions = deckPanel("MissionsPage", 420, 132)
+	local missions = deckPanel("MissionsPage", 420, 124)
 	missions.Visible = true
 
 	label(missions, "TODAY'S MISSIONS", 12, F_DATA, C_DIM, 0).Position = UDim2.fromOffset(0, 8)
@@ -2696,6 +2707,14 @@ function Ui.new(): Ui
 			return
 		end
 		local s = math.clamp((input.Position.X - padDownX) / Config.Controls.PadTravelPx, -1, 1)
+		-- Same deadzone as the thumbstick: finger tremor near center
+		-- reads as noise steer otherwise. Rescale keeps full lock at 1.
+		local dz = Config.Controls.PadDeadzone
+		if math.abs(s) < dz then
+			s = 0
+		else
+			s = (s - math.sign(s) * dz) / (1 - dz)
+		end
 		self.padSteer = s
 		knob.Position = UDim2.fromScale(0.5 + s * 0.32, 0.5)
 	end)
