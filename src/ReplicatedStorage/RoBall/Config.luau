@@ -1455,6 +1455,40 @@ Config.Art = {
 	GlassShaftLen = 90,
 	GlassArches = 3, -- dark arch silhouettes overhead
 	GlassArchSpacing = 340,
+	-- PAPERCRAFT (§18 world "paper"): origami — wedge-body cranes drift
+	-- in a lateral band (wings flap a few degrees on wall-clock sine),
+	-- faceted wedge islets float below, and paper planes cut the field
+	-- on per-plane timers like the firework launchers.
+	PaperCranes = 6,
+	PaperIslets = 4,
+	PaperPlanes = 2,
+	PaperMinX = 40,
+	PaperMaxX = 160,
+	PaperAltMin = 15,
+	PaperAltMax = 90,
+	PaperSpacing = 130, -- z gap between crane slots on the frontier
+	PaperIsletDrop = 30, -- islets hang this far under the deck band
+	PaperIsletMinR = 10,
+	PaperIsletMaxR = 22,
+	PaperBobAmp = 3,
+	PaperBobSpeed = 0.9,
+	PaperFlapAmp = 0.35, -- rad of wing flap
+	PaperPlaneEveryMin = 3,
+	PaperPlaneEveryMax = 8,
+	PaperPlaneSpeed = 70, -- lateral studs/s
+	PaperPlaneSpan = 240, -- despawn this far off lane center
+	-- MYCELIUM (§18 world "slime"): physarum — glowing node beads hug
+	-- both verges, thin tendril beams link consecutive beads, and a
+	-- light pulse travels each chain; spore motes rise off the deck.
+	SlimeNodes = 8, -- beads per verge chain
+	SlimeSpacing = 55, -- z gap between nodes
+	SlimeVergeX = 30, -- chains hug this far off lane center
+	SlimePulseSpeed = 1.6, -- chain pulse phase rate
+	SlimeMotes = 10, -- rising spore dots
+	SlimeMoteMinX = 16,
+	SlimeMoteMaxX = 70,
+	SlimeMoteRise = 6, -- studs/s upward drift
+	SlimeMoteSpan = 60, -- recycle after rising this far
 	-- PALMS (§18 "palms" world): neon palm rows replace the tower canyon —
 	-- a trunk, a fan of thin drooping fronds, two bead coconuts. Fronds
 	-- rustle a few degrees on wall-clock sine; bases sit just under the
@@ -1696,6 +1730,24 @@ Config.Art = {
 			solid = 0.5,
 			gap = 0.3,
 			scale = 1.1,
+		},
+		paper = {
+			-- PAPERCRAFT pack: a flat warm-white paper sun — matte
+			-- origami stock, barely a stripe.
+			top = Color3.fromRGB(255, 244, 228),
+			bottom = Color3.fromRGB(220, 190, 160),
+			solid = 0.9,
+			gap = 0.4,
+			scale = 0.9,
+		},
+		ferment = {
+			-- MYCELIUM pack: an amber fermenting sun — warm honey over
+			-- deep mossy dark.
+			top = Color3.fromRGB(255, 200, 80),
+			bottom = Color3.fromRGB(140, 100, 40),
+			solid = 0.7,
+			gap = 0.4,
+			scale = 0.9,
 		},
 	},
 	-- Ball wireframe: axial rings cyan, diagonals magenta.

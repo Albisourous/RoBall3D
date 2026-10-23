@@ -28,6 +28,10 @@
 --             course on a fixed frontier, hue walking down the chain.
 --   "glass" — CATHEDRAL: jewel-tone pane columns beside the lane leaking
 --             translucent light shafts, dark arches overhead.
+--   "paper" — PAPERCRAFT: origami cranes flapping beside the lane,
+--             faceted wedge islets below, paper planes cutting across.
+--   "slime" — MYCELIUM: glowing node beads + tendril links hugging both
+--             verges, pulses traveling the chains, spore motes rising.
 --   "palms" — MIAMI NIGHTS: neon palm rows planted beside the track —
 --             a trunk, a fan of drooping fronds, two bead coconuts;
 --             crowns rustle on a slow breeze sine.
@@ -85,6 +89,8 @@ type Theme =
 	| "fireworks"
 	| "tunnel"
 	| "glass"
+	| "paper"
+	| "slime"
 	| "palms"
 	| "polar"
 	| "empty"
@@ -157,6 +163,40 @@ local GLASS_PALETTE = {
 	Color3.fromRGB(255, 212, 64), -- gold
 }
 local GLASS_DARK = Color3.fromRGB(20, 16, 36) -- arch silhouette
+
+-- PAPERCRAFT pool (§18 "paper") — crane = wedge body + two flat wings +
+-- a neck sliver; islets are wedge+cap floats; planes are lone wedges
+-- on timed lateral crossings.
+type PaperCrane = { body: Part, wingL: Part, wingR: Part, neck: Part, x: number, y: number, z: number, phase: number }
+type PaperIslet = { wedge: Part, cap: Part, z: number }
+type PaperPlane = { part: Part, vel: Vector3, nextAt: number, flying: boolean }
+local paperCranes: { PaperCrane } = {}
+local paperIslets: { PaperIslet } = {}
+local paperPlanes: { PaperPlane } = {}
+local paperFrontZ = 0
+local paperIsleFrontZ = 0
+local paperSeeded = false
+local paperClock = os.clock()
+
+local PAPER_STOCK = Color3.fromRGB(255, 244, 228)
+local PAPER_CLAY = Color3.fromRGB(255, 150, 120)
+local PAPER_MINT = Color3.fromRGB(205, 230, 200)
+local PAPER_SKY = Color3.fromRGB(190, 215, 230)
+
+-- MYCELIUM pool (§18 "slime") — per-verge node chains with tendril
+-- links, plus a rising spore-mote field.
+type SlimeNode = { bead: Part, side: number, idx: number, z: number }
+type SlimeLink = { part: Part, side: number, idx: number }
+local slimeNodes: { SlimeNode } = {}
+local slimeLinks: { SlimeLink } = {}
+local slimeMotes: { { part: Part, baseY: number } } = {}
+local slimeFrontZ = 0
+local slimeSeeded = false
+local slimeClock = os.clock()
+
+local SLIME_DARK = Color3.fromRGB(40, 60, 30) -- node base
+local SLIME_HI = Color3.fromRGB(255, 190, 60) -- pulse crest (honey)
+local SLIME_LINK = Color3.fromRGB(90, 160, 70) -- tendril moss
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
 -- lazy/park contract.
@@ -1216,6 +1256,222 @@ local function stepGlass(anchor: Vector3)
 	end
 end
 
+--=========================== PAPERCRAFT (paper) ========================--
+-- Origami (§18 "paper" world): cranes = a wedge body, two flat wings
+-- that flap a few degrees on sine, and a neck sliver — sizes set on
+-- lay, only CFrames update per frame. Wedge islets float under the
+-- band. Planes are lone wedges on launcher-style timers: launch at a
+-- lateral edge, glide across, park and re-time when they clear.
+
+local function makeCrane(parent: Instance): PaperCrane
+	local body = makePeakPart(parent, false)
+	body.Shape = Enum.PartType.Wedge
+	body.Size = Vector3.new(1.4, 1.8, 4.5)
+	body.Color = PAPER_STOCK
+	local wingL = makePeakPart(parent, false)
+	wingL.Size = Vector3.new(4.2, 0.15, 2.4)
+	wingL.Color = PAPER_CLAY
+	local wingR = makePeakPart(parent, false)
+	wingR.Size = Vector3.new(4.2, 0.15, 2.4)
+	wingR.Color = PAPER_CLAY
+	local neck = makePeakPart(parent, false)
+	neck.Size = Vector3.new(0.5, 0.5, 2.2)
+	neck.Color = PAPER_STOCK
+	return { body = body, wingL = wingL, wingR = wingR, neck = neck, x = 0, y = 0, z = 0, phase = 0 }
+end
+
+local function layCrane(c: PaperCrane, anchor: Vector3, z: number)
+	c.z = z
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	c.x = anchor.X + side * rng:NextNumber(Art.PaperMinX, Art.PaperMaxX)
+	c.y = deckEst(anchor, z) + rng:NextNumber(Art.PaperAltMin, Art.PaperAltMax)
+	c.phase = rng:NextNumber(0, math.pi * 2)
+end
+
+-- Per-frame crane pose: bob + wing flap only — 4 CFrame writes.
+local function poseCrane(c: PaperCrane, clock: number)
+	local base = CFrame.new(c.x, c.y + math.sin(clock * Art.PaperBobSpeed + c.phase) * Art.PaperBobAmp, c.z)
+	local flap = math.sin(clock * 2.6 + c.phase) * Art.PaperFlapAmp
+	c.body.CFrame = base
+	c.wingL.CFrame = base * CFrame.new(-2.1, 0.7, 0) * CFrame.Angles(0, 0, 0.45 + flap)
+	c.wingR.CFrame = base * CFrame.new(2.1, 0.7, 0) * CFrame.Angles(0, 0, -0.45 - flap)
+	c.neck.CFrame = base * CFrame.new(0, 0.9, -2.2) * CFrame.Angles(0.6, 0, 0)
+end
+
+local function layPaperIslet(p: PaperIslet, anchor: Vector3, z: number)
+	p.z = z
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local x = anchor.X + side * rng:NextNumber(Art.PaperMinX, Art.PaperMaxX)
+	local r = rng:NextNumber(Art.PaperIsletMinR, Art.PaperIsletMaxR)
+	local y = deckEst(anchor, z) - Art.PaperIsletDrop - r * 0.3
+	p.wedge.Shape = Enum.PartType.Wedge
+	p.wedge.Size = Vector3.new(r * 2, r * 0.8, r * 1.6)
+	p.wedge.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0)
+	p.wedge.Color = if rng:NextNumber() < 0.5 then PAPER_MINT else PAPER_SKY
+	p.cap.Size = Vector3.new(r * 1.2, 0.4, r)
+	p.cap.Position = Vector3.new(x, y + r * 0.4, z)
+	p.cap.Color = PAPER_STOCK
+end
+
+local function layPaperPlane(p: PaperPlane, anchor: Vector3)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	local y = deckEst(anchor, anchor.Z - 300) + rng:NextNumber(Art.PaperAltMin, Art.PaperAltMax + 30)
+	p.part.Shape = Enum.PartType.Wedge
+	p.part.Size = Vector3.new(5, 0.4, 4)
+	p.part.Color = PAPER_STOCK
+	p.part.CFrame = CFrame.new(anchor.X + side * Art.PaperPlaneSpan, y, anchor.Z - rng:NextNumber(100, 400))
+		* CFrame.Angles(0, if side < 0 then math.pi / 2 else -math.pi / 2, 0)
+	p.vel = Vector3.new(-side * Art.PaperPlaneSpeed, -1.5, -12)
+	p.flying = true
+end
+
+local function ensurePaper()
+	if #paperCranes > 0 then
+		return
+	end
+	for _ = 1, Art.PaperCranes do
+		table.insert(paperCranes, makeCrane(root))
+	end
+	for _ = 1, Art.PaperIslets do
+		table.insert(paperIslets, { wedge = makePeakPart(root, false), cap = makePeakPart(root, false), z = math.huge })
+	end
+	for _ = 1, Art.PaperPlanes do
+		table.insert(paperPlanes, { part = makePeakPart(root, false), vel = Vector3.zero, nextAt = 0, flying = false })
+	end
+end
+
+local function stepPaper(anchor: Vector3, dt: number, now: number)
+	local clock = now
+	if not paperSeeded then
+		paperFrontZ = anchor.Z + BACK_MARGIN
+		paperIsleFrontZ = anchor.Z + BACK_MARGIN
+		paperSeeded = true
+	end
+	for _, c in ipairs(paperCranes) do
+		if c.z > anchor.Z + BACK_MARGIN or c.z == 0 then
+			paperFrontZ -= Art.PaperSpacing
+			layCrane(c, anchor, paperFrontZ)
+		end
+		poseCrane(c, clock)
+	end
+	for _, p in ipairs(paperIslets) do
+		if p.z > anchor.Z + BACK_MARGIN then
+			paperIsleFrontZ -= Art.PaperSpacing * 2
+			layPaperIslet(p, anchor, paperIsleFrontZ)
+		end
+	end
+	for _, p in ipairs(paperPlanes) do
+		if p.flying then
+			p.part.Position += p.vel * dt
+			if math.abs(p.part.Position.X - anchor.X) > Art.PaperPlaneSpan + 20 then
+				p.flying = false
+				p.nextAt = now + rng:NextNumber(Art.PaperPlaneEveryMin, Art.PaperPlaneEveryMax)
+				parkPart(p.part)
+			end
+		elseif now >= p.nextAt then
+			layPaperPlane(p, anchor)
+		end
+	end
+end
+
+--=========================== MYCELIUM (slime) ==========================--
+-- Physarum (§18 "slime" world): node beads hug both verges on a shared
+-- frontier; tendril links stretch between consecutive beads and tilt
+-- with the deck (re-laid per frame — links carry no own z). A pulse
+-- runs each chain as a hue-less brightness wave; motes rise off the
+-- deck and re-seed ahead.
+
+local function ensureSlime()
+	if #slimeNodes > 0 then
+		return
+	end
+	for side = -1, 1, 2 do
+		for i = 1, Art.SlimeNodes do
+			table.insert(slimeNodes, { bead = makePeakPart(root, true), side = side, idx = i, z = math.huge })
+		end
+		for i = 1, Art.SlimeNodes - 1 do
+			table.insert(slimeLinks, { part = makePeakPart(root, true), side = side, idx = i })
+		end
+	end
+	for _ = 1, Art.SlimeMotes do
+		table.insert(slimeMotes, { part = makePeakPart(root, true), baseY = 0 })
+	end
+end
+
+local function laySlimeNode(n: SlimeNode, anchor: Vector3, z: number)
+	n.z = z
+	n.bead.Shape = Enum.PartType.Ball
+	n.bead.Size = Vector3.one * 1.6
+	n.bead.Position = Vector3.new(anchor.X + n.side * Art.SlimeVergeX, deckEst(anchor, z) + 1.5, z)
+end
+
+local function laySlimeMote(m: { part: Part, baseY: number }, anchor: Vector3)
+	local z = anchor.Z - rng:NextNumber(0, 600)
+	local side = if rng:NextNumber() < 0.5 then -1 else 1
+	m.baseY = deckEst(anchor, z)
+	m.part.Shape = Enum.PartType.Ball
+	m.part.Size = Vector3.one * rng:NextNumber(0.4, 0.9)
+	m.part.Color = if rng:NextNumber() < 0.5 then SLIME_HI else SLIME_LINK
+	m.part.Position = Vector3.new(
+		anchor.X + side * rng:NextNumber(Art.SlimeMoteMinX, Art.SlimeMoteMaxX),
+		m.baseY + rng:NextNumber(2, 10),
+		z
+	)
+end
+
+local function stepSlime(anchor: Vector3, dt: number)
+	local clock = os.clock()
+	if not slimeSeeded then
+		slimeFrontZ = anchor.Z + BACK_MARGIN
+		slimeSeeded = true
+	end
+	for _, n in ipairs(slimeNodes) do
+		if n.z > anchor.Z + BACK_MARGIN then
+			slimeFrontZ -= Art.SlimeSpacing
+			laySlimeNode(n, anchor, slimeFrontZ)
+		end
+		-- The chain pulse: brightness walks front-to-back per side.
+		local pulse = 0.5 + 0.5 * math.sin(clock * Art.SlimePulseSpeed - n.idx * 0.7 + n.side * 0.9)
+		n.bead.Color = SLIME_DARK:Lerp(SLIME_HI, pulse)
+	end
+	-- Links bridge consecutive beads on the same side; node z's stay
+	-- spaced so the link just spans its pair, tilting with the grade.
+	for _, l in ipairs(slimeLinks) do
+		local z1, z2 = 0, 0
+		local hit = 0
+		for _, n in ipairs(slimeNodes) do
+			if n.side == l.side and (n.idx == l.idx or n.idx == l.idx + 1) then
+				if n.idx == l.idx then
+					z1 = n.z
+				else
+					z2 = n.z
+				end
+				hit += 1
+				if hit == 2 then
+					break
+				end
+			end
+		end
+		if z1 == math.huge or z2 == math.huge then
+			continue
+		end
+		local a = Vector3.new(anchor.X + l.side * Art.SlimeVergeX, deckEst(anchor, z1) + 1.5, z1)
+		local b = Vector3.new(anchor.X + l.side * Art.SlimeVergeX, deckEst(anchor, z2) + 1.5, z2)
+		local len = (b - a).Magnitude
+		l.part.Size = Vector3.new(0.35, 0.35, len)
+		l.part.CFrame = CFrame.lookAt((a + b) / 2, b)
+		l.part.Color = SLIME_LINK
+	end
+	for _, m in ipairs(slimeMotes) do
+		local pos = m.part.Position
+		if pos == PARK.Position or pos.Y > m.baseY + Art.SlimeMoteSpan or pos.Z > anchor.Z + BACK_MARGIN then
+			laySlimeMote(m, anchor)
+		else
+			m.part.Position = pos + Vector3.new(0, Art.SlimeMoteRise * dt, 0)
+		end
+	end
+end
+
 --============================ PALMS ============================--
 -- Neon palm rows (§18 "palms"): a dark violet trunk, PalmFronds thin
 -- blades fanning out of the crown on cyan→magenta, two bead coconuts.
@@ -1812,6 +2068,40 @@ local function parkGlass()
 	glassSeeded = false
 end
 
+local function parkPaper()
+	for _, c in ipairs(paperCranes) do
+		parkPart(c.body)
+		parkPart(c.wingL)
+		parkPart(c.wingR)
+		parkPart(c.neck)
+		c.z = 0 -- marks un-laid so the first step re-seeds position
+	end
+	for _, p in ipairs(paperIslets) do
+		parkPart(p.wedge)
+		parkPart(p.cap)
+	end
+	for _, p in ipairs(paperPlanes) do
+		p.flying = false
+		p.nextAt = 0
+		parkPart(p.part)
+	end
+	paperSeeded = false
+end
+
+local function parkSlime()
+	for _, n in ipairs(slimeNodes) do
+		parkPart(n.bead)
+		n.z = math.huge
+	end
+	for _, l in ipairs(slimeLinks) do
+		parkPart(l.part)
+	end
+	for _, m in ipairs(slimeMotes) do
+		parkPart(m.part)
+	end
+	slimeSeeded = false
+end
+
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -1864,6 +2154,8 @@ local parkers: { [Theme]: () -> () } = {
 	fireworks = parkFireworks,
 	tunnel = parkTunnel,
 	glass = parkGlass,
+	paper = parkPaper,
+	slime = parkSlime,
 	palms = parkPalms,
 	polar = parkPolar,
 	empty = function() end,
@@ -1882,6 +2174,8 @@ local THEMES: { [string]: Theme } = {
 	fireworks = "fireworks",
 	tunnel = "tunnel",
 	glass = "glass",
+	paper = "paper",
+	slime = "slime",
 	palms = "palms",
 	polar = "polar",
 	empty = "empty",
@@ -2092,6 +2386,27 @@ function Backdrop.update(anchor: Vector3)
 	if theme == "glass" then
 		ensureGlass()
 		stepGlass(anchor)
+		return
+	end
+
+	-- PAPERCRAFT (§18 "paper"): cranes bob+flap, islets static, planes
+	-- on their own glide timers.
+	if theme == "paper" then
+		ensurePaper()
+		local now = os.clock()
+		local dt = math.clamp(now - paperClock, 0, 0.12)
+		paperClock = now
+		stepPaper(anchor, dt, now)
+		return
+	end
+
+	-- MYCELIUM (§18 "slime"): verge chains, traveling pulse, motes.
+	if theme == "slime" then
+		ensureSlime()
+		local now = os.clock()
+		local dt = math.clamp(now - slimeClock, 0, 0.12)
+		slimeClock = now
+		stepSlime(anchor, dt)
 		return
 	end
 
@@ -2473,6 +2788,34 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 				anchor,
 				anchor.Z + BACK_MARGIN - i * Art.GlassArchSpacing
 			)
+		end
+		return
+	end
+	if t == "paper" then
+		for i = 1, Art.PaperCranes do
+			local c = makeCrane(parent)
+			layCrane(c, anchor, anchor.Z + BACK_MARGIN - i * Art.PaperSpacing)
+			poseCrane(c, i * 0.7)
+		end
+		for i = 1, Art.PaperIslets do
+			layPaperIslet(
+				{ wedge = makePeakPart(parent, false), cap = makePeakPart(parent, false), z = math.huge },
+				anchor,
+				anchor.Z + BACK_MARGIN - i * Art.PaperSpacing * 2
+			)
+		end
+		return
+	end
+	if t == "slime" then
+		for side = -1, 1, 2 do
+			for i = 1, Art.SlimeNodes do
+				local n = { bead = makePeakPart(parent, true), side = side, idx = i, z = math.huge }
+				laySlimeNode(n, anchor, anchor.Z + BACK_MARGIN - i * Art.SlimeSpacing)
+				n.bead.Color = SLIME_HI
+			end
+		end
+		for _ = 1, Art.SlimeMotes do
+			laySlimeMote({ part = makePeakPart(parent, true), baseY = 0 }, anchor)
 		end
 		return
 	end
