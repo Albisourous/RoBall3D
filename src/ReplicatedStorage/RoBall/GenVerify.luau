@@ -91,6 +91,7 @@ export type Report = {
 	violations: { string },
 	counts: { [string]: number },
 	firstSeen: { [string]: number },
+	endY: number,
 }
 
 local GenVerify = {}
@@ -173,6 +174,14 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 			)
 		end
 		prevEnd = spec.endState
+
+		-- Kill-plane invariant: the deck must never approach
+		-- FallenPartsDestroyHeight — the engine destroys parts below it
+		-- (512-stud slack tolerates designed drops well under the ~4k
+		-- GradeFloor margin; anything deeper is a real hazard).
+		if spec.endState.y < Config.Generation.FallenDestroyY + 512 then
+			bad(string.format("deck at y %.0f nears the engine kill plane", spec.endState.y), spec, i)
+		end
 
 		-- Flat-exit contract: roll, cutout and walls are chunk-internal —
 		-- every chunk must hand the next a level, open seam. A non-flat entry
@@ -518,7 +527,14 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		end
 	end
 
-	return { seed = seed, chunks = nChunks, violations = violations, counts = counts, firstSeen = firstSeen }
+	return {
+		seed = seed,
+		chunks = nChunks,
+		violations = violations,
+		counts = counts,
+		firstSeen = firstSeen,
+		endY = if prevEnd then prevEnd.y else 0,
+	}
 end
 
 function GenVerify.sweepRange(seed0: number, seedCount: number, nChunks: number): { Report }
@@ -527,6 +543,19 @@ function GenVerify.sweepRange(seed0: number, seedCount: number, nChunks: number)
 		table.insert(out, GenVerify.sweep(s, nChunks))
 	end
 	return out
+end
+
+-- Deep probe (GradeFloor coverage): a normal sweep's chunk count never
+-- reaches the descent floor (~287km in), so the floor-transition paths —
+-- the applyGrade clamp, OrbHop's flat-plane re-solve — go unaudited. Walk
+-- `seed` far enough to cross it, running the full per-chunk audit the
+-- whole way; returns the report plus whether the floor was reached.
+function GenVerify.floorProbe(seed: number): (Report, boolean)
+	local gen = Config.Generation
+	local floorDist = (gen.StartY - gen.GradeFloor) / gen.Grade
+	local nChunks = math.ceil(floorDist / 40) + 64 -- 40 = shortest chunk
+	local rep = GenVerify.sweep(seed, nChunks)
+	return rep, rep.endY <= gen.GradeFloor
 end
 
 return GenVerify

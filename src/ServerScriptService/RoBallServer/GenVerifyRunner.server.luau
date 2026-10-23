@@ -30,12 +30,23 @@ task.defer(function()
 			end
 		end
 	end
+	-- GradeFloor probe (§8.1): the range sweep never reaches the descent
+	-- floor, so walk one seed the full ~290km — audits every chunk through
+	-- the level-off and asserts the deck stays clear of the kill plane.
+	local probe, reached = GenVerify.floorProbe(1)
+	totalViol += #probe.violations
+	for _, msg in ipairs(probe.violations) do
+		warn("   ", "[floor-probe] " .. msg)
+	end
 	print(
 		string.format(
-			"[GenVerify] sweep complete: %d seeds x %d chunks, %d violation(s)",
+			"[GenVerify] sweep complete: %d seeds x %d chunks, %d violation(s); floor-probe %s (endY %.0f, floor %.0f)",
 			#reports,
 			Config.Debug.VerifyChunks,
-			totalViol
+			totalViol,
+			if reached then "reached GradeFloor" else "DID NOT reach GradeFloor",
+			probe.endY,
+			Config.Generation.GradeFloor
 		)
 	)
 end)
