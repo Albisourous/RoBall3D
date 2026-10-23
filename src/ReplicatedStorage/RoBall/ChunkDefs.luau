@@ -1,7 +1,9 @@
 --!strict
 -- Chunk type definitions (DESIGN.md §8.3).
 --
--- Each builder takes (rng, st, tier) and returns a ChunkSpec:
+-- Each builder takes (rng, st, tier, debut?) and returns a ChunkSpec —
+-- `debut` is the feature-ramp gentle-showcase flag (§8.6), nil on pool
+-- spawns and core builders:
 --   length   = studs the chunk spans along -Z
 --   section  = (t: 0..1) -> Section — pure geometry, no Instances
 --   endState = GenState fields the NEXT chunk must start from
@@ -13,11 +15,14 @@
 --   rollDeg = bank angle around the travel axis — sign convention:
 --   +rollDeg raises the +X edge, so the deck dips toward -X ("banks
 --   left"); downhill gems/pull always ride the -sign(rollDeg) side
---   cutout  = optional center strip removed (SplitGap) — leaves two rails
+--   cutout  = optional deck strip removed (SplitGap/Fork) — leaves two rails
 --   wallH   = optional rail wall height at both edges (Bowl)
 --
 -- Every section fn MUST satisfy: entry geometry == st.{width,centerX,y}
 -- and endState carries where it exits, so the stream stays continuable.
+-- Entry contracts are declared per type in MinEntryWidth + canRun below
+-- (§8.6): minimum deck width, songform context, and entry speed — the
+-- pool never rolls a chunk whose gate declined.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -337,6 +342,21 @@ local function latReach(studs: number, speed: number): number
 	return studs * Config.Steering.MaxLateralSpeed * 0.85 / math.max(speed * Config.Pads.SlowCrossFrac, 1)
 end
 
+-- gateRow's reach bound on the SPEED axis (§8.6): a corridor draw exists
+-- iff a worst-case far-edge entry can transit into the gap over `lead`
+-- studs — with gapMax as below, that is exactly
+--   latReach(lead, speed) >= halfW - gapMax/2
+-- Above it every draw emits a row (widening covers sub-threshold draws);
+-- below it gateRow deterministically returns {} and the chunk rolls a
+-- silently-empty lethal row — the bug MinEntryWidth covers on the width
+-- axis. canRun uses this to decline (width, speed) states where even the
+-- earliest row can't be placed honestly.
+local function gateRowOpen(st: GenState, minLead: number): boolean
+	local halfW = st.width / 2
+	local gapMax = math.min(Config.Obstacles.CorridorMin * 1.8, st.width - 5)
+	return latReach(minLead, Tiers.speedAt(st.dist + 100)) >= halfW - gapMax / 2
+end
+
 -- Flat: plain ribbon; width may drift toward a random in-tier target.
 -- Gems: safe center lines or edge-rail lines (riskier, worth more).
 function ChunkDefs.Flat(rng: Random, st: GenState, tier): ChunkSpec
@@ -482,6 +502,10 @@ function ChunkDefs.Widen(rng: Random, st: GenState, tier): ChunkSpec
 end
 
 -- Tilt: bank the ribbon, hold, return level. Always exits flat.
+-- No MinEntryWidth gate (unlike the FullTilt family's sustained hold):
+-- narrow decks only exist deep where speed is high, so the ≤50%-t hold
+-- spans too little TIME for bank pull to slide a worst-edge entry off —
+-- and the t>0.75 ramp-out hands a level seam regardless.
 function ChunkDefs.Tilt(rng: Random, st: GenState, _tier): ChunkSpec
 	local length = rng:NextInteger(Config.Tilt.LenMin, Config.Tilt.LenMax)
 	-- Roll ramp (§9): the bank ceiling steepens with distance toward the
@@ -667,6 +691,7 @@ end
 
 -- RampGap: launch ramp, void, lower landing strip. Speed check — entering
 -- too slow means the void eats you (that's the point). Tier 5+ only.
+-- Entry contract (§8.1/§8.3): canRun requires tier.speed >= 64.
 function ChunkDefs.RampGap(_rng: Random, st: GenState, tier): ChunkSpec
 	local speed = tier.speed
 	local rampLen = 18
@@ -941,7 +966,9 @@ end
 -- Widths cover the DEBUT variant too (debut gaps are wider than pool gaps).
 local MinEntryWidth = {
 	BlockGate = 12, -- CorridorMin(7) + ~5 rim margin; the EndlessWidthMinFloor rationale
-	BlockField = 12,
+	BlockField = 14, -- the block draw needs min(8, 0.3w, w-8) >= 4 — at w<13.4
+	-- NextNumber's range inverts (swaps to a sub-floor block) and the
+	-- corridor guard can skip every row: the silently-empty case.
 	WallSlot = 12,
 	DropGate = 15, -- debut gap = 1.6*CorridorMin, plus two 1.5-stud flanks
 	Chicane = 15, -- debut gap = 1.7*CorridorMin, plus flanks
@@ -966,10 +993,27 @@ function ChunkDefs.canRun(name: string, st: GenState, tier): boolean
 	if minW and st.width < minW then
 		return false
 	end
-	if name == "DropGate" then
-		-- needs an accent downbeat inside the chunk, at drop energy
+	if name == "BlockGate" then
+		-- gateRow needs a placeable corridor at the EARLIEST row: t=0.3
+		-- (rows=3) on the 50-stud floor — see gateRowOpen.
+		return gateRowOpen(st, 0.3 * 50)
+	elseif name == "WallSlot" then
+		-- the accent-pinned wall can sit at t=0.25 on the 35-stud floor
+		return gateRowOpen(st, 0.25 * 35)
+	elseif name == "RampGap" then
+		-- DESIGN.md §8.3: the launch arc carries a full-size void only at
+		-- tier speed >= 64 studs/s. Dead code on today's pools (RampGap
+		-- sits where speed is ~92+) — declared so a future low-speed pool
+		-- can't smuggle in an unclearable gap.
+		return tier.speed >= 64
+	elseif name == "DropGate" then
+		-- needs an accent downbeat the wall can actually land ON, at drop
+		-- energy. The builder clamps tWall into [0.3,0.7] of a 40-60 stud
+		-- chunk, so the honest window is [0.3*60, 0.7*40] = [18,28] studs
+		-- out — outside it the wall clamps off the beat it was gated for,
+		-- or the accent falls outside the chunk entirely.
 		local zAcc = studsToAccent(st)
-		return zAcc ~= nil and zAcc >= 15 and zAcc <= 45 and energyOf(st) >= 0.8
+		return zAcc ~= nil and zAcc >= 18 and zAcc <= 28 and energyOf(st) >= 0.8
 	elseif name == "Widen" then
 		-- only a real opening when there's headroom under the tier ceiling
 		return st.width <= tier.widthMax - 4
