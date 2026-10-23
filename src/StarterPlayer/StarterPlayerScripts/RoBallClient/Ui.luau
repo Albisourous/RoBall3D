@@ -207,9 +207,18 @@ end
 
 -- One-DOF spring (MENU.md §4): pos/vel integrate toward target each
 -- frame; a cycle moves the target, drag/wheel adds vel directly.
-local function spring(pos: number, vel: number, target: number, dt: number): (number, number)
+-- stiff/damp default to the cycler pair — the jacket cards ride the
+-- snappier Jacket.Slide* pair for the per-card slot slide.
+local function spring(
+	pos: number,
+	vel: number,
+	target: number,
+	dt: number,
+	stiff: number?,
+	damp: number?
+): (number, number)
 	local c = Config.Menu
-	vel += (c.SpringStiff * (target - pos) - c.SpringDamp * vel) * dt
+	vel += ((stiff or c.SpringStiff) * (target - pos) - (damp or c.SpringDamp) * vel) * dt
 	return pos + vel * dt, vel
 end
 
@@ -231,6 +240,78 @@ local RULE_MIX = 0.65
 local BEST_MIX = 0.5
 local SIDE_SCALE = 0.85 -- §4: side jackets sit ~15% smaller behind the pick
 
+-- §4 jacket card (MENU.md): one card frame plus its pooled children —
+-- face gradient, corner, current-pick rim, RANDOM glyph, and the
+-- energy-band bar pool. setTrackJackets repaints via property writes
+-- (paintJacket), never ClearAllChildren: a cycle allocates nothing.
+-- off is the card's logical slot (-2..2 window around the pick); the
+-- ±2 parks sit fully clipped outside the strip, and the per-card
+-- spring slides Position between slots on a cycle.
+type JacketCard = {
+	frame: Frame,
+	face: UIGradient,
+	rim: UIStroke,
+	glyph: TextLabel,
+	band: Frame,
+	bars: { Frame }, -- pooled energy bars; grows to the widest SongMap seen
+	off: number, -- logical slot offset: card paints track curIdx + off
+	spring: { pos: number, vel: number, target: number }, -- x px off strip center
+	q: number, -- last quantized px written (write-gate)
+}
+
+local function makeJacket(strip: Frame, off: number): JacketCard
+	local J = Config.Menu.Jacket
+	local px = off * (J.W + J.Gap)
+	local card = Instance.new("Frame")
+	card.Name = "Jacket" .. off
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.new(0.5, px, 0.5, 0)
+	card.Size = UDim2.fromOffset(J.W, J.H)
+	card.BorderSizePixel = 0
+	card.ClipsDescendants = true -- bars stay inside the rounded face
+	card.Parent = strip
+	local face = Instance.new("UIGradient")
+	face.Rotation = 115
+	face.Parent = card
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = card
+	local rim = Instance.new("UIStroke")
+	rim.Thickness = 1.5
+	rim.Enabled = false -- the focused pick owns the accent rim
+	rim.Parent = card
+	local glyph = Instance.new("TextLabel")
+	glyph.BackgroundTransparency = 1
+	glyph.Font = F_DISPLAY
+	glyph.TextSize = 26
+	glyph.TextColor3 = C_DIM
+	glyph.Text = "?"
+	glyph.Size = UDim2.fromScale(1, 1)
+	glyph.Visible = false
+	glyph.Parent = card
+	-- Energy band: a ~14px strip along the card's bottom edge — the
+	-- track's intensity curve, one pooled bar per SongMap section.
+	local band = Instance.new("Frame")
+	band.Name = "Energy"
+	band.BackgroundTransparency = 1
+	band.AnchorPoint = Vector2.new(0, 1)
+	band.Position = UDim2.new(0, 5, 1, -4)
+	band.Size = UDim2.new(1, -10, 0, 14)
+	band.Visible = false
+	band.Parent = card
+	return {
+		frame = card,
+		face = face,
+		rim = rim,
+		glyph = glyph,
+		band = band,
+		bars = {},
+		off = off,
+		spring = { pos = px, vel = 0, target = px },
+		q = px,
+	}
+end
+
 -- §4 jacket face (MENU.md): one SongMap drawn small — a ~115° accent-
 -- gradient face plus one bar per sections[i] whose height is energy and
 -- whose tint marks kind (drop = accentB, build = accentA, else dim), so
@@ -238,59 +319,42 @@ local SIDE_SCALE = 0.85 -- §4: side jackets sit ~15% smaller behind the pick
 -- peaks. RANDOM wears a dark face + the ? glyph: a pick the seed makes
 -- has no cover to draw. Side cards dim to Jacket.SideDim on the face,
 -- shrink, and drop the stroke — the focused pick owns the accent rim.
-local function paintJacket(card: Frame, id: string?, isCur: boolean)
+-- Pure property writes on the pooled children — zero instance churn.
+local function paintJacket(card: JacketCard, id: string?, isCur: boolean)
 	local J = Config.Menu.Jacket
-	card:ClearAllChildren()
 	local a, b = trackAccents(id)
 	local dim = if isCur then 0 else J.SideDim
 	local scale = if isCur then 1 else SIDE_SCALE
-	card.BackgroundColor3 = if id then C_PANEL else C_BG
-	card.BackgroundTransparency = dim
-	card.Size = UDim2.fromOffset(J.W * scale, J.H * scale)
-	local face = Instance.new("UIGradient")
-	face.Rotation = 115
-	face.Color = ColorSequence.new(a:Lerp(C_PANEL, 0.5), b:Lerp(C_PANEL, 0.5))
-	face.Parent = card
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = card
-	if isCur then
-		local rim = Instance.new("UIStroke")
-		rim.Color = a
-		rim.Thickness = 1.5
-		rim.Parent = card
-	end
-	if id == nil then
-		local glyph = Instance.new("TextLabel")
-		glyph.BackgroundTransparency = 1
-		glyph.Font = F_DISPLAY
-		glyph.TextSize = 26
-		glyph.TextColor3 = C_DIM
-		glyph.TextTransparency = dim
-		glyph.Text = "?"
-		glyph.Size = UDim2.fromScale(1, 1)
-		glyph.Parent = card
-	else
-		-- Energy bars: a ~14px band along the card's bottom edge — the
-		-- track's intensity curve, one bar per SongMap section.
+	local f = card.frame
+	f.BackgroundColor3 = if id then C_PANEL else C_BG
+	f.BackgroundTransparency = dim
+	f.Size = UDim2.fromOffset(J.W * scale, J.H * scale)
+	card.face.Color = ColorSequence.new(a:Lerp(C_PANEL, 0.5), b:Lerp(C_PANEL, 0.5))
+	card.rim.Color = a
+	card.rim.Enabled = isCur
+	card.glyph.Visible = id == nil
+	card.glyph.TextTransparency = dim
+	card.band.Visible = id ~= nil
+	if id then
 		local map = SongMap.forTrack(id)
-		local band = Instance.new("Frame")
-		band.Name = "Energy"
-		band.BackgroundTransparency = 1
-		band.AnchorPoint = Vector2.new(0, 1)
-		band.Position = UDim2.new(0, 5, 1, -4)
-		band.Size = UDim2.new(1, -10, 0, 14)
-		band.Parent = card
 		local n = #map.sections
 		for i, sec in ipairs(map.sections) do
-			local bar = Instance.new("Frame")
-			bar.AnchorPoint = Vector2.new(0.5, 1)
+			local bar = card.bars[i]
+			if not bar then
+				bar = Instance.new("Frame")
+				bar.AnchorPoint = Vector2.new(0.5, 1)
+				bar.BorderSizePixel = 0
+				bar.Parent = card.band
+				card.bars[i] = bar
+			end
 			bar.Position = UDim2.fromScale((i - 0.5) / n, 1)
 			bar.Size = UDim2.fromScale(0.7 / n, 0.25 + 0.75 * sec.energy)
 			bar.BackgroundColor3 = if sec.kind == "drop" then b elseif sec.kind == "build" then a else C_DIM
 			bar.BackgroundTransparency = dim
-			bar.BorderSizePixel = 0
-			bar.Parent = band
+			bar.Visible = true
+		end
+		for i = n + 1, #card.bars do
+			card.bars[i].Visible = false
 		end
 	end
 end
@@ -592,13 +656,17 @@ function Ui.new(): Ui
 
 	-- The strip is the carousel window: 3*W + 2*Gap fills the row's 340
 	-- exactly. pulseMenu slides it on the §4 spring residual, so each
-	-- cycle kicks ~JacketPx past the pick and re-seats.
+	-- cycle kicks ~JacketPx past the pick and re-seats. ClipsDescendants
+	-- makes it a true viewport — the ±2 park slots sit fully clipped
+	-- outside, so an exiting card slides off the edge and the incoming
+	-- one slides in (the osu! carousel read: motion, not a teleport).
 	local trkStrip = Instance.new("Frame")
 	trkStrip.Name = "Jackets"
 	trkStrip.BackgroundTransparency = 1
 	trkStrip.AnchorPoint = Vector2.new(0.5, 0)
 	trkStrip.Position = UDim2.new(0.5, 0, 0, 16)
 	trkStrip.Size = UDim2.fromOffset(3 * J.W + 2 * J.Gap, J.H)
+	trkStrip.ClipsDescendants = true
 	trkStrip.Parent = trkRow
 	self._trkStrip = trkStrip
 	-- §4 spring cycler: the arrows/wheel move the spring's target; the
@@ -610,18 +678,13 @@ function Ui.new(): Ui
 	self._trkWheel = 0 -- wheel-notch throttle clock (one notch = one card)
 	self._trkIdx = 0 -- last jacket index painted (setTrackJackets write-gate)
 
-	-- Three persistent card slots; setTrackJackets repaints their faces.
+	-- Five persistent cards windowing the pick (offsets -2..2); the ±2
+	-- pair parks clipped off-window. setTrackJackets rotates each card's
+	-- off on a cycle — every card springs to its new slot, and the card
+	-- crossing the far edge teleports across while clipped + repaints.
 	self._trkCards = {}
-	for slot = -1, 1 do
-		local card = Instance.new("Frame")
-		card.Name = "Jacket" .. slot
-		card.AnchorPoint = Vector2.new(0.5, 0.5)
-		card.Position = UDim2.new(0.5, slot * (J.W + J.Gap), 0.5, 0)
-		card.Size = UDim2.fromOffset(J.W, J.H)
-		card.BorderSizePixel = 0
-		card.ClipsDescendants = true -- bars stay inside the rounded face
-		card.Parent = trkStrip
-		self._trkCards[slot + 2] = card
+	for off = -2, 2 do
+		self._trkCards[off + 3] = makeJacket(trkStrip, off)
 	end
 
 	-- Name plate under the strip: the pick's display name. Stats live in
@@ -2990,6 +3053,20 @@ function Ui:pulseMenu()
 		self._trkKick = kq
 		self._trkStrip.Position = self._trkPos + UDim2.fromOffset(kq * Config.Menu.JacketPx, 0)
 	end
+	-- §4 card slide: setTrackJackets moves each card's target slot; the
+	-- cards ride their own (snappier) spring so a cycle visibly slides
+	-- faces between slots instead of teleporting them. Whole-px
+	-- quantized + write-gated — a parked strip costs nothing.
+	local J = Config.Menu.Jacket
+	for _, c in ipairs(self._trkCards) do
+		local sp = c.spring
+		sp.pos, sp.vel = spring(sp.pos, sp.vel, sp.target, dt, J.SlideStiff, J.SlideDamp)
+		local q = math.floor(sp.pos + 0.5)
+		if q ~= c.q then
+			c.q = q
+			c.frame.Position = UDim2.new(0.5, q, 0.5, 0)
+		end
+	end
 	for slot, ss in pairs(self._slotSpring) do
 		ss.pos, ss.vel = spring(ss.pos, ss.vel, ss.target, dt)
 		local sq = math.floor((ss.pos - ss.target) * 64 + 0.5) / 64
@@ -3809,22 +3886,56 @@ end
 
 -- TRACK jackets (MENU.md §4): Main pushes the cyclic pick list — ids
 -- (nil = RANDOM), display names, and the 1-based current pick — and the
--- strip repaints prev/current/next around it. Write-gated on the index:
--- a same-pick push costs nothing. §6 rides the same push — the poster's
--- accent endpoints (horizon rule, BEST tint) lerp toward the pick's
--- TrackAccents pair, so the room wears the browsed track; RANDOM falls
--- back to the brand cyan/pink.
+-- strip repaints the window around it. Write-gated on the index: a
+-- same-pick push costs nothing. A ±1 step (wrap-normalized) slides the
+-- cards one slot — next slides left, prev slides right: every card
+-- springs to its new offset and the card crossing the far edge wraps
+-- to the opposite park slot while clipped off-window, then repaints as
+-- the new far-side card. First paint / multi-step jumps repaint in
+-- place. §6 rides the same push — the poster's accent endpoints
+-- (horizon rule, BEST tint) lerp toward the pick's TrackAccents pair,
+-- so the room wears the browsed track; RANDOM falls back to the brand
+-- cyan/pink.
 function Ui:setTrackJackets(trackIds: { string? }, names: { string }, curIdx: number)
 	if curIdx == self._trkIdx then
 		return
 	end
+	local prev = self._trkIdx
 	self._trkIds = trackIds
 	self._trkNames = names
 	self._trkIdx = curIdx
 	local n = #names
-	for slot = -1, 1 do
-		local idx = ((curIdx - 1 + slot) % n) + 1
-		paintJacket(self._trkCards[slot + 2], trackIds[idx], slot == 0)
+	local J = Config.Menu.Jacket
+	-- Shortest signed step on the cyclic list: 11 -> 1 reads as +1
+	-- (next), not -10 — the slide direction matches the arrow pressed.
+	local dir = (curIdx - prev) % n
+	if dir > n / 2 then
+		dir -= n
+	end
+	if prev > 0 and math.abs(dir) == 1 then
+		for _, c in ipairs(self._trkCards) do
+			c.off -= dir -- next (+1): the window steps left
+			local wrapped = false
+			if c.off < -2 then
+				c.off += 5
+				wrapped = true
+			elseif c.off > 2 then
+				c.off -= 5
+				wrapped = true
+			end
+			local px = c.off * (J.W + J.Gap)
+			c.spring.target = px
+			if wrapped then
+				-- Park teleport: fully clipped at ±2, so jumping the
+				-- spring across the strip reads as nothing — the card
+				-- just slides in from the incoming edge repainted.
+				c.spring.pos = px
+				c.spring.vel = 0
+			end
+		end
+	end
+	for _, c in ipairs(self._trkCards) do
+		paintJacket(c, trackIds[((curIdx - 1 + c.off) % n) + 1], c.off == 0)
 	end
 	self.trackName.Text = names[curIdx] or "RANDOM"
 	local id = trackIds[curIdx]

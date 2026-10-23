@@ -1660,6 +1660,8 @@ Config.Menu = {
 		H = 52, -- card px height
 		Gap = 14, -- inter-card gap px
 		SideDim = 0.5, -- side-card dim factor under the focused pick
+		SlideStiff = 300, -- §4 card slide spring stiffness (slot transitions)
+		SlideDamp = 28, -- §4 slide damping — mild overshoot, carousel feel
 	},
 	-- §5: no menu hitsounds — deliberate silence; the bed + audition only.
 	StampSec = 0.25, -- §7 death-hero stamp duration
