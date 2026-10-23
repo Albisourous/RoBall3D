@@ -1697,7 +1697,9 @@ function Cosmetics.bestRollout(itemId: string): Daily.RolloutStatus
 		return "live"
 	end
 	local seasonal = Config.Monetization.Seasonal.Bundle
-	local seasonalOpen = Daily.seasonalStatus()
+	-- Dev flags count the window open — same exemption the rollout gate
+	-- already gives Debug.Enabled (dev claims every pack).
+	local seasonalOpen = Daily.seasonalStatus() or Config.Debug.Enabled or Config.Monetization.FreeForTesting
 	local seenNext = false
 	for _, bid in ipairs(list) do
 		if bid ~= seasonal or seasonalOpen then

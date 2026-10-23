@@ -406,8 +406,11 @@ end
 -- Seasonal slot (§18): the gated bundle can't be claimed outside its
 -- yearly window; member items refuse à-la-carte gem buys too. Ownership
 -- already granted is untouched — the gate only blocks NEW acquisitions.
+-- Dev flags (Debug.Enabled / FreeForTesting) lift the window — every
+-- pack must be claimable when the shop runs free for testing, matching
+-- the rollout gate's Debug exemption.
 local function seasonalLive(): boolean
-	return (Daily.seasonalStatus())
+	return Config.Debug.Enabled or Config.Monetization.FreeForTesting or (Daily.seasonalStatus())
 end
 
 -- Per-item gem purchase (§18 P2): the grind path. Server re-validates

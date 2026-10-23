@@ -1594,6 +1594,9 @@ it the button reads `IN Nd` once the window is within `Seasonal.TeaserDays`
 (14) — a far-out countdown reads as a bug and `IN Nd` already means
 next-wave rollout — and `SOON` otherwise. The server refuses
 both the bundle claim and à-la-carte gem buys of its member items.
+`Config.Debug.Enabled` or `Monetization.FreeForTesting` lift the window
+entirely — every pack must be claimable when the shop runs free for
+testing (same dev exemption as the rollout gate).
 Ownership already granted is permanent — scarcity gates acquisition, not
 use. Currently **SOLSTICE**: the full frost set (skin/trail/gemfx +
 AVALANCHE death + POLAR CAP sun + SNOWBLIND filter) plus the shared
