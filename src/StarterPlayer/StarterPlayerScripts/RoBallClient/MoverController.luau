@@ -87,7 +87,11 @@ function MoverController.init(ballGetter: () -> BasePart?)
 			if p.Parent == nil then
 				active[p] = nil
 			elseif m.base.Z <= cullZ then
-				local ang = (now - m.epoch) / m.period * math.pi * 2 + m.phase
+				-- Wrapped angle: GetServerTimeNow is ~1.7e9 s — a mover
+				-- stamped without MoverEpoch (epoch=0) would carry ~1e10
+				-- rad into Angles/trig and quantize frozen, same failure
+				-- CosmeticFx's TAU note documents.
+				local ang = ((now - m.epoch) / m.period * math.pi * 2 + m.phase) % (math.pi * 2)
 				if m.kind == "slideX" then
 					p.Position = Vector3.new(m.base.X + m.amp * math.sin(ang), m.base.Y, m.base.Z)
 				elseif m.kind == "dropY" then

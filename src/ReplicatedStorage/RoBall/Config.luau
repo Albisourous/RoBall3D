@@ -818,6 +818,14 @@ Config.Ghost = {
 	-- Duel tag (§14): a pace line within this many studs either way earns
 	-- the "· DUEL" suffix — close-race tension the number alone misses.
 	DuelRange = 8,
+	-- Replay sanity envelope: parseFrames rejects rows outside the
+	-- playable volume — corrupt data is dropped, not replayed. y can't sit
+	-- below the kill floor (FallenDestroyY -50000); z only travels -Z.
+	FrameMaxAbsX = 4096,
+	FrameMinY = -51000,
+	FrameMaxY = 1024,
+	FrameMinZ = -1500000, -- ~1.1e6 studs of grade floor, plus headroom
+	FrameMaxZ = 256,
 }
 
 Config.GemSfx = {
@@ -1106,7 +1114,9 @@ function Config.Music.menuTrackId(): string
 	if trackPlayable(ta) then
 		return Config.Music.MenuTrack
 	end
-	return Config.Music.ActiveTracklist[1]
+	-- Empty ActiveTracklist (every AssetId unwired) still needs a legal
+	-- id — MenuTrack's SongMap always exists, the player just plays silent.
+	return Config.Music.ActiveTracklist[1] or Config.Music.MenuTrack
 end
 
 -- Songform sync (AUDIO.md §5.2): the generator weights chunk families by

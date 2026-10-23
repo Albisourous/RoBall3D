@@ -103,13 +103,33 @@ end
 local function parseFrames(csv: string): Frames?
 	local f: Frames = {}
 	local n = 0
+	local prevT = 0
+	local gb = Config.Ghost
 	for frame in string.gmatch(csv, "[^;]+") do
 		for v in string.gmatch(frame, "[^,]+") do
 			local num = tonumber(v)
-			if not num then
+			-- tonumber("1e999") -> inf, "nan"-shaped rows -> NaN — corrupt
+			-- payloads must fail the whole parse, not one coordinate.
+			if not num or num ~= num or math.abs(num) == math.huge then
 				return nil
 			end
-			table.insert(f, num / (if #f % 4 == 0 then 100 else 1)) -- t back to seconds
+			local pos = #f % 4 -- 0=t, 1=x, 2=y, 3=z
+			num = num / (if pos == 0 then 100 else 1) -- t back to seconds
+			-- Envelope + ordering (Config.Ghost.Frame*): t never goes
+			-- backward (the replay cursor walks monotonically), and no
+			-- legit frame sits outside the playable volume.
+			if
+				(pos == 0 and num < prevT)
+				or (pos == 1 and math.abs(num) > gb.FrameMaxAbsX)
+				or (pos == 2 and (num < gb.FrameMinY or num > gb.FrameMaxY))
+				or (pos == 3 and (num < gb.FrameMinZ or num > gb.FrameMaxZ))
+			then
+				return nil
+			end
+			if pos == 0 then
+				prevT = num
+			end
+			table.insert(f, num)
 		end
 		n += 1
 	end

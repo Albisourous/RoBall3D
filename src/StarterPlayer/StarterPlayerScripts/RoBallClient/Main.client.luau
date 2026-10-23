@@ -417,7 +417,7 @@ local function bindBall(b: Instance)
 		lastBallPos = ball.Position
 		-- The settle starts when the ball EXISTS for the client, not when
 		-- the event lands — replication order vs RunStarted isn't promised.
-		controlAt = tick() + Config.Steering.SettleSeconds
+		controlAt = time() + Config.Steering.SettleSeconds
 		-- Edge probes only count the ball's own lane as ground (§12).
 		edgeLane = lanesFolder
 			and lanesFolder:FindFirstChild("Lane" .. math.round(ball.Position.X / Config.Generation.RowSpacing))
@@ -863,12 +863,12 @@ player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 		-- Gem income (§4/§10): each pickup refunds meter by its point
 		-- value — a risky line is a recharge, not just score.
 		powerCharge = math.min(1, powerCharge + (n - lastGemPts) * Config.Power.GemPerPoint)
-		combo = if tick() - lastPickupAt <= Config.GemSfx.ComboWindow then combo + 1 else 1
-		lastPickupAt = tick()
+		combo = if time() - lastPickupAt <= Config.GemSfx.ComboWindow then combo + 1 else 1
+		lastPickupAt = time()
 		ui:setCombo(combo)
 		local seen = combo
 		task.delay(Config.GemSfx.ComboWindow, function()
-			if combo == seen and tick() - lastPickupAt >= Config.GemSfx.ComboWindow - 1e-3 then
+			if combo == seen and time() - lastPickupAt >= Config.GemSfx.ComboWindow - 1e-3 then
 				combo = 0
 				ui:setCombo(0)
 			end
@@ -1037,7 +1037,7 @@ end)
 -- a meter past the marker = all verbs armed (the latch can't outlive
 -- it); a denied press just flickers the bar dim.
 local function tryDash(dir: number, quiet: boolean?): string
-	local now = tick()
+	local now = time()
 	if mode ~= "running" or now < controlAt then
 		return "not-running"
 	end
@@ -1070,7 +1070,7 @@ end
 local function queueDash(dir: number)
 	local res = tryDash(dir)
 	if res == "cooldown" or res == "denied" then
-		dashBuffered = { dir = dir, at = tick() }
+		dashBuffered = { dir = dir, at = time() }
 	end
 end
 
@@ -1126,7 +1126,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	elseif dm == "tap" then
 		local dir = if input.KeyCode == Enum.KeyCode.A then -1 elseif input.KeyCode == Enum.KeyCode.D then 1 else 0
 		if dir ~= 0 then
-			local now = tick()
+			local now = time()
 			if now - lastTapAt[dir] <= Config.Dash.TapWindow then
 				lastTapAt[dir] = 0
 				queueDash(dir)
@@ -1184,7 +1184,7 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 	-- One clock read per frame (PERFORMANCE.md §1): controlAt, the dash
 	-- window, the danger ping and unstick timers all key off the same now.
-	local now = tick()
+	local now = time()
 
 	-- FlipRide (§8.6 stretch, flag-off): inside a RoBallFlipZone box the
 	-- ball rides the ceiling ribbon — vY holds +Lift, steering mirrors.
@@ -1594,7 +1594,7 @@ RunService.RenderStepped:Connect(function(dt)
 		Backdrop.update(lastBallPos)
 	elseif mode == "menu" then
 		-- Menu vista: slow orbit toward the track start
-		local t = tick() * 0.12
+		local t = time() * 0.12
 		local p = Vector3.new(math.sin(t) * 55, 40, 30 + math.cos(t) * 25)
 		camera.CFrame = CFrame.lookAt(p, Vector3.new(0, Config.Generation.StartY - 15, -120))
 		Backdrop.update(Vector3.new(0, Config.Generation.StartY, -60))

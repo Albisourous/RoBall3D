@@ -1148,7 +1148,7 @@ function Cosmetics.colorOf(param: any, fallback: Color3?, hues: Hues?): Color3
 		end
 	end
 	if param == "rainbow" then
-		return Color3.fromHSV((tick() * 0.3) % 1, 0.9, 1)
+		return Color3.fromHSV((time() * 0.3) % 1, 0.9, 1)
 	end
 	if param == "palette" or fallback == nil then
 		return Palette.neonAt(0)

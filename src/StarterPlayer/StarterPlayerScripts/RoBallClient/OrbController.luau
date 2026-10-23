@@ -48,7 +48,7 @@ local function tryOrb()
 	b.AssemblyLinearVelocity = Vector3.new(v.X, kick, v.Z)
 	-- Stamp the intentional launch so the landing squash (§11) can
 	-- tell it apart from a solver pop.
-	b:SetAttribute("KickAt", tick())
+	b:SetAttribute("KickAt", time())
 	-- Local-only pop: shrink-bloom confirms the tap connected.
 	best.LocalTransparencyModifier = -0.4
 	TweenService:Create(best, TweenInfo.new(0.3, Enum.EasingStyle.Quad), { LocalTransparencyModifier = 0 }):Play()

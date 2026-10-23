@@ -193,7 +193,7 @@ local function allowRate(player: Player, key: string, minInterval: number): bool
 end
 
 local function randomSeed(): number
-	return math.floor(tick() * 1000) % 2147483647 + math.random(1, 1000000)
+	return math.floor(time() * 1000) % 2147483647 + math.random(1, 1000000)
 end
 
 -- Stable string hash (djb2) so text seeds map to the same map every run.
@@ -984,6 +984,10 @@ RunService.Heartbeat:Connect(function(dt)
 				if not h or pos.Z >= h.z then
 					break
 				end
+				-- Consumed rows are never re-read (the cursor only walks
+				-- forward) — nil the slot so a long run doesn't pin every
+				-- hazard record + dead press part alive.
+				run.streamer.hazards[run.nmCursor] = nil
 				run.nmCursor += 1
 				run.hzPassed += 1
 				local px = run.lastPos and run.lastPos.X or pos.X
@@ -1035,6 +1039,7 @@ RunService.Heartbeat:Connect(function(dt)
 				if not g or pos.Z >= g.z then
 					break
 				end
+				run.streamer.gates[run.gateCursor] = nil -- same dead-row prune as hazards
 				run.gateCursor += 1
 				local px = run.lastPos and run.lastPos.X or pos.X
 				local py = run.lastPos and run.lastPos.Y or pos.Y

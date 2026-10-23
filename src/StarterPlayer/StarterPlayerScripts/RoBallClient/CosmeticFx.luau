@@ -51,7 +51,7 @@ local Fx = {}
 local skinItem: any = nil
 local trailItem: any = nil
 
-type Watched = { rings: { CylinderHandleAdornment }, bases: { Color3 }, trail: Trail? }
+type Watched = { rings: { CylinderHandleAdornment }, bases: { Color3 }, trail: Trail?, trailH: number }
 local watched: { [BasePart]: Watched } = {}
 
 local function equipped()
@@ -108,7 +108,7 @@ local WALL_Z = ROLL_Z0 - ROLL_LEN - BALL_D / 2 - WALL_T / 2 - WALL_ET
 local DEAD_T = 0.85 -- seconds holding on the burst before the respawn
 local CYCLE = ROLL_LEN + ROLL_SPEED * DEAD_T
 local DECK_PITCH = math.atan(-Gen.Grade) -- flat chunk: surface falls Grade/stud toward -z
--- tick() is ~1.8e9 seconds — raw tick-derived angles hit ~4e10 radians,
+-- time() is ~1.8e9 seconds — raw time-derived angles hit ~4e10 radians,
 -- where CFrame.Angles' trig quantizes and the rotation FREEZES (the ball
 -- slides without rolling). Always wrap angles into [0, tau) first.
 local TAU = math.pi * 2
@@ -141,7 +141,25 @@ local vpHitPos: Vector3? = nil
 local vpTrailSegs: { BasePart } = {}
 local vpTrailGlow: { BasePart } = {}
 local vpMotes: { BasePart } = {}
+-- Wake ribbon as a ring buffer (PERFORMANCE.md §3): the old newest-first
+-- table did insert(1)+remove() — O(n) memmove per frame. Fixed slots +
+-- a head index make push/reset O(1); trailPt(i) reads the i-th newest.
+local TRAIL_CAP = TRAIL_SEGS + 1
 local vpTrailPts: { Vector3 } = {}
+local vpTrailHead = 0 -- slot of the newest point; 0 + vpTrailN=0 = empty
+local vpTrailN = 0
+local function trailPt(i: number): Vector3?
+	return if i <= vpTrailN then vpTrailPts[(vpTrailHead - i) % TRAIL_CAP + 1] else nil
+end
+local function trailPush(p: Vector3)
+	vpTrailHead = vpTrailHead % TRAIL_CAP + 1
+	vpTrailPts[vpTrailHead] = p
+	vpTrailN = math.min(vpTrailN + 1, TRAIL_CAP)
+end
+local function trailReset()
+	vpTrailHead = 0
+	vpTrailN = 0
+end
 local vpTrailColor = PK
 local vpLastRoll = 0
 local vpFx: string? = nil
@@ -324,7 +342,7 @@ function Fx.preview(items: { [string]: any })
 	vpTrailSegs = {}
 	vpTrailGlow = {}
 	vpMotes = {}
-	vpTrailPts = {}
+	trailReset()
 	vpLastRoll = 0
 	vpRings = {}
 	vpRingRots = {}
@@ -501,7 +519,7 @@ end
 --=================== LIVE BALL ANIM ===================--
 -- Snapshot a dressed ball's rings (+base colors for pulse) and trail.
 local function collect(ball: BasePart)
-	local w: Watched = { rings = {}, bases = {}, trail = ball:FindFirstChildOfClass("Trail") }
+	local w: Watched = { rings = {}, bases = {}, trail = ball:FindFirstChildOfClass("Trail"), trailH = -1 }
 	for _, c in ipairs(ball:GetChildren()) do
 		if c:IsA("CylinderHandleAdornment") then
 			table.insert(w.rings, c)
@@ -521,19 +539,19 @@ local function fxColor(fx: string, i: number, h: number, k: number, base: Color3
 	elseif fx == "strobe" then
 		-- Hot flicker: fast hue cycle + per-ring bright/dark
 		-- alternation — the CHROMA skin's marquee look.
-		local v = if math.floor(tick() * 7 + i) % 2 == 0 then 1 else 0.28
+		local v = if math.floor(time() * 7 + i) % 2 == 0 then 1 else 0.28
 		return Color3.fromHSV((h * 2.2 + i * 0.4) % 1, 0.95, v)
 	elseif fx == "wave" then
 		-- The run palette flows across the rings, offset per
 		-- ring — the IRIS skin's gradient-cage look.
-		return Palette.neonAt(tick() * 60 + i * 35)
+		return Palette.neonAt(time() * 60 + i * 35)
 	end
 	return base:Lerp(Color3.new(0, 0, 0), 0.55 * k) -- pulse
 end
 
 local function step()
-	local h = (tick() * 0.28) % 1
-	local k = 0.5 + 0.5 * math.sin(tick() * 2.6)
+	local h = (time() * 0.28) % 1
+	local k = 0.5 + 0.5 * math.sin(time() * 2.6)
 
 	local fx = skinItem and skinItem.fx
 	local doRings = ANIM_FX[fx] == true
@@ -550,7 +568,14 @@ local function step()
 				end
 			end
 			if doTrail and w.trail then
-				w.trail.Color = ColorSequence.new(Color3.fromHSV(h, 0.95, 1))
+				-- Quantized hue deadband: a rainbow trail rewrites its
+				-- ColorSequence every frame otherwise — 1/48 steps stay
+				-- smooth while skipping ~9/10 of the writes.
+				local qh = math.floor(h * 48 + 0.5)
+				if qh ~= w.trailH then
+					w.trailH = qh
+					w.trail.Color = ColorSequence.new(Color3.fromHSV((qh / 48) % 1, 0.95, 1))
+				end
 			end
 		end
 	end
@@ -569,7 +594,7 @@ local function step()
 	-- cam re-aims with the live transform, rings and the capsule's red
 	-- cap ride the roll, the gem beat-pulses until it's taken.
 	if vpBall then
-		local tt = tick()
+		local tt = time()
 		local roll = (tt * ROLL_SPEED) % CYCLE
 		local dead = roll >= ROLL_LEN
 		if dead and not vpDead then
@@ -588,7 +613,7 @@ local function step()
 					p.Transparency = 1
 				end
 			end
-			vpTrailPts = {}
+			trailReset()
 		elseif not dead and vpDead then
 			-- Respawn wrap: re-dress the ball at the loop head.
 			vpDead = false
@@ -657,24 +682,21 @@ local function step()
 		end
 		if roll < vpLastRoll then
 			-- Loop wrap: drop the stale ribbon so it doesn't streak back.
-			vpTrailPts = {}
+			trailReset()
 		end
 		vpLastRoll = roll
 		if vpTrailSegs[1] then
 			if not vpDead then
-				table.insert(vpTrailPts, 1, bc.Position)
-				if #vpTrailPts > TRAIL_SEGS + 1 then
-					table.remove(vpTrailPts)
-				end
+				trailPush(bc.Position)
 			end
 			local tcol = vpTrailColor
 			if vpRainbowTrail then
 				tcol = Color3.fromHSV(h, 0.95, 1)
 			elseif vpPaletteTrail then
-				tcol = Palette.neonAt(tick() * 40)
+				tcol = Palette.neonAt(time() * 40)
 			end
 			for i, s in ipairs(vpTrailSegs) do
-				local a, b = vpTrailPts[i], vpTrailPts[i + 1]
+				local a, b = trailPt(i), trailPt(i + 1)
 				local g = vpTrailGlow[i]
 				if a and b then
 					local f = i / TRAIL_SEGS
@@ -700,8 +722,7 @@ local function step()
 			-- out, shrink and die — staggered lifecycles per mote.
 			for j, m in ipairs(vpMotes) do
 				local ph = (tt * 0.8 + j * 0.618) % 1
-				local idx = 1 + ((j * 7) % math.max(#vpTrailPts, 1))
-				local p = vpTrailPts[idx]
+				local p = trailPt(1 + (j * 7) % math.max(vpTrailN, 1))
 				if p then
 					local jx = math.sin(j * 12.9) * (0.4 + ph * 3.2)
 					local jz = math.cos(j * 7.3) * (0.4 + ph * 3.2)
@@ -717,7 +738,7 @@ local function step()
 	end
 	if vpGem and vpGemCf and not vpGemTaken then
 		-- Beat pulse — same swell fraction live pickups use.
-		vpGem.Size = vpGemVec * (1 + Config.Gems.BeatPulse * math.max(0, math.sin((tick() * 4) % TAU)))
+		vpGem.Size = vpGemVec * (1 + Config.Gems.BeatPulse * math.max(0, math.sin((time() * 4) % TAU)))
 		vpGem.CFrame = vpGemCf
 	end
 	if vpFx and ANIM_FX[vpFx] then

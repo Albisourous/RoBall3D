@@ -1042,8 +1042,14 @@ function TrackStreamer:ensureAhead(ballZ: number, maxBuilds: number?)
 		budget += 4
 	end
 	while self.gen.state.zEnd > target and budget > 0 do
+		local before = self.gen.state.zEnd
 		self:buildChunk(self.gen:nextChunk())
 		budget -= 1
+		if self.gen.state.zEnd >= before then
+			-- A degenerate spec that made no forward progress would spin
+			-- the budget without covering the window — bail instead.
+			break
+		end
 	end
 end
 

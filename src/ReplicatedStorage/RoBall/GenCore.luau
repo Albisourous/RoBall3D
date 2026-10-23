@@ -127,7 +127,11 @@ function GenCore:nextChunk(): ChunkDefs.ChunkSpec
 				},
 			}
 		else
-			spec = ChunkDefs[self.onlyType](self.rng, snap, Tiers.forDistance(st.dist))
+			-- matchFeature resolves keywords upstream, but a bare typo
+			-- through the debug path would nil-call here — name it.
+			local builder = ChunkDefs[self.onlyType]
+			assert(type(builder) == "function", `GenCore.onlyType '{self.onlyType}' is not a ChunkDefs builder`)
+			spec = builder(self.rng, snap, Tiers.forDistance(st.dist))
 		end
 	elseif self.introIndex < #self.intro then
 		self.introIndex += 1

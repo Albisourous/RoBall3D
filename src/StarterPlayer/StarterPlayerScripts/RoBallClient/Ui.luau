@@ -1799,6 +1799,10 @@ function Ui.new(): Ui
 	-- Mixer page: one channel per row, stacked — the garage panel is too
 	-- narrow for the old side-by-side pairs. Drag applies instantly;
 	-- release persists through RoBallVol_<ch> -> profile.audio.
+	-- One shared InputChanged/InputEnded pair drives every row — N
+	-- sliders used to stack 2N service connections, each firing on every
+	-- input event even while nothing dragged.
+	local sliderRows: { [string]: { track: Frame, dragging: boolean } } = {}
 	local function sliderUnit(parent: Frame, ch: string, y: number)
 		local name = label(parent, Config.Audio.Labels[ch], 11, F_DATA, C_DIM)
 		name.TextXAlignment = Enum.TextXAlignment.Left
@@ -1844,40 +1848,18 @@ function Ui.new(): Ui
 		hit.Size = UDim2.fromOffset(180, 24)
 		hit.Parent = parent
 
-		local dragging = false
 		local function write(mx: number)
 			AudioMix.set(ch, math.clamp((mx - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1))
 		end
+		local row = { track = track, dragging = false, dragWrite = write }
+		sliderRows[ch] = row
 		hit.InputBegan:Connect(function(input)
 			if
 				input.UserInputType == Enum.UserInputType.MouseButton1
 				or input.UserInputType == Enum.UserInputType.Touch
 			then
-				dragging = true
+				row.dragging = true
 				write(input.Position.X)
-			end
-		end)
-		UserInputService.InputChanged:Connect(function(input)
-			if
-				dragging
-				and (
-					input.UserInputType == Enum.UserInputType.MouseMovement
-					or input.UserInputType == Enum.UserInputType.Touch
-				)
-			then
-				write(input.Position.X)
-			end
-		end)
-		UserInputService.InputEnded:Connect(function(input)
-			if
-				dragging
-				and (
-					input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch
-				)
-			then
-				dragging = false
-				AudioMix.save(ch)
 			end
 		end)
 	end
@@ -1886,6 +1868,33 @@ function Ui.new(): Ui
 	for i, ch in ipairs(Config.Audio.Channels) do
 		sliderUnit(pageAudio, ch, 34 + (i - 1) * 32)
 	end
+	UserInputService.InputChanged:Connect(function(input)
+		if
+			input.UserInputType ~= Enum.UserInputType.MouseMovement
+			and input.UserInputType ~= Enum.UserInputType.Touch
+		then
+			return
+		end
+		for _, row in pairs(sliderRows) do
+			if row.dragging then
+				row.dragWrite(input.Position.X)
+			end
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if
+			input.UserInputType ~= Enum.UserInputType.MouseButton1
+			and input.UserInputType ~= Enum.UserInputType.Touch
+		then
+			return
+		end
+		for ch, row in pairs(sliderRows) do
+			if row.dragging then
+				row.dragging = false
+				AudioMix.save(ch)
+			end
+		end
+	end)
 	local ahint = label(pageAudio, "drag to mix · release saves", 10, F_DATA, C_DIM, 0)
 	ahint.Position = UDim2.fromOffset(0, 34 + #Config.Audio.Channels * 32 + 10)
 	ahint.TextTransparency = 0.35
@@ -2793,7 +2802,7 @@ function Ui.new(): Ui
 			return
 		end
 		padInput = input
-		padDownAt = tick()
+		padDownAt = time()
 		padDownX = input.Position.X
 		pad.Visible = true
 	end)
@@ -2824,12 +2833,12 @@ function Ui.new(): Ui
 		-- inside TapWindow is the pad's dash — the "tap" dash style
 		-- gesture, always live on touch regardless of the menu pick.
 		if
-			tick() - padDownAt < Config.Dash.TapWindow
+			time() - padDownAt < Config.Dash.TapWindow
 			and math.abs(input.Position.X - padDownX) < Config.Controls.PadTapPx
 		then
 			local half = zone.AbsoluteSize.X / 2
 			local dir = if input.Position.X - zone.AbsolutePosition.X < half then -1 else 1
-			local now = tick()
+			local now = time()
 			if now - padLastTap[dir] <= Config.Dash.TapWindow then
 				padLastTap[dir] = 0
 				if self.onPadTap then
@@ -3159,7 +3168,7 @@ function Ui:setSpeedo(
 	-- pulse used to dirty 3 text relayouts and 10 property writes every
 	-- heartbeat — pulse-driven dims snap to whole pixels / quantized
 	-- steps, and every write skips when the value didn't actually change.
-	local now = tick()
+	local now = time()
 	local pulse = self.pulse or 0
 	local num = tostring(math.floor(bpm + 0.5))
 	if num ~= self._spdNum then

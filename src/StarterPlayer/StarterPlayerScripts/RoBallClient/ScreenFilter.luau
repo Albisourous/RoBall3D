@@ -172,6 +172,15 @@ function ScreenFilter.init()
 	if cam then
 		cam:GetPropertyChangedSignal("ViewportSize"):Connect(relayout)
 	end
+	-- The camera can be swapped under us (respawn/streaming churn): rebind
+	-- the resize listener to the new CurrentCamera instead of going deaf.
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		local newCam = workspace.CurrentCamera
+		if newCam then
+			newCam:GetPropertyChangedSignal("ViewportSize"):Connect(relayout)
+			relayout()
+		end
+	end)
 end
 
 return ScreenFilter

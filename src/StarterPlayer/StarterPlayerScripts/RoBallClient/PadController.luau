@@ -51,7 +51,7 @@ local function fire(pad: BasePart, b: BasePart)
 	b.AssemblyLinearVelocity = Vector3.new(v.X, kick, v.Z)
 	-- Stamp the intentional launch so the landing squash (§11) can
 	-- tell it apart from a solver pop.
-	b:SetAttribute("KickAt", tick())
+	b:SetAttribute("KickAt", time())
 	-- Local-only flash: the strip blooms for a beat to confirm the grab.
 	pad.LocalTransparencyModifier = -0.4
 	TweenService:Create(pad, TweenInfo.new(0.3, Enum.EasingStyle.Quad), { LocalTransparencyModifier = 0 }):Play()

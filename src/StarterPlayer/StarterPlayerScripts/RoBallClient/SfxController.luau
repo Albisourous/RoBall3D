@@ -62,7 +62,7 @@ end
 
 local function chime()
 	local cfg = Config.GemSfx
-	local now = tick()
+	local now = time()
 	combo = if now - lastAt < cfg.ComboWindow then combo + 1 else 0
 	lastAt = now
 	-- Section-aware harmony (AUDIO.md §6): the combo climbs the chord-tone
