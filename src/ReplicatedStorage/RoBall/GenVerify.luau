@@ -128,7 +128,7 @@ local function rowCorridor(row: { ChunkDefs.Obstacle }, halfW: number): number
 	return best
 end
 
-function GenVerify.sweep(seed: number, nChunks: number): Report
+function GenVerify.sweep(seed: number, nChunks: number, stopBelowY: number?): Report
 	local gen = GenCore.new(seed)
 	local violations = {}
 	local counts: { [string]: number } = {}
@@ -136,12 +136,21 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 	local prevEnd: { width: number, centerX: number, y: number }? = nil
 	local reach: ISet? = nil -- reachable lateral band at the current sample
 	local dist = 0
+	-- stopBelowY probes keep auditing this many chunks PAST the crossing —
+	-- the level-running chunks are the point of a floor probe, not just
+	-- the transition.
+	local postStop = 24
 
 	local function bad(msg: string, spec: ChunkDefs.ChunkSpec, i: number)
 		table.insert(violations, string.format("[s%d c%d %s] %s", seed, i, spec.type, msg))
 	end
 
 	for i = 1, nChunks do
+		if i % 32 == 0 then
+			-- floorProbe's ~7k-chunk walk exceeds the per-thread execution
+			-- budget without a yield; callers are always deferred threads.
+			task.wait()
+		end
 		local spec = gen:nextChunk()
 		counts[spec.type] = (counts[spec.type] or 0) + 1
 		local baseType = spec.type:gsub("^Intro_", "")
@@ -516,6 +525,17 @@ function GenVerify.sweep(seed: number, nChunks: number): Report
 		end
 
 		dist += spec.length
+
+		-- Deep probes early-exit once the deck has run level for a tail of
+		-- chunks past the target depth — the worst-case chunk bound would
+		-- otherwise walk ~7k chunks.
+		if stopBelowY and spec.endState.y <= stopBelowY then
+			postStop -= 1
+			if postStop <= 0 then
+				nChunks = i
+				break
+			end
+		end
 	end
 
 	-- Debut gate: a gated type's first appearance must be at/after its
@@ -547,14 +567,16 @@ end
 
 -- Deep probe (GradeFloor coverage): a normal sweep's chunk count never
 -- reaches the descent floor (~287km in), so the floor-transition paths —
--- the applyGrade clamp, OrbHop's flat-plane re-solve — go unaudited. Walk
--- `seed` far enough to cross it, running the full per-chunk audit the
--- whole way; returns the report plus whether the floor was reached.
+-- the applyGrade clamp, OrbHop's flat-plane re-solve — go unaudited. The
+-- 40-stud bound guarantees crossing even at min chunk length; the
+-- stopBelowY early-exit means a real walk ends near ~600 chunks — without
+-- it the ~7k-chunk bound blows the script execution budget mid-sweep.
+-- Returns the report plus whether the floor was reached.
 function GenVerify.floorProbe(seed: number): (Report, boolean)
 	local gen = Config.Generation
 	local floorDist = (gen.StartY - gen.GradeFloor) / gen.Grade
 	local nChunks = math.ceil(floorDist / 40) + 64 -- 40 = shortest chunk
-	local rep = GenVerify.sweep(seed, nChunks)
+	local rep = GenVerify.sweep(seed, nChunks, gen.GradeFloor)
 	return rep, rep.endY <= gen.GradeFloor
 end
 

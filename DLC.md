@@ -40,7 +40,7 @@ column is that shape. Worth still reads on tier scale + tint.
 | COLOR LAB | your hues ×2 | diamond | ◊1500 | — (prestige) |
 | NULL | pitch core/ghost rings | diamond | ◊800 | null |
 | SUMMIT | sky-blue/white | shard | ◊800 | peaks |
-| CAPSULE | transparent shell / upright toy monkey inside | orb | ◊800 | apeball |
+| CAPSULE | 50/50 shell — red cap / clear bottom | orb | ◊800 | apeball |
 
 ### TRAIL — wake ribbon (19)
 
@@ -200,10 +200,9 @@ the preview can render the whole look and nothing in the box is filler.
 bright midday blue, the green/dark-green CHECKER
 DECK tiling the lane itself, palm-topped islets floating in the blue,
 cartoon clouds, a day-palm grove, a
-50/50-clear glass capsule ball with a toy monkey riding UPRIGHT inside
-(it yaws to face velocity like the arcade original — the WebMonkeyBall
-decomp's `updateApeOrientation` ported to an AlignOrientation rig,
-APEBALL.md §3), no wake trail (`trail_none` closes the pack's equip so
+50/50 glass capsule ball — translucent red top half, clear bottom
+half, the split tumbling with the roll (a real CSG hemisphere welded to
+the shell, APEBALL.md §2), no wake trail (`trail_none` closes the pack's equip so
 the ball rolls clean — BANANA WAKE still grants, owners can re-equip),
 and pickups restyled as banana-yellow orbs (the SKY COURT
 world's `gemStyle`). All-original set in the genre's spirit —

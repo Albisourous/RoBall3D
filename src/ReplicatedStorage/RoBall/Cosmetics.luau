@@ -79,7 +79,6 @@ export type Item = {
 	edge: Color3?,
 	plain: boolean?,
 	capsule: boolean?,
-	inhabitant: string?,
 	gemStyle: string?,
 	gemShape: string?,
 	none: boolean?,
@@ -299,18 +298,17 @@ Cosmetics.Items = {
 		gemShape = "shard", -- mountain crystal
 	},
 	--==== APE BALL pack — the arcade-toy set for the sky court world:
-	-- a glossy transparent capsule ball — a toy monkey rides inside on
-	-- an upright constraint rig (BallDress + the server's yaw driver,
-	-- APEBALL.md §3).
+	-- a glossy two-tone capsule ball: half-clear Glass shell under a
+	-- translucent red hemisphere cap, the split tumbling with the roll
+	-- (BallDress.buildCap CSG hemisphere, APEBALL.md §2).
 	skin_capsule = {
 		slot = "skin",
 		name = "CAPSULE",
 		gemPrice = 800,
 		ringA = WHITE,
 		ringB = BANANA,
-		core = Color3.fromRGB(255, 138, 36),
-		capsule = true, -- transparent shell at Config.Art.CapsuleAlpha
-		inhabitant = "monkey",
+		core = Color3.new(1, 1, 1), -- neutral: the clear half stays truly clear
+		capsule = true, -- clear shell at Config.Art.CapsuleAlpha + red ShellCap
 		gemShape = "orb", -- ball pickups, on any world
 	},
 

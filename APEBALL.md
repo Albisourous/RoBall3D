@@ -1,9 +1,9 @@
-# APEBALL.md — capsule rider + FLOOR slot
+# APEBALL.md — two-tone capsule shell + FLOOR slot
 
 Design spec for the APE BALL deep-cut: a true party-ball capsule (50/50
-clear shell, a monkey that *rides* like the genre's instead of tumbling
-like a capsule toy), no trail in the pack, and a new FLOOR cosmetic slot
-so every pack can restyle the deck it rolls on.
+split — translucent **red top half, clear bottom half**, tumbling with
+the roll like the arcade shell), no trail in the pack, and a new FLOOR
+cosmetic slot so every pack can restyle the deck it rolls on.
 
 Rules that still apply: tunables live in `Config`, items are data in
 `Cosmetics.luau`, color law (nothing near `LethalColor` 255,32,48), the
@@ -47,107 +47,54 @@ What the decomp actually does, in its own terms:
 
 | SMB does | Read it produces | Our port |
 |---|---|---|
-| `apeQuat` counter-rotates vs ball spin, upright-stabilized | The signature "ball spins around the rider" | Constraint rider rig: `AlignPosition` to ball center + `AlignOrientation` driven to a world-space goal (below) — the engine's solver IS the incremental stabilizer |
-| ~65% tumble inheritance (`unkA8`) | Rider shudders with hard spins, stays legible | `RiderTumble` lean factor on `AssemblyAngularVelocity` magnitude, **capped by `RiderTumbleMax` (~10°)** — bounded like the decomp's 5°-class steps, never an integrated somersault |
-| Yaw → horizontal velocity, speed-gated blend | Monkey faces where it's going | `goalYaw = atan2(vx, vz)`, gated below `RiderYawVelLo`, fully tracked by `RiderYawVelHi` |
-| In-air spin compensation | Airtime reads loose/alive | Same goal path handles air — world-space goal never cares about contact |
-| ~50% clear shell, warm tint | Glass-bubble toy | `CapsuleAlpha 0.5` + `Enum.Material.Glass` |
+| ~50% clear shell, red cap half | The two-tone arcade capsule | `CapsuleAlpha 0.5` Glass shell + a CSG red hemisphere (`Art.CapsuleRed`) welded on top — the split tumbles with the roll |
+| `apeQuat` rider machinery | (rider CUT — see §3) | — |
 | No trail; checkered floor | Ball + floor carry the frame | Pack ships no trail; FLOOR slot + CHECKER DECK (below) |
 
-## 2. Capsule shell — "clear 50/50"
+## 2. Capsule shell — "50/50" split
 
-- `Config.Art.CapsuleAlpha = 0.5` — exactly half-tinted, half-clear.
+The arcade ball reads as two half-shells joined at the equator: a
+translucent **red** top hemisphere over a clear bottom hemisphere, both
+fixed to the ball so the split tumbles with the roll.
+
+- `Config.Art.CapsuleAlpha = 0.5` — the core ball is half-clear.
 - `BallDress.dress`/`retint`: when `skin.capsule`, the ball part wears
   `Enum.Material.Glass` (specular shell read) instead of SmoothPlastic;
-  non-capsule skins restore SmoothPlastic. `retint` must restore the
-  material too — an equip swap off capsule leaves no glass behind.
-- Keep `skin_capsule.core` (255,138,36): through the half-alpha glass it
-  reads as the warm-tinted bubble from the key art.
-- Ring cage stays (it's our art direction, not the ref's) — but ring
-  parts must not hide the monkey: already 0.14-study wireframe rings,
-  fine.
+  non-capsule skins restore SmoothPlastic. `retint` restores material
+  AND drops the cap — an equip swap off capsule leaves nothing behind.
+- `skin_capsule.core` is neutral white: the clear half stays truly
+  clear; tint belongs to the cap.
+- **The red half** is a real hemisphere: `BallDress.buildCap(d)` runs a
+  `GeometryService:SubtractAsync` (sphere minus a box below the equator
+  plane — the documented in-game solid-modeling path), sized a hair
+  proud of the shell so the cap is the outer skin with no z-fighting.
+  `syncCap` welds it `Massless` at ball center inside `task.spawn` —
+  dressing never yields, and a `CapSeq` attribute token-stales pending
+  builds across equip swaps. CSG failure degrades to a whole-shell red
+  tint.
+- Tunables: `Art.CapsuleRed` (235,45,55 — the SMB cap red),
+  `Art.CapsuleRedAlpha` (0.35 — translucent over the clear shell).
+- Ring cage stays (it's our art direction, not the ref's) — 0.14-stud
+  wireframe rings don't fight the cap read.
 
-## 3. The rider — upright, leaning, bouncy ("acts like Monkey Ball")
+## 3. The rider — CUT
 
-**Rig** (`BallDress.buildInhabitant` rework — same function, new guts):
+The original rider (upright toy monkey on an `AlignPosition` +
+`AlignOrientation` constraint rig, server-driven yaw goal — a port of
+the decomp's `updateApeOrientation`) shipped, worked, and was removed on
+request: the primitive monkey didn't read through the shell. The two-
+tone shell alone carries the homage now — simpler, and the split
+tumbling with the ball is the arcade read anyway. All `Monkey*`/`Rider*`
+tunables, `buildInhabitant`, `monkeySpec`, the `Inhabitant`/`RiderOri`
+rig, and the Heartbeat goal driver are gone; `Cosmetics.Item` no longer
+has an `inhabitant` field.
 
-- A hidden `Root` part inside the shell: small block, `Transparency 1`,
-  `Massless`, CanCollide/CanQuery/CanTouch off, `CastShadow` off. NOT
-  welded to the ball — its own assembly.
-- Monkey bits weld to `Root` (WeldConstraint), same `monkeySpec`
-  primitive-sphere recipe.
-- `Attachment "Ride"` at ball center (child of ball) + `Attachment` on
-  `Root` at its center.
-- `AlignPosition` **TwoAttachment** (root att → ball att) holds the rider
-  centered — `Responsiveness` < 200 gives the suspension bob; reaction
-  force on the ball is ~0 (massless assembly).
-- `AlignOrientation` **OneAttachment** on the root attachment; `CFrame`
-  is the world-upright goal, rewritten per frame by the rider goal
-  driver.
-
-**Rider goal driver** (server, `Main.server.luau` Heartbeat — the ball's
-network owner is the client, but the server reads
-`ball.AssemblyLinearVelocity`/`AssemblyAngularVelocity` fine and
-constraint-property writes replicate to whichever machine simulates the
-rig). Port of `updateApeOrientation` (physics.ts ~571):
-
-- For each `run.ball` carrying `Inhabitant`: find the rig's
-  `AlignOrientation` (name it `RiderOri` — one named lookup, no tag
-  bookkeeping) and compose the goal:
-
-  ```lua
-  -- yaw: face the horizontal velocity (updateApeFromVelocity) — blended
-  -- in over the speed gate, last yaw held when nearly stopped.
-  local v = ball.AssemblyLinearVelocity
-  local hs = math.sqrt(v.X * v.X + v.Z * v.Z)
-  if hs > Art.RiderYawVelLo then
-      local target = math.atan2(v.X, v.Z) -- +Z face (muzzle/eyes) onto vel dir
-      local blend = math.clamp((hs - Art.RiderYawVelLo) / (Art.RiderYawVelHi - Art.RiderYawVelLo), 0, 1)
-      -- shortest-arc blend from lastYaw to target (s16-wrapped delta in the decomp)
-      local d = (target - lastYaw + math.pi) % (2 * math.pi) - math.pi
-      lastYaw += d * blend
-  end
-  -- tumble: a lean-back proportional to spin speed, capped — the
-  -- decomp's counter-tilt is a small fixed step, so inheriting raw
-  -- w*dt somersaults the rider at real roll rates; bound it instead.
-  local w = ball.AssemblyAngularVelocity
-  local wn = w.Magnitude
-  local goal = CFrame.Angles(0, lastYaw, 0)
-  local lean = math.clamp(wn * Art.RiderTumble, 0, Art.RiderTumbleMax)
-  if wn > 1e-3 then
-      goal = CFrame.fromAxisAngle(w.Unit, lean) * goal
-  end
-  ori.CFrame = goal
-  ```
-
-  `lastYaw` is state per run (`run.riderYaw`, init `math.pi` — facing
-  -Z/travel at spawn, matching SMB's `getInitApeYaw`).
-- One property write per capsule ball per frame; zero cost for
-  non-capsule runs (gate on `ball:FindFirstChild("Inhabitant")`). The
-  `AlignOrientation` soft `Responsiveness` plays the role of SMB's
-  incremental uprighting — no manual upright nudge needed.
-
-**Rider scale/visibility**: bump `monkeySpec` ~35% larger overall, add a
-tail bit (small fur sphere low/back — SMB tails read when the rider
-faces -Z), brighten `MonkeyFur`/`MonkeyFace` slightly — it must read
-through a 0.5 shell at chase-cam distance.
-
-**Tunables** (all in `Config.Art`, all commented): `CapsuleAlpha`,
-`RiderTumble` (~0.004 — lean-back radians per rad/s of ball spin) +
-`RiderTumbleMax` (~0.18 — cap, so full-speed reads as a ~10° brace),
-`RiderYawVelLo`/`RiderYawVelHi` (~4/16 studs/s — SMB's gate rescaled:
-their 0.23/0.37 u/s at radius 0.5 ≈ this ratio), `RiderResponsiveness`
-(~40), rider `MaxForce`/`MaxTorque` caps, `MonkeyScale` (1.35). (The
-earlier `RiderLeanMax`/`RiderLeanVel`/`RiderPitchMax` synthetic-lean
-fields are SUPERSEDED — SMB leans come free from yaw-tracking + tumble.)
-
-**Preview** (`CosmeticFx` diorama): `vpMonkey` bits currently pin to the
-roll CFrame `bc` (tumble). Change the basis to
-`CFrame.new(bc.Position) * CFrame.Angles(0, yaw, 0)` where yaw tracks the
-diorama's own horizontal velocity (finite-difference the ball's x/z each
-frame — the preview moves -Z with a weave, so the monkey visibly turns
-into the S-curves and onto the gem line, same as live). Dead-hold and
-respawn transparency paths stay as they are.
+**Preview** (`CosmeticFx` diorama): capsule skins get the same
+`BallDress.buildCap` hemisphere parented into the WorldModel
+(`vpBuildSeq` token-stales pending CSG builds across rebuilds); the cap
+part rides the roll CFrame in `step()` so preview and live ball split
+identically. Death burst / respawn transparency toggle the cap with the
+ball.
 
 **Ghosts**: unaffected — echoes are plain neon spheres, never dressed.
 
@@ -235,7 +182,7 @@ All other bundles append their floor item (8 items each).
 
 | Workstream | Files |
 |---|---|
-| Rider rig + deck | `Config.luau` (Art block), `BallDress.luau`, `TrackStreamer.luau`, `Main.server.luau` |
+| Shell cap + deck | `Config.luau` (Art block), `BallDress.luau`, `TrackStreamer.luau` |
 | Catalog | `Cosmetics.luau` |
 | Client mirror | `CosmeticFx.luau` |
 | Docs (integration pass) | `DESIGN.md` §18 + Ball/Track bullets, `DLC.md` items + APE BALL row |
@@ -244,8 +191,8 @@ All other bundles append their floor item (8 items each).
 
 - `stylua --check src/ && selene src/ && rojo build -o build/RoBall3D.rbxl`
 - MCP playtest (debug seed `flat`, capsule + floor_check equipped):
-  two screenshots a beat apart show the shell/rings rotated while the
-  monkey is still upright and camera-facing; steer → visible lean.
-- Garage preview: monkey upright mid-roll, leans onto the gem line;
+  the shell shows a clean red top / clear bottom split, tumbling with
+  the roll; `ShellCap` union exists welded under the ball.
+- Garage preview: same two-tone split on the diorama ball;
   `floor_check` lane renders as green/dark-green checker.
-- Equip another skin mid-run: glass/monkey removed cleanly (retint).
+- Equip another skin mid-run: glass/cap removed cleanly (retint).

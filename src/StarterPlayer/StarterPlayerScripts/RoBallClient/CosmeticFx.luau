@@ -13,8 +13,9 @@
 --    change (unowned items preview too — that's the conversion lever).
 --    The browsed FLOOR item restyles the ribbon (checker sub-tiling /
 --    rail color / plain — TrackStreamer.emitDeck's parity recipe), and a
---    capsule skin's monkey rides UPRIGHT, yawing to face the ball's own
---    horizontal velocity like the live constraint rig (APEBALL §3).
+--    capsule skin wears the same CSG red hemisphere cap as the live
+--    ball (BallDress.buildCap) — it rides the roll CFrame so the 50/50
+--    split tumbles exactly like the welded live cap (APEBALL §2).
 -- 2) Animated skin/trail flags ("rainbow"/"pulse") applied to the live
 --    ball AND the diorama in the render loop.
 --
@@ -86,10 +87,6 @@ local GEM_Z = -75 -- this far down the lane
 local GEM_ROLL = ROLL_Z0 - GEM_Z -- studs in when the ball runs it over
 local GEM_STEER = 26 -- studs either side the weave yields onto the gem's line
 local GEM_TAKE = 10 -- pickup window past the gem (covers the per-frame step)
--- Rider yaw speed gate (APEBALL §3): below this horizontal speed the
--- upright rider holds its last heading — a near-stopped ball has no
--- facing (SMB's speed gate; the live rig's RiderYawVelLo equivalent).
-local RIDER_YAW_MIN = 4 -- studs/s
 -- Ribbon: one quad pair (core + glow) per sampled position — ~0.4 s of
 -- history at the opener pace, same coverage as TrailLifetime ×
 -- ROLL_SPEED. Ember motes peel off the wake — the boost-trail look:
@@ -135,15 +132,8 @@ local vpGemColor = Config.Gems.Color
 local vpGemItem: any = nil
 local vpGemTaken = false
 local vpBallAlpha = 0 -- rest transparency (capsule skins aren't opaque)
--- Capsule inhabitant preview bits: anchored spheres carried on an
--- UPRIGHT yaw basis each frame (welds can't ride the diorama's manual
--- CFraming) — the preview port of the live constraint rider (APEBALL
--- §3): the monkey faces its own horizontal velocity, not the tumble.
-local vpMonkey: { { part: BasePart, off: Vector3 } } = {}
-local vpMonkeyYaw = math.pi -- spawn facing -Z travel (SMB's init yaw)
-local vpPrevX = 0 -- last frame's lane x for the yaw finite-difference
-local vpPrevZ = ROLL_Z0 -- last frame's lane z
-local vpPrevT = 0 -- last frame's clock
+local vpCap: BasePart? = nil -- capsule red hemisphere (APEBALL §2) — rides the roll CFrame
+local vpBuildSeq = 0 -- preview rebuild counter — token-stales pending CSG cap builds
 local vpDeathItem: any = nil
 local vpDead = false
 local vpMode = "menu" -- diorama anims only run while the menu is up
@@ -329,9 +319,8 @@ function Fx.preview(items: { [string]: any })
 	vpGemItem = nil
 	vpGemTaken = false
 	vpBallAlpha = 0
-	vpMonkey = {}
-	vpMonkeyYaw = math.pi
-	vpPrevX, vpPrevZ, vpPrevT = 0, ROLL_Z0, 0
+	vpCap = nil
+	vpBuildSeq += 1
 	vpTrailSegs = {}
 	vpTrailGlow = {}
 	vpMotes = {}
@@ -372,24 +361,28 @@ function Fx.preview(items: { [string]: any })
 	local ringB = if skin then Cosmetics.colorOf(skin.ringB, PK, hues) else PK
 	local ball = vpart(Vector3.one * BALL_D, ballPos, if skin then Cosmetics.colorOf(skin.core, DK, hues) else DK)
 	ball.Shape = Enum.PartType.Ball
-	-- Capsule skins (§18 skin_capsule): transparent shell + the same toy
-	-- monkey spec the live ball welds on — carried on the upright yaw
-	-- basis in step().
+	-- Capsule skins (§18 skin_capsule): transparent shell + the same red
+	-- hemisphere cap the live ball welds on — the cap part rides the
+	-- roll CFrame in step() so the split tumbles like the weld.
 	vpBallAlpha = if skin and skin.capsule then Art.CapsuleAlpha else 0
 	ball.Transparency = vpBallAlpha
 	-- NOT Glass: the live shell is Enum.Material.Glass, but Glass renders
-	-- nearly invisible inside a ViewportFrame (no refraction pass), so the
-	-- preview fakes the capsule with plain alpha — the monkey inside is
-	-- the thing the pack is selling.
+	-- nearly invisible inside a ViewportFrame (no refraction pass), so
+	-- the preview fakes the clear half with plain alpha.
 	ball.Material = Enum.Material.SmoothPlastic
 	vpBall = ball
-	if skin and skin.inhabitant == "monkey" then
-		for _, bit in ipairs(BallDress.monkeySpec(BALL_D)) do
-			local m = vpart(Vector3.one * bit.size, ballPos + bit.off, bit.color)
-			m.Shape = Enum.PartType.Ball
-			m.Material = Enum.Material.SmoothPlastic
-			table.insert(vpMonkey, { part = m, off = bit.off })
-		end
+	if skin and skin.capsule then
+		local seq = vpBuildSeq
+		BallDress.buildCap(BALL_D, function(cap)
+			if cap and seq == vpBuildSeq and wmodel and wmodel.Parent then
+				cap.Anchored = true
+				cap.CFrame = CFrame.new(ballPos)
+				cap.Parent = wmodel
+				vpCap = cap
+			elseif cap then
+				cap:Destroy()
+			end
+		end)
 	end
 	for i, rot in ipairs(RING_ROTS) do
 		local col = if i <= 3 then ringA else ringB
@@ -573,14 +566,12 @@ local function step()
 	-- gem mid-loop — the real browsed GEM FX flourish pops it — slams the
 	-- wall at the loop end (the real browsed DEATH FX bursts at the
 	-- impact and the ball hides until the wrap respawns it), the chase
-	-- cam re-aims with the live transform, rings ride the roll, the
-	-- capsule rider stays upright and yaws onto the ball's own velocity,
-	-- the gem beat-pulses until it's taken.
+	-- cam re-aims with the live transform, rings and the capsule's red
+	-- cap ride the roll, the gem beat-pulses until it's taken.
 	if vpBall then
 		local tt = tick()
 		local roll = (tt * ROLL_SPEED) % CYCLE
 		local dead = roll >= ROLL_LEN
-		local respawned = false
 		if dead and not vpDead then
 			-- Impact: last alive frame sits at the wall face — burst there.
 			vpDead = true
@@ -589,8 +580,8 @@ local function step()
 				DeathFx.previewBurst(wmodel, vpHitPos :: Vector3, vpDeathItem)
 			end
 			vpBall.Transparency = 1
-			for _, b in ipairs(vpMonkey) do
-				b.part.Transparency = 1
+			if vpCap then
+				vpCap.Transparency = 1
 			end
 			for _, segs in ipairs(vpRings) do
 				for _, p in ipairs(segs) do
@@ -603,8 +594,8 @@ local function step()
 			vpDead = false
 			vpHitPos = nil
 			vpBall.Transparency = vpBallAlpha
-			for _, b in ipairs(vpMonkey) do
-				b.part.Transparency = 0
+			if vpCap then
+				vpCap.Transparency = Art.CapsuleRedAlpha
 			end
 			for _, segs in ipairs(vpRings) do
 				for _, p in ipairs(segs) do
@@ -615,7 +606,6 @@ local function step()
 				vpGemTaken = false
 				vpGem.Transparency = 0
 			end
-			respawned = true
 		end
 		local z = ROLL_Z0 - math.min(roll, ROLL_LEN)
 		-- Gentle lateral weave — the trail streams in a visible S instead
@@ -645,31 +635,10 @@ local function step()
 				GemFx.previewBurst(wmodel, bc.Position, vpGemItem, vpGemShape, vpGemSize, vpGemColor)
 			end
 		end
-		-- Upright rider basis (APEBALL §3 preview): position + yaw only —
-		-- the monkey faces the diorama ball's own horizontal velocity like
-		-- the live rig's AlignOrientation goal instead of tumbling with
-		-- the roll, so it visibly turns through the weave and onto the
-		-- gem's line. Finite-difference the (x,z) step; below the SMB
-		-- speed gate the last yaw holds (a near-stopped ball has no
-		-- heading).
-		local rdt = tt - vpPrevT
-		if respawned then
-			-- The wrap is a teleport, not a velocity — reseed the tracker
-			-- (and the spawn-facing yaw) so it doesn't read as a huge +z
-			-- step and flip the rider around for a frame.
-			vpMonkeyYaw = math.pi
-			vpPrevX, vpPrevZ, vpPrevT = x, z, tt
-		elseif rdt > 0 then
-			local dx, dz = x - vpPrevX, z - vpPrevZ
-			local hs = math.sqrt(dx * dx + dz * dz) / rdt
-			if hs > RIDER_YAW_MIN then
-				vpMonkeyYaw = math.atan2(dx, dz) -- +Z muzzle/eyes onto the vel dir
-			end
-			vpPrevX, vpPrevZ, vpPrevT = x, z, tt
-		end
-		local rc = CFrame.new(bc.Position) * CFrame.Angles(0, vpMonkeyYaw, 0)
-		for _, b in ipairs(vpMonkey) do
-			b.part.CFrame = rc * CFrame.new(b.off)
+		-- The capsule's red hemisphere rides the roll CFrame — same as the
+		-- live ball's weld, the split tumbles with the shell.
+		if vpCap then
+			vpCap.CFrame = bc
 		end
 		for i, segs in ipairs(vpRings) do
 			local base = bc * vpRingRots[i] * RING_X

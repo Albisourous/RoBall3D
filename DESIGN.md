@@ -965,18 +965,14 @@ that caused them.
   with the ball's spin. Slim magenta Trail. No PointLight — self-glow
   smears the wireframe under bloom. (`SelectionSphere` was tried first: its
   lat/long grid is too dense at 3 studs and renders as a blob.) Skins may
-  carry `capsule`/`inhabitant` flags (§18 skin_capsule, APEBALL.md):
-  `capsule` renders the shell as half-clear Glass (`Art.CapsuleAlpha`
-  0.5 — the "50/50" party-ball read), and `inhabitant = "monkey"` builds
-  a toy monkey that RIDES inside upright — the `monkeySpec` bits weld to
-  a hidden massless `Root` held to ball center by an `AlignPosition` and
-  steered by a `RiderOri` `AlignOrientation` whose world-space goal the
-  server rewrites per Heartbeat (a port of the SMB decomp's
-  `updateApeOrientation` — yaw tracks horizontal velocity through a
-  speed gate, plus a `RiderTumble` share of the ball's angular delta:
-  the shudder without the slave). Cosmetic only: the physics part is
-  untouched, and `retint` adds/removes the rig + restores the material
-  on equip swaps.
+  carry `capsule` flags (§18 skin_capsule, APEBALL.md): `capsule` renders
+  the shell as half-clear Glass (`Art.CapsuleAlpha` 0.5) wearing a
+  translucent red hemisphere cap — a real CSG half-shell from
+  `GeometryService:SubtractAsync` (`BallDress.buildCap`), welded massless
+  at ball center so the 50/50 red/clear split tumbles with the roll.
+  Cosmetic only: the physics part is untouched, and `retint` adds/removes
+  the cap + restores the material on equip swaps (a `CapSeq` attribute
+  token-stales pending CSG builds).
 - **Track**: purple-black deck (subtle `DeckTint` palette drift), neon edge
   rails + transverse grid strips + longitudinal center line, all tinted
   from `Palette` **per segment** — the neon flows continuously down the
@@ -1358,9 +1354,9 @@ twelve packs total — STARTER NEON (sunset set + palms), NEON PEAKS
 (acid + toxic wastes), NEON REEF (lagoon + reef + NEAP TIDE), NULL (mono
 set + the empty world), APE BALL (capsule set + the sky court world —
 the rolling-party-ball homage: midday skybox,
-cartoon clouds, day palms, a 50/50-clear capsule ball with a toy monkey
-riding UPRIGHT inside (the WebMonkeyBall decomp's rider port — it yaws
-to face velocity, never tumbles), a checkered rolling surface via
+cartoon clouds, day palms, a 50/50 capsule ball — translucent red top
+half over a clear bottom half, tumbling with the roll — a checkered
+rolling surface via
 CHECKER DECK, and banana-orb pickups; all-original, no borrowed IP —
 the pack ships `trail_none` last so the bundle lands clean like the
 source material),
