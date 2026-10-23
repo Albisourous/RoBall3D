@@ -232,8 +232,12 @@ a brief elastic trail. Run starts snap rather than ease in from the menu.
     still resolve, §14). No daily/random mode swap — the empty state IS
     the daily mode, and it stays empty after a run so it keeps tracking
     today (a rolled seed is never mirrored into the box).
-  - **TRACK row** — under the seed row; `‹ name ›` cycler picks the
-    run's song (AUDIO.md §3).
+  - **TRACK row** — under the seed row; a three-card jacket strip
+    (prev/current/next, procedural covers from each track's SongMap
+    sections + `TrackAccents` pair, spring-overshoot on cycle, wheel =
+    one card) picks the run's song — and the muffled menu bed auditions
+    the browsed track so PLAY lifts the same stream (AUDIO.md §3,
+    MENU.md §3/§4).
   - **Missions card** — rides the bottom edge permanently (`◇` open /
     `✓` done quests + award tally, §14), fed by `setQuests`/
     `setAchievements` — no click to reveal it and no duplicate

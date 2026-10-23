@@ -91,7 +91,6 @@ local dashUntil = 0
 local padSteer = 0
 local padBoost = false
 local padBrake = false
-local tutShown = false -- first-run coach line, once per session
 
 -- Gamepad rumble (§4): SetMotor is idempotent-cheap — no reason to gate
 -- callers on GamepadEnabled, a missing pad just no-ops the motor write.
@@ -418,8 +417,13 @@ end
 -- charts the song the player hears. Explicit seed text / "daily" still
 -- wins over the pick — the seed box is the stronger intent.
 local trackItems = { "RANDOM" }
+-- Parallel id list for the §4 jacket strip: nil at idx 1 = RANDOM (the
+-- seed picks); 2+ mirrors ActiveTracklist order like trackItems. Sparse
+-- assignment — { nil } inserts would shift every id left one slot.
+local trackIds: { string? } = {}
 for _, id in ipairs(Config.Music.ActiveTracklist) do
 	table.insert(trackItems, (id:gsub("_", " "):upper()))
+	trackIds[#trackItems] = id
 end
 local trackPickIdx = 1
 -- The browse pick's track id: RANDOM (idx 1) is nil — the run seed picks
@@ -429,10 +433,10 @@ local function trackPickId(): string?
 end
 ui.onTrackCycle = function(dir)
 	trackPickIdx = ((trackPickIdx - 1 + dir) % #trackItems) + 1
-	ui:setTrackRow(trackItems[trackPickIdx])
+	ui:setTrackJackets(trackIds, trackItems, trackPickIdx) -- MENU.md §4 jacket cards
 	Music.preview(trackPickId()) -- MENU.md §3: audition the browsed track on the bed
 end
-ui:setTrackRow(trackItems[trackPickIdx])
+ui:setTrackJackets(trackIds, trackItems, trackPickIdx)
 
 local function requestStart()
 	-- Empty box = "daily": the seed row's placeholder is the default —
@@ -854,22 +858,6 @@ evRunStarted.OnClientEvent:Connect(function(seed: number)
 	camPos = nil -- snap the damped cam onto the new lane, don't ease from the menu orbit
 	CosmeticFx.onMode("running")
 	ui:showHud()
-	-- First-run coach (§6): on a fresh profile (best still 0) show one
-	-- device-aware line — delayed so the attr's replicated by the read,
-	-- once per session so a 0-best streak doesn't nag.
-	if not tutShown then
-		task.delay(1.5, function()
-			if mode == "running" and (player:GetAttribute("RoBallBestDist") or 0) == 0 then
-				tutShown = true
-				ui:setRunHint(
-					if ui:deviceHintKind() == "pad"
-						then "stick steers · RT boosts · LT brakes · RB/LB dashes"
-						elseif ui:deviceHintKind() == "touch" then "drag steers · tap-tap dashes · BOOST goes fast"
-						else "A/D steers · W boosts · S brakes · Q·Q / E·E dashes"
-				)
-			end
-		end)
-	end
 	Music.onStart(seed)
 	-- PB echo (§14): start recording this run's frames, and fetch the
 	-- stored ghost — it replays only when its seed matches this run's.
@@ -1034,6 +1022,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	-- unless the menu says otherwise. Enter starts from the menu.
 	if input.KeyCode == Enum.KeyCode.R or (input.KeyCode == Enum.KeyCode.Return and mode == "menu") then
 		requestStart()
+		return
+	end
+	-- Death card nav: M (keys) / B (pad's back button) take the menu —
+	-- the second action beside RETRY, same two-button grammar as the card.
+	if mode == "dead" and (input.KeyCode == Enum.KeyCode.M or input.KeyCode == Enum.KeyCode.ButtonB) then
+		ui.onMenu()
 		return
 	end
 	-- Gamepad (§4): bumpers dash like Q/E, triggers hold boost/brake,
@@ -1482,7 +1476,6 @@ RunService.RenderStepped:Connect(function(dt)
 	ui:setPulse(pulse) -- same energy -> speedo thump / chromatic spread
 	ui:setWave(Music.spectrum()) -- spectrum buckets -> BPM scope trace (§12)
 	ui:pulseMenu() -- MENU.md §2: poster chrome thumps on the bed (self-gates on menu.Visible)
-	ui:menuScope(Music.spectrum()) -- MENU.md §8: menu scope strip shares the spectrum buffer
 
 	local b = ball
 	if b then

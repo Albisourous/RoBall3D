@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Daily = require(ReplicatedStorage.RoBall.Daily)
+local SongMap = require(ReplicatedStorage.RoBall.SongMap)
 local AudioMix = require(script.Parent.AudioMix)
 
 local Ui = {}
@@ -159,24 +160,37 @@ local function outlineButton(parent, text, size, order)
 	return b
 end
 
--- Quiet text-only button for secondary actions — no box, mono font. The
--- stroked SciFi outline treatment reads as a blur at small sizes.
-local function ghostButton(parent, text, size, order, color)
-	local base = color or C_DIM
+-- Secondary bordered chip (death MENU): quiet framed button — the dash
+-- toggle's chip language, dim until hovered. Bare ghost text read as a
+-- caption next to the RETRY slab, not an action.
+local function chipButton(parent, text, order)
 	local b = Instance.new("TextButton")
-	b.BackgroundTransparency = 1
+	b.BackgroundColor3 = C_BG
+	b.BackgroundTransparency = 0.3
 	b.AutoButtonColor = false
 	b.Font = F_DATA
-	b.TextSize = size
-	b.TextColor3 = base
+	b.TextSize = 15
+	b.TextColor3 = C_DIM
 	b.Text = text
-	b.Size = UDim2.fromOffset(size * 8, size * 1.6)
+	b.Size = UDim2.fromOffset(150, 40)
 	b.LayoutOrder = order or 0
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 8)
+	c.Parent = b
+	local s = Instance.new("UIStroke")
+	s.Color = C_DIM
+	s.Thickness = 1.5
+	s.Transparency = 0.4
+	s.Parent = b
 	b.MouseEnter:Connect(function()
 		b.TextColor3 = C_WHITE
+		s.Color = C_CYAN
+		s.Transparency = 0.15
 	end)
 	b.MouseLeave:Connect(function()
-		b.TextColor3 = base
+		b.TextColor3 = C_DIM
+		s.Color = C_DIM
+		s.Transparency = 0.4
 	end)
 	b.Parent = parent
 	return b
@@ -197,6 +211,88 @@ local function spring(pos: number, vel: number, target: number, dt: number): (nu
 	local c = Config.Menu
 	vel += (c.SpringStiff * (target - pos) - c.SpringDamp * vel) * dt
 	return pos + vel * dt, vel
+end
+
+-- §6 accent lookup (MENU.md): every browsed track owns an {A, B} pair in
+-- Config.Music.TrackAccents; RANDOM (nil id) and unwired ids fall back
+-- to the brand cyan/pink so the poster never loses its skin.
+local function trackAccents(id: string?): (Color3, Color3)
+	local pair = id and Config.Music.TrackAccents[id]
+	if pair then
+		return pair[1], pair[2]
+	end
+	return C_CYAN, C_PINK
+end
+
+-- §6 re-skin strength: the horizon rule leans most of the way into the
+-- pick's pair; the BEST readout keeps half its brand cyan so the
+-- readout stays chrome (ambient identity, not a recolor).
+local RULE_MIX = 0.65
+local BEST_MIX = 0.5
+local SIDE_SCALE = 0.85 -- §4: side jackets sit ~15% smaller behind the pick
+
+-- §4 jacket face (MENU.md): one SongMap drawn small — a ~115° accent-
+-- gradient face plus one bar per sections[i] whose height is energy and
+-- whose tint marks kind (drop = accentB, build = accentA, else dim), so
+-- the card previews the run's shape the way a beatmap card previews its
+-- peaks. RANDOM wears a dark face + the ? glyph: a pick the seed makes
+-- has no cover to draw. Side cards dim to Jacket.SideDim on the face,
+-- shrink, and drop the stroke — the focused pick owns the accent rim.
+local function paintJacket(card: Frame, id: string?, isCur: boolean)
+	local J = Config.Menu.Jacket
+	card:ClearAllChildren()
+	local a, b = trackAccents(id)
+	local dim = if isCur then 0 else J.SideDim
+	local scale = if isCur then 1 else SIDE_SCALE
+	card.BackgroundColor3 = if id then C_PANEL else C_BG
+	card.BackgroundTransparency = dim
+	card.Size = UDim2.fromOffset(J.W * scale, J.H * scale)
+	local face = Instance.new("UIGradient")
+	face.Rotation = 115
+	face.Color = ColorSequence.new(a:Lerp(C_PANEL, 0.5), b:Lerp(C_PANEL, 0.5))
+	face.Parent = card
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = card
+	if isCur then
+		local rim = Instance.new("UIStroke")
+		rim.Color = a
+		rim.Thickness = 1.5
+		rim.Parent = card
+	end
+	if id == nil then
+		local glyph = Instance.new("TextLabel")
+		glyph.BackgroundTransparency = 1
+		glyph.Font = F_DISPLAY
+		glyph.TextSize = 26
+		glyph.TextColor3 = C_DIM
+		glyph.TextTransparency = dim
+		glyph.Text = "?"
+		glyph.Size = UDim2.fromScale(1, 1)
+		glyph.Parent = card
+	else
+		-- Energy bars: a ~14px band along the card's bottom edge — the
+		-- track's intensity curve, one bar per SongMap section.
+		local map = SongMap.forTrack(id)
+		local band = Instance.new("Frame")
+		band.Name = "Energy"
+		band.BackgroundTransparency = 1
+		band.AnchorPoint = Vector2.new(0, 1)
+		band.Position = UDim2.new(0, 5, 1, -4)
+		band.Size = UDim2.new(1, -10, 0, 14)
+		band.Parent = card
+		local n = #map.sections
+		for i, sec in ipairs(map.sections) do
+			local bar = Instance.new("Frame")
+			bar.AnchorPoint = Vector2.new(0.5, 1)
+			bar.Position = UDim2.fromScale((i - 0.5) / n, 1)
+			bar.Size = UDim2.fromScale(0.7 / n, 0.25 + 0.75 * sec.energy)
+			bar.BackgroundColor3 = if sec.kind == "drop" then b elseif sec.kind == "build" then a else C_DIM
+			bar.BackgroundTransparency = dim
+			bar.BorderSizePixel = 0
+			bar.Parent = band
+		end
+	end
 end
 
 -- Menu audio (MENU.md §5): the menu is deliberately silent — the bed
@@ -333,32 +429,6 @@ function Ui.new(): Ui
 	ruleGrad.Parent = rule
 	self.ruleGrad = ruleGrad -- §2: pulseMenu dips the mid keypoint on the beat
 
-	-- Menu scope strip (MENU.md §8): a second, thinner spectrum trace
-	-- parked under the horizon rule — the poster's heartbeat monitor
-	-- while the menu idles. Child of `rule`, NOT menuCol: a Frame child
-	-- doesn't ride menuCol's UIListLayout, so it never takes a slot.
-	-- menuScope() paints it with setWave's write-gated discipline.
-	local mScope = Instance.new("Frame")
-	mScope.Name = "MenuScope"
-	mScope.AnchorPoint = Vector2.new(0.5, 0)
-	mScope.Position = UDim2.new(0.5, 0, 0, 10)
-	mScope.Size = UDim2.fromOffset(rule.Size.X.Offset, Config.Menu.MenuSpecH)
-	mScope.BackgroundTransparency = 1
-	mScope.Parent = rule
-	self.menuWaveSegs = {}
-	self._menuWaveCache = {}
-	local menuStep = rule.Size.X.Offset / Config.Menu.MenuSpecBars
-	for i = 1, Config.Menu.MenuSpecBars do
-		local s = Instance.new("Frame")
-		s.AnchorPoint = Vector2.new(0, 1)
-		s.Position = UDim2.new(0, math.floor((i - 1) * menuStep + 0.5), 1, 0)
-		s.Size = UDim2.fromOffset(3, 2)
-		s.BackgroundColor3 = C_CYAN
-		s.BorderSizePixel = 0
-		s.Parent = mScope
-		self.menuWaveSegs[i] = s
-	end
-
 	label(menuCol, "", 8, F_DATA, C_DIM, 4)
 
 	-- PLAY is the single solid element on the menu — a filled neon slab,
@@ -484,12 +554,15 @@ function Ui.new(): Ui
 	seedBox.Parent = seedRow
 	self.seedBox = seedBox
 
-	-- TRACK cycler (AUDIO.md §3): the run's song, picked like an equip —
-	-- run-scoped, so it rides the hero column, not the garage.
+	-- TRACK jackets (MENU.md §4, fuller port): the run's song is picked
+	-- off a carousel — three procedural cards (prev / current / next) the
+	-- cycler spring slides, each jacket its SongMap drawn small. Run-
+	-- scoped, so it rides the hero column, not the garage.
+	local J = Config.Menu.Jacket
 	local trkRow = Instance.new("Frame")
 	trkRow.Name = "TrackRow"
 	trkRow.BackgroundTransparency = 1
-	trkRow.Size = UDim2.fromOffset(340, 30)
+	trkRow.Size = UDim2.fromOffset(340, J.H + 54) -- caption + strip + name plate + stat line
 	trkRow.LayoutOrder = 9
 	trkRow.Parent = menuCol
 
@@ -500,46 +573,90 @@ function Ui.new(): Ui
 	trkLabel.TextColor3 = C_DIM
 	trkLabel.TextXAlignment = Enum.TextXAlignment.Left
 	trkLabel.Text = "TRACK"
-	trkLabel.Position = UDim2.fromOffset(2, 2)
-	trkLabel.Size = UDim2.fromOffset(56, 26)
+	trkLabel.Position = UDim2.fromOffset(2, 0)
+	trkLabel.Size = UDim2.fromOffset(56, 14)
 	trkLabel.Parent = trkRow
 
-	local trkName = Instance.new("TextButton")
-	trkName.Name = "TrackName"
-	trkName.Selectable = true -- gamepad cursor cycles the track pick
-	trkName.BackgroundTransparency = 1
-	trkName.AutoButtonColor = false
-	trkName.Font = F_DATA
-	trkName.TextSize = 15
-	trkName.TextColor3 = C_WHITE
-	trkName.Text = "RANDOM"
-	trkName.Position = UDim2.fromOffset(92, 0)
-	trkName.Size = UDim2.fromOffset(160, 30)
-	trkName.TextXAlignment = Enum.TextXAlignment.Center
-	trkName.Parent = trkRow
-	self.trackName = trkName
-	-- §4 spring cycler: the arrows move the spring's target; the name
-	-- rides the residual so each cycle kicks ~JacketPx then re-seats.
+	-- The strip is the carousel window: 3*W + 2*Gap fills the row's 340
+	-- exactly. pulseMenu slides it on the §4 spring residual, so each
+	-- cycle kicks ~JacketPx past the pick and re-seats.
+	local trkStrip = Instance.new("Frame")
+	trkStrip.Name = "Jackets"
+	trkStrip.BackgroundTransparency = 1
+	trkStrip.AnchorPoint = Vector2.new(0.5, 0)
+	trkStrip.Position = UDim2.new(0.5, 0, 0, 16)
+	trkStrip.Size = UDim2.fromOffset(3 * J.W + 2 * J.Gap, J.H)
+	trkStrip.Parent = trkRow
+	self._trkStrip = trkStrip
+	-- §4 spring cycler: the arrows/wheel move the spring's target; the
+	-- strip rides the residual — the transient kick that re-seats the
+	-- pick on its slot once settled.
 	self._trkSpring = { pos = 0, vel = 0, target = 0 }
-	self._trkPos = trkName.Position
+	self._trkPos = trkStrip.Position
 	self._trkKick = 0
+	self._trkWheel = 0 -- wheel-notch throttle clock (one notch = one card)
+	self._trkIdx = 0 -- last jacket index painted (setTrackJackets write-gate)
 
-	local trkLeft = arrowButton(trkRow, "<", 64, 2)
+	-- Three persistent card slots; setTrackJackets repaints their faces.
+	self._trkCards = {}
+	for slot = -1, 1 do
+		local card = Instance.new("Frame")
+		card.Name = "Jacket" .. slot
+		card.AnchorPoint = Vector2.new(0.5, 0.5)
+		card.Position = UDim2.new(0.5, slot * (J.W + J.Gap), 0.5, 0)
+		card.Size = UDim2.fromOffset(J.W, J.H)
+		card.BorderSizePixel = 0
+		card.ClipsDescendants = true -- bars stay inside the rounded face
+		card.Parent = trkStrip
+		self._trkCards[slot + 2] = card
+	end
+
+	-- Name plate + stat caption under the strip (REA #6 density): the
+	-- pick's display name, then its map stats — choosing is informed.
+	self.trackName = label(trkRow, "RANDOM", 15, F_DATA, C_WHITE, 0)
+	self.trackName.Position = UDim2.fromOffset(0, 16 + J.H + 2)
+	self.trkStat = label(trkRow, "", 11, F_DATA, C_DIM, 0)
+	self.trkStat.Position = UDim2.fromOffset(0, 16 + J.H + 22)
+
+	-- < / > flank the strip, overlaid on its outer edges like osu's
+	-- carousel arrows — the dimmed side cards sit behind them.
+	local arrowY = 16 + J.H / 2 - 13 -- arrowButton tops at y-2; centers on the strip
+	local trkLeft = arrowButton(trkRow, "<", 4, arrowY)
 	trkLeft.Name = "TrackPrev"
 	trkLeft.Selectable = true
+	trkLeft.TextStrokeTransparency = 0.5 -- reads over the side-card face
 	trkLeft.MouseButton1Click:Connect(function()
 		self._trkSpring.target -= 1
 		if self.onTrackCycle then
 			self.onTrackCycle(-1)
 		end
 	end)
-	local trkRight = arrowButton(trkRow, ">", 258, 2)
+	local trkRight = arrowButton(trkRow, ">", 310, arrowY)
 	trkRight.Name = "TrackNext"
 	trkRight.Selectable = true
+	trkRight.TextStrokeTransparency = 0.5
 	trkRight.MouseButton1Click:Connect(function()
 		self._trkSpring.target += 1
 		if self.onTrackCycle then
 			self.onTrackCycle(1)
+		end
+	end)
+
+	-- §4 wheel input: a notch over the row feeds the cycler exactly like
+	-- an arrow click — throttled so one notch is one card, not a fling.
+	trkRow.InputChanged:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseWheel then
+			return
+		end
+		local now = os.clock()
+		if now - self._trkWheel < 0.08 then
+			return
+		end
+		self._trkWheel = now
+		local sign = if input.Position.Z > 0 then -1 else 1 -- wheel up = prev card
+		self._trkSpring.target += sign
+		if self.onTrackCycle then
+			self.onTrackCycle(sign)
 		end
 	end)
 
@@ -2490,7 +2607,9 @@ function Ui.new(): Ui
 			self.onRetry()
 		end
 	end)
-	local toMenu = ghostButton(actions, "menu", 15, 2)
+	-- MENU is the second action, not a caption — a bordered chip riding
+	-- RETRY's baseline ("‹" = back, the cycler glyph). M / ButtonB hit it.
+	local toMenu = chipButton(actions, "‹  M E N U", 2)
 	toMenu.Selectable = true
 	toMenu.MouseButton1Click:Connect(function()
 		if self.onMenu then
@@ -2674,26 +2793,6 @@ function Ui.new(): Ui
 	padHint.Text = "drag to steer · tap-tap to dash"
 	padHint.Parent = zone
 
-	-- First-run coach line (§6): one device-aware sentence, top-center
-	-- under the toast slot (achToast owns y90–114) — the center cone
-	-- stays clear for the track read at speed. Shown only on a fresh
-	-- profile's first run (Main decides — best==0), self-hiding after
-	-- TutHintSec so it never outlives the lesson.
-	local runHint = Instance.new("TextLabel")
-	runHint.Name = "RunHint"
-	runHint.AnchorPoint = Vector2.new(0.5, 0)
-	runHint.Position = UDim2.new(0.5, 0, 0, 122)
-	runHint.Size = UDim2.fromOffset(560, 40)
-	runHint.BackgroundTransparency = 1
-	runHint.Font = F_DATA
-	runHint.TextSize = 15
-	runHint.TextColor3 = C_WHITE
-	runHint.TextStrokeTransparency = 0.6
-	runHint.TextTransparency = 0.2
-	runHint.Visible = false
-	runHint.Parent = gui
-	self.runHint = runHint
-
 	-- Narrow-screen shrink (§12): the power meter + TEMPO pills are
 	-- fixed-pixel chrome built for desktop — under ~900px viewport they
 	-- collide mid-screen. One shared UIScale shrinks both together so
@@ -2710,6 +2809,17 @@ function Ui.new(): Ui
 	end
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitPills)
 	fitPills()
+
+	-- §9 parallax rig (MENU.md): base positions snapshotted once — the
+	-- poster column drifts toward the cursor ±ParallaxPx while the
+	-- garage + board rails counter-drift at half strength, so the shop
+	-- floor reads as layers instead of one flat card.
+	self._pxTargets = {
+		{ gui = menuCol, base = menuCol.Position, k = 1 },
+		{ gui = garage, base = garage.Position, k = -0.5 },
+		{ gui = board, base = board.Position, k = -0.5 },
+	}
+	self._pxQ = { 0, 0 } -- last quantized px offset written
 
 	return self
 end
@@ -2732,20 +2842,6 @@ function Ui:setDashMode(m: string)
 	end
 end
 
--- First-run coach (§6): Main calls this on a fresh profile's first run;
--- the line self-hides after TutHintSec and re-shows replace cleanly.
-function Ui:setRunHint(text: string)
-	local tag = tick()
-	self._runHintAt = tag
-	self.runHint.Text = text
-	self.runHint.Visible = true
-	task.delay(Config.Controls.TutHintSec, function()
-		if self._runHintAt == tag then
-			self.runHint.Visible = false
-		end
-	end)
-end
-
 -- Input device (§4): Main feeds UserInputService.LastInputType so the
 function Ui:setDeviceInput(kind: string)
 	self._deviceHint = kind
@@ -2759,12 +2855,11 @@ function Ui:setDeviceInput(kind: string)
 			else "press ENTER / R to roll"
 	end
 	if self.deathHint then
-		self.deathHint.Text = if kind == "pad" then "press A" elseif kind == "touch" then "" else "press R"
+		self.deathHint.Text = if kind == "pad"
+			then "A retry   ·   B menu"
+			elseif kind == "touch" then "tap RETRY / MENU"
+			else "R retry   ·   M menu"
 	end
-end
-
-function Ui:deviceHintKind(): string
-	return self._deviceHint or "keys"
 end
 
 -- Locked-item funnel (§18): clicking an unowned STYLE row calls here with
@@ -2814,7 +2909,6 @@ function Ui:showHud()
 	self.powerBar.Visible = true
 	self.seedTag.Visible = true
 	self.touchUi.Visible = self.touchEnabled
-	self.runHint.Visible = false -- Main re-arms it on a fresh profile
 	GuiService.SelectedObject = nil -- no menu selection inside a run
 end
 
@@ -2848,16 +2942,16 @@ function Ui:pulseMenu()
 	local now = os.clock()
 	local dt = math.min(now - (self._menuT or now), Config.Menu.SpringDtMax)
 	self._menuT = now
-	-- §4 cyclers: the arrows move the target; the label rides the spring
-	-- residual (pos - target) — the transient kick that re-seats the name
-	-- on its slot once settled. Quantized + write-gated so a parked
-	-- cycler costs nothing.
+	-- §4 cyclers: the arrows/wheel move the target; the jacket strip
+	-- rides the spring residual (pos - target) — the transient kick
+	-- that slides the cards past the pick and re-seats them once
+	-- settled. Quantized + write-gated so a parked cycler costs nothing.
 	local s = self._trkSpring
 	s.pos, s.vel = spring(s.pos, s.vel, s.target, dt)
 	local kq = math.floor((s.pos - s.target) * 64 + 0.5) / 64
 	if kq ~= self._trkKick then
 		self._trkKick = kq
-		self.trackName.Position = self._trkPos + UDim2.fromOffset(kq * Config.Menu.JacketPx, 0)
+		self._trkStrip.Position = self._trkPos + UDim2.fromOffset(kq * Config.Menu.JacketPx, 0)
 	end
 	for slot, ss in pairs(self._slotSpring) do
 		ss.pos, ss.vel = spring(ss.pos, ss.vel, ss.target, dt)
@@ -2865,6 +2959,25 @@ function Ui:pulseMenu()
 		if sq ~= self._slotKick[slot] then
 			self._slotKick[slot] = sq
 			self.slotItem[slot].Position = self._slotPos[slot] + UDim2.fromOffset(sq * Config.Menu.JacketPx, 0)
+		end
+	end
+	-- §9 cursor parallax: the poster column drifts ±ParallaxPx toward
+	-- the mouse and the garage/board rails counter-drift at half
+	-- strength — depth, not motion. Whole-px quantized + write-gated
+	-- like the kicks; mouse-only, and must run ahead of the env
+	-- early-out below so a still song doesn't freeze the drift.
+	if Config.Menu.ParallaxPx > 0 and UserInputService.MouseEnabled then
+		local vp = self.gui.AbsoluteSize
+		local m = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+		local p = Config.Menu.ParallaxPx * 2
+		local qx = math.floor((m.X / math.max(vp.X, 1) - 0.5) * p + 0.5)
+		local qy = math.floor((m.Y / math.max(vp.Y, 1) - 0.5) * p + 0.5)
+		if qx ~= self._pxQ[1] or qy ~= self._pxQ[2] then
+			self._pxQ[1] = qx
+			self._pxQ[2] = qy
+			for _, t in ipairs(self._pxTargets) do
+				t.gui.Position = t.base + UDim2.fromOffset(qx * t.k, qy * t.k)
+			end
 		end
 	end
 	local e8 = math.floor((self.pulse or 0) * 8 + 0.5) / 8
@@ -2878,34 +2991,6 @@ function Ui:pulseMenu()
 		NumberSequenceKeypoint.new(0.5, 0.3 * e8),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-end
-
--- MENU.md §8: a second, thinner scope under the horizon rule — setWave's
--- loop over a second seg set (2px-quantized heights, per-seg cache,
--- repaint on change only), gated on the menu being up so a still menu
--- costs nothing. Main pushes Music.spectrum()'s shared buffer here.
-function Ui:menuScope(spec: { number }?)
-	if not self.menu.Visible then
-		return
-	end
-	local segs = self.menuWaveSegs
-	if not segs then
-		return
-	end
-	local cache = self._menuWaveCache
-	local env = math.min(1, (self.pulse or 0) * Config.Music.WaveBeatGain)
-	local amp = Config.Music.WaveBeatFloor + (1 - Config.Music.WaveBeatFloor) * env
-	local maxH = Config.Menu.MenuSpecH
-	local gamma = Config.Music.WaveGamma
-	for i, s in ipairs(segs) do
-		local v = spec and spec[i] or 0
-		v = v ^ gamma
-		local h = math.max(2, math.floor(v * amp * maxH / 2 + 0.5) * 2)
-		if h ~= cache[i] then
-			cache[i] = h
-			s.Size = UDim2.fromOffset(3, h)
-		end
-	end
 end
 
 -- Oscilloscope trace (§12): spec is Music.spectrum()'s shared band buffer.
@@ -3674,8 +3759,43 @@ function Ui:setHistory(rows: { { s: number, d: number, z: number } })
 	self.recent.Visible = #rows > 0
 end
 
-function Ui:setTrackRow(text: string)
-	self.trackName.Text = text
+-- TRACK jackets (MENU.md §4): Main pushes the cyclic pick list — ids
+-- (nil = RANDOM), display names, and the 1-based current pick — and the
+-- strip repaints prev/current/next around it. Write-gated on the index:
+-- a same-pick push costs nothing. §6 rides the same push — the poster's
+-- accent endpoints (horizon rule, BEST tint) lerp toward the pick's
+-- TrackAccents pair, so the room wears the browsed track; RANDOM falls
+-- back to the brand cyan/pink.
+function Ui:setTrackJackets(trackIds: { string? }, names: { string }, curIdx: number)
+	if curIdx == self._trkIdx then
+		return
+	end
+	self._trkIds = trackIds
+	self._trkNames = names
+	self._trkIdx = curIdx
+	local n = #names
+	for slot = -1, 1 do
+		local idx = ((curIdx - 1 + slot) % n) + 1
+		paintJacket(self._trkCards[slot + 2], trackIds[idx], slot == 0)
+	end
+	self.trackName.Text = names[curIdx] or "RANDOM"
+	local id = trackIds[curIdx]
+	local a, b = trackAccents(id)
+	self.ruleGrad.Color = ColorSequence.new(C_CYAN:Lerp(a, RULE_MIX), C_PINK:Lerp(b, RULE_MIX))
+	self.bestLabel.TextColor3 = C_CYAN:Lerp(a, BEST_MIX)
+	if id then
+		-- REA #6 stat caption: bpm · loop length · section count — the
+		-- picker's informed-choice line under the name plate.
+		local map = SongMap.forTrack(id)
+		self.trkStat.Text = string.format(
+			"%d BPM · %ds · %d SECTIONS",
+			math.floor(map.bpm + 0.5),
+			math.floor(map.loopSeconds + 0.5),
+			#map.sections
+		)
+	else
+		self.trkStat.Text = "the seed picks the song"
+	end
 end
 
 -- Preview filter (§18): re-paint the screen-filter look inside the

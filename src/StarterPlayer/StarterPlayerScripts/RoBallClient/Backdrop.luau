@@ -26,8 +26,9 @@
 --             field rides the night band with it.
 --   "sky"   — SKY COURT (APE BALL): the day-shift homage — midday
 --             lighting so the whole world reads arcade blue, palm-
---             topped islets adrift in the blue, cartoon clouds, and
---             the shared grove in a day palette.
+--             topped islets adrift in the blue, cartoon clouds, giant
+--             two-tone goal arches the lane threads, and the shared
+--             grove in a day palette.
 -- All parts are client-local: zero replication cost, and they read as
 -- parallax scenery because they sit in world space while the ball flies past.
 
@@ -140,8 +141,15 @@ type SkyCloud = { parts: { Part }, offs: { Vector3 }, x: number, y: number, z: n
 -- stepPalms won't recycle it), laid once per re-entry, hanging at
 -- SkyIsleDrop below deck grade in the open blue.
 type SkyIsland = { dome: Part, base: Part, palm: Palm, z: number }
+-- Goal arches (SMB's finish-gate homage): a full ring standing across
+-- the lane, lifted so the ball threads the hole while the lower arc
+-- swings beneath the deck into the open blue. Alternating stripe
+-- colors carry the finish-line read; recycled on the same frontier
+-- pattern as the islets.
+type SkyGate = { segs: { Part }, z: number }
 local skyClouds: { SkyCloud } = {}
 local skyIslands: { SkyIsland } = {}
+local skyGates: { SkyGate } = {}
 local skySeeded = false
 
 local FACE_COLOR = Color3.fromRGB(8, 4, 14)
@@ -988,6 +996,13 @@ local function ensureSky()
 		dome.Color = Art.SkyIslandTop
 		table.insert(skyIslands, { dome = dome, base = base, palm = makePalm(root, 0, 1), z = math.huge })
 	end
+	for _ = 1, Art.SkyGates do
+		local segs: { Part } = {}
+		for _ = 1, Art.SkyGateSegs do
+			table.insert(segs, makePeakPart(root, false))
+		end
+		table.insert(skyGates, { segs = segs, z = math.huge })
+	end
 end
 
 -- Re-lay a puff cloud: a 4-lobe blob drifting beside the lane at a
@@ -1032,6 +1047,25 @@ local function laySkyIsland(isl: SkyIsland, anchor: Vector3, z: number)
 		z + rng:NextNumber(-r * 0.2, r * 0.2),
 		SKY_PALM
 	)
+end
+
+-- Re-lay a goal arch at z: a full ring on the lane's cross axis,
+-- center lifted SkyGateLift over the deck so the ball threads the
+-- hole and the lower arc dips below the lane. Each segment is a
+-- tangent box; alternating stripes read as the finish gate.
+local function laySkyGate(g: SkyGate, anchor: Vector3, z: number)
+	g.z = z
+	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+	local cy = deckEst(anchor, z) + Art.SkyGateLift
+	local step = math.pi * 2 / Art.SkyGateSegs
+	local arc = Art.SkyGateR * step + 0.4 -- slight overlap, no ring gaps
+	for i, s in ipairs(g.segs) do
+		local t = (i - 1) * step
+		s.Size = Vector3.new(arc, Art.SkyGateThick, Art.SkyGateThick)
+		s.CFrame = CFrame.new(laneX + math.cos(t) * Art.SkyGateR, cy + math.sin(t) * Art.SkyGateR, z)
+			* CFrame.Angles(0, 0, t + math.pi / 2)
+		s.Color = if i % 2 == 0 then Art.SkyGateA else Art.SkyGateB
+	end
 end
 
 -- Park a single palm record (grove or islet) — the same three piece
@@ -1345,6 +1379,11 @@ local function parkSky()
 		parkPart(isl.base)
 		parkPalm(isl.palm)
 	end
+	for _, g in ipairs(skyGates) do
+		for _, s in ipairs(g.segs) do
+			parkPart(s)
+		end
+	end
 	-- Sky shares the palm pool — park the grove too or the next theme
 	-- inherits palms standing where SKY COURT left them.
 	parkPalms()
@@ -1575,7 +1614,8 @@ function Backdrop.update(anchor: Vector3)
 
 	-- SKY COURT (§18 "sky"): clouds re-enter ahead on a random span and
 	-- bob lazily on wall-clock sine (Position rewrite only — offs fixed).
-	-- The islets recycle past in the open blue like the cloud field.
+	-- The islets and goal arches recycle past in the open blue like the
+	-- cloud field — gates re-enter straddling the lane itself.
 	-- The day-palm grove runs the same step as MIAMI NIGHTS, day palette.
 	if theme == "sky" then
 		ensureSky()
@@ -1588,6 +1628,9 @@ function Backdrop.update(anchor: Vector3)
 			for _, isl in ipairs(skyIslands) do
 				laySkyIsland(isl, anchor, anchor.Z - rng:NextNumber(60, Art.SkyIslandZMin + Art.SkyIslandZSpan))
 			end
+			for i, g in ipairs(skyGates) do
+				laySkyGate(g, anchor, anchor.Z - rng:NextNumber(200 + i * 300, Art.SkyGateZMin + Art.SkyGateZSpan))
+			end
 			return
 		end
 		for _, isl in ipairs(skyIslands) do
@@ -1597,6 +1640,11 @@ function Backdrop.update(anchor: Vector3)
 					anchor,
 					anchor.Z - rng:NextNumber(Art.SkyIslandZMin, Art.SkyIslandZMin + Art.SkyIslandZSpan)
 				)
+			end
+		end
+		for _, g in ipairs(skyGates) do
+			if g.z > anchor.Z + Art.SkyGateBack then
+				laySkyGate(g, anchor, anchor.Z - rng:NextNumber(Art.SkyGateZMin, Art.SkyGateZMin + Art.SkyGateZSpan))
 			end
 		end
 		local bob = os.clock() * Art.SkyCloudBob
@@ -1941,6 +1989,13 @@ function Backdrop.diorama(parent: Instance, themeKey: string, sunKey: string, an
 			dome.Position = Vector3.new(x, y + r * 0.42, z)
 			layPalm(makePalm(parent, side, 1), x, y + r * 0.85, z, SKY_PALM)
 		end
+		-- One goal arch threading the lane — the finish-gate read frozen
+		-- mid-frame so the preview ball rolls through it.
+		local gsegs: { Part } = {}
+		for _ = 1, Art.SkyGateSegs do
+			table.insert(gsegs, makePeakPart(parent, false))
+		end
+		laySkyGate({ segs = gsegs, z = 0 }, anchor, anchor.Z - 95)
 		-- A few day palms flanking the lane — same lay math as the live
 		-- grove's first pass, dressed in the SKY_PALM palette.
 		for side = -1, 1, 2 do

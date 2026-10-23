@@ -109,7 +109,6 @@ Config.Controls = {
 	PadTapPx = 14, -- release under this travel counts as a tap (dash pair)
 	ZoneW = 0.44, -- touch steer zone: left screen fraction, bottom-anchored
 	ZoneH = 0.62, -- …and height fraction from the bottom edge up
-	TutHintSec = 6, -- first-run coach line stays up this long, then hides
 	-- Gamepad rumble (§4): Large = the low thump, Small = the zip. Every
 	-- entry is {large, small, seconds}; 0/0 entries still pulse Small so
 	-- a denied tap reads in the hand, not just the ear.
@@ -920,6 +919,22 @@ Config.Music = {
 	-- under the menu lowpass). Falls back to Tracklist[1] when unset or
 	-- the asset isn't uploaded yet.
 	MenuTrack = "palm_screens",
+	-- MENU.md §6: the poster's accent endpoints (horizon rule gradient,
+	-- BEST label tint) re-skin to the browsed track — one {A, B} pair per
+	-- Tracklist id, tuned to each track's identity. Palette law holds:
+	-- neon/warm endpoints, every pair a clear step off LethalColor red.
+	TrackAccents = {
+		midnight_overdrive = { Color3.fromRGB(175, 80, 255), Color3.fromRGB(0, 230, 255) }, -- violet/cyan
+		void_runner = { Color3.fromRGB(110, 90, 255), Color3.fromRGB(228, 246, 255) }, -- indigo/starlight
+		tape_drift = { Color3.fromRGB(255, 168, 52), Color3.fromRGB(255, 90, 170) }, -- amber/dusty pink
+		smoothride = { Color3.fromRGB(0, 230, 210), Color3.fromRGB(120, 190, 255) }, -- aqua/sky
+		retro_wave_sunset = { Color3.fromRGB(255, 176, 64), Color3.fromRGB(255, 46, 160) }, -- classic sun: orange/pink
+		neon_nostalgia = { Color3.fromRGB(255, 46, 190), Color3.fromRGB(0, 230, 255) }, -- magenta/cyan
+		oldtimes = { Color3.fromRGB(240, 200, 140), Color3.fromRGB(170, 130, 220) }, -- cream/faded violet
+		underwater = { Color3.fromRGB(60, 140, 255), Color3.fromRGB(0, 230, 255) }, -- deep blue/cyan
+		velvet_loader = { Color3.fromRGB(255, 64, 190), Color3.fromRGB(150, 70, 255) }, -- hot pink/violet
+		palm_screens = { Color3.fromRGB(0, 230, 255), Color3.fromRGB(90, 255, 160) }, -- cyan/palm mint
+	},
 	-- Per-track assets. AssetId = the full mix; numeric rbxassetid for
 	-- production or an rbxasset:// ContentId URI resolving to Studio's
 	-- bundled content dir for local dev. Stems: when EVERY entry resolves,
@@ -1384,6 +1399,20 @@ Config.Art = {
 	SkyIslandMaxR = 92,
 	SkyIslandTop = Color3.fromRGB(66, 152, 62),
 	SkyIslandSide = Color3.fromRGB(202, 166, 108), -- sandy cliff mass under the dome
+	-- Goal arches (SMB's finish-gate homage): a giant two-tone ring the
+	-- lane threads — center lifted just over the deck so the ball rolls
+	-- through the hole while the lower arc swings under the lane into
+	-- the open blue. Gold/ivory stripes stay clear of LethalColor red.
+	SkyGates = 3, -- arches live in the window at once
+	SkyGateZMin = 700, -- nearest re-entry ahead of the ball
+	SkyGateZSpan = 1800, -- re-entry window beyond ZMin
+	SkyGateBack = 140, -- recycle once this far behind the anchor
+	SkyGateR = 34, -- ring radius — opens ~31 wide at deck height on a 44 lane
+	SkyGateLift = 14, -- ring center above deck grade
+	SkyGateSegs = 24, -- arc segments per ring
+	SkyGateThick = 1.7, -- segment thickness studs
+	SkyGateA = Color3.fromRGB(255, 196, 56), -- goal-gold stripe
+	SkyGateB = Color3.fromRGB(250, 250, 245), -- ivory stripe
 	SkyClouds = 14, -- drifting puffs in flight
 	SkyCloudMinX = 46, -- closest drift from lane center
 	SkyCloudDX = 110, -- lateral spread beyond MinX
@@ -1601,14 +1630,20 @@ Config.Menu = {
 	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
 	SpringDtMax = 1 / 20, -- §4 frame dt cap — a hitch must not slingshot the spring
 	JacketPx = 40, -- §4 cycler overshoot amplitude in px
+	-- §4 track jackets: the TRACK cycler's prev/current/next card strip —
+	-- card px dims, inter-card gap, and the dim factor side cards fade to.
+	Jacket = {
+		W = 104, -- card px width
+		H = 58, -- card px height
+		Gap = 14, -- inter-card gap px
+		SideDim = 0.5, -- side-card dim factor under the focused pick
+	},
 	-- §5: no menu hitsounds — deliberate silence; the bed + audition only.
 	StampSec = 0.25, -- §7 death-hero stamp duration
 	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
 	StampDuck = 0.3, -- §7 duck depth when the card lands
 	StampDuckRelease = 0.5,
-	MenuSpecBars = 24, -- §8 scope segments
-	MenuSpecH = 14, -- §8 scope strip max height px
-	ParallaxPx = 0, -- §9 optional cursor drift; 0 = off
+	ParallaxPx = 6, -- §9 cursor drift garnish on: ±6px poster drift; 0 = off
 }
 
 Config.Leaderboard = {
@@ -1638,11 +1673,10 @@ Config.Leaderboard = {
 -- fields are display fallbacks; the shop prefers live GetProductInfo
 -- PriceInRobux when the pass/product exists.
 Config.Monetization = {
-	-- Test mode OFF (production state): packs/products prompt their real
-	-- dashboard ids — 0-id entries show SOON. Flip true ONLY for
-	-- pre-paywall testing: every pack/product then grants instantly on
-	-- click with no purchase prompt (§18).
-	FreeForTesting = false,
+	-- Test mode ON (debug testing): every pack/product grants instantly on
+	-- click with no purchase prompt. MUST be false before release —
+	-- production state prompts real dashboard ids, 0-id entries show SOON (§18).
+	FreeForTesting = true,
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
 		starter = 0, -- STARTER NEON — sunset set + palms world (~49)

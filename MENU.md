@@ -51,7 +51,7 @@ Stripped to mechanisms, the osu! menu is seven things:
 | Menu hitsounds quantized to the grid | — cut: reads as noise under a quiet bed | Divergence kept: the menu is deliberately SFX-free — bed + audition only (§5); grid-snapping stays a gameplay instrument |
 | Picked map's art owns the frame | The choice is ambient before it's played | Divergence kept: the opaque shop floor stands — the pick re-skins the room through the diorama + accent tint, not a live backdrop (§6) |
 | Grade stamp + one-key retry | The report card has weight; the loop is free | Score hero + `★ NEW BEST` stamp in on a Back ease with a duck punch; retry stays `R` (§7) |
-| Menu visualizer / idle motion | Idle is never dead | `Music.spectrum()` scope strip under the horizon rule — menu-mode only, write-gated like `setWave` (§8) |
+| Menu visualizer / idle motion | Idle is never dead | ~~`Music.spectrum()` scope strip under the horizon rule~~ — CUT; §2 pulse carries idle motion alone (§8) |
 
 ## 2. Beat-thumped chrome — PLAY breathes
 
@@ -139,12 +139,16 @@ set `target += dir` and let the spring overshoot ~`JacketPx` before
 settling. MouseWheel over the row adds `vel` — flingable, like the
 carousel.
 
-The fuller port, when the row earns it: three procedural **track
-jackets** (prev/current/next cards) the spring slides. No image assets
-(the `gemIcon` rule) — each jacket is its SongMap drawn small: a
-gradient face + one bar per `sections[i]` whose height is `energy` and
-whose tint marks `kind` — the track's cover *is* its intensity curve,
-the same read osu!'s star graph gives.
+The fuller port shipped: three procedural **track jackets**
+(prev/current/next cards) riding the strip. No image assets (the
+`gemIcon` rule) — each jacket is its SongMap drawn small: a
+`TrackAccents` gradient face + one bar per `sections[i]` whose height
+is `energy` and whose tint marks `kind` — the track's cover *is* its
+intensity curve, the same read osu's star graph gives. Side cards sit
+dimmed at `Jacket.SideDim`; the current card wears an accentA stroke
+and a name plate. RANDOM draws a `?` card. A stat caption under the
+strip reads `BPM · s · SECTIONS` ("the seed picks the song" for
+RANDOM), and one wheel notch cycles one card.
 
 ```luau
 -- Jacket face (MENU.md §4): SongMap.sections -> a strip of energy bars.
@@ -189,11 +193,12 @@ behind the merch buries it (and nothing live exists behind our menu —
 - The diorama window already does the heavy lift — browsing `world_*`
   re-seeds the preview's Backdrop scene. That's our "beatmap background,"
   framed on purpose.
-- The cheap complement: the poster's accent endpoints (horizon rule
-  gradient, BEST label tint) lerp toward the picked track's two accent
-  colors. Store `accentA`/`accentB` on each SongMap entry, defaulting to
-  the brand cyan/pink — color law is untouched since poster chrome is
-  never confused with `LethalColor` geometry.
+- The cheap complement shipped: the poster's accent endpoints (horizon
+  rule gradient ~0.65, BEST label ~0.5 toward accentA) lerp toward the
+  picked track's two accent colors — `Config.Music.TrackAccents[id]`,
+  a hand-tuned pair per track kept a clear step off `LethalColor`
+  (SongMap files are generated, so accents live in Config, not on the
+  map). RANDOM returns the brand cyan/pink.
 - `Music.preview` (§3) is the audio half of the same read — the room
   sounds like the pick too.
 
@@ -214,7 +219,10 @@ TweenService:Create(heroScale, stamp, { Scale = 1 }):Play()
 Music.duck(0.3, 0.5)
 ```
 
-## 8. Idle is never dead — menu scope strip
+## 8. Idle is never dead — menu scope strip [CUT]
+
+Cut after shipping — the strip cluttered the poster; keep §2's pulse
+only. Spec kept for reference if it ever returns.
 
 `Music.spectrum()` hands out the WavePoints buffer every frame for free;
 the HUD scope already paints it. The menu port is a second, thinner
@@ -254,9 +262,11 @@ pairs with §2 so the chrome thumps (pulse) while the strip traces
 - **Letter grades on results** — competes with the leaderboard's
   authority; distance is the only score.
 - **Chat panels / lobby chrome** — Roblox owns social; not our surface.
-- **Cursor parallax** — optional garnish (`Config.Menu.ParallaxPx`,
-  ±6px poster drift, gated off touch); take it only if the menu still
-  feels static after §2/§8 land.
+
+**Shipped since**: cursor parallax (`Config.Menu.ParallaxPx = 6`) —
+the poster column drifts ±6px toward the cursor and the rails
+counter-drift at half strength, quantized to whole px and gated on
+`MouseEnabled` so touch never pays for it.
 
 ## 10. Tunables
 
@@ -268,20 +278,21 @@ Config.Menu = {
 	SpringDamp = 22, -- §4 damping (~critically damped, small overshoot)
 	SpringDtMax = 1 / 20, -- §4 frame dt cap — a hitch must not slingshot
 	JacketPx = 40, -- §4 cycler overshoot amplitude in px
+	Jacket = { W = 104, H = 58, Gap = 14, SideDim = 0.5 }, -- §4 cards
 	-- §5: no UiTick block — the menu is deliberately SFX-free.
 	StampSec = 0.25, -- §7 death-hero stamp duration
 	StampKick = 1.35, -- §7 the hero slams in past 100%, then settles
 	StampDuck = 0.3, -- §7 duck depth when the card lands
 	StampDuckRelease = 0.5,
-	MenuSpecBars = 24, -- §8 scope segments
-	MenuSpecH = 14, -- §8 scope strip max height px
-	ParallaxPx = 0, -- §9 optional cursor drift; 0 = off
+	-- §8 cut: no MenuSpec* — §2's pulse carries idle motion alone.
+	ParallaxPx = 6, -- §9 poster drift toward cursor; 0 = off
 }
 ```
 
-**Build order**: §3 (audition) first — it's the biggest feel change for
-the least code, and it's honest about what a TRACK row *is*. Then §2
-(chrome pulse) + §5 (ticks) as one pass — they're the same "menu is a
-rhythm instrument" read. §4 springs next, §7/§8 as polish. Verify with
-the usual gates, then a Studio session: the menu should *feel* different
-on the first frame, before any numbers move.
+Plus `Config.Music.TrackAccents[id] = { accentA, accentB }` per track
+(§6) — the jacket face + poster accents' source pair.
+
+**Status**: §3 audition, §2 chrome pulse, §4 springs + jackets + stat
+line + wheel, §6 accents, §7 stamp, §9 parallax — shipped. §5
+hitsounds and the §8 scope strip were built then deliberately cut
+(menu silence reads better under the quiet bed).
