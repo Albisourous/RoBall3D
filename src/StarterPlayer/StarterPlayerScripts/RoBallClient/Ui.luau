@@ -246,7 +246,11 @@ local SIDE_SCALE = 0.85 -- §4: side jackets sit ~15% smaller behind the pick
 -- (paintJacket), never ClearAllChildren: a cycle allocates nothing.
 -- off is the card's logical slot (-2..2 window around the pick); the
 -- ±2 parks sit fully clipped outside the strip, and the per-card
--- spring slides Position between slots on a cycle.
+-- spring slides Position between slots on a cycle. transit is the
+-- wrap-hop state: the sign of the edge a wrapping card is exiting
+-- through while it parks past the outer lot — the far-side re-park
+-- teleports only once pulseMenu sees it fully clipped, so no wrap
+-- can pop a sliver inside the window.
 type JacketCard = {
 	frame: Frame,
 	face: UIGradient,
@@ -256,6 +260,7 @@ type JacketCard = {
 	bars: { Frame }, -- pooled energy bars; grows to the widest SongMap seen
 	off: number, -- logical slot offset: card paints track curIdx + off
 	spring: { pos: number, vel: number, target: number }, -- x px off strip center
+	transit: number?, -- exit-edge sign (-1 left, +1 right) while hop-parked
 	q: number, -- last quantized px written (write-gate)
 }
 
@@ -681,7 +686,9 @@ function Ui.new(): Ui
 	-- Five persistent cards windowing the pick (offsets -2..2); the ±2
 	-- pair parks clipped off-window. setTrackJackets rotates each card's
 	-- off on a cycle — every card springs to its new slot, and the card
-	-- crossing the far edge teleports across while clipped + repaints.
+	-- crossing the far edge hop-parks: it keeps exiting to the outer lot
+	-- until fully clipped, re-parks past the far edge, then slides in
+	-- repainted — no teleport ever lands inside the window.
 	self._trkCards = {}
 	for off = -2, 2 do
 		self._trkCards[off + 3] = makeJacket(trkStrip, off)
@@ -715,6 +722,14 @@ function Ui.new(): Ui
 			self.onTrackCycle(1)
 		end
 	end)
+	-- Gamepad nav stays engine-native (Selectable + SelectedObject, §4).
+	-- The arrows are the row's only controls flanking a non-selectable
+	-- strip — pin the pair hop across it and the way back up to the
+	-- seed box so the cursor never takes the long way around.
+	trkLeft.NextSelectionRight = trkRight
+	trkRight.NextSelectionLeft = trkLeft
+	trkLeft.NextSelectionUp = seedBox
+	trkRight.NextSelectionUp = seedBox
 
 	-- §4 wheel input: a notch over the row feeds the cycler exactly like
 	-- an arrow click — throttled so one notch is one card, not a fling.
@@ -3057,10 +3072,26 @@ function Ui:pulseMenu()
 	-- cards ride their own (snappier) spring so a cycle visibly slides
 	-- faces between slots instead of teleporting them. Whole-px
 	-- quantized + write-gated — a parked strip costs nothing.
+	-- Wrap hop: a card crossing the window's far edge exits to the
+	-- outer lot first; only once FULLY clipped (|x| >= 2W+Gap — the
+	-- window edge plus a whole card width) does it re-park on the
+	-- opposite lot and spring in from there. No teleport ever lands
+	-- inside the window, so rapid re-cycles and reversals can't
+	-- clip-pop a mid-flight sliver.
 	local J = Config.Menu.Jacket
+	local stride = J.W + J.Gap
+	local clipX = 2 * J.W + J.Gap -- |x| where the widest card is fully out
+	local lotX = 3 * stride -- outer parking lot, safely past clipX
 	for _, c in ipairs(self._trkCards) do
 		local sp = c.spring
 		sp.pos, sp.vel = spring(sp.pos, sp.vel, sp.target, dt, J.SlideStiff, J.SlideDamp)
+		local tr = c.transit
+		if tr and tr * sp.pos >= clipX then
+			sp.pos = -tr * lotX -- clipped on both lots: the jump is invisible
+			sp.vel = 0
+			sp.target = c.off * stride
+			c.transit = nil
+		end
 		local q = math.floor(sp.pos + 0.5)
 		if q ~= c.q then
 			c.q = q
@@ -3896,9 +3927,12 @@ end
 -- same-pick push costs nothing. A ±1 step (wrap-normalized) slides the
 -- cards one slot — next slides left, prev slides right: every card
 -- springs to its new offset and the card crossing the far edge wraps
--- to the opposite park slot while clipped off-window, then repaints as
--- the new far-side card. First paint / multi-step jumps repaint in
--- place. §6 rides the same push — the poster's accent endpoints
+-- its logical slot to the opposite side, exiting through the near
+-- edge to a clipped lot before re-parking across — pulseMenu lands
+-- the hop only once the card is fully outside the window, so even a
+-- mid-flight wrap can never pop a sliver. First paint / multi-step
+-- jumps repaint in place. §6 rides the same push — the poster's
+-- accent endpoints
 -- (horizon rule, BEST tint) lerp toward the pick's TrackAccents pair,
 -- so the room wears the browsed track; RANDOM falls back to the brand
 -- cyan/pink.
@@ -3919,6 +3953,7 @@ function Ui:setTrackJackets(trackIds: { string? }, names: { string }, curIdx: nu
 		dir -= n
 	end
 	if prev > 0 and math.abs(dir) == 1 then
+		local stride = J.W + J.Gap
 		for _, c in ipairs(self._trkCards) do
 			c.off -= dir -- next (+1): the window steps left
 			local wrapped = false
@@ -3929,15 +3964,22 @@ function Ui:setTrackJackets(trackIds: { string? }, names: { string }, curIdx: nu
 				c.off -= 5
 				wrapped = true
 			end
-			local px = c.off * (J.W + J.Gap)
-			c.spring.target = px
-			if wrapped then
-				-- Park teleport: fully clipped at ±2, so jumping the
-				-- spring across the strip reads as nothing — the card
-				-- just slides in from the incoming edge repainted.
-				c.spring.pos = px
-				c.spring.vel = 0
+			if c.transit then
+				-- Mid-hop: a slot on the landing side (or dead center)
+				-- still wants the far-edge re-entry. A slot back on
+				-- the exit side is where the card physically is — fold
+				-- the hop out, the spring parks it with no teleport.
+				if c.off * c.transit > 0 then
+					c.transit = nil
+				end
+			elseif wrapped then
+				-- Wrap hop: NEVER teleport inside the window. The card
+				-- keeps exiting through the near edge (sign -dir) to
+				-- the outer lot; pulseMenu re-parks it past the far
+				-- edge once clipped — rapid double-cycles can't pop it.
+				c.transit = -dir
 			end
+			c.spring.target = if c.transit then c.transit * 3 * stride else c.off * stride
 		end
 	end
 	for _, c in ipairs(self._trkCards) do
