@@ -71,7 +71,10 @@ local function wire(src: Instance, dst: Instance)
 	local w = Instance.new("Wire")
 	w.SourceInstance = src
 	w.TargetInstance = dst
-	w.Parent = root
+	-- Parent under the SOURCE node so track-set wires die with the player/
+	-- fader teardownPlayers destroys — root-parented wires survived every
+	-- selectTrack rebuild and leaked one per edge per track switch.
+	w.Parent = src
 end
 
 -- Stem ids may be numeric (rbxassetid) or full ContentId strings —
@@ -195,7 +198,7 @@ local function watchStems()
 					break
 				end
 			end
-			if allReady or os.clock() > deadline then
+			if allReady or os.clock() > deadline or curTrack ~= track then
 				break
 			end
 			task.wait(0.5)

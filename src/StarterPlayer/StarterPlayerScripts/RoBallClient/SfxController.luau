@@ -52,6 +52,12 @@ local function spawnChime(cfg, semi: number, volume: number, jitter: number)
 	s.Ended:Connect(function()
 		s:Destroy()
 	end)
+	-- Backstop (same idiom as dash/dangerPing below): a sound whose asset
+	-- fails to load never fires Ended — without this it sits in
+	-- SoundService forever. Chimes run ≤4s at the slowest ladder step.
+	task.delay(5, function()
+		s:Destroy()
+	end)
 end
 
 local function chime()
