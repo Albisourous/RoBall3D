@@ -983,7 +983,7 @@ end)
 -- ~8-stud sidestep. The gold RechargeGate notch is the readiness read:
 -- a meter past the marker = all verbs armed (the latch can't outlive
 -- it); a denied press just flickers the bar dim.
-local function tryDash(dir: number): string
+local function tryDash(dir: number, quiet: boolean?): string
 	local now = tick()
 	if mode ~= "running" or now < controlAt then
 		return "not-running"
@@ -992,9 +992,11 @@ local function tryDash(dir: number): string
 		return "cooldown"
 	end
 	if powerCharge < math.max(Config.Power.RechargeGate, Config.Dash.Cost) then
-		dashDeniedAt = now
-		Sfx.dashDenied()
-		rumble(Config.Controls.Rumble.Denied)
+		if not quiet then
+			dashDeniedAt = now
+			Sfx.dashDenied()
+			rumble(Config.Controls.Rumble.Denied)
+		end
 		return "denied"
 	end
 	powerCharge = math.max(0, powerCharge - Config.Dash.Cost)
@@ -1007,11 +1009,14 @@ local function tryDash(dir: number): string
 	return "fired"
 end
 
--- Buffering (§4): a press that lands mid-burst or inside Cooldown would
--- otherwise die silently — arm it instead, and the drive loop fires it
--- the moment the window is legal. Back-to-back pairs chain.
+-- Buffering (§4): a press that lands mid-burst, inside Cooldown, or a
+-- hair before the meter's gate refills would otherwise die — arm it
+-- instead, and the drive loop fires it the moment it's legal. The deny
+-- feedback plays once at press; buffered retries stay silent. Stale
+-- presses still expire inside BufferWindow so nothing ghost-fires.
 local function queueDash(dir: number)
-	if tryDash(dir) == "cooldown" then
+	local res = tryDash(dir)
+	if res == "cooldown" or res == "denied" then
 		dashBuffered = { dir = dir, at = tick() }
 	end
 end
@@ -1195,11 +1200,15 @@ RunService.Heartbeat:Connect(function(dt)
 	-- steer range so residual drift is normal steering, not a free slide.
 	-- Consume a buffered dash once the burst window is legal again —
 	-- stale presses expire after BufferWindow so a dropped dodge doesn't
-	-- surprise-fire later. "denied"/"fired" clear it in one shot.
-	if
-		dashBuffered and (now - dashBuffered.at > Config.Dash.BufferWindow or tryDash(dashBuffered.dir) ~= "cooldown")
-	then
-		dashBuffered = nil
+	-- surprise-fire later. "cooldown"/"denied" keep it armed; anything
+	-- else (fired, expired, run over) clears it in one shot.
+	if dashBuffered then
+		local res = if now - dashBuffered.at > Config.Dash.BufferWindow
+			then "expired"
+			else tryDash(dashBuffered.dir, true)
+		if res ~= "cooldown" and res ~= "denied" then
+			dashBuffered = nil
+		end
 	end
 	local dashing = now < dashUntil
 	local targetLat = intent * steer.MaxLateralSpeed + bankPull
