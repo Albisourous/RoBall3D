@@ -451,9 +451,29 @@ workspace.ChildRemoved:Connect(function(c)
 	end
 end)
 
+local function pollStick(): number
+	-- Fresh read every frame — an InputChanged-captured value goes stale
+	-- when the pad disconnects or glitches mid-deflection, pinning
+	-- steering on a ghost stick that fights the keys forever.
+	local gp = UserInputService:GetConnectedGamepads()[1]
+	if not gp then
+		return 0
+	end
+	for _, o in ipairs(UserInputService:GetGamepadState(gp)) do
+		if o.KeyCode == Enum.KeyCode.Thumbstick1 then
+			local x = o.Position.X
+			local dz = Config.Controls.PadDeadzone
+			local ax = math.abs(x)
+			return if ax < dz then 0 else math.sign(x) * math.min(1, (ax - dz) / (1 - dz))
+		end
+	end
+	return 0
+end
+
 local function steerIntent(): number
 	-- Analog inputs (gamepad stick, touch pad) sum with the digital keys
 	-- — clamped, so stick-at-half + key still reads full lock, not 1.5.
+	padSteer = pollStick()
 	local intent = padSteer + ui.padSteer
 	if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
 		intent -= 1
@@ -1317,17 +1337,14 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
--- Thumbstick steer (§4): the analog X reads straight into steerIntent,
--- deadzoned AND rescaled so the zone edge eases off 0 instead of jumping
--- to it, and full throw still lands at ±1.
-UserInputService.InputChanged:Connect(function(input, gameProcessed)
-	if gameProcessed or input.KeyCode ~= Enum.KeyCode.Thumbstick1 then
-		return
-	end
-	local x = input.Position.X
-	local dz = Config.Controls.PadDeadzone
-	local ax = math.abs(x)
-	padSteer = if ax < dz then 0 else math.sign(x) * math.min(1, (ax - dz) / (1 - dz))
+-- Thumbstick steer (§4): the analog X is polled per frame inside
+-- steerIntent — see pollStick. Held flags (R2 boost / L2 brake) ride
+-- ButtonBegan/Ended below; a pad drop clears everything here so a
+-- disconnect can't leave a ghost flag held.
+UserInputService.GamepadDisconnected:Connect(function()
+	padSteer = 0
+	padBoost = false
+	padBrake = false
 end)
 
 -- Device hints (§6): the menu's controls line + play/death prompts track
@@ -1422,22 +1439,6 @@ RunService.Heartbeat:Connect(function(dt)
 		bankRollRad = -math.asin(math.clamp(surfNormal.X, -1, 1))
 	end
 	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
-	-- TEMP DIAGNOSTIC (can't-steer report): publish the live input chain
-	-- — keys seen, analog bias, settle gate, resolved intent — so a dead
-	-- steer can be traced to IsKeyDown vs padSteer vs controlAt in one read.
-	player:SetAttribute(
-		"RoBallDiag",
-		string.format(
-			"it=%.2f pS=%.2f uS=%.2f a=%s d=%s ct=%s mode=%s",
-			intent,
-			padSteer,
-			ui.padSteer,
-			tostring(UserInputService:IsKeyDown(Enum.KeyCode.A)),
-			tostring(UserInputService:IsKeyDown(Enum.KeyCode.D)),
-			tostring(now >= controlAt),
-			mode
-		)
-	)
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
 	-- — the target pins to dash Speed and the accel is ~13x, so the dart
 	-- eases in over ~50ms instead of hard-sliding. Steering input is
