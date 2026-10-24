@@ -534,10 +534,15 @@ function Ui.new(): Ui
 	playStroke.Transparency = 0.55
 	playStroke.Parent = play
 	play.MouseEnter:Connect(function()
+		self._playHover = true
 		play.TextColor3 = C_WHITE
 		playStroke.Transparency = 0.05
+		-- Hover pins the beat swell flat — the slab must not grow under
+		-- the cursor (ambient breathing resumes on leave).
+		playScale.Scale = 1
 	end)
 	play.MouseLeave:Connect(function()
+		self._playHover = false
 		play.TextColor3 = Color3.fromRGB(16, 6, 24)
 		playStroke.Transparency = 0.55
 	end)
@@ -3105,6 +3110,9 @@ function Ui:pulseMenu()
 		end
 	end
 	local e8 = math.floor((self.pulse or 0) * 8 + 0.5) / 8
+	if self._playHover then
+		e8 = 0 -- hover pins the PLAY slab flat — no grow under the cursor
+	end
 	if e8 == self._menuEnv then
 		return
 	end
