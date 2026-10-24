@@ -810,7 +810,7 @@ function Ui.new(): Ui
 	-- sits next to PLAY on every menu visit, no click needed.
 	board.AnchorPoint = Vector2.new(1, 0.5)
 	board.Position = UDim2.fromScale(0.965, 0.5)
-	board.Size = UDim2.fromOffset(340, 78 + TOP_N * 25 + RECENT_H)
+	board.Size = UDim2.fromOffset(340, 94 + TOP_N * 25 + RECENT_H)
 	board.BackgroundColor3 = C_PANEL
 	board.BackgroundTransparency = 0
 	board.BorderSizePixel = 0
@@ -866,6 +866,7 @@ function Ui.new(): Ui
 	-- Friends filter (§14): rides every board — the fetched top-N rows
 	-- shrink to your friends, keeping their REAL rank numbers. The id set
 	-- arrives via onFriendsReady (Main lazy-loads GetFriendsAsync).
+	-- Lives on the TAB row, right edge — the seed line owns y=38 below.
 	self.friendsOnly = false
 	self.friendSet = nil :: { [number]: boolean }?
 	self.friendsErr = false -- set when the friends list itself failed
@@ -873,21 +874,41 @@ function Ui.new(): Ui
 	local friendsBtn = Instance.new("TextButton")
 	friendsBtn.Name = "FriendsBtn"
 	friendsBtn.Selectable = true -- gamepad cursor reaches the board filter
-	friendsBtn.BackgroundTransparency = 1
+	friendsBtn.BackgroundColor3 = C_BG
+	friendsBtn.BackgroundTransparency = 0.45
 	friendsBtn.AutoButtonColor = false
 	friendsBtn.Font = F_DATA
-	friendsBtn.TextSize = 12
+	friendsBtn.TextSize = 11
 	friendsBtn.Text = "◈ friends"
 	friendsBtn.TextColor3 = C_DIM
-	friendsBtn.TextXAlignment = Enum.TextXAlignment.Right
 	friendsBtn.AnchorPoint = Vector2.new(1, 0)
-	friendsBtn.Position = UDim2.new(1, -14, 0, 38)
-	friendsBtn.Size = UDim2.fromOffset(96, 18)
+	friendsBtn.Position = UDim2.new(1, -14, 0, 13)
+	friendsBtn.Size = UDim2.fromOffset(76, 20)
 	friendsBtn.Parent = board
+	local friendsCorner = Instance.new("UICorner")
+	friendsCorner.CornerRadius = UDim.new(0, 6)
+	friendsCorner.Parent = friendsBtn
+	local friendsStroke = Instance.new("UIStroke")
+	friendsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	friendsStroke.Color = C_DIM
+	friendsStroke.Thickness = 1
+	friendsStroke.Transparency = 0.35
+	friendsStroke.Parent = friendsBtn
 	self.friendsBtn = friendsBtn
+	friendsBtn.MouseEnter:Connect(function()
+		if not self.friendsOnly then
+			friendsBtn.TextColor3 = C_CYAN
+			friendsStroke.Color = C_CYAN
+		end
+	end)
+	friendsBtn.MouseLeave:Connect(function()
+		friendsBtn.TextColor3 = if self.friendsOnly then C_PINK else C_DIM
+		friendsStroke.Color = friendsBtn.TextColor3
+	end)
 	friendsBtn.MouseButton1Click:Connect(function()
 		self.friendsOnly = not self.friendsOnly
 		friendsBtn.TextColor3 = if self.friendsOnly then C_PINK else C_DIM
+		friendsStroke.Color = friendsBtn.TextColor3
 		if self.friendsOnly and self.friendSet == nil and self.onFriendsReady then
 			self.onFriendsReady() -- async fill; redraws when it lands
 		else
@@ -905,10 +926,28 @@ function Ui.new(): Ui
 		end
 	end)
 
+	-- Divider + column key: a thin rule closes the header block, and a
+	-- dim field line names the row columns so "12. name  4123  #seed"
+	-- reads as rank/score/map instead of one text blob.
+	local boardRule = Instance.new("Frame")
+	boardRule.BorderSizePixel = 0
+	boardRule.BackgroundColor3 = C_DIM
+	boardRule.BackgroundTransparency = 0.72
+	boardRule.Position = UDim2.fromOffset(14, 58)
+	boardRule.Size = UDim2.new(1, -28, 0, 1)
+	boardRule.Parent = board
+	local boardRuleG = Instance.new("UIGradient")
+	boardRuleG.Color = ColorSequence.new(C_CYAN:Lerp(C_PANEL, 0.5), C_PINK:Lerp(C_PANEL, 0.5))
+	boardRuleG.Parent = boardRule
+	local boardHead = label(board, "  #   NAME             SCORE      SEED", 10, F_DATA, C_DIM, 0)
+	boardHead.TextXAlignment = Enum.TextXAlignment.Left
+	boardHead.Position = UDim2.fromOffset(14, 62)
+	boardHead.TextTransparency = 0.15
+
 	local boardBody = Instance.new("Frame")
 	boardBody.BackgroundTransparency = 1
-	boardBody.Size = UDim2.new(1, -24, 1, -72 - RECENT_H)
-	boardBody.Position = UDim2.fromOffset(12, 62)
+	boardBody.Size = UDim2.new(1, -24, 1, -90 - RECENT_H)
+	boardBody.Position = UDim2.fromOffset(12, 78)
 	boardBody.Parent = board
 	vlist(boardBody, 4)
 	self.boardRows = {}
@@ -3759,6 +3798,7 @@ function Ui:drawBoard()
 				row.Text = ""
 			end
 			self.boardRows[1].Text = "  friends list unavailable"
+			self.boardRows[1].TextColor3 = C_DIM
 			return
 		end
 		if self.friendSet then
@@ -3776,14 +3816,27 @@ function Ui:drawBoard()
 	for i, row in ipairs(self.boardRows) do
 		local r = rows and rows[i]
 		row.Text = r and string.format("%2d. %-12s %7d  #%d", r.rank or i, r.name, r.score, r.seed) or ""
+		row.TextXAlignment = Enum.TextXAlignment.Left
+		-- Podium tint on top of the cyan/white zebra: #1 gold, #2 bright,
+		-- #3 cyan — ranks below keep the alternating read.
+		local rank = r and (r.rank or i) or i
+		row.TextColor3 = if r == nil
+			then C_WHITE
+			elseif rank == 1 then C_GOLD
+			elseif rank == 2 then C_WHITE
+			elseif rank == 3 then C_CYAN
+			elseif i % 2 == 0 then C_CYAN
+			else C_WHITE
 	end
 	if rows == nil then
 		self.boardRows[1].Text = if mode == "top" then "  leaderboard offline" else "  board offline"
+		self.boardRows[1].TextColor3 = C_DIM
 	elseif #rows == 0 then
 		self.boardRows[1].Text = if self.friendsOnly
 			then "  no friends ranked on this board yet"
 			elseif mode == "daily" then "  no daily runs yet — type 'daily' and set one."
 			else "  no saved runs yet — set one."
+		self.boardRows[1].TextColor3 = C_DIM
 	end
 end
 
