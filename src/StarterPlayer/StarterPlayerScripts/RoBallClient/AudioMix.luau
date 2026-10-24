@@ -79,7 +79,12 @@ function AudioMix.init()
 			end
 		end)
 	end
-	fnSetAudio = ReplicatedStorage:WaitForChild("RoBallRemotes"):WaitForChild(Config.Audio.RemoteName) :: RemoteFunction
+	-- FindFirstChild, never WaitForChild: the save remote is optional —
+	-- a server build that predates it must degrade to unsaved local
+	-- gains, not wedge client init (menu/garage load below this call).
+	-- save() already nil-guards fnSetAudio.
+	local remotes = ReplicatedStorage:FindFirstChild("RoBallRemotes")
+	fnSetAudio = remotes and remotes:FindFirstChild(Config.Audio.RemoteName) :: RemoteFunction?
 end
 
 return AudioMix
