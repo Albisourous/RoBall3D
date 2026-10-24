@@ -412,6 +412,9 @@ local function bindBall(b: Instance)
 		bankRollRad = 0
 		surfNormal = Vector3.yAxis
 		bankLeanCur = 0
+		padSteer = 0 -- a gamepad/touch value captured mid-flight must not pin the next ball
+		padBoost = false
+		padBrake = false
 		powerCharge = 1
 		powerSpent = false
 		dashDir = 0
@@ -1419,6 +1422,22 @@ RunService.Heartbeat:Connect(function(dt)
 		bankRollRad = -math.asin(math.clamp(surfNormal.X, -1, 1))
 	end
 	local intent = if now >= controlAt then steerIntent() * (if inFlip then -1 else 1) else 0
+	-- TEMP DIAGNOSTIC (can't-steer report): publish the live input chain
+	-- — keys seen, analog bias, settle gate, resolved intent — so a dead
+	-- steer can be traced to IsKeyDown vs padSteer vs controlAt in one read.
+	player:SetAttribute(
+		"RoBallDiag",
+		string.format(
+			"it=%.2f pS=%.2f uS=%.2f a=%s d=%s ct=%s mode=%s",
+			intent,
+			padSteer,
+			ui.padSteer,
+			tostring(UserInputService:IsKeyDown(Enum.KeyCode.A)),
+			tostring(UserInputService:IsKeyDown(Enum.KeyCode.D)),
+			tostring(now >= controlAt),
+			mode
+		)
+	)
 	-- Dash (§4): the burst drives the SAME lateral-ease math as steering
 	-- — the target pins to dash Speed and the accel is ~13x, so the dart
 	-- eases in over ~50ms instead of hard-sliding. Steering input is
