@@ -150,7 +150,12 @@ end
 
 function DashFeel.init(ballGetter: () -> BasePart?)
 	getBall = ballGetter
-	evClaimGem = ReplicatedStorage:WaitForChild("RoBallRemotes"):WaitForChild("ClaimGem") :: RemoteEvent
+	-- FindFirstChild, never WaitForChild: the claim remote is optional —
+	-- a server build that predates it must degrade to plain Touched
+	-- collection, not wedge the rest of client init (menu/garage load
+	-- below this call).
+	local remotes = ReplicatedStorage:FindFirstChild("RoBallRemotes")
+	evClaimGem = remotes and remotes:FindFirstChild("ClaimGem") :: RemoteEvent?
 	for _, p in ipairs(CollectionService:GetTagged("RoBallGem")) do
 		hookGem(p)
 	end
