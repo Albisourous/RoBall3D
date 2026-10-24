@@ -148,20 +148,12 @@ local function outlineButton(parent, text, size, order)
 	pad.PaddingLeft = UDim.new(0, 8)
 	pad.PaddingRight = UDim.new(0, 8)
 	pad.Parent = b
-	b.MouseEnter:Connect(function()
-		b.TextColor3 = C_CYAN
-		stroke.Color = C_CYAN
-	end)
-	b.MouseLeave:Connect(function()
-		b.TextColor3 = C_PINK
-		stroke.Color = C_PINK
-	end)
 	b.Parent = parent
 	return b
 end
 
 -- Secondary bordered chip (death MENU): quiet framed button — the dash
--- toggle's chip language, dim until hovered. Bare ghost text read as a
+-- toggle's chip language — quiet framed, deliberately dim. Bare ghost text read as a
 -- caption next to the RETRY slab, not an action.
 local function chipButton(parent, text, order)
 	local b = Instance.new("TextButton")
@@ -182,16 +174,6 @@ local function chipButton(parent, text, order)
 	s.Thickness = 1.5
 	s.Transparency = 0.4
 	s.Parent = b
-	b.MouseEnter:Connect(function()
-		b.TextColor3 = C_WHITE
-		s.Color = C_CYAN
-		s.Transparency = 0.15
-	end)
-	b.MouseLeave:Connect(function()
-		b.TextColor3 = C_DIM
-		s.Color = C_DIM
-		s.Transparency = 0.4
-	end)
 	b.Parent = parent
 	return b
 end
@@ -535,16 +517,12 @@ function Ui.new(): Ui
 	playStroke.Parent = play
 	play.MouseEnter:Connect(function()
 		self._playHover = true
-		play.TextColor3 = C_WHITE
-		playStroke.Transparency = 0.05
 		-- Hover pins the beat swell flat — the slab must not grow under
 		-- the cursor (ambient breathing resumes on leave).
 		playScale.Scale = 1
 	end)
 	play.MouseLeave:Connect(function()
 		self._playHover = false
-		play.TextColor3 = Color3.fromRGB(16, 6, 24)
-		playStroke.Transparency = 0.55
 	end)
 	self.playBtn = play
 
@@ -576,14 +554,6 @@ function Ui.new(): Ui
 	dashStroke.Thickness = 1
 	dashStroke.Transparency = 0.4
 	dashStroke.Parent = dash
-	dash.MouseEnter:Connect(function()
-		dash.TextColor3 = C_CYAN
-		dashStroke.Color = C_CYAN
-	end)
-	dash.MouseLeave:Connect(function()
-		dash.TextColor3 = C_GOLD
-		dashStroke.Color = C_GOLD
-	end)
 	self.dashToggle = dash
 
 	-- SEED row: empty means "daily" — the placeholder IS the default, no
@@ -895,16 +865,6 @@ function Ui.new(): Ui
 	friendsStroke.Transparency = 0.35
 	friendsStroke.Parent = friendsBtn
 	self.friendsBtn = friendsBtn
-	friendsBtn.MouseEnter:Connect(function()
-		if not self.friendsOnly then
-			friendsBtn.TextColor3 = C_CYAN
-			friendsStroke.Color = C_CYAN
-		end
-	end)
-	friendsBtn.MouseLeave:Connect(function()
-		friendsBtn.TextColor3 = if self.friendsOnly then C_PINK else C_DIM
-		friendsStroke.Color = friendsBtn.TextColor3
-	end)
 	friendsBtn.MouseButton1Click:Connect(function()
 		self.friendsOnly = not self.friendsOnly
 		friendsBtn.TextColor3 = if self.friendsOnly then C_PINK else C_DIM
@@ -1119,7 +1079,6 @@ function Ui.new(): Ui
 	self.slotItem = {}
 	self.slotSwatch = {}
 	self.slotSwatchStroke = {}
-	self.slotTint = {}
 	-- §4 (stretch): the equip rows are persistent frames — setGarage only
 	-- rewrites Text — so each name button keeps a cycler spring exactly
 	-- like the TRACK row.
@@ -1175,14 +1134,6 @@ function Ui.new(): Ui
 		sws.Parent = sw
 		self.slotSwatch[slot] = sw
 		self.slotSwatchStroke[slot] = sws
-		-- Hover read: the name flares pink (it's clickable owned or
-		-- locked) and the arrows too; leave re-seats the state tint.
-		nm.MouseEnter:Connect(function()
-			nm.TextColor3 = C_PINK
-		end)
-		nm.MouseLeave:Connect(function()
-			nm.TextColor3 = self.slotTint[slot] or C_WHITE
-		end)
 		nm.MouseButton1Click:Connect(function()
 			if self.onItemSlot then
 				self.onItemSlot(slot)
@@ -1203,14 +1154,6 @@ function Ui.new(): Ui
 				self.onEquipCycle(slot, 1)
 			end
 		end)
-		for _, a in ipairs({ left, right }) do
-			a.MouseEnter:Connect(function()
-				a.TextColor3 = C_PINK
-			end)
-			a.MouseLeave:Connect(function()
-				a.TextColor3 = C_CYAN
-			end)
-		end
 	end
 
 	-- RANDOM chip: slot-machines the whole browse set — Main rolls a
@@ -1236,14 +1179,6 @@ function Ui.new(): Ui
 	rndStroke.Color = C_DIM
 	rndStroke.Thickness = 1
 	rndStroke.Parent = rnd
-	rnd.MouseEnter:Connect(function()
-		rnd.TextColor3 = C_CYAN
-		rndStroke.Color = C_CYAN
-	end)
-	rnd.MouseLeave:Connect(function()
-		rnd.TextColor3 = C_PINK
-		rndStroke.Color = C_DIM
-	end)
 	rnd.MouseButton1Click:Connect(function()
 		if self.onRandomize then
 			self.onRandomize()
@@ -1503,18 +1438,6 @@ function Ui.new(): Ui
 		stroke.Parent = btn
 		self.packBtn[id] = btn
 		self.packStroke[id] = stroke
-		-- Neon-chip affordance: enabled buttons flare cyan on hover, then
-		-- fall back to their state color (setGarage re-pushes it anyway).
-		btn.MouseEnter:Connect(function()
-			if self.packEnabled[id] then
-				btn.TextColor3 = C_CYAN
-				stroke.Color = C_CYAN
-			end
-		end)
-		btn.MouseLeave:Connect(function()
-			btn.TextColor3 = self.packEnabled[id] and C_PINK or C_DIM
-			stroke.Color = btn.TextColor3
-		end)
 		btn.MouseButton1Click:Connect(function()
 			if self.packEnabled[id] and self.onBuy then
 				self.onBuy(id)
@@ -1778,14 +1701,6 @@ function Ui.new(): Ui
 		self.gemPackStroke[key] = stroke
 		self.gemPackAmt[key] = amt
 		self.gemPackPrice[key] = prc
-		b.MouseEnter:Connect(function()
-			if self.gemPackEnabled[key] then
-				stroke.Color = C_CYAN
-			end
-		end)
-		b.MouseLeave:Connect(function()
-			stroke.Color = self.gemPackEnabled[key] and C_GOLD or C_DIM
-		end)
 		b.MouseButton1Click:Connect(function()
 			if self.gemPackEnabled[key] and self.onGemPack then
 				self.onGemPack(key)
@@ -3689,8 +3604,7 @@ function Ui:setGarage(state: GarageState)
 		local row = state.slots[slot]
 		btn.Text = if row then row.text else "—"
 		-- State tint: gold = the ◊ price is a buy button, dim = locked
-		-- behind a pack, white = yours. slotTint stores it so the hover
-		-- pink can re-seat on MouseLeave.
+		-- behind a pack, white = yours.
 		local tint = C_WHITE
 		if row then
 			if row.afford then
@@ -3699,7 +3613,6 @@ function Ui:setGarage(state: GarageState)
 				tint = C_DIM
 			end
 		end
-		self.slotTint[slot] = tint
 		btn.TextColor3 = tint
 		local sw = self.slotSwatch[slot]
 		if sw then
