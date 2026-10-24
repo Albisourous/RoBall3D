@@ -170,6 +170,27 @@ explainable.
   dodge with nothing safe in reach goes uncorrected — the assist is a
   nudge off a bad landing, never a teleport or a steering replacement.
   `SnapMax = 0` retires the feature.
+  **Feel suite** (`DashFeel`, `DashFeel.luau`): the genre-standard
+  forgiveness set around the burst, every threshold in `Config.DashFeel`.
+  *Buffering* — a press that can't fire yet (mid-cooldown, thin meter,
+  or inside the air gate) stays armed `BufferWindow` (0.15s) and fires
+  on the first legal frame, so an early press lands the dodge on frame
+  one instead of being eaten. *Coyote* — `CoyoteTime` (0.1s) keeps the
+  burst legal just after rolling off a ledge; it only bites with
+  `AirDash = false`, since the airborne sidestep over a narrow cutout
+  is legal physics here (the buffered press then fires on touchdown).
+  *Surface projection* — grounded bursts ride the eased lane-probe
+  normal (`drive - n·(drive·n)`), so a dart on a bank picks up the
+  downhill Y component instead of shearing off the crest. *Asymmetric
+  colliders* — during the burst the lethal hurtbox shrinks to
+  `HurtScale` of the ball radius (swept cast + a Touched rim test, so
+  outer-band grazes read as the dodge they looked like) while the gem
+  claim tube widens to `PickupScale` — the client sweeps and reports
+  claims through `ClaimGem`, and the server re-validates distance on
+  its interpolated view before paying out (same contract as §11 fatal
+  reports). *Camera punch* — fire stamps an FOV spike of `FovAdd`
+  degrees plus a Perlin eye shake up to `ShakeAmp` studs, both
+  exp-decaying — peak burst velocity reads as speed, not teleport.
 - **Restart**: `R` in any mode = instant restart on the seed box's pick —
   `daily` by default, a typed seed, or a rolled random that gets mirrored
   back into the box on `RunStarted`, so a reload keeps the same map

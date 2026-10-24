@@ -29,6 +29,7 @@ local PadController = require(script.Parent.PadController)
 local OrbController = require(script.Parent.OrbController)
 local MoverController = require(script.Parent.MoverController)
 local FatalController = require(script.Parent.FatalController)
+local DashFeel = require(script.Parent.DashFeel)
 local Ghost = require(script.Parent.GhostController)
 local ScreenFilter = require(script.Parent.ScreenFilter)
 
@@ -421,6 +422,7 @@ local function bindBall(b: Instance)
 		dashBuffered = nil
 		dashDeniedAt = 0
 		dashGoalX = nil
+		DashFeel.reset() -- coyote clock, burst window, cam kicks
 		wasDashing = false
 		stuckT = 0
 		unstickUntil = 0
@@ -1191,6 +1193,11 @@ local function tryDash(dir: number, quiet: boolean?): string
 	if now < dashUntil or now - lastDashAt < Config.Dash.Cooldown then
 		return "cooldown"
 	end
+	-- Coyote gate (DashFeel, §4): a press too deep into airtime can't dart
+	-- in free fall — it buffers and fires on the landing frame instead.
+	if not DashFeel.fireLegal() then
+		return "air"
+	end
 	if powerCharge < math.max(Config.Power.RechargeGate, Config.Dash.Cost) then
 		if not quiet then
 			dashDeniedAt = now
@@ -1214,6 +1221,9 @@ local function tryDash(dir: number, quiet: boolean?): string
 			)
 	end
 	lastDashAt = now
+	-- Stamp the real window (a snapped goal extends it) — hurt/pickup
+	-- scales and the camera punch all key off this, not the press.
+	DashFeel.noteBurst(dashUntil - now)
 	Sfx.dash(dir)
 	rumble(Config.Controls.Rumble.Dash)
 	return "fired"
@@ -1226,7 +1236,9 @@ end
 -- presses still expire inside BufferWindow so nothing ghost-fires.
 local function queueDash(dir: number)
 	local res = tryDash(dir)
-	if res == "cooldown" or res == "denied" then
+	-- "air" joins the armed set: a press inside the free-fall band waits
+	-- for touchdown the same way a mid-cooldown press waits for the timer.
+	if res == "cooldown" or res == "denied" or res == "air" then
 		dashBuffered = { dir = dir, at = time() }
 	end
 end
@@ -1389,6 +1401,9 @@ RunService.Heartbeat:Connect(function(dt)
 	local drop = workspace:Raycast(bp, EDGE_DOWN * Config.Landing.MaxDrop, edgeParams)
 	local grounded = drop ~= nil
 		and bp.Y - (drop :: RaycastResult).Position.Y <= Config.Ball.Diameter / 2 + Config.Landing.ContactPad
+	-- Coyote clock (DashFeel): airtime counts from the last contact frame
+	-- — the dash gate and the landing buffer both read this.
+	DashFeel.noteGrounded(grounded, dt)
 	-- Eased surface normal for everything that reads the deck: raw probe
 	-- normals pop at slice seams and slope inflections — banking, pull and
 	-- the Y projection all ride this relaxed read instead.
@@ -1411,13 +1426,13 @@ RunService.Heartbeat:Connect(function(dt)
 	-- steer range so residual drift is normal steering, not a free slide.
 	-- Consume a buffered dash once the burst window is legal again —
 	-- stale presses expire after BufferWindow so a dropped dodge doesn't
-	-- surprise-fire later. "cooldown"/"denied" keep it armed; anything
-	-- else (fired, expired, run over) clears it in one shot.
+	-- surprise-fire later. "cooldown"/"denied"/"air" keep it armed;
+	-- anything else (fired, expired, run over) clears it in one shot.
 	if dashBuffered then
-		local res = if now - dashBuffered.at > Config.Dash.BufferWindow
+		local res = if now - dashBuffered.at > Config.DashFeel.BufferWindow
 			then "expired"
 			else tryDash(dashBuffered.dir, true)
-		if res ~= "cooldown" and res ~= "denied" then
+		if res ~= "cooldown" and res ~= "denied" and res ~= "air" then
 			dashBuffered = nil
 		end
 	end
@@ -1672,7 +1687,10 @@ RunService.Heartbeat:Connect(function(dt)
 	-- airtime keep physics Y — gravity owns a real fall.
 	if not inFlip and now >= unstickUntil and grounded and not kicked then
 		local drive = Vector3.new(lateralVel, 0, -fwdSpeed)
-		local surfY = (drive - surfNormal * drive:Dot(surfNormal)).Y
+		-- drive - n·(drive·n) is the surface projection — the burst's
+		-- lateral channel is inside `drive`, so a dart on a bank gets the
+		-- downhill Y component instead of shearing off the deck.
+		local surfY = DashFeel.driveY(drive, surfNormal)
 		-- Ease toward the surface speed while contact persists
 		-- (SlopeVelSmooth τ) — but a real fall outrunning the ground
 		-- snaps straight to surfY instead of easing through the deck.
@@ -1726,7 +1744,10 @@ RunService.RenderStepped:Connect(function(dt)
 	local b = ball
 	if b then
 		local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
-		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT
+		-- Dash punch (§4): fire-frame FOV spike + Perlin eye shake, both
+		-- decaying over the burst — the dart reads as speed.
+		local fovAdd, dashShake = DashFeel.camKick(dt)
+		camera.FieldOfView = cam.FovMin + (cam.FovMax - cam.FovMin) * speedT + fovAdd
 		-- Aim at the deck plane LookAhead studs out: the drop = grade*ahead,
 		-- so the camera pitches into the slope and shows more track (the
 		-- Slope downhill read). Roll leans a few degrees into the steer.
@@ -1744,7 +1765,7 @@ RunService.RenderStepped:Connect(function(dt)
 		-- brief elastic trail, never as swim.
 		local desired = b.Position + cam.Offset
 		camPos = if camPos then camPos + (desired - camPos) * (1 - math.exp(-dt / cam.SmoothTime)) else desired
-		camera.CFrame = CFrame.lookAt(camPos :: Vector3, target) * CFrame.Angles(0, 0, lean)
+		camera.CFrame = CFrame.lookAt(camPos :: Vector3 + dashShake, target) * CFrame.Angles(0, 0, lean)
 		Backdrop.update(b.Position)
 	elseif mode == "dead" then
 		-- Death-cam (§11): an ease-out orbit of the kill spot — yaw sweeps
@@ -1820,6 +1841,12 @@ end, function()
 	return mode == "running"
 end, function(killerPart: BasePart?)
 	evReportFatal:FireServer(killerPart)
+end)
+-- Asymmetric colliders (§4): the burst shrinks the lethal hurtbox while
+-- widening the gem tube DashFeel sweeps.
+FatalController.setHurtScale(DashFeel.hurtScale)
+DashFeel.init(function()
+	return ball
 end)
 CosmeticFx.onMode("menu")
 ui:showMenu(player:GetAttribute("RoBallBest") or 0)

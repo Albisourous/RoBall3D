@@ -73,7 +73,8 @@ Config.Dash = {
 	Accel = 2400, -- burst ease rate: reaches Speed in ~25ms, snaps in fast
 	Cost = 0.3, -- flat meter slice per burst (~4 of the bar's 14 LED cells)
 	Cooldown = 0.35, -- seconds between dashes (the meter is the real limiter)
-	BufferWindow = 0.4, -- a press mid-burst/on cooldown stays armed this long — chains snap
+	-- Press buffering lives in Config.DashFeel.BufferWindow (0.15s — the
+	-- tighter genre-standard window; this slot's 0.4s moved with it).
 	-- Forgiveness snap (§4): a burst whose natural endpoint lands unsafe —
 	-- off the deck edge, over a cutout, or lined up on a lethal face the
 	-- sidestep was meant to clear — retargets to the nearest safe lane
@@ -97,6 +98,44 @@ Config.Dash = {
 	TapWindow = 0.28, -- seconds between steer-key taps that read as a dash
 	ModeLabel = { keys = "‹ Q / E KEYS ›", tap = "‹ DOUBLE-TAP A / D ›" },
 	ModeHint = { keys = "Q/E dash", tap = "A·A / D·D dash" },
+}
+
+-- Dash feel (DESIGN.md §4): the forgiveness layer around the raw burst —
+-- input buffering, coyote, surface projection, asymmetric colliders, and
+-- the camera punch. Timing state lives in DashFeel.luau; every threshold
+-- is here. The burst itself stays the §4 eased-sidestep physics above.
+Config.DashFeel = {
+	-- Input buffer: a press that can't fire yet (mid-cooldown, thin meter,
+	-- or still airborne) stays armed this long — the genre-standard
+	-- "press a hair early, fire on frame one" window. The old 0.4s
+	-- BufferWindow was generous enough to fire stale presses; this is the
+	-- tighter forgiveness band.
+	BufferWindow = 0.15,
+	-- Coyote: rolling off a ledge doesn't instantly revoke the verb — a
+	-- press inside this window still counts as grounded. It only bites
+	-- when AirDash is off; a deeper-air press then buffers and fires on
+	-- touchdown instead. AirDash ships ON: §4 documents the airborne
+	-- sidestep over a narrow cutout as legal physics (a gamble, not a
+	-- cheat) — flip to false for the strict platformer ground-lock.
+	CoyoteTime = 0.1,
+	AirDash = true,
+	-- Asymmetric colliders: during the burst the lethal hurtbox shrinks to
+	-- HurtScale of the ball radius — outer-rim grazes read as the dodge
+	-- they looked like — while the gem pickup tube widens to PickupScale
+	-- so a committed dodge still collects the line it grazed.
+	HurtScale = 0.8,
+	PickupScale = 1.4,
+	PickupServerSlopT = 0.15, -- seconds of ball travel the server adds to a
+	-- claim's radius — its interpolated view trails the client's sim
+	-- Camera punch (the cam.DoFov of the Unity reference): on fire the FOV
+	-- jumps FovAdd deg instantly, then eases back with tau FovTau; the eye
+	-- also shakes by up to ShakeAmp studs, decaying over ShakeTau. Peak
+	-- burst velocity reads as speed, not as a teleport.
+	FovAdd = 5,
+	FovTau = 0.14,
+	ShakeAmp = 0.3,
+	ShakeTau = 0.1,
+	ShakeFreq = 26, -- Perlin sample rate — tremor, not rumble
 }
 
 -- Steering is force/momentum based (Super Monkey Ball feel), not snapping.

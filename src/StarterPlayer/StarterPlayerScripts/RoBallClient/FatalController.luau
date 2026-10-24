@@ -23,6 +23,13 @@ local armed: () -> boolean = function()
 	return false
 end
 local report: (BasePart?) -> () = function(_part: BasePart?) end
+-- Asymmetric collider (DashFeel §4): 1 = full hurtbox; during a dash
+-- burst this dips below 1 so the swept cast and the Touched rim test
+-- both treat the outer band as non-lethal — a graze inside it reads as
+-- the dodge it looked like.
+local hurtScale: () -> number = function()
+	return 1
+end
 
 local lethal = {} :: { [BasePart]: boolean }
 local lethalList = {} :: { BasePart }
@@ -44,6 +51,24 @@ local function hook(part: Instance)
 	listDirty = true
 	p.Touched:Connect(function(hit)
 		if hit == getBall() and armed() and not reported then
+			-- Shrunk hurtbox: Touched fires on ANY contact, including the
+			-- outer band the dash forgives. Re-test with the scaled
+			-- sphere against the part's extents box — rim-only contact
+			-- is ignored; a center that still overlaps is a real hit.
+			local s = hurtScale()
+			local b = hit :: BasePart
+			if s < 1 then
+				local lp = p.ExtentsCFrame:PointToObjectSpace(b.Position)
+				local hs = p.ExtentsSize / 2
+				local gap = Vector3.new(
+					math.max(math.abs(lp.X) - hs.X, 0),
+					math.max(math.abs(lp.Y) - hs.Y, 0),
+					math.max(math.abs(lp.Z) - hs.Z, 0)
+				)
+				if gap.Magnitude > ballR * s then
+					return
+				end
+			end
 			reported = true
 			report(p)
 		end
@@ -72,6 +97,10 @@ function FatalController.lethalParts(): { BasePart }
 		rebuildList()
 	end
 	return lethalList
+end
+
+function FatalController.setHurtScale(fn: () -> number)
+	hurtScale = fn
 end
 
 function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolean, reportFn: (BasePart?) -> ())
@@ -108,7 +137,7 @@ function FatalController.init(ballGetter: () -> BasePart?, armedFn: () -> boolea
 		if not reported and lastPos and #lethalList > 0 then
 			local delta = pos - lastPos
 			if delta.Magnitude > 0.01 then
-				local hit = workspace:Spherecast(lastPos, ballR, delta, castParams)
+				local hit = workspace:Spherecast(lastPos, ballR * hurtScale(), delta, castParams)
 				if hit then
 					reported = true
 					report(hit.Instance)

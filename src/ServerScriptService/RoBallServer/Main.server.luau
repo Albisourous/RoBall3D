@@ -117,6 +117,9 @@ fnSetHues.Parent = remotes
 local evReportFatal = Instance.new("RemoteEvent")
 evReportFatal.Name = "ReportFatal"
 evReportFatal.Parent = remotes
+local evClaimGem = Instance.new("RemoteEvent")
+evClaimGem.Name = "ClaimGem"
+evClaimGem.Parent = remotes
 local evNearMiss = Instance.new("RemoteEvent")
 evNearMiss.Name = "NearMiss"
 evNearMiss.Parent = remotes
@@ -613,6 +616,48 @@ evReportFatal.OnServerEvent:Connect(function(player, killerPart: Instance?)
 			cause = killerPart:GetAttribute("ChunkType") :: string?
 		end
 		killRun(player, run, cause)
+	end
+end)
+
+-- Dash pickup widening (§4 asymmetric colliders): during a burst the
+-- client's claim tube is wider than real contact, so it reports gems
+-- the ball GRAZED, not just touched. The trust contract mirrors
+-- ReportFatal — the client simulates its own ball — but bounded: the
+-- gem must sit inside the widened reach on the server's interpolated
+-- view too, plus PickupServerSlop for dart-speed lag. Real contact
+-- still pays out through the gem's own Touched — this only covers the
+-- band around it. A destroyed gem fails the Parent check; a double
+-- claim can't double-pay because onGem→Destroy is synchronous.
+evClaimGem.OnServerEvent:Connect(function(player, gem: Instance?)
+	local run = runs[player]
+	if
+		not run
+		or not run.ball
+		or not run.streamer.onGem
+		or typeof(gem) ~= "Instance"
+		or not gem:IsA("BasePart")
+		or not gem.Parent
+	then
+		return
+	end
+	if not CollectionService:HasTag(gem, "RoBallGem") then
+		return -- only a real pickup tag is claimable
+	end
+	local value = gem:GetAttribute("GemValue")
+	if typeof(value) ~= "number" then
+		return
+	end
+	local g = gem :: BasePart
+	-- The widened reach plus an interp allowance scaled off the ball's own
+	-- speed — at 165 s/s the server's ghost trails the client's sim by
+	-- ~25 studs, so a flat slop would reject every honest high-speed claim.
+	local reach = (Config.Ball.Diameter / 2 + g.Size.Magnitude / 2) * Config.DashFeel.PickupScale
+		+ run.ball.AssemblyLinearVelocity.Magnitude * Config.DashFeel.PickupServerSlopT
+	if (g.Position - run.ball.Position).Magnitude > reach then
+		return -- outside even the widened tube on the server's view
+	end
+	if run.streamer.onGem(run.ball, value, g:GetAttribute("GemShape") :: string, g.Color) then
+		g:Destroy()
 	end
 end)
 
