@@ -82,13 +82,13 @@ Config.Dash = {
 	-- clamped to [SnapMin, SnapMax] so the save stays a nudge, never a
 	-- teleport. Landing on the point ends the burst early and parks the
 	-- lateral drift. SnapMax = 0 retires the feature.
-	SnapFrac = 0.5, -- share of the sidestep the reach spans
-	SnapMin = 2, -- guaranteed forgiveness floor, studs
-	SnapMax = 6.5, -- cap — a bigger "save" stops being a nudge
-	SnapStep = 0.75, -- candidate scan granularity around the raw endpoint
-	SnapMargin = 0.6, -- clearance held off lethal faces past the ball radius
-	SnapLookT = 0.3, -- seconds of post-landing roll that must stay clear
-	SnapTail = 0.06, -- window pad past dist/Speed so a long snap can ease in
+	SnapFrac = 0.8, -- share of the sidestep the reach spans
+	SnapMin = 3, -- guaranteed forgiveness floor, studs
+	SnapMax = 10, -- cap — a bigger "save" stops being a nudge
+	SnapStep = 0.5, -- candidate scan granularity around the raw endpoint
+	SnapMargin = 0.45, -- clearance held off lethal faces past the ball radius
+	SnapLookT = 0.25, -- seconds of post-landing roll that must stay clear
+	SnapTail = 0.1, -- window pad past dist/Speed so a long snap can ease in
 	SnapUp = 2, -- deck probes start this far over the predicted landing height
 	-- Dash style (§4): a saved menu toggle picks the input mapping —
 	-- "keys" (Q/E) or "tap" (double-tap the steer key).
