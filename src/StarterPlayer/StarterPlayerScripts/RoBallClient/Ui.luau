@@ -1740,9 +1740,10 @@ function Ui.new(): Ui
 	self.flowMissions = { flowLine(20) }
 	self.flowStreak = { flowLine(36) }
 
-	-- 2X BANK rides the pack-row machinery: Passes.bank2x is a gamepass like
-	-- the bundles, so packBtn["bank2x"] + onBuy("bank2x") just works.
-	packRow(pageBank, "bank2x", "2X BANK", "every gem banks double", 266)
+	-- 2X BANK rides the pack-row machinery: the "boost" id owns a packBtn +
+	-- packState entry, but onBuy routes it to its own gem-spend remote —
+	-- ◊500 buys 2× banked gems until the UTC reset, then it's buyable again.
+	packRow(pageBank, "boost", "2X BANK", "every gem banks double until tomorrow", 266)
 
 	local hint = label(pageBank, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
 	hint.Position = UDim2.fromOffset(0, 312)
@@ -3579,7 +3580,7 @@ function Ui:setTopRank(rank: number?)
 end
 
 -- Garage state push (§18): one table per refresh — slot row text/afford,
--- pack button states (bundles + the bank2x perk), gem-pack buttons, bank
+-- pack button states (bundles + the daily boost), gem-pack buttons, bank
 -- balance. Main computes all of it from attributes + catalog.
 export type GarageState = {
 	slots: {

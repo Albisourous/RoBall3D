@@ -1441,7 +1441,9 @@ saving — client UI is only a suggestion.
 
 **Gem bank (P2)**: every pickup is dual-purpose — score points AND banked
 currency, credited live at `Config.Monetization.BankPerGem` (1) per gem.
-The 2X BANK pass (`Passes.bank2x`) doubles the credit. Banked currency is
+The 2X BANK row sells a daily boost for gems (`BankBoost`: ◊Price buys
+Mult× on every banked gem until the UTC reset — day-tag keyed, so it
+expires by equality and a same-day rejoin keeps it). Banked currency is
 **never score**: it lives on `RoBallBank`, nowhere near the leaderboard
 path. Credits persist at boundaries — run end (kill + fast-restart),
 purchases, leaving, `BindToClose` — so a crash loses at most the in-flight
@@ -1494,7 +1496,8 @@ cards (icon + amount + price stack, SOON until product ids exist — the
 vault tags `★ BEST`, most gems per R$), a paneled `TODAY'S FLOW` ledger
 shows banked today / open-mission rewards left / the next daily run's
 streak payout (repainted by `setQuests` + the streak attribute), then
-the 2X BANK row wired like a bundle pass. The gem icon is drawn from
+the 2X BANK row wired like a bundle pass but priced in ◊ — a recurring
+gem sink, not a pass. The gem icon is drawn from
 rotated frames (body + darker cut facet + vertex glint — `gemIcon`),
 no image asset. The death screen reads `◊ +N BANKED` — the payout
 visible on
@@ -1665,8 +1668,8 @@ OrderedDataStore — clean and assisted boards never mix.
 - **P1**: cosmetic catalog + bundle passes + garage UI + profile store.
   2 free alternates per slot so the equip system is live for everyone.
 - **P2 (this)**: gem bank (dual-purpose pickups — banked currency is never
-  score), gem-pack dev products, per-item `gemPrice`s, the "2x bank" pass,
-  browse-the-catalog garage.
+  score), gem-pack dev products, per-item `gemPrice`s, the daily 2x bank
+  boost (gems in, gems out), browse-the-catalog garage.
 - **P3 (backlog)**: themed monthly bundles, music packs (renderer mints
   tracks for free). The seed-of-the-day board landed ahead of schedule —
   see §14's daily board.

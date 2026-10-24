@@ -194,7 +194,7 @@ the preview can render the whole look and nothing in the box is filler.
 | NULL | NULL · VOIDSPACE · BLACKOUT floor · DRIFT · NULL POP · FADE · DEAD SUN · SOOT | 149 |
 | SOLSTICE | FROSTBITE · NORTHERN LIGHTS · FROST TILE floor · FROSTWAKE · FROST POP · AVALANCHE · POLAR CAP · SNOWBLIND (seasonal) | 149 |
 | APE BALL | CAPSULE · SKY COURT world · CHECKER DECK floor · BANANA WAKE · (no trail — `trail_none` lands last) · BANANA POP · PARTY POP · HIGH NOON · DAY GLOW | 199 |
-| 2X BANK | permanent 2× bank perk | 99 |
+| 2X BANK | daily 2× bank boost — a ◊500 gem sink, expires at UTC reset | — |
 
 **APE BALL** is the rolling-party-ball homage — the whole world a
 bright midday blue, the green/dark-green CHECKER
@@ -271,7 +271,7 @@ bundle → sun/backdrop), not plumbing.
 
 ## Live-ops checklist
 
-1. Create the 12 passes + bank2x + 3 products on the Creator Dashboard
+1. Create the 12 passes + 3 products on the Creator Dashboard
    at the prices above; drop ids into `Config.Monetization.Passes` /
    `.Products`.
 2. Flip `Config.Monetization.FreeForTesting` off.

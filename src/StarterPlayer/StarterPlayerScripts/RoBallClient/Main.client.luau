@@ -69,6 +69,7 @@ local fnBuyGems = remotes:WaitForChild("BuyGems") :: RemoteFunction
 local fnSetHues = remotes:WaitForChild("SetHues") :: RemoteFunction
 local fnSetDashMode = remotes:WaitForChild("SetDashMode") :: RemoteFunction
 local fnEquipPack = remotes:FindFirstChild("EquipPack") :: RemoteFunction?
+local fnBuyBoost = remotes:FindFirstChild("BuyBoost") :: RemoteFunction?
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -252,8 +253,8 @@ end
 local function packStates(): { [string]: { label: string, enabled: boolean, visible: boolean? } }
 	local owned = ownedSet()
 	local states = {}
-	-- Bundle passes + the bank2x perk pass — same lifecycle, one table.
-	local keys = { "bank2x" }
+	-- Bundle passes — same lifecycle, one table.
+	local keys = {}
 	for _, b in ipairs(Cosmetics.Bundles) do
 		table.insert(keys, b.id)
 	end
@@ -291,12 +292,8 @@ local function packStates(): { [string]: { label: string, enabled: boolean, visi
 		if not offSeason then
 			if owned[key] then
 				-- Owned bundle: the chip becomes the equip affordance —
-				-- click re-dresses the whole set (bank2x is a perk, not a
-				-- bundle — it stays inert OWNED).
-				local isBundle = key ~= "bank2x"
-				states[key] = if isBundle
-					then { label = "EQUIP", enabled = true }
-					else { label = "OWNED", enabled = false }
+				-- click re-dresses the whole set.
+				states[key] = { label = "EQUIP", enabled = true }
 			elseif Config.Monetization.FreeForTesting then
 				states[key] = { label = "FREE", enabled = true } -- temp: no paywall yet
 			elseif passId == 0 then
@@ -308,6 +305,18 @@ local function packStates(): { [string]: { label: string, enabled: boolean, visi
 				}
 			end
 		end
+	end
+	-- Daily bank boost (§18): a gem sink riding pack-row machinery — the
+	-- chip prices it in ◊ (disabled when the bank can't cover) and reads
+	-- ACTIVE once bought; the day-tag server check is the real expiry.
+	local price = Config.Monetization.BankBoost.Price
+	if player:GetAttribute("RoBallBoostDay") == Daily.dayTag() then
+		states.boost = { label = "ACTIVE", enabled = false }
+	else
+		states.boost = {
+			label = string.format("◊%d", price),
+			enabled = (player:GetAttribute("RoBallBank") or 0) >= price,
+		}
 	end
 	return states
 end
@@ -672,6 +681,15 @@ ui.onBuyItem = function(itemId)
 end
 
 ui.onBuy = function(bundleId)
+	-- Daily boost → its own gem-spend remote (no pass, no prompt).
+	if bundleId == "boost" then
+		if fnBuyBoost then
+			pcall(function()
+				fnBuyBoost:InvokeServer()
+			end)
+		end
+		return
+	end
 	-- Owned pack → the chip reads EQUIP: re-dress the whole set in one
 	-- server call (the remote may not exist on a stale server — nil-guard).
 	if ownedSet()[bundleId] then
@@ -1835,6 +1853,7 @@ end)
 -- ownership and bank changes re-render prices and buttons.
 player:GetAttributeChangedSignal("RoBallOwned"):Connect(refreshGarage)
 player:GetAttributeChangedSignal("RoBallBank"):Connect(refreshGarage)
+player:GetAttributeChangedSignal("RoBallBoostDay"):Connect(refreshGarage)
 -- COLOR LAB: hue writes land on attributes — re-seat the sliders.
 for _, attr in pairs(Cosmetics.HueAttr) do
 	player:GetAttributeChangedSignal(attr):Connect(refreshGarage)
@@ -1901,15 +1920,6 @@ task.spawn(function()
 			if ok and info and info.PriceInRobux then
 				priceCache[b.id] = info.PriceInRobux
 			end
-		end
-	end
-	local perkId = Config.Monetization.Passes.bank2x or 0
-	if perkId > 0 then
-		local ok, info = pcall(function()
-			return MarketplaceService:GetProductInfo(perkId, Enum.InfoType.GamePass)
-		end)
-		if ok and info and info.PriceInRobux then
-			priceCache.bank2x = info.PriceInRobux
 		end
 	end
 	for _, key in ipairs(Config.Monetization.ProductOrder) do

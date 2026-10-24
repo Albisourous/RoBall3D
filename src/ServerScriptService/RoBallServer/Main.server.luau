@@ -114,6 +114,9 @@ fnBuyPack.Parent = remotes
 local fnBuyGems = Instance.new("RemoteFunction")
 fnBuyGems.Name = "BuyGems"
 fnBuyGems.Parent = remotes
+local fnBuyBoost = Instance.new("RemoteFunction")
+fnBuyBoost.Name = "BuyBoost"
+fnBuyBoost.Parent = remotes
 local fnSetHues = Instance.new("RemoteFunction")
 fnSetHues.Name = "SetHues"
 fnSetHues.Parent = remotes
@@ -830,6 +833,13 @@ fnBuyGems.OnServerInvoke = function(player, key)
 		return false, "bad arg"
 	end
 	return ShopService.claimGemPack(player, key)
+end
+
+fnBuyBoost.OnServerInvoke = function(player)
+	if not allowRate(player, "BuyBoost", RATE.BuyBoost) then
+		return false, "bad arg"
+	end
+	return ShopService.buyBoost(player)
 end
 
 -- COLOR LAB (§18): hue slider releases — the server gates ownership and

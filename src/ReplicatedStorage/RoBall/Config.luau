@@ -2009,6 +2009,7 @@ Config.Monetization = {
 		BuyItem = 0.5,
 		BuyPack = 0.5,
 		BuyGems = 0.5,
+		BuyBoost = 0.5,
 	},
 	Passes = {
 		-- Every live pack is a complete 7-slot look (Cosmetics.Bundles §18).
@@ -2017,7 +2018,6 @@ Config.Monetization = {
 		synthwave = 0, -- SYNTHWAVE — prism set + grid world (~149)
 		midas = 0, -- MIDAS — gold set + meteor world (~149)
 		vip = 0, -- VOID VIP — violet set + star-well world (~199)
-		bank2x = 0, -- 2X BANK — every pickup banks double, forever (~99)
 		aurora = 0, -- AURORA — borealis set + aurora sky (~149)
 		polaris = 0, -- POLARIS — phantom set + polar sky (~149)
 		acid = 0, -- TOXIC SLUDGE — acid set + peaks world (~149)
@@ -2041,7 +2041,6 @@ Config.Monetization = {
 		synthwave = 149,
 		midas = 149,
 		vip = 199,
-		bank2x = 99,
 		peaks = 149,
 		aurora = 149,
 		phantom = 199,
@@ -2172,7 +2171,10 @@ Config.Monetization = {
 			reward = 60,
 		},
 	},
-	BankDoubleMult = 2, -- bank2x pass multiplier
+	-- Daily bank boost (§18): a recurring gem sink, not a pass — Price gems
+	-- buys Mult× on every banked gem until the UTC daily reset (keyed by
+	-- day tag, so it expires automatically and survives a same-day rejoin).
+	BankBoost = { Price = 500, Mult = 2 },
 	-- Gem pack dev products: id 0 = not created yet -> SOON. ProductGems is
 	-- the grant the server applies in ProcessReceipt; ProductPrice is only
 	-- the fallback label until GetProductInfo answers.

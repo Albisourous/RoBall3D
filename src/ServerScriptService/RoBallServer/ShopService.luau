@@ -9,6 +9,7 @@
 --   RoBallEq_<slot>  -> equipped item id ("skin"/"trail"/"gemFx"/"deathFx")
 --   RoBallOwned      -> CSV of owned bundle keys + purchased item ids
 --   RoBallBank       -> banked gem balance (banked currency is never score)
+--   RoBallBoostDay   -> day tag the bank boost was bought on (§18; == today = active)
 --   RoBallHue_<A|B|C>-> COLOR LAB custom hues 0..1 (§18; band-clamped)
 --   RoBallVol_<ch>   -> mixer channel gain 0..1 (AUDIO.md §7)
 -- Studio: pass/product ids are 0 until created on the dashboard, so nothing
@@ -35,6 +36,7 @@ local dirty: { [Player]: boolean } = {} -- bank/items changed since last save
 local dailyDay: { [Player]: string } = {} -- last counted daily-run day tag (§14)
 local dailyStreak: { [Player]: number } = {}
 local pendingDaily: { [Player]: boolean } = {} -- daily run ended before the profile landed
+local boostDay: { [Player]: string } = {} -- day the bank boost was bought (§18); active iff == today
 local questDayTag: { [Player]: string } = {} -- day the quest slots belong to (§14)
 local questDone: { [Player]: { [string]: boolean } } = {} -- quest id -> true (today)
 local questBanked: { [Player]: number } = {} -- gems banked toward today's bank quest
@@ -125,6 +127,7 @@ local function pushAttrs(player: Player)
 	table.sort(list)
 	player:SetAttribute("RoBallOwned", table.concat(list, ","))
 	player:SetAttribute("RoBallBank", bank[player] or 0)
+	player:SetAttribute("RoBallBoostDay", boostDay[player] or "")
 	player:SetAttribute("RoBallDailyStreak", dailyStreak[player] or 0)
 	-- Daily quests (§14): "done flag per quest, banked today" CSV — the
 	-- client recomputes the quest list from Daily.quests() itself.
@@ -200,6 +203,7 @@ local function snapshotProfile(player: Player): SaveService.Profile
 		items = itemArray(player),
 		dailyDay = dailyDay[player] or "",
 		dailyStreak = dailyStreak[player] or 0,
+		boostDay = boostDay[player] or "",
 		questDay = questDayTag[player] or "",
 		questDone = questDoneSnapshot,
 		questBanked = questBanked[player] or 0,
@@ -261,11 +265,11 @@ function ShopService.flush(player: Player)
 	end
 end
 
--- Gem pickup credit (§18 P2): every collected gem banks BankPerGem, doubled
--- by the 2X BANK pass. Returns the credited amount so the run can total it
--- for the death screen. Banked currency is never score.
+-- Gem pickup credit (§18 P2): every collected gem banks BankPerGem, ×Mult
+-- while today's bank boost is live. Returns the credited amount so the
+-- run can total it for the death screen. Banked currency is never score.
 function ShopService.awardGems(player: Player, n: number): number
-	local mult = ShopService.ownsPass(player, "bank2x") and Config.Monetization.BankDoubleMult or 1
+	local mult = boostDay[player] == Daily.dayTag() and Config.Monetization.BankBoost.Mult or 1
 	local credited = n * mult
 	bank[player] = (bank[player] or 0) + credited
 	-- Lifetime stat for achievements (§14): play-earned gems only —
@@ -456,6 +460,28 @@ function ShopService.buyItem(player: Player, itemId: string): (boolean, string)
 	return true, "ok"
 end
 
+-- Daily bank boost (§18): a recurring gem sink — ◊Price buys Mult× on
+-- every banked gem until the UTC reset. Day-tag keyed: it expires by
+-- equality, no timer, and a same-day rejoin keeps it via profile.boostDay.
+-- Real bank spend in every mode — FreeForTesting waives Robux gates only.
+function ShopService.buyBoost(player: Player): (boolean, string)
+	if not profileReady[player] then
+		return false, "loading"
+	end
+	if boostDay[player] == Daily.dayTag() then
+		return false, "active"
+	end
+	local price = Config.Monetization.BankBoost.Price
+	if (bank[player] or 0) < price then
+		return false, "bank"
+	end
+	bank[player] = (bank[player] or 0) - price
+	boostDay[player] = Daily.dayTag()
+	pushAttrs(player)
+	saveNow(player)
+	return true, "ok"
+end
+
 -- Query every configured pass for this player (id 0 = not created yet).
 local function queryPasses(player: Player)
 	local set = {}
@@ -473,8 +499,7 @@ local function queryPasses(player: Player)
 end
 
 -- Equip every item a bundle grants — post-purchase delight (§18): the
--- look lands immediately, no manual trip to the garage required. Perk
--- passes (bank2x) own no items, so this is a clean no-op for them.
+-- look lands immediately, no manual trip to the garage required.
 local function equipBundle(player: Player, bundleId: string)
 	for _, b in ipairs(Cosmetics.Bundles) do
 		if b.id == bundleId then
@@ -589,7 +614,6 @@ local claimable: { [string]: boolean } = {}
 for _, b in ipairs(Cosmetics.Bundles) do
 	claimable[b.id] = true
 end
-claimable["bank2x"] = true -- perk pass owns no items
 
 function ShopService.claimPass(player: Player, key: string): (boolean, string)
 	if not Config.Monetization.FreeForTesting then
@@ -650,6 +674,7 @@ function ShopService.onPlayerAdded(player: Player)
 	bank[player] = 0
 	dailyDay[player] = ""
 	dailyStreak[player] = 0
+	boostDay[player] = ""
 	pendingDaily[player] = false
 	questDayTag[player] = ""
 	questDone[player] = {}
@@ -698,6 +723,9 @@ function ShopService.onPlayerAdded(player: Player)
 			end
 			if typeof(prof.dailyStreak) == "number" then
 				dailyStreak[player] = prof.dailyStreak
+			end
+			if typeof(prof.boostDay) == "string" then
+				boostDay[player] = prof.boostDay
 			end
 			-- Quest slots only restore if the stored day IS today — a stale
 			-- tag means yesterday's missions expired with the day.
@@ -805,6 +833,7 @@ function ShopService.onPlayerRemoving(player: Player)
 	dirty[player] = nil
 	dailyDay[player] = nil
 	dailyStreak[player] = nil
+	boostDay[player] = nil
 	pendingDaily[player] = nil
 	questDayTag[player] = nil
 	questDone[player] = nil
@@ -824,8 +853,7 @@ function ShopService.onPlayerRemoving(player: Player)
 end
 
 function ShopService.init()
-	-- Pass purchase completed: mark the key owned, auto-equip its items
-	-- (bundles) or just bank the perk (bank2x), save.
+	-- Pass purchase completed: mark the key owned, auto-equip its items, save.
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
 		if not wasPurchased then
 			return
