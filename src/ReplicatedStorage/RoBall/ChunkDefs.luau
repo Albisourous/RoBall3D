@@ -1598,7 +1598,7 @@ end
 function ChunkDefs.Pacer(rng: Random, st: GenState, tier, debut: boolean?): ChunkSpec
 	local length = rng:NextInteger(50, 75)
 	local halfW = st.width / 2
-	local gapW = Config.Obstacles.CorridorMin + (if debut then 3 else 1)
+	local gapW = (Config.Obstacles.CorridorMin + (if debut then 3 else 1)) * Config.Movers.PacerGapMul
 	local rows = rowBudget(rng, tier, length, if debut then 1 else 2)
 	local map = st.map or SongMap
 	local beatSec = 60 / (map.bpm * MusicGrid.playbackSpeedAt(tier.speed))

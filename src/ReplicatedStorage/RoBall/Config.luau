@@ -499,6 +499,7 @@ Config.Movers = {
 	-- "the level dances", deterministic under the seed's beat clock.
 	PacerBeats = 8, -- slide cycle length in beats (debut runs it double)
 	PacerRimMargin = 2, -- sliding gap never closes nearer than this to a rim
+	PacerGapMul = 1.5, -- gap = (CorridorMin + debut margin) × this — high-speed tracking tolerance
 	RotorBeats = 6, -- full sweep period in beats (debut runs it 1.5x)
 	RotorArmFrac = 1.15, -- arm half-length vs half deck width (pre-clamp)
 	RotorPostJitter = 0.12, -- post wanders this fraction of halfW off center
