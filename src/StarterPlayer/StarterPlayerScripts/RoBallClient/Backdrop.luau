@@ -139,126 +139,25 @@ local meteorClock = os.clock() -- dt source for real streak motion
 
 -- MAINFRAME pool (§18 "matrix") — same lazy-build / park-on-swap contract.
 type MatrixDrop = { head: Part?, tail: Part, y: number, len: number, speed: number, far: boolean }
-local matrixDrops: { MatrixDrop } = {}
-local matrixSeeded = false
 local matrixClock = os.clock()
 
--- FESTIVAL pool (§18 "fireworks") — same lazy-build / park-on-swap contract.
+-- Per-theme record types. The `local` machinery lives inside each
+-- theme's `do … end` scope — the module's top chunk is capped at 200
+-- locals (Luau register limit), so only the step/park upvalues and a
+-- few diorama-shared lays stay at top level.
 type FireLauncher = { part: Part, emitter: ParticleEmitter, nextAt: number }
 type Festoon = { poles: { Part }, beads: { Part }, z: number }
-local fireLaunchers: { FireLauncher } = {}
-local fireSmoke: { part: Part, emitter: ParticleEmitter }? = nil
-local festoons: { Festoon } = {}
-local lanternFrontZ = 0
-local fireSeeded = false
-
--- HYPNOTUBE pool (§18 "tunnel") — ring parts reuse the sky-arch shape.
 type TunnelHoop = { segs: { Part }, z: number, hue: number, col: Color3? }
-local tunnelHoops: { TunnelHoop } = {}
-local tunnelFrontZ = 0
-local tunnelHue = 0
-local tunnelSeeded = false
-
--- CATHEDRAL pool (§18 "glass") — pane+shaft records on one frontier,
--- dark arch silhouettes (tunnel-shaped, fixed color) on a wider one.
 type GlassPane = { pane: Part, shaft: Part, z: number }
-local glassPanes: { GlassPane } = {}
-local glassArches: { TunnelHoop } = {}
-local glassFrontZ = 0
-local glassArchFrontZ = 0
-local glassSeeded = false
-
-local GLASS_PALETTE = {
-	Color3.fromRGB(255, 64, 190), -- jewel rose
-	Color3.fromRGB(255, 190, 90), -- amber
-	Color3.fromRGB(0, 230, 255), -- saint cyan
-	Color3.fromRGB(175, 80, 255), -- violet
-	Color3.fromRGB(255, 212, 64), -- gold
-}
-local GLASS_DARK = Color3.fromRGB(20, 16, 36) -- arch silhouette
-
--- PAPERCRAFT pool (§18 "paper") — crane = wedge body + two flat wings +
--- a neck sliver; islets are wedge+cap floats; planes are lone wedges
--- on timed lateral crossings.
 type PaperCrane = { body: Part, wingL: Part, wingR: Part, neck: Part, x: number, y: number, z: number, phase: number }
 type PaperIslet = { wedge: Part, cap: Part, z: number }
 type PaperPlane = { part: Part, vel: Vector3, nextAt: number, flying: boolean }
-local paperCranes: { PaperCrane } = {}
-local paperIslets: { PaperIslet } = {}
-local paperPlanes: { PaperPlane } = {}
-local paperFrontZ = 0
-local paperIsleFrontZ = 0
-local paperSeeded = false
-local paperClock = os.clock()
-
-local PAPER_STOCK = Color3.fromRGB(255, 244, 228)
-local PAPER_CLAY = Color3.fromRGB(255, 150, 120)
-local PAPER_MINT = Color3.fromRGB(205, 230, 200)
-local PAPER_SKY = Color3.fromRGB(190, 215, 230)
-
--- MYCELIUM pool (§18 "slime") — per-verge node chains with tendril
--- links, plus a rising spore-mote field.
 type SlimeNode = { bead: Part, side: number, idx: number, z: number }
 type SlimeLink = { part: Part, side: number, idx: number }
-local slimeNodes: { SlimeNode } = {}
-local slimeLinks: { SlimeLink } = {}
-local slimeMotes: { { part: Part, baseY: number } } = {}
-local slimeFrontZ = 0
-local slimeSeeded = false
-local slimeClock = os.clock()
-
-local SLIME_DARK = Color3.fromRGB(40, 60, 30) -- node base
-local SLIME_HI = Color3.fromRGB(255, 190, 60) -- pulse crest (honey)
-local SLIME_LINK = Color3.fromRGB(90, 160, 70) -- tendril moss
-
--- INKWELL pool (§18 "ink") — blooms carry a grow+fade lifecycle;
--- drops are dark falling columns (matrix-drop contract).
 type InkBloom = { part: Part, age: number, life: number, x: number, y: number, z: number, r0: number }
-local inkBlooms: { InkBloom } = {}
-local inkDrops: { { part: Part, len: number, speed: number } } = {}
-local inkClock = os.clock()
-
-local INK_DEEP = Color3.fromRGB(70, 80, 200)
-local INK_DROP = Color3.fromRGB(20, 24, 60)
-
--- HYPERDRIVE pool (§18 "warp") — streaks stream radially off a
--- descending axis ahead of the lane.
 type WarpStreak = { part: Part, dir: Vector3, r: number, live: boolean }
-local warpStreaks: { WarpStreak } = {}
-local warpPrevZ = 0
-local warpClock = os.clock()
-
-local WARP_COLS = {
-	Color3.fromRGB(245, 248, 255),
-	Color3.fromRGB(160, 240, 255),
-	Color3.fromRGB(120, 200, 255),
-}
-
--- MERCURY pool (§18 "chrome") — mounds heave on sine; pools and rim
--- glints are static after lay.
 type ChromeMound = { dome: Part, glint: Part, x: number, y: number, z: number, r: number, phase: number }
-local chromeMounds: { ChromeMound } = {}
-local chromePools: { { part: Part, z: number } } = {}
-local chromeFrontZ = 0
-local chromeSeeded = false
-
-local CHROME_SKIN = Color3.fromRGB(180, 195, 215)
-local CHROME_GLOW = Color3.fromRGB(235, 240, 250)
-local CHROME_POOL = Color3.fromRGB(150, 165, 190)
-
--- KALEIDO pool (§18 "kaleido") — mirrored wedge pairs, two rings.
 type KaleidoSeg = { part: Part, ring: number, slot: number, sign: number }
-local kaleidoSegs: { KaleidoSeg } = {}
-local kaleidoBaseIn = 0
-local kaleidoBaseOut = 0
-local kaleidoClock = os.clock()
-
-local KALEIDO_COLS = {
-	Color3.fromRGB(255, 64, 190),
-	Color3.fromRGB(0, 230, 255),
-	Color3.fromRGB(175, 80, 255),
-	Color3.fromRGB(255, 212, 64),
-}
 
 -- POLAR (§18): soft-particle aurora canopy + a star band, same
 -- lazy/park contract.
@@ -975,64 +874,86 @@ end
 -- headless bars sells the depth. Meteor-style recycle — spent drops
 -- respawn somewhere in the span ahead.
 
-local MATRIX_HEAD = Color3.fromRGB(190, 255, 220)
-local MATRIX_TAIL = Color3.fromRGB(80, 255, 120)
-local MATRIX_FAR = Color3.fromRGB(16, 70, 34)
+local stepMatrix: (Vector3, number) -> ()
+local parkMatrix: () -> ()
+local layMatrixDrop: (MatrixDrop, Vector3) -> ()
+local MATRIX_TAIL: Color3
+local MATRIX_HEAD: Color3
+local MATRIX_FAR: Color3
+do
+	local matrixDrops: { MatrixDrop } = {}
+	local matrixSeeded = false
 
-local function ensureMatrix()
-	if #matrixDrops > 0 then
-		return
-	end
-	for _ = 1, Art.MatrixDrops do
-		local tail = makePeakPart(root, true)
-		tail.Color = MATRIX_TAIL
-		local head = makePeakPart(root, true)
-		head.Color = MATRIX_HEAD
-		table.insert(matrixDrops, { head = head, tail = tail, y = 0, len = 0, speed = 0, far = false })
-	end
-	for _ = 1, Art.MatrixFar do
-		local tail = makePeakPart(root, true)
-		tail.Color = MATRIX_FAR
-		table.insert(matrixDrops, { tail = tail, y = 0, len = 0, speed = 0, far = true })
-	end
-end
+	MATRIX_HEAD = Color3.fromRGB(190, 255, 220)
+	MATRIX_TAIL = Color3.fromRGB(80, 255, 120)
+	MATRIX_FAR = Color3.fromRGB(16, 70, 34)
 
-local function layMatrixDrop(m: MatrixDrop, anchor: Vector3)
-	local z = anchor.Z - rng:NextNumber(0, Art.MatrixSpan)
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	local xMin = if m.far then Art.MatrixFarMinX else Art.MatrixMinX
-	local xMax = if m.far then Art.MatrixFarMaxX else Art.MatrixMaxX
-	local x = anchor.X + side * rng:NextNumber(xMin, xMax)
-	m.y = deckEst(anchor, z) + rng:NextNumber(Art.MatrixAltMin, Art.MatrixAltMax)
-	m.len = rng:NextNumber(Art.MatrixLenMin, Art.MatrixLenMax)
-	m.speed = rng:NextNumber(Art.MatrixSpeedMin, Art.MatrixSpeedMax) * (if m.far then Art.MatrixFarSpeed else 1)
-	local tail = m.tail
-	tail.Size = Vector3.new(0.7, m.len, 0.7)
-	tail.CFrame = CFrame.new(x, m.y + m.len / 2, z)
-	local head = m.head
-	if head then
-		head.Size = Vector3.new(1.1, 1.1, 1.1)
-		head.CFrame = CFrame.new(x, m.y, z)
-	end
-end
-
-local function stepMatrix(anchor: Vector3, dt: number)
-	for _, m in ipairs(matrixDrops) do
-		m.y -= m.speed * dt
-		local tail = m.tail
-		local z = tail.Position.Z
-		if not matrixSeeded or m.y < deckEst(anchor, z) - Art.MatrixDrop or z > anchor.Z + 40 then
-			layMatrixDrop(m, anchor)
-		else
-			local x = tail.Position.X
-			tail.Position = Vector3.new(x, m.y + m.len / 2, z)
-			local head = m.head
-			if head then
-				head.Position = Vector3.new(x, m.y, z)
-			end
+	local function ensureMatrix()
+		if #matrixDrops > 0 then
+			return
+		end
+		for _ = 1, Art.MatrixDrops do
+			local tail = makePeakPart(root, true)
+			tail.Color = MATRIX_TAIL
+			local head = makePeakPart(root, true)
+			head.Color = MATRIX_HEAD
+			table.insert(matrixDrops, { head = head, tail = tail, y = 0, len = 0, speed = 0, far = false })
+		end
+		for _ = 1, Art.MatrixFar do
+			local tail = makePeakPart(root, true)
+			tail.Color = MATRIX_FAR
+			table.insert(matrixDrops, { tail = tail, y = 0, len = 0, speed = 0, far = true })
 		end
 	end
-	matrixSeeded = true
+
+	layMatrixDrop = function(m: MatrixDrop, anchor: Vector3)
+		local z = anchor.Z - rng:NextNumber(0, Art.MatrixSpan)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local xMin = if m.far then Art.MatrixFarMinX else Art.MatrixMinX
+		local xMax = if m.far then Art.MatrixFarMaxX else Art.MatrixMaxX
+		local x = anchor.X + side * rng:NextNumber(xMin, xMax)
+		m.y = deckEst(anchor, z) + rng:NextNumber(Art.MatrixAltMin, Art.MatrixAltMax)
+		m.len = rng:NextNumber(Art.MatrixLenMin, Art.MatrixLenMax)
+		m.speed = rng:NextNumber(Art.MatrixSpeedMin, Art.MatrixSpeedMax) * (if m.far then Art.MatrixFarSpeed else 1)
+		local tail = m.tail
+		tail.Size = Vector3.new(0.7, m.len, 0.7)
+		tail.CFrame = CFrame.new(x, m.y + m.len / 2, z)
+		local head = m.head
+		if head then
+			head.Size = Vector3.new(1.1, 1.1, 1.1)
+			head.CFrame = CFrame.new(x, m.y, z)
+		end
+	end
+
+	stepMatrix = function(anchor: Vector3, dt: number)
+		ensureMatrix()
+		for _, m in ipairs(matrixDrops) do
+			m.y -= m.speed * dt
+			local tail = m.tail
+			local z = tail.Position.Z
+			if not matrixSeeded or m.y < deckEst(anchor, z) - Art.MatrixDrop or z > anchor.Z + 40 then
+				layMatrixDrop(m, anchor)
+			else
+				local x = tail.Position.X
+				tail.Position = Vector3.new(x, m.y + m.len / 2, z)
+				local head = m.head
+				if head then
+					head.Position = Vector3.new(x, m.y, z)
+				end
+			end
+		end
+		matrixSeeded = true
+	end
+
+	parkMatrix = function()
+		for _, m in ipairs(matrixDrops) do
+			parkPart(m.tail)
+			if m.head then
+				parkPart(m.head)
+			end
+		end
+		matrixSeeded = false
+	end
 end
 
 --=========================== FESTIVAL (fireworks) =========================--
@@ -1042,164 +963,200 @@ end
 -- never repeat from the same point. One slow smoke wisp rides overhead,
 -- and festoon strings of warm lantern beads sag across the lane on the
 -- palm frontier.
+-- Every theme block below scopes its machinery inside `do … end` — the
+-- module's top-level register file is capped at 200 locals, and each
+-- theme only exports its step/park (plus diorama-shared lays).
 
-local FIRE_COLORS = {
-	ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 170)),
-		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 176, 64)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 90, 40)),
-	}),
-	ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 200, 255)),
-		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(175, 80, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 60, 180)),
-	}),
-	ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 255, 230)),
-		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(120, 230, 180)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 140, 110)),
-	}),
-}
-local LANTERN_WARM = Color3.fromRGB(255, 190, 90)
-local LANTERN_POLE = Color3.fromRGB(30, 22, 40)
+local stepFireworks: (Vector3, number) -> ()
+local parkFireworks: () -> ()
+local layFestoon: (Festoon, Vector3, number) -> ()
+local FIRE_COLORS: { ColorSequence }
+do
+	local fireLaunchers: { FireLauncher } = {}
+	local fireSmoke: { part: Part, emitter: ParticleEmitter }? = nil
+	local festoons: { Festoon } = {}
+	local lanternFrontZ = 0
+	local fireSeeded = false
+	FIRE_COLORS = {
+		ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 170)),
+			ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 176, 64)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 90, 40)),
+		}),
+		ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 200, 255)),
+			ColorSequenceKeypoint.new(0.4, Color3.fromRGB(175, 80, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 60, 180)),
+		}),
+		ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 255, 230)),
+			ColorSequenceKeypoint.new(0.4, Color3.fromRGB(120, 230, 180)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 140, 110)),
+		}),
+	}
+	local LANTERN_WARM = Color3.fromRGB(255, 190, 90)
+	local LANTERN_POLE = Color3.fromRGB(30, 22, 40)
 
-local function makeFirePart(parent: Instance): Part
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.CastShadow = false
-	p.Transparency = 1
-	p.Size = Vector3.one
-	p.CFrame = PARK
-	p.Parent = parent
-	return p
-end
-
-local function makeLauncher(parent: Instance, i: number): FireLauncher
-	local p = makeFirePart(parent)
-	local em = Instance.new("ParticleEmitter")
-	em.Texture = Art.PolarTexture
-	em.Color = FIRE_COLORS[(i - 1) % #FIRE_COLORS + 1]
-	em.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.7, 0.15),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	em.Brightness = 2
-	em.LightEmission = 1
-	em.LightInfluence = 0
-	em.Orientation = Enum.ParticleOrientation.VelocityParallel -- radial streaks
-	em.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1.6),
-		NumberSequenceKeypoint.new(1, 0.2),
-	})
-	em.Lifetime = NumberRange.new(1.0, 1.8)
-	em.Rate = 0 -- shells fire on Emit() only
-	em.Speed = NumberRange.new(35, 85)
-	em.SpreadAngle = Vector2.new(180, 180)
-	em.Drag = 1.5 -- the arc settles instead of flying forever
-	em.EmissionDirection = Enum.NormalId.Top
-	em.Enabled = false
-	em.Parent = p
-	return { part = p, emitter = em, nextAt = 0 }
-end
-
-local function layLauncher(l: FireLauncher, anchor: Vector3)
-	local z = anchor.Z - rng:NextNumber(0, Art.FireworkSpan)
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	local x = anchor.X + side * rng:NextNumber(Art.FireworkMinX, Art.FireworkMaxX)
-	local y = deckEst(anchor, z) + rng:NextNumber(Art.FireworkAltMin, Art.FireworkAltMax)
-	l.part.CFrame = CFrame.new(x, y, z)
-end
-
-local function layFestoon(f: Festoon, anchor: Vector3, z: number)
-	local deckY = deckEst(anchor, z)
-	local topY = deckY + Art.LanternPoleH
-	for i, pole in ipairs(f.poles) do
-		local px = anchor.X + (if i == 1 then -Art.LanternPoleX else Art.LanternPoleX)
-		pole.Size = Vector3.new(0.5, Art.LanternPoleH, 0.5)
-		pole.CFrame = CFrame.new(px, deckY + Art.LanternPoleH / 2, z)
-		pole.Color = LANTERN_POLE
+	local function makeFirePart(parent: Instance): Part
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Transparency = 1
+		p.Size = Vector3.one
+		p.CFrame = PARK
+		p.Parent = parent
+		return p
 	end
-	local n = #f.beads
-	for i, bead in ipairs(f.beads) do
-		local t = (i - 1) / (n - 1)
-		local x = anchor.X - Art.LanternPoleX + 2 * Art.LanternPoleX * t
-		-- Shallow catenary sag: 4·t·(1-t) peaks at 1 mid-string.
-		local y = topY - Art.LanternSag * 4 * t * (1 - t)
-		bead.Shape = Enum.PartType.Ball
-		bead.Size = Vector3.one * 0.9
-		bead.Color = if i % 3 == 2 then WHITE else LANTERN_WARM
-		bead.Position = Vector3.new(x, y, z)
-	end
-	f.z = z
-end
 
-local function ensureFireworks()
-	if #fireLaunchers > 0 then
-		return
+	local function makeLauncher(parent: Instance, i: number): FireLauncher
+		local p = makeFirePart(parent)
+		local em = Instance.new("ParticleEmitter")
+		em.Texture = Art.PolarTexture
+		em.Color = FIRE_COLORS[(i - 1) % #FIRE_COLORS + 1]
+		em.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.7, 0.15),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		em.Brightness = 2
+		em.LightEmission = 1
+		em.LightInfluence = 0
+		em.Orientation = Enum.ParticleOrientation.VelocityParallel -- radial streaks
+		em.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1.6),
+			NumberSequenceKeypoint.new(1, 0.2),
+		})
+		em.Lifetime = NumberRange.new(1.0, 1.8)
+		em.Rate = 0 -- shells fire on Emit() only
+		em.Speed = NumberRange.new(35, 85)
+		em.SpreadAngle = Vector2.new(180, 180)
+		em.Drag = 1.5 -- the arc settles instead of flying forever
+		em.EmissionDirection = Enum.NormalId.Top
+		em.Enabled = false
+		em.Parent = p
+		return { part = p, emitter = em, nextAt = 0 }
 	end
-	for i = 1, Art.FireworkLaunchers do
-		table.insert(fireLaunchers, makeLauncher(root, i))
+
+	local function layLauncher(l: FireLauncher, anchor: Vector3)
+		local z = anchor.Z - rng:NextNumber(0, Art.FireworkSpan)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local x = anchor.X + side * rng:NextNumber(Art.FireworkMinX, Art.FireworkMaxX)
+		local y = deckEst(anchor, z) + rng:NextNumber(Art.FireworkAltMin, Art.FireworkAltMax)
+		l.part.CFrame = CFrame.new(x, y, z)
 	end
-	local p = makeFirePart(root)
-	local em = Instance.new("ParticleEmitter")
-	em.Texture = Art.PolarTexture
-	em.Color = ColorSequence.new(Color3.fromRGB(150, 140, 170))
-	em.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.85),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	em.LightEmission = 0
-	em.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 6),
-		NumberSequenceKeypoint.new(1, 18),
-	})
-	em.Lifetime = NumberRange.new(4, 7)
-	em.Rate = 1.5
-	em.Speed = NumberRange.new(1.5, 4)
-	em.SpreadAngle = Vector2.new(25, 25)
-	em.Drag = 0.4
-	em.EmissionDirection = Enum.NormalId.Top
-	em.Enabled = false
-	em.Parent = p
-	fireSmoke = { part = p, emitter = em }
-	for _ = 1, Art.LanternRows do
-		local f: Festoon = { poles = {}, beads = {}, z = math.huge }
-		for _ = 1, 2 do
-			table.insert(f.poles, makePeakPart(root, false))
+
+	layFestoon = function(f: Festoon, anchor: Vector3, z: number)
+		local deckY = deckEst(anchor, z)
+		local topY = deckY + Art.LanternPoleH
+		for i, pole in ipairs(f.poles) do
+			local px = anchor.X + (if i == 1 then -Art.LanternPoleX else Art.LanternPoleX)
+			pole.Size = Vector3.new(0.5, Art.LanternPoleH, 0.5)
+			pole.CFrame = CFrame.new(px, deckY + Art.LanternPoleH / 2, z)
+			pole.Color = LANTERN_POLE
 		end
-		for _ = 1, Art.LanternBeads do
-			table.insert(f.beads, makePeakPart(root, true))
+		local n = #f.beads
+		for i, bead in ipairs(f.beads) do
+			local t = (i - 1) / (n - 1)
+			local x = anchor.X - Art.LanternPoleX + 2 * Art.LanternPoleX * t
+			-- Shallow catenary sag: 4·t·(1-t) peaks at 1 mid-string.
+			local y = topY - Art.LanternSag * 4 * t * (1 - t)
+			bead.Shape = Enum.PartType.Ball
+			bead.Size = Vector3.one * 0.9
+			bead.Color = if i % 3 == 2 then WHITE else LANTERN_WARM
+			bead.Position = Vector3.new(x, y, z)
 		end
-		table.insert(festoons, f)
+		f.z = z
 	end
-end
 
-local function stepFireworks(anchor: Vector3, now: number)
-	for _, l in ipairs(fireLaunchers) do
-		if now >= l.nextAt then
-			l.emitter:Emit(Art.FireworkBurst) -- world-space: relocating loses nothing
-			layLauncher(l, anchor)
-			l.nextAt = now + rng:NextNumber(Art.FireworkEveryMin, Art.FireworkEveryMax)
+	local function ensureFireworks()
+		if #fireLaunchers > 0 then
+			return
+		end
+		for i = 1, Art.FireworkLaunchers do
+			table.insert(fireLaunchers, makeLauncher(root, i))
+		end
+		local p = makeFirePart(root)
+		local em = Instance.new("ParticleEmitter")
+		em.Texture = Art.PolarTexture
+		em.Color = ColorSequence.new(Color3.fromRGB(150, 140, 170))
+		em.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.85),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		em.LightEmission = 0
+		em.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 6),
+			NumberSequenceKeypoint.new(1, 18),
+		})
+		em.Lifetime = NumberRange.new(4, 7)
+		em.Rate = 1.5
+		em.Speed = NumberRange.new(1.5, 4)
+		em.SpreadAngle = Vector2.new(25, 25)
+		em.Drag = 0.4
+		em.EmissionDirection = Enum.NormalId.Top
+		em.Enabled = false
+		em.Parent = p
+		fireSmoke = { part = p, emitter = em }
+		for _ = 1, Art.LanternRows do
+			local f: Festoon = { poles = {}, beads = {}, z = math.huge }
+			for _ = 1, 2 do
+				table.insert(f.poles, makePeakPart(root, false))
+			end
+			for _ = 1, Art.LanternBeads do
+				table.insert(f.beads, makePeakPart(root, true))
+			end
+			table.insert(festoons, f)
 		end
 	end
-	local smoke = fireSmoke
-	if smoke then
-		smoke.emitter.Enabled = true
-		smoke.part.CFrame = CFrame.new(anchor.X, deckEst(anchor, anchor.Z - 400) + Art.FireworkSmokeAlt, anchor.Z - 400)
-	end
-	if not fireSeeded then
-		lanternFrontZ = anchor.Z + BACK_MARGIN
-		fireSeeded = true
-	end
-	for _, f in ipairs(festoons) do
-		if f.z > anchor.Z + BACK_MARGIN then
-			lanternFrontZ -= Art.LanternSpacing
-			layFestoon(f, anchor, lanternFrontZ)
+
+	stepFireworks = function(anchor: Vector3, now: number)
+		ensureFireworks()
+		for _, l in ipairs(fireLaunchers) do
+			if now >= l.nextAt then
+				l.emitter:Emit(Art.FireworkBurst) -- world-space: relocating loses nothing
+				layLauncher(l, anchor)
+				l.nextAt = now + rng:NextNumber(Art.FireworkEveryMin, Art.FireworkEveryMax)
+			end
 		end
+		local smoke = fireSmoke
+		if smoke then
+			smoke.emitter.Enabled = true
+			smoke.part.CFrame =
+				CFrame.new(anchor.X, deckEst(anchor, anchor.Z - 400) + Art.FireworkSmokeAlt, anchor.Z - 400)
+		end
+		if not fireSeeded then
+			lanternFrontZ = anchor.Z + BACK_MARGIN
+			fireSeeded = true
+		end
+		for _, f in ipairs(festoons) do
+			if f.z > anchor.Z + BACK_MARGIN then
+				lanternFrontZ -= Art.LanternSpacing
+				layFestoon(f, anchor, lanternFrontZ)
+			end
+		end
+	end
+
+	parkFireworks = function()
+		for _, l in ipairs(fireLaunchers) do
+			parkPart(l.part)
+		end
+		local smoke = fireSmoke
+		if smoke then
+			smoke.emitter.Enabled = false -- parked emitters would still churn
+			parkPart(smoke.part)
+		end
+		for _, f in ipairs(festoons) do
+			for _, p in ipairs(f.poles) do
+				parkPart(p)
+			end
+			for _, p in ipairs(f.beads) do
+				parkPart(p)
+			end
+		end
+		fireSeeded = false
 	end
 end
 
@@ -1210,48 +1167,68 @@ end
 -- threads. Each recycled hoop takes the walking frontier hue, so the
 -- chain drifts through the spectrum the further it runs.
 
-local function ensureTunnel()
-	if #tunnelHoops > 0 then
-		return
-	end
-	for _ = 1, Art.TunnelHoops do
-		local segs: { Part } = {}
-		for _ = 1, Art.TunnelSegs do
-			table.insert(segs, makePeakPart(root, true))
-		end
-		table.insert(tunnelHoops, { segs = segs, z = math.huge, hue = 0 })
-	end
-end
+local stepTunnel: (Vector3) -> ()
+local parkTunnel: () -> ()
+local layTunnelHoop: (TunnelHoop, Vector3, number) -> () -- shared: glass arches, dioramas
+do
+	local tunnelHoops: { TunnelHoop } = {}
+	local tunnelFrontZ = 0
+	local tunnelHue = 0
+	local tunnelSeeded = false
 
-local function layTunnelHoop(h: TunnelHoop, anchor: Vector3, z: number)
-	h.z = z
-	local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
-	local cy = deckEst(anchor, z) + Art.TunnelLift
-	local step = math.pi * 2 / Art.TunnelSegs
-	local arc = Art.TunnelR * step + 0.4 -- slight overlap, no ring gaps
-	local col = h.col or Color3.fromHSV(h.hue % 1, 0.9, 1)
-	for i, s in ipairs(h.segs) do
-		local t = (i - 1) * step
-		s.Size = Vector3.new(arc, Art.TunnelThick, Art.TunnelThick)
-		s.CFrame = CFrame.new(laneX + math.cos(t) * Art.TunnelR, cy + math.sin(t) * Art.TunnelR, z)
-			* CFrame.Angles(0, 0, t + math.pi / 2)
-		s.Color = col
-	end
-end
-
-local function stepTunnel(anchor: Vector3)
-	if not tunnelSeeded then
-		tunnelFrontZ = anchor.Z + BACK_MARGIN
-		tunnelHue = rng:NextNumber(0, 1)
-		tunnelSeeded = true
-	end
-	for _, h in ipairs(tunnelHoops) do
-		if h.z > anchor.Z + BACK_MARGIN then
-			tunnelFrontZ -= Art.TunnelSpacing
-			h.hue = tunnelHue
-			tunnelHue += Art.TunnelHueStep
-			layTunnelHoop(h, anchor, tunnelFrontZ)
+	local function ensureTunnel()
+		if #tunnelHoops > 0 then
+			return
 		end
+		for _ = 1, Art.TunnelHoops do
+			local segs: { Part } = {}
+			for _ = 1, Art.TunnelSegs do
+				table.insert(segs, makePeakPart(root, true))
+			end
+			table.insert(tunnelHoops, { segs = segs, z = math.huge, hue = 0 })
+		end
+	end
+
+	layTunnelHoop = function(h: TunnelHoop, anchor: Vector3, z: number)
+		h.z = z
+		local laneX = math.round(anchor.X / Gen.RowSpacing) * Gen.RowSpacing
+		local cy = deckEst(anchor, z) + Art.TunnelLift
+		local step = math.pi * 2 / Art.TunnelSegs
+		local arc = Art.TunnelR * step + 0.4 -- slight overlap, no ring gaps
+		local col = h.col or Color3.fromHSV(h.hue % 1, 0.9, 1)
+		for i, s in ipairs(h.segs) do
+			local t = (i - 1) * step
+			s.Size = Vector3.new(arc, Art.TunnelThick, Art.TunnelThick)
+			s.CFrame = CFrame.new(laneX + math.cos(t) * Art.TunnelR, cy + math.sin(t) * Art.TunnelR, z)
+				* CFrame.Angles(0, 0, t + math.pi / 2)
+			s.Color = col
+		end
+	end
+
+	stepTunnel = function(anchor: Vector3)
+		ensureTunnel()
+		if not tunnelSeeded then
+			tunnelFrontZ = anchor.Z + BACK_MARGIN
+			tunnelHue = rng:NextNumber(0, 1)
+			tunnelSeeded = true
+		end
+		for _, h in ipairs(tunnelHoops) do
+			if h.z > anchor.Z + BACK_MARGIN then
+				tunnelFrontZ -= Art.TunnelSpacing
+				h.hue = tunnelHue
+				tunnelHue += Art.TunnelHueStep
+				layTunnelHoop(h, anchor, tunnelFrontZ)
+			end
+		end
+	end
+
+	parkTunnel = function()
+		for _, h in ipairs(tunnelHoops) do
+			for _, s in ipairs(h.segs) do
+				parkPart(s)
+			end
+		end
+		tunnelSeeded = false
 	end
 end
 
@@ -1262,59 +1239,96 @@ end
 -- fixed silhouette color) span the course on a wider frontier. All
 -- frontier-recycled like the festoons.
 
-local function ensureGlass()
-	if #glassPanes > 0 then
-		return
-	end
-	for _ = 1, Art.GlassPanes do
-		table.insert(glassPanes, { pane = makePeakPart(root, true), shaft = makePeakPart(root, true), z = math.huge })
-	end
-	for _ = 1, Art.GlassArches do
-		local segs: { Part } = {}
-		for _ = 1, Art.TunnelSegs do
-			table.insert(segs, makePeakPart(root, true))
-		end
-		table.insert(glassArches, { segs = segs, z = math.huge, hue = 0, col = GLASS_DARK })
-	end
-end
+local stepGlass: (Vector3) -> ()
+local parkGlass: () -> ()
+local layGlassPane: (GlassPane, Vector3, number) -> ()
+local GLASS_DARK: Color3
+do
+	local glassPanes: { GlassPane } = {}
+	local glassArches: { TunnelHoop } = {}
+	local glassFrontZ = 0
+	local glassArchFrontZ = 0
+	local glassSeeded = false
+	local GLASS_PALETTE = {
+		Color3.fromRGB(255, 64, 190), -- jewel rose
+		Color3.fromRGB(255, 190, 90), -- amber
+		Color3.fromRGB(0, 230, 255), -- saint cyan
+		Color3.fromRGB(175, 80, 255), -- violet
+		Color3.fromRGB(255, 212, 64), -- gold
+	}
+	GLASS_DARK = Color3.fromRGB(20, 16, 36) -- arch silhouette
 
-local function layGlassPane(p: GlassPane, anchor: Vector3, z: number)
-	p.z = z
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	local x = anchor.X + side * rng:NextNumber(Art.GlassMinX, Art.GlassMaxX)
-	local h = rng:NextNumber(Art.GlassPaneHMin, Art.GlassPaneHMax)
-	local baseY = deckEst(anchor, z) + rng:NextNumber(Art.GlassAltMin, Art.GlassAltMax)
-	local col = GLASS_PALETTE[rng:NextInteger(1, #GLASS_PALETTE)]
-	p.pane.Size = Vector3.new(Art.GlassPaneW, h, 1.2)
-	p.pane.Position = Vector3.new(x, baseY + h / 2, z)
-	p.pane.Color = col
-	p.pane.Transparency = 0.3
-	-- Shaft: a long faint sliver tilted from the pane toward the lane —
-	-- the light the pane throws onto the course.
-	local sl = Art.GlassShaftLen
-	p.shaft.Size = Vector3.new(Art.GlassPaneW * 0.7, sl, 1)
-	p.shaft.CFrame = CFrame.new(x - side * sl * 0.42, baseY + h * 0.55, z) * CFrame.Angles(0, 0, side * 0.9)
-	p.shaft.Color = col
-	p.shaft.Transparency = 0.78
-end
+	local function ensureGlass()
+		if #glassPanes > 0 then
+			return
+		end
+		for _ = 1, Art.GlassPanes do
+			table.insert(
+				glassPanes,
+				{ pane = makePeakPart(root, true), shaft = makePeakPart(root, true), z = math.huge }
+			)
+		end
+		for _ = 1, Art.GlassArches do
+			local segs: { Part } = {}
+			for _ = 1, Art.TunnelSegs do
+				table.insert(segs, makePeakPart(root, true))
+			end
+			table.insert(glassArches, { segs = segs, z = math.huge, hue = 0, col = GLASS_DARK })
+		end
+	end
 
-local function stepGlass(anchor: Vector3)
-	if not glassSeeded then
-		glassFrontZ = anchor.Z + BACK_MARGIN
-		glassArchFrontZ = anchor.Z + BACK_MARGIN
-		glassSeeded = true
+	layGlassPane = function(p: GlassPane, anchor: Vector3, z: number)
+		p.z = z
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local x = anchor.X + side * rng:NextNumber(Art.GlassMinX, Art.GlassMaxX)
+		local h = rng:NextNumber(Art.GlassPaneHMin, Art.GlassPaneHMax)
+		local baseY = deckEst(anchor, z) + rng:NextNumber(Art.GlassAltMin, Art.GlassAltMax)
+		local col = GLASS_PALETTE[rng:NextInteger(1, #GLASS_PALETTE)]
+		p.pane.Size = Vector3.new(Art.GlassPaneW, h, 1.2)
+		p.pane.Position = Vector3.new(x, baseY + h / 2, z)
+		p.pane.Color = col
+		p.pane.Transparency = 0.3
+		-- Shaft: a long faint sliver tilted from the pane toward the lane —
+		-- the light the pane throws onto the course.
+		local sl = Art.GlassShaftLen
+		p.shaft.Size = Vector3.new(Art.GlassPaneW * 0.7, sl, 1)
+		p.shaft.CFrame = CFrame.new(x - side * sl * 0.42, baseY + h * 0.55, z) * CFrame.Angles(0, 0, side * 0.9)
+		p.shaft.Color = col
+		p.shaft.Transparency = 0.78
 	end
-	for _, p in ipairs(glassPanes) do
-		if p.z > anchor.Z + BACK_MARGIN then
-			glassFrontZ -= Art.GlassSpacing
-			layGlassPane(p, anchor, glassFrontZ)
+
+	stepGlass = function(anchor: Vector3)
+		ensureGlass()
+		if not glassSeeded then
+			glassFrontZ = anchor.Z + BACK_MARGIN
+			glassArchFrontZ = anchor.Z + BACK_MARGIN
+			glassSeeded = true
+		end
+		for _, p in ipairs(glassPanes) do
+			if p.z > anchor.Z + BACK_MARGIN then
+				glassFrontZ -= Art.GlassSpacing
+				layGlassPane(p, anchor, glassFrontZ)
+			end
+		end
+		for _, a in ipairs(glassArches) do
+			if a.z > anchor.Z + BACK_MARGIN then
+				glassArchFrontZ -= Art.GlassArchSpacing
+				layTunnelHoop(a, anchor, glassArchFrontZ)
+			end
 		end
 	end
-	for _, a in ipairs(glassArches) do
-		if a.z > anchor.Z + BACK_MARGIN then
-			glassArchFrontZ -= Art.GlassArchSpacing
-			layTunnelHoop(a, anchor, glassArchFrontZ)
+
+	parkGlass = function()
+		for _, p in ipairs(glassPanes) do
+			parkPart(p.pane)
+			parkPart(p.shaft)
 		end
+		for _, a in ipairs(glassArches) do
+			for _, s in ipairs(a.segs) do
+				parkPart(s)
+			end
+		end
+		glassSeeded = false
 	end
 end
 
@@ -1325,114 +1339,161 @@ end
 -- band. Planes are lone wedges on launcher-style timers: launch at a
 -- lateral edge, glide across, park and re-time when they clear.
 
-local function makeCrane(parent: Instance): PaperCrane
-	local body = makePeakPart(parent, false)
-	body.Shape = Enum.PartType.Wedge
-	body.Size = Vector3.new(1.4, 1.8, 4.5)
-	body.Color = PAPER_STOCK
-	local wingL = makePeakPart(parent, false)
-	wingL.Size = Vector3.new(4.2, 0.15, 2.4)
-	wingL.Color = PAPER_CLAY
-	local wingR = makePeakPart(parent, false)
-	wingR.Size = Vector3.new(4.2, 0.15, 2.4)
-	wingR.Color = PAPER_CLAY
-	local neck = makePeakPart(parent, false)
-	neck.Size = Vector3.new(0.5, 0.5, 2.2)
-	neck.Color = PAPER_STOCK
-	return { body = body, wingL = wingL, wingR = wingR, neck = neck, x = 0, y = 0, z = 0, phase = 0 }
-end
+local stepPaper: (Vector3, number, number) -> ()
+local parkPaper: () -> ()
+local makeCrane: (Instance) -> PaperCrane
+local layCrane: (PaperCrane, Vector3, number) -> ()
+local poseCrane: (PaperCrane, number) -> ()
+local layPaperIslet: (PaperIslet, Vector3, number) -> ()
+local paperClock = os.clock()
+do
+	local paperCranes: { PaperCrane } = {}
+	local paperIslets: { PaperIslet } = {}
+	local paperPlanes: { PaperPlane } = {}
+	local paperFrontZ = 0
+	local paperIsleFrontZ = 0
+	local paperSeeded = false
+	local PAPER_STOCK = Color3.fromRGB(255, 244, 228)
+	local PAPER_CLAY = Color3.fromRGB(255, 150, 120)
+	local PAPER_MINT = Color3.fromRGB(205, 230, 200)
+	local PAPER_SKY = Color3.fromRGB(190, 215, 230)
 
-local function layCrane(c: PaperCrane, anchor: Vector3, z: number)
-	c.z = z
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	c.x = anchor.X + side * rng:NextNumber(Art.PaperMinX, Art.PaperMaxX)
-	c.y = deckEst(anchor, z) + rng:NextNumber(Art.PaperAltMin, Art.PaperAltMax)
-	c.phase = rng:NextNumber(0, math.pi * 2)
-end
-
--- Per-frame crane pose: bob + wing flap only — 4 CFrame writes.
-local function poseCrane(c: PaperCrane, clock: number)
-	local base = CFrame.new(c.x, c.y + math.sin(clock * Art.PaperBobSpeed + c.phase) * Art.PaperBobAmp, c.z)
-	local flap = math.sin(clock * 2.6 + c.phase) * Art.PaperFlapAmp
-	c.body.CFrame = base
-	c.wingL.CFrame = base * CFrame.new(-2.1, 0.7, 0) * CFrame.Angles(0, 0, 0.45 + flap)
-	c.wingR.CFrame = base * CFrame.new(2.1, 0.7, 0) * CFrame.Angles(0, 0, -0.45 - flap)
-	c.neck.CFrame = base * CFrame.new(0, 0.9, -2.2) * CFrame.Angles(0.6, 0, 0)
-end
-
-local function layPaperIslet(p: PaperIslet, anchor: Vector3, z: number)
-	p.z = z
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	local x = anchor.X + side * rng:NextNumber(Art.PaperMinX, Art.PaperMaxX)
-	local r = rng:NextNumber(Art.PaperIsletMinR, Art.PaperIsletMaxR)
-	local y = deckEst(anchor, z) - Art.PaperIsletDrop - r * 0.3
-	p.wedge.Shape = Enum.PartType.Wedge
-	p.wedge.Size = Vector3.new(r * 2, r * 0.8, r * 1.6)
-	p.wedge.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0)
-	p.wedge.Color = if rng:NextNumber() < 0.5 then PAPER_MINT else PAPER_SKY
-	p.cap.Size = Vector3.new(r * 1.2, 0.4, r)
-	p.cap.Position = Vector3.new(x, y + r * 0.4, z)
-	p.cap.Color = PAPER_STOCK
-end
-
-local function layPaperPlane(p: PaperPlane, anchor: Vector3)
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	local y = deckEst(anchor, anchor.Z - 300) + rng:NextNumber(Art.PaperAltMin, Art.PaperAltMax + 30)
-	p.part.Shape = Enum.PartType.Wedge
-	p.part.Size = Vector3.new(5, 0.4, 4)
-	p.part.Color = PAPER_STOCK
-	p.part.CFrame = CFrame.new(anchor.X + side * Art.PaperPlaneSpan, y, anchor.Z - rng:NextNumber(100, 400))
-		* CFrame.Angles(0, if side < 0 then math.pi / 2 else -math.pi / 2, 0)
-	p.vel = Vector3.new(-side * Art.PaperPlaneSpeed, -1.5, -12)
-	p.flying = true
-end
-
-local function ensurePaper()
-	if #paperCranes > 0 then
-		return
+	makeCrane = function(parent: Instance): PaperCrane
+		local body = makePeakPart(parent, false)
+		body.Shape = Enum.PartType.Wedge
+		body.Size = Vector3.new(1.4, 1.8, 4.5)
+		body.Color = PAPER_STOCK
+		local wingL = makePeakPart(parent, false)
+		wingL.Size = Vector3.new(4.2, 0.15, 2.4)
+		wingL.Color = PAPER_CLAY
+		local wingR = makePeakPart(parent, false)
+		wingR.Size = Vector3.new(4.2, 0.15, 2.4)
+		wingR.Color = PAPER_CLAY
+		local neck = makePeakPart(parent, false)
+		neck.Size = Vector3.new(0.5, 0.5, 2.2)
+		neck.Color = PAPER_STOCK
+		return { body = body, wingL = wingL, wingR = wingR, neck = neck, x = 0, y = 0, z = 0, phase = 0 }
 	end
-	for _ = 1, Art.PaperCranes do
-		table.insert(paperCranes, makeCrane(root))
-	end
-	for _ = 1, Art.PaperIslets do
-		table.insert(paperIslets, { wedge = makePeakPart(root, false), cap = makePeakPart(root, false), z = math.huge })
-	end
-	for _ = 1, Art.PaperPlanes do
-		table.insert(paperPlanes, { part = makePeakPart(root, false), vel = Vector3.zero, nextAt = 0, flying = false })
-	end
-end
 
-local function stepPaper(anchor: Vector3, dt: number, now: number)
-	local clock = now
-	if not paperSeeded then
-		paperFrontZ = anchor.Z + BACK_MARGIN
-		paperIsleFrontZ = anchor.Z + BACK_MARGIN
-		paperSeeded = true
+	layCrane = function(c: PaperCrane, anchor: Vector3, z: number)
+		c.z = z
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		c.x = anchor.X + side * rng:NextNumber(Art.PaperMinX, Art.PaperMaxX)
+		c.y = deckEst(anchor, z) + rng:NextNumber(Art.PaperAltMin, Art.PaperAltMax)
+		c.phase = rng:NextNumber(0, math.pi * 2)
 	end
-	for _, c in ipairs(paperCranes) do
-		if c.z > anchor.Z + BACK_MARGIN or c.z == 0 then
-			paperFrontZ -= Art.PaperSpacing
-			layCrane(c, anchor, paperFrontZ)
+
+	-- Per-frame crane pose: bob + wing flap only — 4 CFrame writes.
+	poseCrane = function(c: PaperCrane, clock: number)
+		local base = CFrame.new(c.x, c.y + math.sin(clock * Art.PaperBobSpeed + c.phase) * Art.PaperBobAmp, c.z)
+		local flap = math.sin(clock * 2.6 + c.phase) * Art.PaperFlapAmp
+		c.body.CFrame = base
+		c.wingL.CFrame = base * CFrame.new(-2.1, 0.7, 0) * CFrame.Angles(0, 0, 0.45 + flap)
+		c.wingR.CFrame = base * CFrame.new(2.1, 0.7, 0) * CFrame.Angles(0, 0, -0.45 - flap)
+		c.neck.CFrame = base * CFrame.new(0, 0.9, -2.2) * CFrame.Angles(0.6, 0, 0)
+	end
+
+	layPaperIslet = function(p: PaperIslet, anchor: Vector3, z: number)
+		p.z = z
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local x = anchor.X + side * rng:NextNumber(Art.PaperMinX, Art.PaperMaxX)
+		local r = rng:NextNumber(Art.PaperIsletMinR, Art.PaperIsletMaxR)
+		local y = deckEst(anchor, z) - Art.PaperIsletDrop - r * 0.3
+		p.wedge.Shape = Enum.PartType.Wedge
+		p.wedge.Size = Vector3.new(r * 2, r * 0.8, r * 1.6)
+		p.wedge.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0)
+		p.wedge.Color = if rng:NextNumber() < 0.5 then PAPER_MINT else PAPER_SKY
+		p.cap.Size = Vector3.new(r * 1.2, 0.4, r)
+		p.cap.Position = Vector3.new(x, y + r * 0.4, z)
+		p.cap.Color = PAPER_STOCK
+	end
+
+	local function layPaperPlane(p: PaperPlane, anchor: Vector3)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local y = deckEst(anchor, anchor.Z - 300) + rng:NextNumber(Art.PaperAltMin, Art.PaperAltMax + 30)
+		p.part.Shape = Enum.PartType.Wedge
+		p.part.Size = Vector3.new(5, 0.4, 4)
+		p.part.Color = PAPER_STOCK
+		p.part.CFrame = CFrame.new(anchor.X + side * Art.PaperPlaneSpan, y, anchor.Z - rng:NextNumber(100, 400))
+			* CFrame.Angles(0, if side < 0 then math.pi / 2 else -math.pi / 2, 0)
+		p.vel = Vector3.new(-side * Art.PaperPlaneSpeed, -1.5, -12)
+		p.flying = true
+	end
+
+	local function ensurePaper()
+		if #paperCranes > 0 then
+			return
 		end
-		poseCrane(c, clock)
-	end
-	for _, p in ipairs(paperIslets) do
-		if p.z > anchor.Z + BACK_MARGIN then
-			paperIsleFrontZ -= Art.PaperSpacing * 2
-			layPaperIslet(p, anchor, paperIsleFrontZ)
+		for _ = 1, Art.PaperCranes do
+			table.insert(paperCranes, makeCrane(root))
+		end
+		for _ = 1, Art.PaperIslets do
+			table.insert(
+				paperIslets,
+				{ wedge = makePeakPart(root, false), cap = makePeakPart(root, false), z = math.huge }
+			)
+		end
+		for _ = 1, Art.PaperPlanes do
+			table.insert(
+				paperPlanes,
+				{ part = makePeakPart(root, false), vel = Vector3.zero, nextAt = 0, flying = false }
+			)
 		end
 	end
-	for _, p in ipairs(paperPlanes) do
-		if p.flying then
-			p.part.Position += p.vel * dt
-			if math.abs(p.part.Position.X - anchor.X) > Art.PaperPlaneSpan + 20 then
-				p.flying = false
-				p.nextAt = now + rng:NextNumber(Art.PaperPlaneEveryMin, Art.PaperPlaneEveryMax)
-				parkPart(p.part)
+
+	stepPaper = function(anchor: Vector3, dt: number, now: number)
+		ensurePaper()
+		local clock = now
+		if not paperSeeded then
+			paperFrontZ = anchor.Z + BACK_MARGIN
+			paperIsleFrontZ = anchor.Z + BACK_MARGIN
+			paperSeeded = true
+		end
+		for _, c in ipairs(paperCranes) do
+			if c.z > anchor.Z + BACK_MARGIN or c.z == 0 then
+				paperFrontZ -= Art.PaperSpacing
+				layCrane(c, anchor, paperFrontZ)
 			end
-		elseif now >= p.nextAt then
-			layPaperPlane(p, anchor)
+			poseCrane(c, clock)
 		end
+		for _, p in ipairs(paperIslets) do
+			if p.z > anchor.Z + BACK_MARGIN then
+				paperIsleFrontZ -= Art.PaperSpacing * 2
+				layPaperIslet(p, anchor, paperIsleFrontZ)
+			end
+		end
+		for _, p in ipairs(paperPlanes) do
+			if p.flying then
+				p.part.Position += p.vel * dt
+				if math.abs(p.part.Position.X - anchor.X) > Art.PaperPlaneSpan + 20 then
+					p.flying = false
+					p.nextAt = now + rng:NextNumber(Art.PaperPlaneEveryMin, Art.PaperPlaneEveryMax)
+					parkPart(p.part)
+				end
+			elseif now >= p.nextAt then
+				layPaperPlane(p, anchor)
+			end
+		end
+	end
+
+	parkPaper = function()
+		for _, c in ipairs(paperCranes) do
+			parkPart(c.body)
+			parkPart(c.wingL)
+			parkPart(c.wingR)
+			parkPart(c.neck)
+			c.z = 0 -- marks un-laid so the first step re-seeds position
+		end
+		for _, p in ipairs(paperIslets) do
+			parkPart(p.wedge)
+			parkPart(p.cap)
+		end
+		for _, p in ipairs(paperPlanes) do
+			p.flying = false
+			p.nextAt = 0
+			parkPart(p.part)
+		end
+		paperSeeded = false
 	end
 end
 
@@ -1443,94 +1504,126 @@ end
 -- runs each chain as a hue-less brightness wave; motes rise off the
 -- deck and re-seed ahead.
 
-local function ensureSlime()
-	if #slimeNodes > 0 then
-		return
-	end
-	for side = -1, 1, 2 do
-		for i = 1, Art.SlimeNodes do
-			table.insert(slimeNodes, { bead = makePeakPart(root, true), side = side, idx = i, z = math.huge })
-		end
-		for i = 1, Art.SlimeNodes - 1 do
-			table.insert(slimeLinks, { part = makePeakPart(root, true), side = side, idx = i })
-		end
-	end
-	for _ = 1, Art.SlimeMotes do
-		table.insert(slimeMotes, { part = makePeakPart(root, true), baseY = 0 })
-	end
-end
+local stepSlime: (Vector3, number) -> ()
+local parkSlime: () -> ()
+local laySlimeNode: (SlimeNode, Vector3, number) -> ()
+local laySlimeMote: ({ part: Part, baseY: number }, Vector3) -> ()
+local SLIME_HI: Color3
+local slimeClock = os.clock()
+do
+	local slimeNodes: { SlimeNode } = {}
+	local slimeLinks: { SlimeLink } = {}
+	local slimeMotes: { { part: Part, baseY: number } } = {}
+	local slimeFrontZ = 0
+	local slimeSeeded = false
+	local SLIME_DARK = Color3.fromRGB(40, 60, 30) -- node base
+	SLIME_HI = Color3.fromRGB(255, 190, 60) -- pulse crest (honey)
+	local SLIME_LINK = Color3.fromRGB(90, 160, 70) -- tendril moss
 
-local function laySlimeNode(n: SlimeNode, anchor: Vector3, z: number)
-	n.z = z
-	n.bead.Shape = Enum.PartType.Ball
-	n.bead.Size = Vector3.one * 1.6
-	n.bead.Position = Vector3.new(anchor.X + n.side * Art.SlimeVergeX, deckEst(anchor, z) + 1.5, z)
-end
-
-local function laySlimeMote(m: { part: Part, baseY: number }, anchor: Vector3)
-	local z = anchor.Z - rng:NextNumber(0, 600)
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	m.baseY = deckEst(anchor, z)
-	m.part.Shape = Enum.PartType.Ball
-	m.part.Size = Vector3.one * rng:NextNumber(0.4, 0.9)
-	m.part.Color = if rng:NextNumber() < 0.5 then SLIME_HI else SLIME_LINK
-	m.part.Position = Vector3.new(
-		anchor.X + side * rng:NextNumber(Art.SlimeMoteMinX, Art.SlimeMoteMaxX),
-		m.baseY + rng:NextNumber(2, 10),
-		z
-	)
-end
-
-local function stepSlime(anchor: Vector3, dt: number)
-	local clock = os.clock()
-	if not slimeSeeded then
-		slimeFrontZ = anchor.Z + BACK_MARGIN
-		slimeSeeded = true
-	end
-	for _, n in ipairs(slimeNodes) do
-		if n.z > anchor.Z + BACK_MARGIN then
-			slimeFrontZ -= Art.SlimeSpacing
-			laySlimeNode(n, anchor, slimeFrontZ)
+	local function ensureSlime()
+		if #slimeNodes > 0 then
+			return
 		end
-		-- The chain pulse: brightness walks front-to-back per side.
-		local pulse = 0.5 + 0.5 * math.sin(clock * Art.SlimePulseSpeed - n.idx * 0.7 + n.side * 0.9)
-		n.bead.Color = SLIME_DARK:Lerp(SLIME_HI, pulse)
-	end
-	-- Links bridge consecutive beads on the same side; node z's stay
-	-- spaced so the link just spans its pair, tilting with the grade.
-	for _, l in ipairs(slimeLinks) do
-		local z1, z2 = 0, 0
-		local hit = 0
-		for _, n in ipairs(slimeNodes) do
-			if n.side == l.side and (n.idx == l.idx or n.idx == l.idx + 1) then
-				if n.idx == l.idx then
-					z1 = n.z
-				else
-					z2 = n.z
-				end
-				hit += 1
-				if hit == 2 then
-					break
-				end
+		for side = -1, 1, 2 do
+			for i = 1, Art.SlimeNodes do
+				table.insert(slimeNodes, { bead = makePeakPart(root, true), side = side, idx = i, z = math.huge })
+			end
+			for i = 1, Art.SlimeNodes - 1 do
+				table.insert(slimeLinks, { part = makePeakPart(root, true), side = side, idx = i })
 			end
 		end
-		if z1 == math.huge or z2 == math.huge then
-			continue
+		for _ = 1, Art.SlimeMotes do
+			table.insert(slimeMotes, { part = makePeakPart(root, true), baseY = 0 })
 		end
-		local a = Vector3.new(anchor.X + l.side * Art.SlimeVergeX, deckEst(anchor, z1) + 1.5, z1)
-		local b = Vector3.new(anchor.X + l.side * Art.SlimeVergeX, deckEst(anchor, z2) + 1.5, z2)
-		local len = (b - a).Magnitude
-		l.part.Size = Vector3.new(0.35, 0.35, len)
-		l.part.CFrame = CFrame.lookAt((a + b) / 2, b)
-		l.part.Color = SLIME_LINK
 	end
-	for _, m in ipairs(slimeMotes) do
-		local pos = m.part.Position
-		if pos == PARK.Position or pos.Y > m.baseY + Art.SlimeMoteSpan or pos.Z > anchor.Z + BACK_MARGIN then
-			laySlimeMote(m, anchor)
-		else
-			m.part.Position = pos + Vector3.new(0, Art.SlimeMoteRise * dt, 0)
+
+	laySlimeNode = function(n: SlimeNode, anchor: Vector3, z: number)
+		n.z = z
+		n.bead.Shape = Enum.PartType.Ball
+		n.bead.Size = Vector3.one * 1.6
+		n.bead.Position = Vector3.new(anchor.X + n.side * Art.SlimeVergeX, deckEst(anchor, z) + 1.5, z)
+	end
+
+	laySlimeMote = function(m: { part: Part, baseY: number }, anchor: Vector3)
+		local z = anchor.Z - rng:NextNumber(0, 600)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		m.baseY = deckEst(anchor, z)
+		m.part.Shape = Enum.PartType.Ball
+		m.part.Size = Vector3.one * rng:NextNumber(0.4, 0.9)
+		m.part.Color = if rng:NextNumber() < 0.5 then SLIME_HI else SLIME_LINK
+		m.part.Position = Vector3.new(
+			anchor.X + side * rng:NextNumber(Art.SlimeMoteMinX, Art.SlimeMoteMaxX),
+			m.baseY + rng:NextNumber(2, 10),
+			z
+		)
+	end
+
+	stepSlime = function(anchor: Vector3, dt: number)
+		ensureSlime()
+		local clock = os.clock()
+		if not slimeSeeded then
+			slimeFrontZ = anchor.Z + BACK_MARGIN
+			slimeSeeded = true
 		end
+		for _, n in ipairs(slimeNodes) do
+			if n.z > anchor.Z + BACK_MARGIN then
+				slimeFrontZ -= Art.SlimeSpacing
+				laySlimeNode(n, anchor, slimeFrontZ)
+			end
+			-- The chain pulse: brightness walks front-to-back per side.
+			local pulse = 0.5 + 0.5 * math.sin(clock * Art.SlimePulseSpeed - n.idx * 0.7 + n.side * 0.9)
+			n.bead.Color = SLIME_DARK:Lerp(SLIME_HI, pulse)
+		end
+		-- Links bridge consecutive beads on the same side; node z's stay
+		-- spaced so the link just spans its pair, tilting with the grade.
+		for _, l in ipairs(slimeLinks) do
+			local z1, z2 = 0, 0
+			local hit = 0
+			for _, n in ipairs(slimeNodes) do
+				if n.side == l.side and (n.idx == l.idx or n.idx == l.idx + 1) then
+					if n.idx == l.idx then
+						z1 = n.z
+					else
+						z2 = n.z
+					end
+					hit += 1
+					if hit == 2 then
+						break
+					end
+				end
+			end
+			if z1 == math.huge or z2 == math.huge then
+				continue
+			end
+			local a = Vector3.new(anchor.X + l.side * Art.SlimeVergeX, deckEst(anchor, z1) + 1.5, z1)
+			local b = Vector3.new(anchor.X + l.side * Art.SlimeVergeX, deckEst(anchor, z2) + 1.5, z2)
+			local len = (b - a).Magnitude
+			l.part.Size = Vector3.new(0.35, 0.35, len)
+			l.part.CFrame = CFrame.lookAt((a + b) / 2, b)
+			l.part.Color = SLIME_LINK
+		end
+		for _, m in ipairs(slimeMotes) do
+			local pos = m.part.Position
+			if pos == PARK.Position or pos.Y > m.baseY + Art.SlimeMoteSpan or pos.Z > anchor.Z + BACK_MARGIN then
+				laySlimeMote(m, anchor)
+			else
+				m.part.Position = pos + Vector3.new(0, Art.SlimeMoteRise * dt, 0)
+			end
+		end
+	end
+
+	parkSlime = function()
+		for _, n in ipairs(slimeNodes) do
+			parkPart(n.bead)
+			n.z = math.huge
+		end
+		for _, l in ipairs(slimeLinks) do
+			parkPart(l.part)
+		end
+		for _, m in ipairs(slimeMotes) do
+			parkPart(m.part)
+		end
+		slimeSeeded = false
 	end
 end
 
@@ -1540,64 +1633,91 @@ end
 -- out, then re-seed at a fresh spot ahead. Drop columns are the same
 -- falling-bar contract as the matrix rain, darker and slower.
 
-local function layInkBloom(b: InkBloom, anchor: Vector3)
-	local z = anchor.Z - rng:NextNumber(60, 700)
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	b.x = anchor.X + side * rng:NextNumber(Art.InkMinX, Art.InkMaxX)
-	b.y = deckEst(anchor, z) + rng:NextNumber(Art.InkAltMin, Art.InkAltMax)
-	b.z = z
-	b.age = 0
-	b.life = rng:NextNumber(Art.InkBloomLifeMin, Art.InkBloomLifeMax)
-	b.r0 = rng:NextNumber(Art.InkBloomRMin, Art.InkBloomRMin * 2)
-	b.part.Shape = Enum.PartType.Ball
-	b.part.Color = INK_DEEP
-end
+local stepInk: (Vector3, number) -> ()
+local parkInk: () -> ()
+local layInkBloom: (InkBloom, Vector3) -> ()
+local layInkDrop: ({ part: Part, len: number, speed: number }, Vector3) -> ()
+local inkClock = os.clock()
+do
+	local inkBlooms: { InkBloom } = {}
+	local inkDrops: { { part: Part, len: number, speed: number } } = {}
+	local INK_DEEP = Color3.fromRGB(70, 80, 200)
+	local INK_DROP = Color3.fromRGB(20, 24, 60)
 
-local function layInkDrop(d: { part: Part, len: number, speed: number }, anchor: Vector3)
-	local z = anchor.Z - rng:NextNumber(0, 800)
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	d.len = rng:NextNumber(Art.InkDropLenMin, Art.InkDropLenMax)
-	d.speed = rng:NextNumber(Art.InkDropSpeedMin, Art.InkDropSpeedMax)
-	d.part.Size = Vector3.new(0.9, d.len, 0.9)
-	d.part.Color = INK_DROP
-	d.part.Position = Vector3.new(
-		anchor.X + side * rng:NextNumber(Art.InkDropMinX, Art.InkDropMaxX),
-		deckEst(anchor, z) + Art.InkDropTop + rng:NextNumber(0, 80),
-		z
-	)
-end
+	layInkBloom = function(b: InkBloom, anchor: Vector3)
+		local z = anchor.Z - rng:NextNumber(60, 700)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		b.x = anchor.X + side * rng:NextNumber(Art.InkMinX, Art.InkMaxX)
+		b.y = deckEst(anchor, z) + rng:NextNumber(Art.InkAltMin, Art.InkAltMax)
+		b.z = z
+		b.age = 0
+		b.life = rng:NextNumber(Art.InkBloomLifeMin, Art.InkBloomLifeMax)
+		b.r0 = rng:NextNumber(Art.InkBloomRMin, Art.InkBloomRMin * 2)
+		b.part.Shape = Enum.PartType.Ball
+		b.part.Color = INK_DEEP
+	end
 
-local function ensureInk()
-	if #inkBlooms > 0 then
-		return
+	layInkDrop = function(d: { part: Part, len: number, speed: number }, anchor: Vector3)
+		local z = anchor.Z - rng:NextNumber(0, 800)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		d.len = rng:NextNumber(Art.InkDropLenMin, Art.InkDropLenMax)
+		d.speed = rng:NextNumber(Art.InkDropSpeedMin, Art.InkDropSpeedMax)
+		d.part.Size = Vector3.new(0.9, d.len, 0.9)
+		d.part.Color = INK_DROP
+		d.part.Position = Vector3.new(
+			anchor.X + side * rng:NextNumber(Art.InkDropMinX, Art.InkDropMaxX),
+			deckEst(anchor, z) + Art.InkDropTop + rng:NextNumber(0, 80),
+			z
+		)
 	end
-	for _ = 1, Art.InkBlooms do
-		table.insert(inkBlooms, { part = makePeakPart(root, false), age = 0, life = 0, x = 0, y = 0, z = 0, r0 = 0 })
-	end
-	for _ = 1, Art.InkDrops do
-		table.insert(inkDrops, { part = makePeakPart(root, false), len = 0, speed = 0 })
-	end
-end
 
-local function stepInk(anchor: Vector3, dt: number)
-	for _, b in ipairs(inkBlooms) do
-		b.age += dt
-		if b.age >= b.life or b.z > anchor.Z + BACK_MARGIN then
-			layInkBloom(b, anchor)
+	local function ensureInk()
+		if #inkBlooms > 0 then
+			return
 		end
-		local t = b.age / b.life
-		local r = b.r0 + (Art.InkBloomRMax - b.r0) * t
-		b.part.Size = Vector3.one * r * 2
-		b.part.Transparency = 0.3 + 0.65 * t -- thins as it spreads
-		b.part.Position = Vector3.new(b.x, b.y, b.z)
+		for _ = 1, Art.InkBlooms do
+			table.insert(
+				inkBlooms,
+				{ part = makePeakPart(root, false), age = 0, life = 0, x = 0, y = 0, z = 0, r0 = 0 }
+			)
+		end
+		for _ = 1, Art.InkDrops do
+			table.insert(inkDrops, { part = makePeakPart(root, false), len = 0, speed = 0 })
+		end
 	end
-	for _, d in ipairs(inkDrops) do
-		local pos = d.part.Position
-		local deckY = deckEst(anchor, pos.Z)
-		if pos.Y < deckY - Art.InkDropKill or pos.Z > anchor.Z + BACK_MARGIN or d.len == 0 then
-			layInkDrop(d, anchor)
-		else
-			d.part.Position = Vector3.new(pos.X, pos.Y - d.speed * dt, pos.Z)
+
+	stepInk = function(anchor: Vector3, dt: number)
+		ensureInk()
+		for _, b in ipairs(inkBlooms) do
+			b.age += dt
+			if b.age >= b.life or b.z > anchor.Z + BACK_MARGIN then
+				layInkBloom(b, anchor)
+			end
+			local t = b.age / b.life
+			local r = b.r0 + (Art.InkBloomRMax - b.r0) * t
+			b.part.Size = Vector3.one * r * 2
+			b.part.Transparency = 0.3 + 0.65 * t -- thins as it spreads
+			b.part.Position = Vector3.new(b.x, b.y, b.z)
+		end
+		for _, d in ipairs(inkDrops) do
+			local pos = d.part.Position
+			local deckY = deckEst(anchor, pos.Z)
+			if pos.Y < deckY - Art.InkDropKill or pos.Z > anchor.Z + BACK_MARGIN or d.len == 0 then
+				layInkDrop(d, anchor)
+			else
+				d.part.Position = Vector3.new(pos.X, pos.Y - d.speed * dt, pos.Z)
+			end
+		end
+	end
+
+	parkInk = function()
+		for _, b in ipairs(inkBlooms) do
+			parkPart(b.part)
+			b.age = b.life -- forces a fresh lay on next activation
+		end
+		for _, d in ipairs(inkDrops) do
+			parkPart(d.part)
+			d.len = 0
 		end
 	end
 end
@@ -1609,49 +1729,72 @@ end
 -- with r. The live share ramps with measured run speed (anchor z-delta
 -- per frame), so the tunnel thickens as the run speeds up.
 
-local function seedWarpStreak(s: WarpStreak)
-	local a = rng:NextNumber(0, math.pi * 2)
-	s.dir = Vector3.new(math.cos(a), math.sin(a), rng:NextNumber(-0.1, 0.1)).Unit
-	s.r = Art.WarpRMin + rng:NextNumber(0, 30)
-	s.part.Color = WARP_COLS[rng:NextInteger(1, #WARP_COLS)]
-end
+local stepWarp: (Vector3, number) -> ()
+local parkWarp: () -> ()
+local seedWarpStreak: (WarpStreak) -> ()
+local warpClock = os.clock()
+do
+	local warpStreaks: { WarpStreak } = {}
+	local warpPrevZ = 0
+	local WARP_COLS = {
+		Color3.fromRGB(245, 248, 255),
+		Color3.fromRGB(160, 240, 255),
+		Color3.fromRGB(120, 200, 255),
+	}
 
-local function ensureWarp()
-	if #warpStreaks > 0 then
-		return
+	seedWarpStreak = function(s: WarpStreak)
+		local a = rng:NextNumber(0, math.pi * 2)
+		s.dir = Vector3.new(math.cos(a), math.sin(a), rng:NextNumber(-0.1, 0.1)).Unit
+		s.r = Art.WarpRMin + rng:NextNumber(0, 30)
+		s.part.Color = WARP_COLS[rng:NextInteger(1, #WARP_COLS)]
 	end
-	for _ = 1, Art.WarpStreaks do
-		local s: WarpStreak = { part = makePeakPart(root, true), dir = Vector3.zero, r = 0, live = false }
-		seedWarpStreak(s)
-		s.r = rng:NextNumber(Art.WarpRMin, Art.WarpRMax) -- scatter the field
-		table.insert(warpStreaks, s)
-	end
-end
 
-local function stepWarp(anchor: Vector3, dt: number)
-	local axis =
-		Vector3.new(anchor.X, deckEst(anchor, anchor.Z - Art.WarpAxisZ) + Art.WarpAxisY, anchor.Z - Art.WarpAxisZ)
-	-- Run speed from the anchor's own motion — no replicated tier needed.
-	local speed = warpPrevZ ~= 0 and math.max(0, (warpPrevZ - anchor.Z) / math.max(dt, 1e-4)) or 0
-	warpPrevZ = anchor.Z
-	local live = math.ceil(Art.WarpStreaks * math.clamp(Art.WarpIdleShare + speed / 600, 0, 1))
-	for i, s in ipairs(warpStreaks) do
-		if i > live then
-			if s.live then
-				s.live = false
-				parkPart(s.part)
-			end
-			continue
+	local function ensureWarp()
+		if #warpStreaks > 0 then
+			return
 		end
-		s.live = true
-		s.r += Art.WarpSpeed * dt * (0.6 + speed / 600) -- faster streaks at speed
-		if s.r > Art.WarpRMax then
+		for _ = 1, Art.WarpStreaks do
+			local s: WarpStreak = { part = makePeakPart(root, true), dir = Vector3.zero, r = 0, live = false }
 			seedWarpStreak(s)
+			s.r = rng:NextNumber(Art.WarpRMin, Art.WarpRMax) -- scatter the field
+			table.insert(warpStreaks, s)
 		end
-		local len = Art.WarpLenMin + (Art.WarpLenMax - Art.WarpLenMin) * (s.r / Art.WarpRMax)
-		local pos = axis + s.dir * s.r
-		s.part.Size = Vector3.new(0.5, 0.5, len)
-		s.part.CFrame = CFrame.lookAt(pos + s.dir * (len / 2), pos + s.dir * len)
+	end
+
+	stepWarp = function(anchor: Vector3, dt: number)
+		ensureWarp()
+		local axis =
+			Vector3.new(anchor.X, deckEst(anchor, anchor.Z - Art.WarpAxisZ) + Art.WarpAxisY, anchor.Z - Art.WarpAxisZ)
+		-- Run speed from the anchor's own motion — no replicated tier needed.
+		local speed = warpPrevZ ~= 0 and math.max(0, (warpPrevZ - anchor.Z) / math.max(dt, 1e-4)) or 0
+		warpPrevZ = anchor.Z
+		local live = math.ceil(Art.WarpStreaks * math.clamp(Art.WarpIdleShare + speed / 600, 0, 1))
+		for i, s in ipairs(warpStreaks) do
+			if i > live then
+				if s.live then
+					s.live = false
+					parkPart(s.part)
+				end
+				continue
+			end
+			s.live = true
+			s.r += Art.WarpSpeed * dt * (0.6 + speed / 600) -- faster streaks at speed
+			if s.r > Art.WarpRMax then
+				seedWarpStreak(s)
+			end
+			local len = Art.WarpLenMin + (Art.WarpLenMax - Art.WarpLenMin) * (s.r / Art.WarpRMax)
+			local pos = axis + s.dir * s.r
+			s.part.Size = Vector3.new(0.5, 0.5, len)
+			s.part.CFrame = CFrame.lookAt(pos + s.dir * (len / 2), pos + s.dir * len)
+		end
+	end
+
+	parkWarp = function()
+		for _, s in ipairs(warpStreaks) do
+			s.live = false
+			parkPart(s.part)
+		end
+		warpPrevZ = 0
 	end
 end
 
@@ -1661,73 +1804,101 @@ end
 -- rim glint; flat mirror pools sit at deck level beside the lane and
 -- only re-lay on the frontier.
 
-local function layChromeMound(m: ChromeMound, anchor: Vector3, z: number)
-	m.z = z
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	m.x = anchor.X + side * rng:NextNumber(Art.ChromeMinX, Art.ChromeMaxX)
-	m.r = rng:NextNumber(Art.ChromeMoundMin, Art.ChromeMoundMax)
-	m.y = deckEst(anchor, z) - m.r * 0.55 -- crest rides just over the grade
-	m.phase = rng:NextNumber(0, math.pi * 2)
-	m.dome.Shape = Enum.PartType.Ball
-	m.dome.Material = Enum.Material.Metal
-	m.dome.Size = Vector3.new(m.r * 2.4, m.r * 1.1, m.r * 2.4)
-	m.dome.Color = CHROME_SKIN
-	m.glint.Shape = Enum.PartType.Ball
-	m.glint.Size = Vector3.one * 1.2
-	m.glint.Color = CHROME_GLOW
-end
+local stepChrome: (Vector3, number) -> ()
+local parkChrome: () -> ()
+local layChromeMound: (ChromeMound, Vector3, number) -> ()
+local layChromePool: ({ part: Part, z: number }, Vector3, number) -> ()
+do
+	local chromeMounds: { ChromeMound } = {}
+	local chromePools: { { part: Part, z: number } } = {}
+	local chromeFrontZ = 0
+	local chromeSeeded = false
+	local CHROME_SKIN = Color3.fromRGB(180, 195, 215)
+	local CHROME_GLOW = Color3.fromRGB(235, 240, 250)
+	local CHROME_POOL = Color3.fromRGB(150, 165, 190)
 
-local function layChromePool(p: { part: Part, z: number }, anchor: Vector3, z: number)
-	p.z = z
-	local side = if rng:NextNumber() < 0.5 then -1 else 1
-	local x = anchor.X + side * rng:NextNumber(Art.ChromeMinX * 0.6, Art.ChromeMaxX)
-	local r = rng:NextNumber(6, 14)
-	p.part.Shape = Enum.PartType.Ball
-	p.part.Material = Enum.Material.Metal
-	p.part.Size = Vector3.new(r * 2, 0.5, r * 2)
-	p.part.Position = Vector3.new(x, deckEst(anchor, z) + 0.4, z)
-	p.part.Color = CHROME_POOL
-end
+	layChromeMound = function(m: ChromeMound, anchor: Vector3, z: number)
+		m.z = z
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		m.x = anchor.X + side * rng:NextNumber(Art.ChromeMinX, Art.ChromeMaxX)
+		m.r = rng:NextNumber(Art.ChromeMoundMin, Art.ChromeMoundMax)
+		m.y = deckEst(anchor, z) - m.r * 0.55 -- crest rides just over the grade
+		m.phase = rng:NextNumber(0, math.pi * 2)
+		m.dome.Shape = Enum.PartType.Ball
+		m.dome.Material = Enum.Material.Metal
+		m.dome.Size = Vector3.new(m.r * 2.4, m.r * 1.1, m.r * 2.4)
+		m.dome.Color = CHROME_SKIN
+		m.glint.Shape = Enum.PartType.Ball
+		m.glint.Size = Vector3.one * 1.2
+		m.glint.Color = CHROME_GLOW
+	end
 
-local function ensureChrome()
-	if #chromeMounds > 0 then
-		return
+	layChromePool = function(p: { part: Part, z: number }, anchor: Vector3, z: number)
+		p.z = z
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local x = anchor.X + side * rng:NextNumber(Art.ChromeMinX * 0.6, Art.ChromeMaxX)
+		local r = rng:NextNumber(6, 14)
+		p.part.Shape = Enum.PartType.Ball
+		p.part.Material = Enum.Material.Metal
+		p.part.Size = Vector3.new(r * 2, 0.5, r * 2)
+		p.part.Position = Vector3.new(x, deckEst(anchor, z) + 0.4, z)
+		p.part.Color = CHROME_POOL
 	end
-	for _ = 1, Art.ChromeMounds do
-		table.insert(chromeMounds, {
-			dome = makePeakPart(root, false),
-			glint = makePeakPart(root, true),
-			x = 0,
-			y = 0,
-			z = math.huge,
-			r = 0,
-			phase = 0,
-		})
-	end
-	for _ = 1, Art.ChromePools do
-		table.insert(chromePools, { part = makePeakPart(root, false), z = math.huge })
-	end
-end
 
-local function stepChrome(anchor: Vector3, now: number)
-	if not chromeSeeded then
-		chromeFrontZ = anchor.Z + BACK_MARGIN
-		chromeSeeded = true
-	end
-	for _, m in ipairs(chromeMounds) do
-		if m.z > anchor.Z + BACK_MARGIN or m.z == math.huge then
-			chromeFrontZ -= Art.ChromeSpacing
-			layChromeMound(m, anchor, chromeFrontZ)
+	local function ensureChrome()
+		if #chromeMounds > 0 then
+			return
 		end
-		local heave = math.sin(now * Art.ChromeHeaveSpeed + m.phase) * Art.ChromeHeaveAmp
-		m.dome.Position = Vector3.new(m.x, m.y + heave, m.z)
-		m.glint.Position = Vector3.new(m.x + m.r * 0.5, m.y + m.r * 0.5 + heave, m.z)
-	end
-	for i, p in ipairs(chromePools) do
-		if p.z > anchor.Z + BACK_MARGIN or p.z == math.huge then
-			layChromePool(p, anchor, anchor.Z - rng:NextNumber(50, Art.ChromeSpacing * Art.ChromePools))
-			p.z = anchor.Z - (i * Art.ChromeSpacing + rng:NextNumber(0, 60))
+		for _ = 1, Art.ChromeMounds do
+			table.insert(chromeMounds, {
+				dome = makePeakPart(root, false),
+				glint = makePeakPart(root, true),
+				x = 0,
+				y = 0,
+				z = math.huge,
+				r = 0,
+				phase = 0,
+			})
 		end
+		for _ = 1, Art.ChromePools do
+			table.insert(chromePools, { part = makePeakPart(root, false), z = math.huge })
+		end
+	end
+
+	stepChrome = function(anchor: Vector3, now: number)
+		ensureChrome()
+		if not chromeSeeded then
+			chromeFrontZ = anchor.Z + BACK_MARGIN
+			chromeSeeded = true
+		end
+		for _, m in ipairs(chromeMounds) do
+			if m.z > anchor.Z + BACK_MARGIN or m.z == math.huge then
+				chromeFrontZ -= Art.ChromeSpacing
+				layChromeMound(m, anchor, chromeFrontZ)
+			end
+			local heave = math.sin(now * Art.ChromeHeaveSpeed + m.phase) * Art.ChromeHeaveAmp
+			m.dome.Position = Vector3.new(m.x, m.y + heave, m.z)
+			m.glint.Position = Vector3.new(m.x + m.r * 0.5, m.y + m.r * 0.5 + heave, m.z)
+		end
+		for i, p in ipairs(chromePools) do
+			if p.z > anchor.Z + BACK_MARGIN or p.z == math.huge then
+				layChromePool(p, anchor, anchor.Z - rng:NextNumber(50, Art.ChromeSpacing * Art.ChromePools))
+				p.z = anchor.Z - (i * Art.ChromeSpacing + rng:NextNumber(0, 60))
+			end
+		end
+	end
+
+	parkChrome = function()
+		for _, m in ipairs(chromeMounds) do
+			parkPart(m.dome)
+			parkPart(m.glint)
+			m.z = math.huge
+		end
+		for _, p in ipairs(chromePools) do
+			parkPart(p.part)
+			p.z = math.huge
+		end
+		chromeSeeded = false
 	end
 end
 
@@ -1738,38 +1909,61 @@ end
 -- wall-clock base angles. Every wedge re-poses each frame (48 writes),
 -- so the whole mandala turns as one body.
 
-local function ensureKaleido()
-	if #kaleidoSegs > 0 then
-		return
-	end
-	for ring = 1, 2 do
-		for slot = 1, Art.KaleidoSegs do
-			for sign = -1, 1, 2 do
-				local p = makePeakPart(root, true)
-				p.Shape = Enum.PartType.Wedge
-				table.insert(kaleidoSegs, { part = p, ring = ring, slot = slot, sign = sign })
+local stepKaleido: (Vector3, number) -> ()
+local parkKaleido: () -> ()
+local KALEIDO_COLS: { Color3 }
+local kaleidoClock = os.clock()
+do
+	local kaleidoSegs: { KaleidoSeg } = {}
+	local kaleidoBaseIn = 0
+	local kaleidoBaseOut = 0
+	KALEIDO_COLS = {
+		Color3.fromRGB(255, 64, 190),
+		Color3.fromRGB(0, 230, 255),
+		Color3.fromRGB(175, 80, 255),
+		Color3.fromRGB(255, 212, 64),
+	}
+
+	local function ensureKaleido()
+		if #kaleidoSegs > 0 then
+			return
+		end
+		for ring = 1, 2 do
+			for slot = 1, Art.KaleidoSegs do
+				for sign = -1, 1, 2 do
+					local p = makePeakPart(root, true)
+					p.Shape = Enum.PartType.Wedge
+					table.insert(kaleidoSegs, { part = p, ring = ring, slot = slot, sign = sign })
+				end
 			end
 		end
 	end
-end
 
-local function stepKaleido(anchor: Vector3, dt: number)
-	kaleidoBaseIn += Art.KaleidoRotIn * dt
-	kaleidoBaseOut += Art.KaleidoRotOut * dt
-	local center = Vector3.new(
-		anchor.X,
-		deckEst(anchor, anchor.Z - Art.KaleidoAxisZ) + Art.KaleidoAxisY,
-		anchor.Z - Art.KaleidoAxisZ
-	)
-	local step = math.pi * 2 / Art.KaleidoSegs
-	for _, s in ipairs(kaleidoSegs) do
-		local r = if s.ring == 1 then Art.KaleidoInnerR else Art.KaleidoOuterR
-		local base = if s.ring == 1 then kaleidoBaseIn else kaleidoBaseOut
-		local a = base + (s.slot - 1) * step * s.sign
-		local pos = center + Vector3.new(math.cos(a) * r, math.sin(a) * r, 0)
-		s.part.Size = Vector3.new(Art.KaleidoWedge, Art.KaleidoWedge * 0.6, Art.KaleidoWedge * 2.2)
-		s.part.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, a)
-		s.part.Color = KALEIDO_COLS[(s.slot - 1) % #KALEIDO_COLS + 1]
+	stepKaleido = function(anchor: Vector3, dt: number)
+		ensureKaleido()
+		kaleidoBaseIn += Art.KaleidoRotIn * dt
+		kaleidoBaseOut += Art.KaleidoRotOut * dt
+		local center = Vector3.new(
+			anchor.X,
+			deckEst(anchor, anchor.Z - Art.KaleidoAxisZ) + Art.KaleidoAxisY,
+			anchor.Z - Art.KaleidoAxisZ
+		)
+		local step = math.pi * 2 / Art.KaleidoSegs
+		for _, s in ipairs(kaleidoSegs) do
+			local r = if s.ring == 1 then Art.KaleidoInnerR else Art.KaleidoOuterR
+			local base = if s.ring == 1 then kaleidoBaseIn else kaleidoBaseOut
+			local a = base + (s.slot - 1) * step * s.sign
+			local pos = center + Vector3.new(math.cos(a) * r, math.sin(a) * r, 0)
+			s.part.Size = Vector3.new(Art.KaleidoWedge, Art.KaleidoWedge * 0.6, Art.KaleidoWedge * 2.2)
+			s.part.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, a)
+			s.part.Color = KALEIDO_COLS[(s.slot - 1) % #KALEIDO_COLS + 1]
+		end
+	end
+
+	parkKaleido = function()
+		for _, s in ipairs(kaleidoSegs) do
+			parkPart(s.part)
+		end
 	end
 end
 
@@ -2317,130 +2511,6 @@ local function parkMeteors()
 	meteorSeeded = false
 end
 
-local function parkMatrix()
-	for _, m in ipairs(matrixDrops) do
-		parkPart(m.tail)
-		if m.head then
-			parkPart(m.head)
-		end
-	end
-	matrixSeeded = false
-end
-
-local function parkFireworks()
-	for _, l in ipairs(fireLaunchers) do
-		parkPart(l.part)
-	end
-	local smoke = fireSmoke
-	if smoke then
-		smoke.emitter.Enabled = false -- parked emitters would still churn
-		parkPart(smoke.part)
-	end
-	for _, f in ipairs(festoons) do
-		for _, p in ipairs(f.poles) do
-			parkPart(p)
-		end
-		for _, p in ipairs(f.beads) do
-			parkPart(p)
-		end
-	end
-	fireSeeded = false
-end
-
-local function parkTunnel()
-	for _, h in ipairs(tunnelHoops) do
-		for _, s in ipairs(h.segs) do
-			parkPart(s)
-		end
-	end
-	tunnelSeeded = false
-end
-
-local function parkGlass()
-	for _, p in ipairs(glassPanes) do
-		parkPart(p.pane)
-		parkPart(p.shaft)
-	end
-	for _, a in ipairs(glassArches) do
-		for _, s in ipairs(a.segs) do
-			parkPart(s)
-		end
-	end
-	glassSeeded = false
-end
-
-local function parkPaper()
-	for _, c in ipairs(paperCranes) do
-		parkPart(c.body)
-		parkPart(c.wingL)
-		parkPart(c.wingR)
-		parkPart(c.neck)
-		c.z = 0 -- marks un-laid so the first step re-seeds position
-	end
-	for _, p in ipairs(paperIslets) do
-		parkPart(p.wedge)
-		parkPart(p.cap)
-	end
-	for _, p in ipairs(paperPlanes) do
-		p.flying = false
-		p.nextAt = 0
-		parkPart(p.part)
-	end
-	paperSeeded = false
-end
-
-local function parkSlime()
-	for _, n in ipairs(slimeNodes) do
-		parkPart(n.bead)
-		n.z = math.huge
-	end
-	for _, l in ipairs(slimeLinks) do
-		parkPart(l.part)
-	end
-	for _, m in ipairs(slimeMotes) do
-		parkPart(m.part)
-	end
-	slimeSeeded = false
-end
-
-local function parkInk()
-	for _, b in ipairs(inkBlooms) do
-		parkPart(b.part)
-		b.age = b.life -- forces a fresh lay on next activation
-	end
-	for _, d in ipairs(inkDrops) do
-		parkPart(d.part)
-		d.len = 0
-	end
-end
-
-local function parkWarp()
-	for _, s in ipairs(warpStreaks) do
-		s.live = false
-		parkPart(s.part)
-	end
-	warpPrevZ = 0
-end
-
-local function parkChrome()
-	for _, m in ipairs(chromeMounds) do
-		parkPart(m.dome)
-		parkPart(m.glint)
-		m.z = math.huge
-	end
-	for _, p in ipairs(chromePools) do
-		parkPart(p.part)
-		p.z = math.huge
-	end
-	chromeSeeded = false
-end
-
-local function parkKaleido()
-	for _, s in ipairs(kaleidoSegs) do
-		parkPart(s.part)
-	end
-end
-
 local function parkPalms()
 	for _, palm in ipairs(palms) do
 		parkPalm(palm)
@@ -2706,7 +2776,6 @@ function Backdrop.update(anchor: Vector3)
 	-- MAINFRAME (§18 "matrix"): code-rain falls on real velocities like
 	-- the meteors — same wall-clock dt, same clamp.
 	if theme == "matrix" then
-		ensureMatrix()
 		local now = os.clock()
 		local dt = math.clamp(now - matrixClock, 0, 0.12)
 		matrixClock = now
@@ -2717,21 +2786,18 @@ function Backdrop.update(anchor: Vector3)
 	-- FESTIVAL (§18 "fireworks"): shells on per-launcher timers, wisp +
 	-- festoons on the palm frontier cadence.
 	if theme == "fireworks" then
-		ensureFireworks()
 		stepFireworks(anchor, os.clock())
 		return
 	end
 
 	-- HYPNOTUBE (§18 "tunnel"): hoops on a fixed-spacing frontier.
 	if theme == "tunnel" then
-		ensureTunnel()
 		stepTunnel(anchor)
 		return
 	end
 
 	-- CATHEDRAL (§18 "glass"): panes + shafts + arch silhouettes.
 	if theme == "glass" then
-		ensureGlass()
 		stepGlass(anchor)
 		return
 	end
@@ -2739,7 +2805,6 @@ function Backdrop.update(anchor: Vector3)
 	-- PAPERCRAFT (§18 "paper"): cranes bob+flap, islets static, planes
 	-- on their own glide timers.
 	if theme == "paper" then
-		ensurePaper()
 		local now = os.clock()
 		local dt = math.clamp(now - paperClock, 0, 0.12)
 		paperClock = now
@@ -2749,7 +2814,6 @@ function Backdrop.update(anchor: Vector3)
 
 	-- MYCELIUM (§18 "slime"): verge chains, traveling pulse, motes.
 	if theme == "slime" then
-		ensureSlime()
 		local now = os.clock()
 		local dt = math.clamp(now - slimeClock, 0, 0.12)
 		slimeClock = now
@@ -2759,7 +2823,6 @@ function Backdrop.update(anchor: Vector3)
 
 	-- INKWELL (§18 "ink"): bloom lifecycles + falling columns.
 	if theme == "ink" then
-		ensureInk()
 		local now = os.clock()
 		local dt = math.clamp(now - inkClock, 0, 0.12)
 		inkClock = now
@@ -2769,7 +2832,6 @@ function Backdrop.update(anchor: Vector3)
 
 	-- HYPERDRIVE (§18 "warp"): radial streaks, speed-reactive share.
 	if theme == "warp" then
-		ensureWarp()
 		local now = os.clock()
 		local dt = math.clamp(now - warpClock, 0, 0.12)
 		warpClock = now
@@ -2779,14 +2841,12 @@ function Backdrop.update(anchor: Vector3)
 
 	-- MERCURY (§18 "chrome"): heaving mounds + static pools.
 	if theme == "chrome" then
-		ensureChrome()
 		stepChrome(anchor, os.clock())
 		return
 	end
 
 	-- KALEIDO (§18 "kaleido"): the counter-rotating wedge mandala.
 	if theme == "kaleido" then
-		ensureKaleido()
 		local now = os.clock()
 		local dt = math.clamp(now - kaleidoClock, 0, 0.12)
 		kaleidoClock = now
