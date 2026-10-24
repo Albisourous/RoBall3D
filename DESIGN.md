@@ -149,9 +149,9 @@ explainable.
   can be bought sideways at meter cost, and a dash can even carry a
   narrow cutout laterally — voids still kill (Y stays gravity's), so
   the skip is a gamble, not a cheat. The bar flashes white for the
-  burst window; an accepted press plays a downward pitch-swept zip plus
-  a light mix duck, a denied press a low blip that mirrors the flicker
-  (AUDIO.md §6). No chunk ever *requires* a dash — it only widens the
+  burst window; an accepted press carries no one-shot voice, a denied
+  press flickers the bar dim with a pad-rumble pulse (AUDIO.md §6). No
+  chunk ever *requires* a dash — it only widens the
   movement envelope, so every §8.1 solvability invariant still stands
   on steering alone.
   **Forgiveness snap** (`Dash.Snap*`): at fire time the burst's natural

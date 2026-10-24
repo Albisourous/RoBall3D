@@ -489,6 +489,8 @@ Config.Hoop = {
 	WhooshStartOct = 0.45, -- starts flattened…
 	WhooshEndOct = 1.3, -- …lifts through the thread — triumphant, not a zip
 	WhooshTime = 0.26, -- sweep seconds
+	AssetId = 88208694516408, -- reuses the uploaded rb3_gem_pickup bell
+	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
 }
 
 Config.Movers = {
@@ -923,27 +925,6 @@ Config.GemSfx = {
 	DuckRelease = 0.24,
 }
 
-Config.DashSfx = {
-	-- Q/E dash voice (SfxController, AUDIO.md §6): OFF-grid on purpose —
-	-- quantizing a panic input would cost the dodge. The same uploaded
-	-- bell plays through a PitchShiftSoundEffect swept down over the
-	-- burst: duration stays fixed, the read is a falling zip, not a chime.
-	AssetId = 88208694516408, -- reuses the uploaded rb3_gem_pickup bell
-	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.3,
-	StartOctave = 1.0, -- PitchShift octaves at press time
-	EndOctave = 0.55, -- swept target — most of the fall lands in-burst
-	SweepTime = 0.17, -- seconds for the octave to ease down (EasingStyle.Quad)
-	DirTilt = 0.06, -- E starts this fraction brighter than Q — direction signature
-	-- Denied press: flat low blip, hard-stopped so it never rings out.
-	DenyOctave = 0.45,
-	DenyVolume = 0.14,
-	DenyTime = 0.09,
-	-- Light sidechain punch on a fired dash (same duck() the chime uses).
-	DuckDepth = 0.18,
-	DuckRelease = 0.28,
-}
-
 Config.Audio = {
 	-- Menu mixer (AUDIO.md §7): the AUDIO panel's slider channels. Keys
 	-- are the attribute/profile/remote namespace (RoBallVol_<ch>); the
@@ -953,7 +934,7 @@ Config.Audio = {
 	-- mid default leaves headroom both directions.
 	Channels = { "music", "gems", "dash" },
 	Defaults = { music = 0.5, gems = 0.5, dash = 0.5 },
-	Labels = { music = "MUSIC", gems = "GEMS", dash = "DASH" },
+	Labels = { music = "MUSIC", gems = "GEMS", dash = "DANGER" },
 	RemoteName = "SetAudio", -- RemoteFunction: SetAudio(ch, 0..1) -> bool
 	AttrPrefix = "RoBallVol_", -- per-channel attribute mirror
 }

@@ -1259,7 +1259,6 @@ local function tryDash(dir: number, quiet: boolean?): string
 	if powerCharge < math.max(Config.Power.RechargeGate, Config.Dash.Cost) then
 		if not quiet then
 			dashDeniedAt = now
-			Sfx.dashDenied()
 			rumble(Config.Controls.Rumble.Denied)
 		end
 		return "denied"
@@ -1282,7 +1281,6 @@ local function tryDash(dir: number, quiet: boolean?): string
 	-- Stamp the real window (a snapped goal extends it) — hurt/pickup
 	-- scales and the camera punch all key off this, not the press.
 	DashFeel.noteBurst(dashUntil - now)
-	Sfx.dash(dir)
 	rumble(Config.Controls.Rumble.Dash)
 	return "fired"
 end
