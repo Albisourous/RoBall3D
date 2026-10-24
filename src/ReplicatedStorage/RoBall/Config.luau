@@ -74,6 +74,22 @@ Config.Dash = {
 	Cost = 0.3, -- flat meter slice per burst (~4 of the bar's 14 LED cells)
 	Cooldown = 0.35, -- seconds between dashes (the meter is the real limiter)
 	BufferWindow = 0.4, -- a press mid-burst/on cooldown stays armed this long — chains snap
+	-- Forgiveness snap (§4): a burst whose natural endpoint lands unsafe —
+	-- off the deck edge, over a cutout, or lined up on a lethal face the
+	-- sidestep was meant to clear — retargets to the nearest safe lane
+	-- point inside a computed reach: SnapFrac of the burst's own travel,
+	-- grown by pace (the same studs buy less reaction time at speed),
+	-- clamped to [SnapMin, SnapMax] so the save stays a nudge, never a
+	-- teleport. Landing on the point ends the burst early and parks the
+	-- lateral drift. SnapMax = 0 retires the feature.
+	SnapFrac = 0.5, -- share of the sidestep the reach spans
+	SnapMin = 2, -- guaranteed forgiveness floor, studs
+	SnapMax = 6.5, -- cap — a bigger "save" stops being a nudge
+	SnapStep = 0.75, -- candidate scan granularity around the raw endpoint
+	SnapMargin = 0.6, -- clearance held off lethal faces past the ball radius
+	SnapLookT = 0.3, -- seconds of post-landing roll that must stay clear
+	SnapTail = 0.06, -- window pad past dist/Speed so a long snap can ease in
+	SnapUp = 2, -- deck probes start this far over the predicted landing height
 	-- Dash style (§4): a saved menu toggle picks the input mapping —
 	-- "keys" (Q/E) or "tap" (double-tap the steer key).
 	-- Mirrored as RoBallDashMode; persisted in the profile like a mixer gain.

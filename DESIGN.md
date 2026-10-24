@@ -154,6 +154,22 @@ explainable.
   (AUDIO.md §6). No chunk ever *requires* a dash — it only widens the
   movement envelope, so every §8.1 solvability invariant still stands
   on steering alone.
+  **Forgiveness snap** (`Dash.Snap*`): at fire time the burst's natural
+  endpoint — eased travel off the live lateral speed — is tested
+  against the lane. If it lands off-deck, over a cutout, or on a
+  lateral line that stays inside a lethal face through the `SnapLookT`
+  roll-out, the dash retargets to the nearest lane point that is
+  supported (collide deck under both feet) and clear of every lethal
+  interval the trajectory crosses — but only inside a computed reach:
+  `SnapFrac` of the burst's own travel, grown by pace (the same studs
+  buy less reaction time at speed), clamped `SnapMin`–`SnapMax`. A
+  snapped burst drives to the point at `Speed` (window extended to
+  `dist/Speed + SnapTail` when the target sits past the sidestep), ends
+  on arrival, and parks the lateral drift so the save can't slide
+  through the edge it was pulled to. An honest endpoint runs raw, and a
+  dodge with nothing safe in reach goes uncorrected — the assist is a
+  nudge off a bad landing, never a teleport or a steering replacement.
+  `SnapMax = 0` retires the feature.
 - **Restart**: `R` in any mode = instant restart on the seed box's pick —
   `daily` by default, a typed seed, or a rolled random that gets mirrored
   back into the box on `RunStarted`, so a reload keeps the same map

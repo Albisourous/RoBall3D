@@ -86,6 +86,8 @@ local powerCharge = 1 -- 0..1 power meter (DESIGN.md §4)
 local powerSpent = false -- emptied latch until RechargeGate refills
 local dashDir = 0 -- -1/+1 while a dash burst runs (DESIGN.md §4)
 local dashUntil = 0
+local dashGoalX: number? = nil -- forgiveness-snap landing target (§4); nil = raw burst
+local inFlipZone = false -- heartbeat's flip read, mirrored so tryDash can see it
 -- Gamepad + touch ride the same intents (§4): padSteer is the analog
 -- thumbstick/pad-drag read, the held flags mirror W/S. Touch state lives
 -- on `ui` (padSteer/boostHeld/brakeHeld) and resets with the HUD.
@@ -418,6 +420,7 @@ local function bindBall(b: Instance)
 		lastTapAt[1] = 0
 		dashBuffered = nil
 		dashDeniedAt = 0
+		dashGoalX = nil
 		wasDashing = false
 		stuckT = 0
 		unstickUntil = 0
@@ -1040,6 +1043,142 @@ evCrown.OnClientEvent:Connect(function(name: string)
 	end
 end)
 
+-- Forgiveness snap (§4): a burst whose natural endpoint lands unsafe —
+-- off the deck edge, over a cutout, or on a lateral path that stays
+-- inside a lethal face through the SnapLookT roll-out — retargets to
+-- the nearest safe lane point inside a computed reach. The reach is a
+-- share of the burst's own travel, grown by pace (the same studs buy
+-- less reaction time at speed) and clamped, so the save is a nudge,
+-- never a teleport. Safe endpoints and hopeless dodges return nil.
+local function dashSnapGoal(dir: number): number?
+	local b = ball
+	if not b or inFlipZone then
+		return nil -- ceiling ride reads a different floor entirely
+	end
+	local D = Config.Dash
+	if D.SnapMax <= 0 then
+		return nil -- SnapMax = 0 retires the feature
+	end
+	local pos = b.Position
+	-- Natural landing: lateralVel eases to Speed at Accel then holds —
+	-- the sidestep distance off the live velocity is exact, not a guess.
+	local v0 = math.clamp(lateralVel * dir, -D.Speed, D.Speed)
+	local rampT = math.clamp((D.Speed - v0) / D.Accel, 0, D.Time)
+	local travel = (v0 + D.Speed) / 2 * rampT + D.Speed * (D.Time - rampT)
+	local speedT = math.clamp((fwdSpeed - Config.Speed.Start) / (Config.Speed.Max - Config.Speed.Start), 0, 1)
+	local reach = math.clamp(D.SnapFrac * travel * (1 + speedT), D.SnapMin, D.SnapMax)
+	local landX = pos.X + dir * travel
+	local landZ = pos.Z - fwdSpeed * D.Time
+	local lookZ = landZ - fwdSpeed * D.SnapLookT
+	local probeY = pos.Y - Config.Generation.Grade * fwdSpeed * D.Time + D.SnapUp
+	local ballR = Config.Ball.Diameter / 2
+	local clear = ballR + D.SnapMargin
+	-- Blocked x-intervals: every live lethal plane whose z the burst
+	-- sweeps (or the just-landed roll reaches) contributes one row.
+	-- Rotor blades block their whole swept disc — the blade's current
+	-- AABB would let a "safe" pick land inside the swing.
+	local blocks = {}
+	for _, p in ipairs(FatalController.lethalParts()) do
+		if p.Parent and math.abs(p.Position.X - pos.X) <= 80 then
+			local ec = p.ExtentsCFrame.Position
+			local es = p.ExtentsSize
+			local hw, hd = es.X / 2, es.Z / 2
+			if p:GetAttribute("MoverKind") == "spin" then
+				ec = p.Position
+				hw = p.Size.X / 2
+				hd = hw
+			end
+			if
+				ec.Z + hd >= lookZ
+				and ec.Z - hd <= pos.Z
+				and ec.Y + es.Y / 2 >= probeY - ballR
+				and ec.Y - es.Y / 2 <= probeY + ballR
+			then
+				table.insert(blocks, {
+					lo = ec.X - hw - clear,
+					hi = ec.X + hw + clear,
+					z0 = ec.Z - hd,
+					z1 = ec.Z + hd,
+				})
+			end
+		end
+	end
+	-- The ball's lateral line: pos.X -> cand over the burst window, then
+	-- cand held for the look window — post-dash steering is the player's
+	-- own, the snap only answers for the dodge.
+	local function pathX(cand: number, z: number): number
+		if z <= landZ then
+			return cand
+		end
+		return pos.X + (cand - pos.X) * (pos.Z - z) / (pos.Z - landZ)
+	end
+	-- A slab blocks a candidate iff the path's x-range across its z-range
+	-- touches (lo,hi) — the path is linear, so the two overlap edges
+	-- bracket every crossing.
+	local function blocked(cand: number): boolean
+		for _, iv in ipairs(blocks) do
+			local zA = math.min(iv.z1, pos.Z)
+			local zB = math.max(iv.z0, lookZ)
+			if zA >= zB then
+				local xA, xB = pathX(cand, zA), pathX(cand, zB)
+				if math.min(xA, xB) < iv.hi and math.max(xA, xB) > iv.lo then
+					return true
+				end
+			end
+		end
+		return false
+	end
+	-- Supported = collide deck under both feet at the landing line —
+	-- non-collide reads (gems, grid strips, pads) and rim wall tops
+	-- don't count as floor.
+	local foot = ballR - 0.2
+	local drop = EDGE_DOWN * Config.Landing.MaxDrop
+	local function supported(cand: number): boolean
+		for _, sx in ipairs({ -foot, foot }) do
+			local hit = workspace:Raycast(Vector3.new(cand + sx, probeY, landZ), drop, edgeParams)
+			if not hit or not hit.Instance.CanCollide or hit.Instance.Name == "Wall" then
+				return false
+			end
+		end
+		return true
+	end
+	local function safe(cand: number): boolean
+		return supported(cand) and not blocked(cand)
+	end
+	if safe(landX) then
+		return nil -- honest landing — the burst runs raw
+	end
+	-- Candidates: slab edges (the corridor openings), the solved cand
+	-- that puts the crossing just outside a slab sitting inside the
+	-- burst's own z-sweep, and an outward scan for deck-edge cases.
+	local cands = {}
+	for _, iv in ipairs(blocks) do
+		table.insert(cands, iv.lo - 0.1)
+		table.insert(cands, iv.hi + 0.1)
+		local zA = math.min(iv.z1, pos.Z)
+		local t = (pos.Z - zA) / (pos.Z - landZ)
+		if zA > landZ and t > 0.05 then
+			table.insert(cands, pos.X + (iv.lo - 0.1 - pos.X) / t)
+			table.insert(cands, pos.X + (iv.hi + 0.1 - pos.X) / t)
+		end
+	end
+	for k = 1, math.ceil(reach / D.SnapStep) do
+		local off = k * D.SnapStep
+		table.insert(cands, landX - dir * off) -- retreat first: a tie pulls back to known ground
+		table.insert(cands, landX + dir * off)
+	end
+	local best: number? = nil
+	local bestD = math.huge
+	for _, cand in ipairs(cands) do
+		local d = math.abs(cand - landX)
+		if d <= reach and d < bestD and safe(cand) then
+			best = cand
+			bestD = d
+		end
+	end
+	return best
+end
+
 -- Dash (§4): Q/E spend a flat Cost slice of the power meter for a
 -- ~8-stud sidestep. The gold RechargeGate notch is the readiness read:
 -- a meter past the marker = all verbs armed (the latch can't outlive
@@ -1063,7 +1202,17 @@ local function tryDash(dir: number, quiet: boolean?): string
 	powerCharge = math.max(0, powerCharge - Config.Dash.Cost)
 	statDashes += 1
 	dashDir = dir
+	dashGoalX = dashSnapGoal(dir)
 	dashUntil = now + Config.Dash.Time
+	if dashGoalX and ball then
+		-- A snap target past the natural sidestep needs the window to
+		-- cover the drive out — capped at Speed-travel plus an ease tail.
+		dashUntil = now
+			+ math.max(
+				Config.Dash.Time,
+				math.abs(dashGoalX - ball.Position.X) / Config.Dash.Speed + Config.Dash.SnapTail
+			)
+	end
 	lastDashAt = now
 	Sfx.dash(dir)
 	rumble(Config.Controls.Rumble.Dash)
@@ -1212,6 +1361,7 @@ RunService.Heartbeat:Connect(function(dt)
 			end
 		end
 	end
+	inFlipZone = inFlip
 
 	local steer = Config.Steering
 	-- Bank pull (§4): a rolled deck drags the ball toward its low edge —
@@ -1272,6 +1422,15 @@ RunService.Heartbeat:Connect(function(dt)
 		end
 	end
 	local dashing = now < dashUntil
+	-- Snap landing (§4): a retargeted burst ends the moment the safe
+	-- point is under the ball — the lateral drift parks with it so the
+	-- save can't slide on through the hazard edge it was pulled to.
+	if dashing and dashGoalX and dashDir * (dashGoalX - b.Position.X) <= 0 then
+		dashUntil = now
+		dashing = false
+		lateralVel = 0
+		dashGoalX = nil
+	end
 	local targetLat = intent * steer.MaxLateralSpeed + bankPull
 	local accel = if intent == 0 then steer.IdleLateralDamping * steer.MaxLateralSpeed else steer.LateralAccel
 	if dashing then
