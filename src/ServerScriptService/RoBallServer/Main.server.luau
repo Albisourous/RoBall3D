@@ -99,6 +99,9 @@ fnGetLeaderboard.Parent = remotes
 local fnEquipItem = Instance.new("RemoteFunction")
 fnEquipItem.Name = "EquipItem"
 fnEquipItem.Parent = remotes
+local fnEquipPack = Instance.new("RemoteFunction")
+fnEquipPack.Name = "EquipPack"
+fnEquipPack.Parent = remotes
 local fnSetAudio = Instance.new("RemoteFunction")
 fnSetAudio.Name = "SetAudio"
 fnSetAudio.Parent = remotes
@@ -774,6 +777,15 @@ fnEquipItem.OnServerInvoke = function(player, itemId)
 		return false
 	end
 	return ShopService.equip(player, itemId)
+end
+
+-- Whole-pack equip (§18): the pack row's EQUIP chip — ownership-gated,
+-- one call lands every bundle slot.
+fnEquipPack.OnServerInvoke = function(player, key)
+	if typeof(key) ~= "string" or not allowRate(player, "EquipPack", RATE.EquipPack) then
+		return false
+	end
+	return ShopService.equipPack(player, key)
 end
 
 -- Mixer writes (AUDIO.md §7): pure preference state — validate the

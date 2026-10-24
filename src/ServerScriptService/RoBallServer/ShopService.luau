@@ -566,6 +566,21 @@ function ShopService.equip(player: Player, itemId: string): boolean
 	return true
 end
 
+-- Whole-pack equip (§18): the pack row's EQUIP chip lands here — same
+-- ownership gate as buy, then every bundle item writes its slot at once.
+function ShopService.equipPack(player: Player, bundleId: string): boolean
+	if not ShopService.ownsPass(player, bundleId) then
+		return false
+	end
+	if not equipped[player] then
+		equipped[player] = Cosmetics.defaults()
+	end
+	equipBundle(player, bundleId)
+	pushAttrs(player)
+	saveNow(player)
+	return true
+end
+
 -- Free-for-testing grants (Config.Monetization.FreeForTesting — §18): the
 -- pre-paywall path. A garage click "buys" instantly — no prompt, no
 -- dashboard id — but lands through the same ownership/equip/save pipeline

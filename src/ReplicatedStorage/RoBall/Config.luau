@@ -2002,6 +2002,7 @@ Config.Monetization = {
 	-- starve legitimate saves. Seconds between accepted calls.
 	RemoteRate = {
 		EquipItem = 0.25,
+		EquipPack = 0.25,
 		SetAudio = 0.25,
 		SetHues = 0.25,
 		SetDashMode = 0.5,

@@ -68,6 +68,7 @@ local fnBuyPack = remotes:WaitForChild("BuyPack") :: RemoteFunction
 local fnBuyGems = remotes:WaitForChild("BuyGems") :: RemoteFunction
 local fnSetHues = remotes:WaitForChild("SetHues") :: RemoteFunction
 local fnSetDashMode = remotes:WaitForChild("SetDashMode") :: RemoteFunction
+local fnEquipPack = remotes:FindFirstChild("EquipPack") :: RemoteFunction?
 
 local ballName = player.Name .. "_Ball"
 local ui = Ui.new()
@@ -289,7 +290,13 @@ local function packStates(): { [string]: { label: string, enabled: boolean, visi
 		end
 		if not offSeason then
 			if owned[key] then
-				states[key] = { label = "OWNED", enabled = false }
+				-- Owned bundle: the chip becomes the equip affordance —
+				-- click re-dresses the whole set (bank2x is a perk, not a
+				-- bundle — it stays inert OWNED).
+				local isBundle = key ~= "bank2x"
+				states[key] = if isBundle
+					then { label = "EQUIP", enabled = true }
+					else { label = "OWNED", enabled = false }
 			elseif Config.Monetization.FreeForTesting then
 				states[key] = { label = "FREE", enabled = true } -- temp: no paywall yet
 			elseif passId == 0 then
@@ -665,6 +672,16 @@ ui.onBuyItem = function(itemId)
 end
 
 ui.onBuy = function(bundleId)
+	-- Owned pack → the chip reads EQUIP: re-dress the whole set in one
+	-- server call (the remote may not exist on a stale server — nil-guard).
+	if ownedSet()[bundleId] then
+		if fnEquipPack then
+			pcall(function()
+				fnEquipPack:InvokeServer(bundleId)
+			end)
+		end
+		return
+	end
 	-- FreeForTesting (§18, temp): the server claims the pass straight into
 	-- the ownership set — same equip/save pipeline as a real purchase.
 	if Config.Monetization.FreeForTesting then
