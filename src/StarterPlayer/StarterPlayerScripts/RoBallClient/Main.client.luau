@@ -896,8 +896,8 @@ end)
 refreshAchievements()
 
 -- Gem combo pip: RoBallGems ticks up per pickup; a pickup inside
--- ComboWindow of the last extends the streak — the same window
--- SfxController's pitch ladder uses, so the "xN" matches the chime run.
+-- ComboWindow of the last extends the xN streak. Pickups are silent —
+-- the pip is display-only.
 local combo = 0
 local lastPickupAt = 0
 local lastGemPts = 0
@@ -934,12 +934,12 @@ player:GetAttributeChangedSignal("RoBallGems"):Connect(function()
 		-- Gem income (§4/§10): each pickup refunds meter by its point
 		-- value — a risky line is a recharge, not just score.
 		powerCharge = math.min(1, powerCharge + (n - lastGemPts) * Config.Power.GemPerPoint)
-		combo = if time() - lastPickupAt <= Config.GemSfx.ComboWindow then combo + 1 else 1
+		combo = if time() - lastPickupAt <= Config.Gems.ComboWindow then combo + 1 else 1
 		lastPickupAt = time()
 		ui:setCombo(combo)
 		local seen = combo
-		task.delay(Config.GemSfx.ComboWindow, function()
-			if combo == seen and time() - lastPickupAt >= Config.GemSfx.ComboWindow - 1e-3 then
+		task.delay(Config.Gems.ComboWindow, function()
+			if combo == seen and time() - lastPickupAt >= Config.Gems.ComboWindow - 1e-3 then
 				combo = 0
 				ui:setCombo(0)
 			end

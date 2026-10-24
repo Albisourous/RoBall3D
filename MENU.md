@@ -179,8 +179,7 @@ osu!'s percussion-menu was tried here (grid-snapped `Sfx.uiTick` —
 first a hover hat + click kick, then click-only) and the verdict was
 that under a quiet bed every chrome noise reads as *noise*, not
 rhythm. The song is the menu's whole sound identity: the parked bed,
-and the §3 audition swap when you browse TRACK. `Music.nextGridDelay`
-stays — but as a gameplay instrument (the gem chime), not a UI one.
+and the §3 audition swap when you browse TRACK.
 
 ## 6. The room wears the pick — accents, not backdrops
 

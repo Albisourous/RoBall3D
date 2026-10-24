@@ -43,7 +43,6 @@ local lead: any = nil -- beat-clock + watchdog reference player
 local lowpass: any = nil
 local shifter: any = nil
 local duckFader: any = nil
-local sfxFader: any = nil -- post-duck tap for one-shot voices (gem chimes)
 local musicFader: any = nil -- user MUSIC gain (AudioMix): post-duck, pre-output
 local duckGen = 0 -- duck() generation: a newer dip cancels an older release
 local analyzer: any = nil
@@ -59,9 +58,6 @@ local specLen = 0 -- the spectrum length specEdges was built for
 local specPeak = 0 -- decaying band maximum — the auto-gain reference
 local pulsePeak = 0 -- decaying heard-level max — normalizes the beat envelope
 local sampleAt = 0 -- os.clock() deadline for the next analyzer re-read
--- Pooled chime voices (PERFORMANCE.md §3): { player, busyUntil } — the
--- gem chime was building an AudioPlayer + Wire per pickup before.
-local chimeVoices: { { p: any, busyUntil: number } } = {}
 local curMap: SongMap.Map = SongMap -- active track's chart (default until a run picks)
 local curTrack: string? = nil
 local curAssets: any = nil -- active track's TrackAssets entry
@@ -312,9 +308,8 @@ function Music.init()
 		shifter.Parent = folder
 	end
 
-	-- Bus fader for the pickup sidechain duck (AUDIO.md §6): gem chimes
-	-- knock the whole mix down a touch and let it bloom back — the pickup
-	-- "punches" the track like a producer's sidechain.
+	-- Bus fader for the sidechain duck (AUDIO.md §6): the menu stamp
+	-- knocks the whole mix down a touch and lets it bloom back.
 	duckFader = Instance.new("AudioFader")
 	duckFader.Volume = 1
 	duckFader.Parent = folder
@@ -333,15 +328,6 @@ function Music.init()
 	musicFader.Parent = folder
 	wire(duckFader, musicFader)
 	wire(musicFader, output)
-
-	-- SFX voices (gem chimes) tap the bus AFTER the duck fader — a pickup
-	-- ducks the music, never itself (true sidechain) — and stay clear of
-	-- the lowpass + shifter: the payout reads bright even under the menu
-	-- muffle, and the shifter can't detune the combo ladder's semitones.
-	sfxFader = Instance.new("AudioFader")
-	sfxFader.Volume = 1
-	sfxFader.Parent = folder
-	wire(sfxFader, output)
 
 	analyzer = Instance.new("AudioAnalyzer")
 	analyzer.SpectrumEnabled = true
@@ -472,27 +458,21 @@ function Music.beatPos(): number
 	return lead.TimePosition * curMap.bpm / 60
 end
 
-function Music.section(): SongMap.Section
-	return curMap.sectionAtBeat(Music.beatPos())
-end
-
--- Sidechain-style duck (AUDIO.md §6): knock the bus down `depth` and let
--- it bloom back over `release` seconds. Gem pickups call this so a chime
--- punches through the track instead of stacking on it. The dip itself is
--- a ~15ms tween — a hard gain step is an audible click; fast-but-smooth
--- keeps the punch. Generation-guarded: a rapid second pickup cancels the
--- previous release so dips re-trigger cleanly instead of fighting.
--- User mixer gain (AudioMix, AUDIO.md §7): each channel lands on its own
--- tap — music on the post-duck masterFader, gems on the SFX one-shot tap.
--- "dash" has no graph node: its plain Sounds scale at spawn in Sfx.
+-- User mixer gain (AudioMix, AUDIO.md §7): the "music" channel lands on
+-- the post-duck masterFader. "gems"/"dash" have no graph node: their
+-- plain Sounds scale at spawn in Sfx.
 function Music.setGain(ch: string, v: number)
 	if ch == "music" and musicFader then
 		musicFader.Volume = v
-	elseif ch == "gems" and sfxFader then
-		sfxFader.Volume = v
 	end
 end
 
+-- Sidechain-style duck (AUDIO.md §6): knock the bus down `depth` and let
+-- it bloom back over `release` seconds. The menu stamp uses it so the
+-- count-in punches through the bed. The dip itself is a ~15ms tween — a
+-- hard gain step is an audible click; fast-but-smooth keeps the punch.
+-- Generation-guarded: a rapid second trigger cancels the previous
+-- release so dips re-trigger cleanly instead of fighting.
 function Music.duck(depth: number, release: number?)
 	if not duckFader then
 		return
@@ -512,56 +492,6 @@ function Music.duck(depth: number, release: number?)
 	end)
 end
 
--- One-shot voice on the post-duck SFX tap (see init): takes a resolved
--- ContentId string, plays at `speedRatio` on a pooled voice. Returns
--- false when the bus isn't built so callers can fall back to a plain
--- Sound. Chimes run ≤4s (0.75s source at the slowest ~0.25x ladder
--- step); saturated pools recycle the voice whose hold expires first —
--- a drowned chime beats a GC spike mid-cluster (PERFORMANCE.md §3).
-function Music.playOneShot(asset: string, speedRatio: number, volume: number): boolean
-	if not sfxFader or not root then
-		return false
-	end
-	local now = os.clock()
-	local voice: { p: any, busyUntil: number }? = nil
-	local soonest = math.huge
-	local soonestV: { p: any, busyUntil: number }? = nil
-	for _, v in ipairs(chimeVoices) do
-		if v.busyUntil <= now then
-			voice = v
-			break
-		elseif v.busyUntil < soonest then
-			soonest = v.busyUntil
-			soonestV = v
-		end
-	end
-	if not voice and #chimeVoices < Config.Music.ChimeVoices then
-		local p = Instance.new("AudioPlayer")
-		p.Looping = false
-		p.AutoLoad = true
-		p.Parent = root
-		wire(p, sfxFader)
-		voice = { p = p, busyUntil = 0 }
-		table.insert(chimeVoices, voice)
-	end
-	if not voice then
-		voice = soonestV
-		if not voice then
-			return false
-		end
-		-- Pool saturated — steal the voice freeing soonest.
-		voice.p:Stop()
-	end
-	voice.p.Asset = asset
-	voice.p.PlaybackSpeed = speedRatio
-	voice.p.Volume = volume
-	-- AudioPlayer.Ended is unreliable; hold by wall-clock like the old
-	-- task.delay cleanup did — 4s covers the slowest ladder step.
-	voice.busyUntil = now + 4
-	voice.p:Play()
-	return true
-end
-
 -- Warm a one-shot's decode at boot so its first real play isn't late:
 -- AutoLoad pulls the asset into memory without ever pressing Play.
 function Music.preloadSfx(asset: string)
@@ -579,19 +509,6 @@ function Music.preloadSfx(asset: string)
 		end
 		p:Destroy()
 	end)
-end
-
--- Seconds until the next `subdiv`-of-a-beat boundary on the HEARD grid —
--- lets pickup chimes land on a subdivision even if the touch was early.
--- Returns 0 when the wait would exceed `cap` (don't add audible latency).
-function Music.nextGridDelay(subdiv: number, cap: number): number
-	if not lead or not lead.IsPlaying then
-		return 0
-	end
-	local beatsNow = Music.beatPos()
-	local nextB = math.ceil(beatsNow * subdiv - 1e-4) / subdiv
-	local delay = (nextB - beatsNow) * 60 / (curMap.bpm * ps())
-	return delay <= cap and delay or 0
 end
 
 -- Audio-reactive pulse for visuals (AUDIO.md §8): smoothed 0..1 energy

@@ -1089,8 +1089,7 @@ that caused them.
   denied press (same power meter — §4), blink while latched out —
   and a gold ping the moment charge crosses the gate upward, so W coming
   back is felt, not watched. Under the subline a small `xN` **combo pip**
-  tracks gem streaks (same `GemSfx.ComboWindow` the chime ladder uses, so
-  the count always matches the pitch climb). Gem pickups also float a
+  tracks gem streaks (`Gems.ComboWindow`). Gem pickups also float a
   `+N` points popup with the ghost-diamond burst — the pickup's exact
   value read off the cumulative `RoBallGems` delta. Dial pods were tried
   and rejected — minimal chrome keeps eyes on track.
@@ -1144,8 +1143,8 @@ Full spec: `AUDIO.md`. Binding decisions:
   still gates what's allowed. Boost drift vs the nominal speed schedule is
   bounded and accepted.
 - Gems stay on the heard beat grid (§8.4); `Music.BaseBpm` must equal
-  `SongMap.bpm` or everything drifts. The pickup chime keeps the
-  pentatonic ladder (`SfxController` + `GemSfx`, `gem_pickup` asset).
+  `SongMap.bpm` or everything drifts. Pickups play no voice — the
+  pickup's feedback is the "+N" float, the meter refund, and the xN pip.
 - Once a track canon exists, the seed picks the track: same seed → same
   track + map + musical pacing — leaderboard rows become replayable
   "levels", GD-style.
@@ -1320,7 +1319,7 @@ src/
     Backdrop.luau                  -- synthwave sun + swappable side scenery
                                    --   (city canyon | NEON PEAKS, client-local)
     MusicController.luau           -- stem graph, tempo ramp, beat clock (AUDIO.md)
-    SfxController.luau             -- gem pickup chime, pentatonic combo runs
+    SfxController.luau             -- hoop whoosh + proximity ping voices
     GemFx.luau                     -- pickup juice: pop diamond + sparkles + ring
     DeathFx.luau                   -- death burst variants at last ball pos (§18)
     CosmeticFx.luau                -- menu preview ball + animated skin/trail fx

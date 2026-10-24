@@ -268,6 +268,8 @@ Config.Danger = {
 	PingOctave = 0.5, -- base pitch (gem bell down an octave)
 	PingLift = 0.35, -- extra pitch rise at full intensity
 	PingVol = 0.3,
+	AssetId = 87429654015431, -- uploaded "Gem Pickup SFX" (FlowMusic render) — shared bell source
+	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
 }
 
 -- Split-time sectors (§14): every Length studs down-track a SectorMark
@@ -774,6 +776,7 @@ Config.Gems = {
 	-- decaying over the beat; downbeats hit ~30% harder (BeatPulse client).
 	BeatPulse = 0.22,
 	BeatPulseRadius = 140, -- studs from camera — farther gems skip the pulse
+	ComboWindow = 0.9, -- seconds between pickups that still count the xN HUD streak
 	-- Near-set rebuild cadence (PERFORMANCE.md §1): iterating every tagged
 	-- gem per render frame was the script's widest scan — this keeps a
 	-- camera-near subset and only refreshes it a few times a second.
@@ -884,46 +887,6 @@ Config.Ghost = {
 	FrameMaxY = 1024,
 	FrameMinZ = -1500000, -- ~1.1e6 studs of grade floor, plus headroom
 	FrameMaxZ = 256,
-}
-
-Config.GemSfx = {
-	-- Gem pickup chime (SfxController): rapid pickups climb a pentatonic
-	-- ladder so cluster lines play little runs. rbxasset:// fallback is a
-	-- built-in Roblox ping — always resolvable if the asset fails to load.
-	-- Numeric id for production OR an rbxasset:// ContentId URI resolving
-	-- Studio's bundled content dir for local dev (the vaporwave-bell render).
-	AssetId = 87429654015431, -- uploaded "Gem Pickup SFX" (FlowMusic render)
-	FallbackId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.18, -- baseline sits under the mix; the menu mixer's GEMS slider rides on top
-	ComboWindow = 0.9, -- seconds between pickups that still count as a run
-	ComboScale = { 0, 2, 4, 7, 9, 12, 14, 16 }, -- A-minor pentatonic semitones
-	PitchJitter = 0.03, -- +-3% so repeats never sound identical
-	-- Ear candy (AUDIO.md §6): a combo isn't a flat ladder climb — pickups
-	-- climb the section's chord-tone scale, WRAPPING into the next octave
-	-- rather than stalling on the top rung, and every CadenceEvery-th pickup
-	-- resolves to the root one octave up, so a run of gems plays an
-	-- arpeggio that lands on its octave — a little phrase, not a siren.
-	-- Past two octaves the phrase folds back down (keeps pitches sweet).
-	CadenceEvery = 4,
-	MaxOctaves = 2,
-	-- Harmony gloss: from the 2nd pickup of a combo on, a quiet perfect
-	-- fifth rides under the melody note — consonant against any chord tone
-	-- and instantly thicker. Shares the melody's jitter so it stays in tune.
-	HarmonySemi = 7,
-	HarmonyVolume = 0.35,
-	-- Combos swell slightly louder as they run — a run of pickups should
-	-- feel like it's BUILDING, capped so it never overpowers the mix.
-	ComboVolGain = 0.04,
-	ComboVolCap = 1.35,
-	-- Grid-snap + sidechain (AUDIO.md §6): chimes nudge onto the next
-	-- QuantizeSubdiv-of-a-beat (8 = 32nd note) so pickup phrases land dead
-	-- on the tempo, never more than QuantizeCap seconds late. DuckDepth
-	-- knocks the whole bus down and it blooms back over DuckRelease —
-	-- the chime punches the track instead of stacking on it.
-	QuantizeSubdiv = 8,
-	QuantizeCap = 0.09,
-	DuckDepth = 0.16,
-	DuckRelease = 0.24,
 }
 
 Config.Audio = {
@@ -1110,10 +1073,6 @@ Config.Music = {
 	-- hairline and capsule rim flash on the same envelope.
 	WaveBeatGain = 2.5,
 	WaveBeatFloor = 0.3,
-	-- Gem-chime voice pool (PERFORMANCE.md §3): playOneShot used to build
-	-- an AudioPlayer + Wire per pickup; this many pooled voices cover
-	-- even dense cluster runs, recycling the oldest when saturated.
-	ChimeVoices = 6,
 }
 
 -- The seeded/garage pool: Tracklist order, minus ids that can't play —

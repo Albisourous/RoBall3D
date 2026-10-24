@@ -55,8 +55,9 @@ level builder can read the song.
   signature; keep it.
 - Gem clusters already land on the heard beat grid (`beatSpacing`,
   `rollRhythm`, `gemRhythmLine` — cluster sizes are note groupings:
-  8 = 16ths, 4 = 8ths, 2 = quarters, 1 = accent). Pickups chime up an
-  A-minor pentatonic ladder per combo (`SfxController`).
+  8 = 16ths, 4 = 8ths, 2 = quarters, 1 = accent). Pickups are silent —
+  GD plays nothing on collection, and a chime over the track reads as
+  noise, not reward (`SfxController` owns only hoop + ping voices).
 - Death slides pitch to `DeathPitchFloor = 0.4` — always below
   `PlaybackSpeedMin` so the tape-stop only ever dives.
 
@@ -174,8 +175,7 @@ AudioPlayer[stem] ──► AudioFader[stem] ─┤   (players stay sample-locke
                       AudioFilter[lowpass] ─► AudioPitchShifter ─► AudioFader[duck] ─► AudioDeviceOutput
                                               ▲                              │
                                               └─ Pitch = ps^(−k)             └─► AudioAnalyzer (post-duck tap:
-AudioPlayer[chime] ─► AudioFader[sfx] ──► output — after the duck: the pickup      hears the dips too)
-                                          ducks the music, never itself
+                                                                               hears the dips too)
 ```
 
 Concrete nodes (all client-local, parented under a client-owned container,
@@ -211,13 +211,10 @@ e.g. a `RoBallAudio` Folder in `PlayerGui`):
   (§8). Client-only by design (server reads zero); visuals are decorative,
   so that's fine. The tap sits *post-duck* (`AudioFader[duck]` → analyzer):
   the world pulses on the same sidechain dips the ear hears.
-- **One-shot SFX tap (post-duck)** — gem chimes are `AudioPlayer` voices
-  on a dedicated `AudioFader` wired straight to the output, *after* the
-  duck fader: the pickup ducks the music, never itself (true sidechain),
-  and the voice stays clear of the menu lowpass and the pitch shifter, so
-  the combo ladder's semitones can't detune. `Music.playOneShot` spawns
-  and self-destroys each voice; `Music.preloadSfx` warms the decode at
-  boot so the first pickup isn't late.
+- **No SFX tap** — one-shot voices (hoop whoosh, proximity ping) are
+  plain `Sound` instances scaled by `AudioMix.gain` at spawn; nothing
+  wires past the duck fader. `Music.preloadSfx` warms the ping's decode
+  at boot so the first blip isn't late.
 
 **Stem drift watchdog**: players that start together on equal-length
 streams should hold sync, but we verify — on the lead stem's `Looped`
@@ -318,24 +315,10 @@ Anything that *sounds* musical lands on the grid:
   on, the start offset rotates to a seeded `accentBeat` so repeat seeds
   don't always open on bar 0 — deterministic, still "same seed = same
   level."
-- **Gem chime** — pickups are physically on the grid already (their
-  spacing *is* the beat), so chimes are self-quantizing. The combo ladder
-  is section-aware: `SongMap.sections[].scale` is the union of live chord
-  tones under the ball right now (E7b9's b9 spice shows up in drop
-  pickups, Am9's 9th in intro), generated from the score's chord chart —
-  falling back to `Config.GemSfx.ComboScale` when the clock isn't running.
-  The ladder is a *phrase*, not a siren: it wraps into the next octave
-  instead of stalling on the top rung, every `CadenceEvery`-th pickup
-  resolves UP to the root's next octave (the run lands on its octave like
-  a cadence), and past `MaxOctaves` it folds back down so pitches stay
-  sweet. From the second pickup of a combo, a quiet perfect fifth rides
-  under the melody at `HarmonyVolume` — consonant against any chord tone —
-  and combo volume swells by `ComboVolGain` (capped). Same jitter on both
-  voices so the dyad stays in tune. Each pickup also sidechain-ducks the
-  music bus `DuckDepth` with a ~15ms attack (a hard gain step would click)
-  and blooms back over `DuckRelease`; re-dips cancel the in-flight
-  release. The chime voices ride the post-duck SFX tap (§4) — they punch
-  *through* the dip instead of stacking on the mix.
+- **Gem pickups are silent** — GD plays nothing on collection, and a
+  chime layered over the authored track reads as noise instead of
+  reward. The pickup still shows its "+N" float, refunds meter, and
+  counts the xN streak — all visual/haptic, no voice.
 - **Dash is silent** — the dodge ships no one-shot voice. Denial stays
   non-audio too: a denied press flickers the power bar dim and pulses the
   pad's rumble; cooldown presses do nothing. (The old pitch-swept bell zip
@@ -355,10 +338,10 @@ Anything that *sounds* musical lands on the grid:
   page: three stacked sliders `MUSIC / GEMS / DANGER`, each
   0–100%, live-dragged (apply on every move, persist on release).
   Defaults come from `Config.Audio.Defaults` — all three at half, since
-  the sources are mixed hot and full-everything was deafening. Gains
-  land on dedicated taps: `musicFader` post-duck, `sfxFader` for
-  pickup voices, and `dash`-channel one-shots (the proximity ping)
-  multiplied at spawn. State round-trips through
+  the sources are mixed hot and full-everything was deafening. `music`
+  lands on `musicFader` post-duck; `gems` (hoop whoosh) and `dash`/
+  DANGER (proximity ping) scale their plain Sounds at spawn.
+  State round-trips through
   `RoBallVol_<ch>` attributes + `profile.audio` — the `RoBallEq_*`
   equip pattern — so a mix survives sessions; the attribute echo never
   re-invokes the remote.
