@@ -79,7 +79,6 @@ export type Item = {
 	deckCell: number?,
 	edge: Color3?,
 	plain: boolean?,
-	capsule: boolean?,
 	gemStyle: string?,
 	gemShape: string?,
 	none: boolean?,
@@ -315,9 +314,7 @@ Cosmetics.Items = {
 		gemShape = "shard", -- mountain crystal
 	},
 	--==== APE BALL pack — the arcade-toy set for the sky court world:
-	-- a glossy two-tone capsule ball: half-clear Glass shell under a
-	-- translucent red hemisphere cap, the split tumbling with the roll
-	-- (BallDress.buildCap CSG hemisphere, APEBALL.md §2).
+	-- a plain arcade-red core under white/banana rings (APEBALL.md §2).
 	skin_mainframe = {
 		slot = "skin",
 		name = "MAINFRAME",
@@ -421,8 +418,7 @@ Cosmetics.Items = {
 		gemPrice = 800,
 		ringA = WHITE,
 		ringB = BANANA,
-		core = Color3.new(1, 1, 1), -- neutral: the clear half stays truly clear
-		capsule = true, -- clear shell at Config.Art.CapsuleAlpha + red ShellCap
+		core = Color3.fromRGB(235, 45, 55), -- the SMB-red ball color
 		gemShape = "orb", -- ball pickups, on any world
 	},
 

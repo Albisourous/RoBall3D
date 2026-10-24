@@ -1,9 +1,9 @@
-# APEBALL.md — two-tone capsule shell + FLOOR slot
+# APEBALL.md — arcade-red ball + FLOOR slot
 
-Design spec for the APE BALL deep-cut: a true party-ball capsule (50/50
-split — translucent **red top half, clear bottom half**, tumbling with
-the roll like the arcade shell), no trail in the pack, and a new FLOOR
-cosmetic slot so every pack can restyle the deck it rolls on.
+Design spec for the APE BALL deep-cut: a plain **arcade-red** core ball
+under white/banana rings (the party-ball color homage), no trail in the
+pack, and a new FLOOR cosmetic slot so every pack can restyle the deck
+it rolls on.
 
 Rules that still apply: tunables live in `Config`, items are data in
 `Cosmetics.luau`, color law (nothing near `LethalColor` 255,32,48), the
@@ -47,35 +47,27 @@ What the decomp actually does, in its own terms:
 
 | SMB does | Read it produces | Our port |
 |---|---|---|
-| ~50% clear shell, red cap half | The two-tone arcade capsule | `CapsuleAlpha 0.5` Glass shell + a CSG red hemisphere (`Art.CapsuleRed`) welded on top — the split tumbles with the roll |
+| ~50% clear shell, red cap half | The arcade-red ball | `skin_capsule` — plain `rgb(235,45,55)` core under white/banana rings (the two-tone CSG shell was removed — see §2) |
 | `apeQuat` rider machinery | (rider CUT — see §3) | — |
 | No trail; checkered floor | Ball + floor carry the frame | Pack ships no trail; FLOOR slot + CHECKER DECK (below) |
 
-## 2. Capsule shell — "50/50" split
+## 2. The ball — plain arcade red
 
-The arcade ball reads as two half-shells joined at the equator: a
-translucent **red** top hemisphere over a clear bottom hemisphere, both
-fixed to the ball so the split tumbles with the roll.
+The original two-tone shell spec (half-clear Glass shell + a CSG red
+hemisphere cap welded `Massless` at ball center, `CapSeq`-staled async
+builds, Glass material/alpha branches in `dress`/`retint`, the diorama's
+`vpCap` mirror) was **removed**: an extra welded part riding inside a
+client-network-owned ball is one too many physics-adjacent moving pieces
+for the homage's value. `skin_capsule` is now an ordinary color skin:
 
-- `Config.Art.CapsuleAlpha = 0.5` — the core ball is half-clear.
-- `BallDress.dress`/`retint`: when `skin.capsule`, the ball part wears
-  `Enum.Material.Glass` (specular shell read) instead of SmoothPlastic;
-  non-capsule skins restore SmoothPlastic. `retint` restores material
-  AND drops the cap — an equip swap off capsule leaves nothing behind.
-- `skin_capsule.core` is neutral white: the clear half stays truly
-  clear; tint belongs to the cap.
-- **The red half** is a real hemisphere: `BallDress.buildCap(d)` runs a
-  `GeometryService:SubtractAsync` (sphere minus a box below the equator
-  plane — the documented in-game solid-modeling path), sized a hair
-  proud of the shell so the cap is the outer skin with no z-fighting.
-  `syncCap` welds it `Massless` at ball center inside `task.spawn` —
-  dressing never yields, and a `CapSeq` attribute token-stales pending
-  builds across equip swaps. CSG failure degrades to a whole-shell red
-  tint.
-- Tunables: `Art.CapsuleRed` (235,45,55 — the SMB cap red),
-  `Art.CapsuleRedAlpha` (0.35 — translucent over the clear shell).
-- Ring cage stays (it's our art direction, not the ref's) — 0.14-stud
-  wireframe rings don't fight the cap read.
+- `core = rgb(235, 45, 55)` — the SMB cap red as the whole ball color.
+- `ringA = WHITE`, `ringB = BANANA`, `gemShape = "orb"`.
+- `dress`/`retint` treat it identically to every other skin — always
+  `Transparency = 0`, `SmoothPlastic`, no extra parts.
+- `Config.Art.CapsuleAlpha/CapsuleRed/CapsuleRedAlpha`,
+  `BallDress.buildCap`/`syncCap`, the `capsule` item flag, the
+  `GeometryService` require, and the `CosmeticFx` `vpCap`/`vpBuildSeq`
+  preview rig are all gone.
 
 ## 3. The rider — CUT
 
@@ -89,12 +81,9 @@ tunables, `buildInhabitant`, `monkeySpec`, the `Inhabitant`/`RiderOri`
 rig, and the Heartbeat goal driver are gone; `Cosmetics.Item` no longer
 has an `inhabitant` field.
 
-**Preview** (`CosmeticFx` diorama): capsule skins get the same
-`BallDress.buildCap` hemisphere parented into the WorldModel
-(`vpBuildSeq` token-stales pending CSG builds across rebuilds); the cap
-part rides the roll CFrame in `step()` so preview and live ball split
-identically. Death burst / respawn transparency toggle the cap with the
-ball.
+**Preview** (`CosmeticFx` diorama): nothing extra — the preview ball is
+a plain SmoothPlastic sphere wearing the skin's `core` color, like every
+other skin.
 
 **Ghosts**: unaffected — echoes are plain neon spheres, never dressed.
 
@@ -182,8 +171,8 @@ All other bundles append their floor item (8 items each).
 
 | Workstream | Files |
 |---|---|
-| Shell cap + deck | `Config.luau` (Art block), `BallDress.luau`, `TrackStreamer.luau` |
-| Catalog | `Cosmetics.luau` |
+| Deck | `Config.luau` (Art block), `TrackStreamer.luau` |
+| Catalog | `Cosmetics.luau`, `BallDress.luau` |
 | Client mirror | `CosmeticFx.luau` |
 | Docs (integration pass) | `DESIGN.md` §18 + Ball/Track bullets, `DLC.md` items + APE BALL row |
 
@@ -191,8 +180,6 @@ All other bundles append their floor item (8 items each).
 
 - `stylua --check src/ && selene src/ && rojo build -o build/RoBall3D.rbxl`
 - MCP playtest (debug seed `flat`, capsule + floor_check equipped):
-  the shell shows a clean red top / clear bottom split, tumbling with
-  the roll; `ShellCap` union exists welded under the ball.
-- Garage preview: same two-tone split on the diorama ball;
+  the ball is plain red under white/banana rings — no extra parts on it.
+- Garage preview: same plain red diorama ball;
   `floor_check` lane renders as green/dark-green checker.
-- Equip another skin mid-run: glass/cap removed cleanly (retint).

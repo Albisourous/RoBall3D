@@ -1001,15 +1001,10 @@ that caused them.
   rings (3 cyan axial + 2 magenta diagonal) — a clean neon cage that rolls
   with the ball's spin. Slim magenta Trail. No PointLight — self-glow
   smears the wireframe under bloom. (`SelectionSphere` was tried first: its
-  lat/long grid is too dense at 3 studs and renders as a blob.) Skins may
-  carry `capsule` flags (§18 skin_capsule, APEBALL.md): `capsule` renders
-  the shell as half-clear Glass (`Art.CapsuleAlpha` 0.5) wearing a
-  translucent red hemisphere cap — a real CSG half-shell from
-  `GeometryService:SubtractAsync` (`BallDress.buildCap`), welded massless
-  at ball center so the 50/50 red/clear split tumbles with the roll.
-  Cosmetic only: the physics part is untouched, and `retint` adds/removes
-  the cap + restores the material on equip swaps (a `CapSeq` attribute
-  token-stales pending CSG builds).
+  lat/long grid is too dense at 3 studs and renders as a blob.) Skins are
+  pure color/recolor — `skin_capsule` (§18, APEBALL.md) is a plain
+  arcade-red core under white/banana rings; the earlier CSG half-shell cap
+  was removed (it fought the ball's network-owned physics).
 - **Track**: purple-black deck (subtle `DeckTint` palette drift), neon edge
   rails + transverse grid strips + longitudinal center line, all tinted
   from `Palette` **per segment** — the neon flows continuously down the
@@ -1391,8 +1386,8 @@ twelve packs total — STARTER NEON (sunset set + palms), NEON PEAKS
 (acid + toxic wastes), NEON REEF (lagoon + reef + NEAP TIDE), NULL (mono
 set + the empty world), APE BALL (capsule set + the sky court world —
 the rolling-party-ball homage: midday skybox,
-cartoon clouds, day palms, a 50/50 capsule ball — translucent red top
-half over a clear bottom half, tumbling with the roll — a checkered
+cartoon clouds, day palms, a plain arcade-red ball under white/banana
+rings — a checkered
 rolling surface via
 CHECKER DECK, and banana-orb pickups; all-original, no borrowed IP —
 the pack ships `trail_none` last so the bundle lands clean like the

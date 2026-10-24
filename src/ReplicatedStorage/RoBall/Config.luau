@@ -1674,15 +1674,6 @@ Config.Art = {
 	SkyPalmFrondB = Color3.fromRGB(28, 122, 56),
 	SkyPalmShade = Color3.fromRGB(20, 84, 40), -- outer-row dim target
 	SkyPalmBead = Color3.fromRGB(255, 226, 92), -- banana-yellow coconuts
-	-- CAPSULE skin (§18 ape, APEBALL.md §2): the arcade two-tone ball —
-	-- a glossy half-clear shell ("50/50") wearing a translucent RED
-	-- hemisphere cap welded on top, so the split tumbles with the roll.
-	-- The cap is a real CSG hemisphere (GeometryService — the documented
-	-- in-game solid-modeling path); on CSG failure the whole shell falls
-	-- back to a red tint so the skin still reads.
-	CapsuleAlpha = 0.5,
-	CapsuleRed = Color3.fromRGB(235, 45, 55), -- the SMB-red top half
-	CapsuleRedAlpha = 0.35, -- translucent cap over the clear shell
 	-- PIXEL GLASS / SCANLINES (§18 "filter" slot): an LCD-style lattice
 	-- over the 3D view — gridlines at PixelPitch read as chunky pixels.
 	-- The overlay sits on a lower DisplayOrder than the HUD so every

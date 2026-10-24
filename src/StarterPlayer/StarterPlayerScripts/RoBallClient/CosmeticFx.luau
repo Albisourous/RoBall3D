@@ -12,10 +12,7 @@
 --    WorldModel, then the wrap respawns it. Rebuilt on every browse
 --    change (unowned items preview too — that's the conversion lever).
 --    The browsed FLOOR item restyles the ribbon (checker sub-tiling /
---    rail color / plain — TrackStreamer.emitDeck's parity recipe), and a
---    capsule skin wears the same CSG red hemisphere cap as the live
---    ball (BallDress.buildCap) — it rides the roll CFrame so the 50/50
---    split tumbles exactly like the welded live cap (APEBALL §2).
+--    rail color / plain — TrackStreamer.emitDeck's parity recipe).
 -- 2) Animated skin/trail flags ("rainbow"/"pulse") applied to the live
 --    ball AND the diorama in the render loop.
 --
@@ -31,7 +28,6 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.RoBall.Config)
 local Cosmetics = require(ReplicatedStorage.RoBall.Cosmetics)
 local Palette = require(ReplicatedStorage.RoBall.Palette)
-local BallDress = require(ReplicatedStorage.RoBall.BallDress)
 local GemTypes = require(ReplicatedStorage.RoBall.GemTypes)
 local Backdrop = require(script.Parent.Backdrop)
 local DeathFx = require(script.Parent.DeathFx)
@@ -131,9 +127,6 @@ local vpGemShape = "diamond"
 local vpGemColor = Config.Gems.Color
 local vpGemItem: any = nil
 local vpGemTaken = false
-local vpBallAlpha = 0 -- rest transparency (capsule skins aren't opaque)
-local vpCap: BasePart? = nil -- capsule red hemisphere (APEBALL §2) — rides the roll CFrame
-local vpBuildSeq = 0 -- preview rebuild counter — token-stales pending CSG cap builds
 local vpDeathItem: any = nil
 local vpDead = false
 local vpMode = "menu" -- diorama anims only run while the menu is up
@@ -336,9 +329,6 @@ function Fx.preview(items: { [string]: any })
 	vpGemShape = "diamond"
 	vpGemItem = nil
 	vpGemTaken = false
-	vpBallAlpha = 0
-	vpCap = nil
-	vpBuildSeq += 1
 	vpTrailSegs = {}
 	vpTrailGlow = {}
 	vpMotes = {}
@@ -379,29 +369,9 @@ function Fx.preview(items: { [string]: any })
 	local ringB = if skin then Cosmetics.colorOf(skin.ringB, PK, hues) else PK
 	local ball = vpart(Vector3.one * BALL_D, ballPos, if skin then Cosmetics.colorOf(skin.core, DK, hues) else DK)
 	ball.Shape = Enum.PartType.Ball
-	-- Capsule skins (§18 skin_capsule): transparent shell + the same red
-	-- hemisphere cap the live ball welds on — the cap part rides the
-	-- roll CFrame in step() so the split tumbles like the weld.
-	vpBallAlpha = if skin and skin.capsule then Art.CapsuleAlpha else 0
-	ball.Transparency = vpBallAlpha
-	-- NOT Glass: the live shell is Enum.Material.Glass, but Glass renders
-	-- nearly invisible inside a ViewportFrame (no refraction pass), so
-	-- the preview fakes the clear half with plain alpha.
+	ball.Transparency = 0
 	ball.Material = Enum.Material.SmoothPlastic
 	vpBall = ball
-	if skin and skin.capsule then
-		local seq = vpBuildSeq
-		BallDress.buildCap(BALL_D, function(cap)
-			if cap and seq == vpBuildSeq and wmodel and wmodel.Parent then
-				cap.Anchored = true
-				cap.CFrame = CFrame.new(ballPos)
-				cap.Parent = wmodel
-				vpCap = cap
-			elseif cap then
-				cap:Destroy()
-			end
-		end)
-	end
 	for i, rot in ipairs(RING_ROTS) do
 		local col = if i <= 3 then ringA else ringB
 		local segs = {}
@@ -591,8 +561,8 @@ local function step()
 	-- gem mid-loop — the real browsed GEM FX flourish pops it — slams the
 	-- wall at the loop end (the real browsed DEATH FX bursts at the
 	-- impact and the ball hides until the wrap respawns it), the chase
-	-- cam re-aims with the live transform, rings and the capsule's red
-	-- cap ride the roll, the gem beat-pulses until it's taken.
+	-- cam re-aims with the live transform, rings ride the roll, and the
+	-- gem beat-pulses until it's taken.
 	if vpBall then
 		local tt = time()
 		local roll = (tt * ROLL_SPEED) % CYCLE
@@ -605,9 +575,6 @@ local function step()
 				DeathFx.previewBurst(wmodel, vpHitPos :: Vector3, vpDeathItem)
 			end
 			vpBall.Transparency = 1
-			if vpCap then
-				vpCap.Transparency = 1
-			end
 			for _, segs in ipairs(vpRings) do
 				for _, p in ipairs(segs) do
 					p.Transparency = 1
@@ -618,10 +585,7 @@ local function step()
 			-- Respawn wrap: re-dress the ball at the loop head.
 			vpDead = false
 			vpHitPos = nil
-			vpBall.Transparency = vpBallAlpha
-			if vpCap then
-				vpCap.Transparency = Art.CapsuleRedAlpha
-			end
+			vpBall.Transparency = 0
 			for _, segs in ipairs(vpRings) do
 				for _, p in ipairs(segs) do
 					p.Transparency = 0
@@ -659,11 +623,6 @@ local function step()
 			if wmodel then
 				GemFx.previewBurst(wmodel, bc.Position, vpGemItem, vpGemShape, vpGemSize, vpGemColor)
 			end
-		end
-		-- The capsule's red hemisphere rides the roll CFrame — same as the
-		-- live ball's weld, the split tumbles with the shell.
-		if vpCap then
-			vpCap.CFrame = bc
 		end
 		for i, segs in ipairs(vpRings) do
 			local base = bc * vpRingRots[i] * RING_X
