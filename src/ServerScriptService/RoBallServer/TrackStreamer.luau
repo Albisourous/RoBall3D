@@ -427,6 +427,34 @@ local function makePad(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpe
 	return p
 end
 
+-- MagnetLane rail (§8.3/GD_DESIGN.md): violet strip on the deck; the
+-- client's MagnetController reads PullK and bends lateral steering
+-- toward the rail's centerline while the ball overlaps. Non-collide —
+-- it's a force zone, never a wall.
+local function makeMagnet(parent: Instance, laneX: number, spec: ChunkDefs.ChunkSpec, mag: ChunkDefs.Magnet)
+	local mid = spec.section(mag.t)
+	local dt = 0.02
+	local sA = spec.section(math.max(mag.t - dt, 0))
+	local sB = spec.section(math.min(mag.t + dt, 1))
+	local pitch = math.atan((sB.y - sA.y) / math.max((mag.t + dt - math.max(mag.t - dt, 0)) * spec.length, 0.001))
+	local p = Instance.new("Part")
+	p.Name = "MagnetRail"
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Size = Vector3.new(mag.w, 0.35, mag.d)
+	p.CFrame = CFrame.new(laneX + mid.centerX + mag.xOff, mid.y + 0.18, spec.startZ - mag.t * spec.length)
+		* CFrame.Angles(pitch, 0, math.rad(mid.rollDeg))
+	p.Color = Config.Magnet.Color
+	p.Material = Enum.Material.Neon
+	p:SetAttribute("PullK", Config.Magnet.K)
+	p:SetAttribute("ChunkType", spec.type)
+	CollectionService:AddTag(p, "RoBallMagnet")
+	p.Parent = parent
+	return p
+end
+
 -- RampGap hoop (§8.6): a faceted neon ring floating at the void's flight
 -- apex — the ball threads it mid-jump for the gem bonus (§10). Faceted
 -- box segments match the angular wireframe palette (no torus primitive).
@@ -435,14 +463,14 @@ local function makeHoop(
 	parent: Instance,
 	laneX: number,
 	spec: ChunkDefs.ChunkSpec,
-	hoop: { t: number }
+	hoop: ChunkDefs.Hoop
 ): { z: number, cx: number, cy: number, r: number }
 	local mid = spec.section(hoop.t)
 	local zMid = spec.startZ - hoop.t * spec.length
-	local cX = laneX + mid.centerX
+	local cX = laneX + mid.centerX + (hoop.xOff or 0)
 	local cfg = Config.Hoop
 	local r = cfg.Radius
-	local centerY = mid.y + cfg.ApexLift
+	local centerY = mid.y + (hoop.lift or cfg.ApexLift)
 	local neon = Palette.neonAt(-zMid)
 	local SEGS = 14
 	local rMid = r + cfg.Tube * 0.5 -- ring centerline radius
@@ -993,8 +1021,16 @@ function TrackStreamer:buildChunk(spec: ChunkDefs.ChunkSpec): ChunkRecord
 		emitFlipZone(holder, self.laneX, spec, spec.flip, deckColorAt)
 	end
 
-	if spec.hoop then
-		table.insert(self.gates, makeHoop(holder, self.laneX, spec, spec.hoop))
+	if spec.hoops then
+		for _, h in ipairs(spec.hoops) do
+			table.insert(self.gates, makeHoop(holder, self.laneX, spec, h))
+		end
+	end
+
+	if spec.magnets then
+		for _, m in ipairs(spec.magnets) do
+			makeMagnet(holder, self.laneX, spec, m)
+		end
 	end
 
 	if spec.gems then

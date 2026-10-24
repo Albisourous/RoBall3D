@@ -74,7 +74,8 @@ export type ChunkSpec = {
 	flip: FlipZone?, -- FlipRide (flag: Features.GravityFlip)
 	dim: boolean?, -- Blackout: grid/center neon dims (edges + gems stay lit)
 	debut: boolean?, -- set by GenCore when this chunk is the feature's gentle showcase
-	hoop: { t: number }?, -- RampGap: neon ring at the gap's flight apex — threading it pays gems (§10)
+	hoops: { Hoop }?, -- standing rings — threading one pays gems (§10)
+	magnets: { Magnet }?, -- MagnetLane rails (§8.3): pull toward the rail line
 }
 
 -- Lethal geometry placed on the deck (DESIGN.md §8.3 obstacle rules).
@@ -136,6 +137,27 @@ export type GemSpot = {
 	xOff: number,
 	value: number,
 	yOff: number?,
+}
+
+-- Neon ring (§10): a faceted circle the ball threads for the bonus.
+-- RampGap floats it at the flight apex; HoopRun stands it over the deck
+-- at lift=Radius so the opening's bottom kisses the floor — threadable
+-- while rolling. xOff shifts it laterally off deck center.
+export type Hoop = {
+	t: number,
+	xOff: number?,
+	lift: number?, -- ring center height above deck at t (default Config.Hoop.ApexLift)
+}
+
+-- MagnetLane rail: a violet strip on the deck that bends the ball toward
+-- its centerline while the ball overlaps the footprint. The client's
+-- MagnetController folds the pull into lateral steering — a guide rail,
+-- not aim-assist (Config.Magnet.Cap sits under MaxLateralSpeed).
+export type Magnet = {
+	t: number, -- strip center along the chunk
+	xOff: number, -- lane-local X of the rail's centerline
+	w: number,
+	d: number, -- studs of travel the strip spans
 }
 
 local function lerp(a: number, b: number, t: number): number
@@ -742,7 +764,7 @@ function ChunkDefs.RampGap(_rng: Random, st: GenState, tier): ChunkSpec
 	end, { centerX = st.centerX, width = landW, y = yLand }, nil, gems)
 	-- The hoop (§8.6): a gem-paying ring dead-center over the void at the
 	-- flight apex — the one guaranteed airborne moment in the run.
-	s.hoop = { t = (rampLen + gapLen / 2) / length }
+	s.hoops = { { t = (rampLen + gapLen / 2) / length } }
 	return s
 end
 
@@ -983,6 +1005,9 @@ local MinEntryWidth = {
 	-- narrower and a worst-edge entry can't out-climb the pull
 	LeftTilt = 18,
 	RightTilt = 18,
+	HalfPipe = 22, -- surf room inside the walls + edge gem lines
+	HoopRun = 18, -- ring xOff ±0.35·halfW must leave a ball-width corridor
+	MagnetLane = 24, -- rail + flanking block columns per side
 }
 
 -- Eligibility gate for pool + debut picks (§8.6): features that need a
@@ -1188,7 +1213,99 @@ function ChunkDefs.Sway(rng: Random, st: GenState, _tier): ChunkSpec
 	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
 end
 
--- Chained-row chunks (SnakeField/Chicane) size their length around the
+-- HalfPipe (GD_DESIGN.md): Sway's roll oscillation pushed to pipe surf —
+-- steeper banks (16–24° vs Sway's 7–14°) inside edge walls the whole
+-- way. The ball rides up the raised face, slides back down, catches the
+-- opposite wall, rides that. Wall height covers the banked edge's peak
+-- lift (halfW·sin(amp)) plus WallPad; both ends ease walls and bank to
+-- zero so the seams stay flat-entry legal. Gems ride both pipe faces —
+-- the high line is the risky one.
+function ChunkDefs.HalfPipe(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local C = Config.HalfPipe
+	local length = rng:NextInteger(C.LenMin, C.LenMax)
+	local periods = rng:NextInteger(C.PeriodsMin, C.PeriodsMax)
+	local ampMax = math.min(C.AmpMax * (st.rollScale or 1), Config.Roll.Cap)
+	local ampHi = math.max(C.AmpMin, math.min(ampMax, C.RateMax * length / (math.pi * periods)))
+	local amp = rng:NextNumber(C.AmpMin, ampHi)
+	local phase = rng:NextNumber(0, math.pi * 2)
+	local r0 = math.sin(phase)
+	-- Wall must clear the raised edge: lift = halfW·sin(amp).
+	local wallH = math.ceil(st.width / 2 * math.sin(math.rad(amp))) + C.WallPad
+	local wallAt = function(t: number)
+		local e = math.min(t / 0.15, (1 - t) / 0.15, 1)
+		return wallH * e
+	end
+	local speed = Tiers.speedAt(st.dist)
+	local edgeX = st.width / 2 - C.EdgeGemInset
+	local gems = {}
+	appendAll(
+		gems,
+		gemRhythmLine(rng, speed, length, 0.15, 0.7, edgeX, Config.Gems.ValueEdge, nil, energyOf(st), bpmOf(st))
+	)
+	appendAll(
+		gems,
+		gemRhythmLine(rng, speed, length, 0.15, 0.7, -edgeX, Config.Gems.ValueEdge, nil, energyOf(st), bpmOf(st))
+	)
+	if debut then
+		appendAll(
+			gems,
+			gemRhythmLine(rng, speed, length, 0.2, 0.6, 0, Config.Gems.ValueSafe, nil, energyOf(st), bpmOf(st))
+		)
+	end
+	return spec("HalfPipe", st, length, function(t)
+		return {
+			width = st.width,
+			centerX = st.centerX,
+			y = st.y,
+			rollDeg = amp * 0.5 * (math.sin(phase + t * periods * math.pi * 2) - r0),
+			wallH = wallAt(t),
+		}
+	end, { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+end
+
+-- HoopRun (GD_DESIGN.md): standing neon rings at steering offsets on a
+-- flat deck — aim through the opening instead of dodging a hazard.
+-- Rings stand at lift=Radius so the opening's bottom kisses the deck —
+-- threading works rolling, no jump needed. Missing is free; threading
+-- pays the hoop bonus. Gems line the ring corridors.
+function ChunkDefs.HoopRun(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	local C = Config.HoopRun
+	local length = rng:NextInteger(C.LenMin, C.LenMax)
+	local rings = if debut then 2 else rng:NextInteger(C.RingsMin, C.RingsMax)
+	local spread = st.width / 2 * C.SpreadFrac
+	local hoops = {}
+	local gems = {}
+	for i = 1, rings do
+		local t = 0.2 + (i - 0.5) / rings * 0.55
+		local xOff = rng:NextNumber(-spread, spread)
+		table.insert(hoops, { t = t, xOff = xOff, lift = Config.Hoop.Radius })
+		-- Centerline gem at the ring's mouth — the aim line reads through it.
+		table.insert(gems, { t = t, xOff = xOff, value = Config.Gems.ValueSafe, yOff = 1.6 })
+	end
+	-- Safe centerline run between rings keeps the base pay honest.
+	appendAll(
+		gems,
+		gemRhythmLine(
+			rng,
+			Tiers.speedAt(st.dist),
+			length,
+			0.15,
+			0.3,
+			0,
+			Config.Gems.ValueSafe,
+			nil,
+			energyOf(st),
+			bpmOf(st)
+		)
+	)
+	local s =
+		spec("HoopRun", st, length, flatSection(st), { centerX = st.centerX, width = st.width, y = st.y }, nil, gems)
+	s.hoops = hoops
+	return s
+end
+
+-- Chained-row chunks (SnakeField/Chicane/MagnetLane) size their length
+-- around the
 -- row spacing instead of cramming rows into a standard chunk: at speed,
 -- ReactionTime between lethal reads needs more studs than 90 of deck.
 -- Chained rows of ONE repeated pattern get a 0.75x reaction window — the
@@ -1199,6 +1316,54 @@ end
 
 local function chainRows(len: number, spacingZ: number, wantRows: number): number
 	return math.clamp(wantRows, 1, 1 + math.floor((len * 0.7) / math.max(spacingZ, 1)))
+end
+
+-- MagnetLane (GD_DESIGN.md): a violet rail strip threads a block field —
+-- overlapping it bends steering toward the rail's line (GD's dash-orb
+-- hold-the-line feel as terrain, not aim assist: Magnet.Cap sits under
+-- MaxLateralSpeed so a hard steer always wins). Blocks flank the rail
+-- with a CorridorMin corridor on its line; riding the rail threads them.
+function ChunkDefs.MagnetLane(rng: Random, st: GenState, _tier, debut: boolean?): ChunkSpec
+	-- Rows pin the same corridor every row — the read is learned from row
+	-- one, so the weave window applies (§8.6). Length is chain-sized at
+	-- exit speed like SnakeField: at 100+ studs/s ReactionTime needs more
+	-- deck than a standard chunk.
+	local spacingZ = Tiers.speedAt(st.dist + 150) * Config.Obstacles.ReactionTime * (if debut then 0.7 else 0.5)
+	local length = chainLength(if debut then 2 else 3, spacingZ, 70, 150)
+	local rows = chainRows(length, spacingZ, 3)
+	local halfW = st.width / 2
+	local railX = rng:NextNumber(-halfW * 0.35, halfW * 0.35)
+	local gapW = Config.Obstacles.CorridorMin + (if debut then 2 else 0)
+	local obstacles = {}
+	for i = 1, rows do
+		local t = 0.5 + (i - (rows + 1) / 2) * (spacingZ / length)
+		for _, ob in ipairs(pinnedRow(halfW, t, railX, gapW, Config.Obstacles.WallHeight, Config.Obstacles.WallDepth)) do
+			table.insert(obstacles, ob)
+		end
+	end
+	local magnets = {
+		{
+			t = 0.5,
+			xOff = railX,
+			w = Config.Magnet.Width,
+			d = length * Config.Magnet.LenFrac,
+		},
+	}
+	-- The rail IS the gem line — riding it pays; drifting off forfeits.
+	local speed = Tiers.speedAt(st.dist)
+	local gems =
+		gemRhythmLine(rng, speed, length, 0.2, 0.75, railX, Config.Gems.ValueEdge, nil, energyOf(st), bpmOf(st))
+	local s = spec(
+		"MagnetLane",
+		st,
+		length,
+		flatSection(st),
+		{ centerX = st.centerX, width = st.width, y = st.y },
+		obstacles,
+		gems
+	)
+	s.magnets = magnets
+	return s
 end
 
 -- SnakeField: single blocks flush to alternating rails — the winning line

@@ -376,6 +376,7 @@ Config.Features = {
 		PadHop = 1700,
 		PadVoid = 2100,
 		DropGate = 2300,
+		HalfPipe = 2400,
 		PressRow = 2600,
 		Pacer = 2700,
 		Rotor = 2900,
@@ -384,6 +385,8 @@ Config.Features = {
 		RightTilt = 3400,
 		OrbHop = 3300, -- flag: Features.JumpOrbs
 		FlipRide = 3500, -- flag: Features.GravityFlip
+		MagnetLane = 1800,
+		HoopRun = 1900,
 	},
 	-- Explicit order — deterministic generation can't iterate a dict.
 	DebutOrder = {
@@ -393,8 +396,11 @@ Config.Features = {
 		"Chicane",
 		"Fork",
 		"PadHop",
+		"MagnetLane",
+		"HoopRun",
 		"PadVoid",
 		"DropGate",
+		"HalfPipe",
 		"PressRow",
 		"Pacer",
 		"Rotor",
@@ -440,6 +446,9 @@ Config.Features = {
 		PressRow = "PRESS ROW",
 		Pacer = "PACERS",
 		Rotor = "ROTOR",
+		HalfPipe = "HALFPIPE",
+		HoopRun = "HOOP RUN",
+		MagnetLane = "MAGNET LANE",
 		OrbHop = "ORB HOP",
 		FlipRide = "FLIP RIDE",
 	},
@@ -610,6 +619,46 @@ Config.Sway = {
 	RateMax = 0.7,
 }
 
+Config.HalfPipe = {
+	-- HalfPipe (DESIGN.md §8.3, GD_DESIGN.md): Sway's bank turned to pipe
+	-- surf — steeper alternating banks inside edge walls; the ball rides
+	-- up a face, slides back, rides the other. Integer periods land the
+	-- exit level; walls ease in/out at both seams (GenVerify's flat-entry
+	-- check and the next chunk's flat seam both need it).
+	LenMin = 90,
+	LenMax = 140,
+	PeriodsMin = 2,
+	PeriodsMax = 3,
+	AmpMin = 16,
+	AmpMax = 24,
+	RateMax = 0.8,
+	WallPad = 2, -- studs the rail rises past the banked edge's peak lift
+	EdgeGemInset = 2.5, -- gem lines sit this far inboard of each wall face
+}
+
+Config.HoopRun = {
+	-- HoopRun (GD_DESIGN.md): standing neon rings at steering offsets —
+	-- the portal-thread skill translated to aim-don't-dodge. Missing a
+	-- ring is free; threading it pays Hoop.Score/.Bank.
+	LenMin = 55,
+	LenMax = 75,
+	RingsMin = 2,
+	RingsMax = 3,
+	SpreadFrac = 0.35, -- ring xOff inside ± halfW*this
+}
+
+Config.Magnet = {
+	-- MagnetLane rail (GD_DESIGN.md): a violet strip that bends the ball
+	-- toward its centerline — GD's dash-orb "ride the line" as terrain.
+	-- pull = (railX - ballX) * K, clamped to Cap — under MaxLateralSpeed,
+	-- so steering can always fight off the rail; it guides, never grabs.
+	K = 1.4,
+	Cap = 14,
+	Width = 5, -- strip width in studs
+	LenFrac = 0.62, -- strip covers the middle share of the chunk
+	Color = Color3.fromRGB(190, 90, 255),
+}
+
 Config.Orbs = {
 	-- JumpOrbs stretch (DESIGN.md §8.6, flag-off): lime rings floating over
 	-- voids. A jump input while inside Radius re-kicks vY — the tap extends
@@ -710,6 +759,8 @@ Config.Tiers = {
 			"PadHop",
 			"PadVoid",
 			"DropGate",
+			"MagnetLane",
+			"HoopRun",
 		},
 		widthMin = 14,
 		widthMax = 50,
@@ -743,6 +794,7 @@ Config.Tiers = {
 			"PressRow",
 			"Pacer",
 			"Rotor",
+			"HalfPipe",
 			-- Flag-off stretches (§8.6): canRun drops them unless the
 			-- Features flags are on, so they sit inert in the pool.
 			"OrbHop",

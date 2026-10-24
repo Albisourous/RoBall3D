@@ -27,6 +27,7 @@ local DeathFx = require(script.Parent.DeathFx)
 local CosmeticFx = require(script.Parent.CosmeticFx)
 local PadController = require(script.Parent.PadController)
 local OrbController = require(script.Parent.OrbController)
+local MagnetController = require(script.Parent.MagnetController)
 local MoverController = require(script.Parent.MoverController)
 local FatalController = require(script.Parent.FatalController)
 local DashFeel = require(script.Parent.DashFeel)
@@ -1504,6 +1505,12 @@ RunService.Heartbeat:Connect(function(dt)
 	if dashing then
 		targetLat = dashDir * (if inFlip then -1 else 1) * Config.Dash.Speed + bankPull
 		accel = Config.Dash.Accel
+	elseif grounded then
+		-- MagnetLane (§8.3): an overlapped rail bends steering toward its
+		-- line — capped under MaxLateralSpeed so a hard steer always wins;
+		-- it gathers, never grabs. Skipped mid-burst: the dart's target
+		-- is already pinned.
+		targetLat += MagnetController.pull(bp)
 	end
 	lateralVel += math.clamp(targetLat - lateralVel, -accel * dt, accel * dt)
 	if wasDashing and not dashing then
@@ -1877,6 +1884,7 @@ CosmeticFx.mountViewport(ui.previewView)
 PadController.init(function()
 	return ball
 end)
+MagnetController.init()
 OrbController.init(function()
 	return ball
 end, Config.Features.JumpOrbs == true)

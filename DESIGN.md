@@ -484,10 +484,13 @@ narrow. Then the seeded generator takes over.
 | `Fork` | Asymmetric split: thin gem-loaded rail / wide bare rail | Route choice | 4+ |
 | `PadHop` | LaunchPad (cyan strip) kicks ball ballistic over a lethal strip | Computed arc | 4+ |
 | `PadVoid` | LaunchPad launch across a void — pad supplies airtime, not speed | Early gap spectacle | 5+ |
+| `MagnetLane` | Violet rail strip threads a block field — overlapping it bends steering toward the rail's line (`Magnet.Cap < MaxLateralSpeed`: it gathers, never grabs); rail line = gem line | Guided line | 5+ |
+| `HoopRun` | Standing neon rings at steering offsets — thread a ring for the bonus, missing is free | Aim, not dodge | 5+ |
 | `DropGate` | Full-width wall whose gap threads ON a drop accent downbeat | Beat-slam set piece | 5+ |
 | `Pacer` | Wall pair whose fixed gap slides L↔R on a beat-locked sine | Timing window | 6+ |
 | `PressRow` | Open-air crushers: each ceiling press hangs in a neon gantry frame under open sky, slamming on a trapezoid wave; a ghost-red footprint marks each plate's kill zone on the deck and the plate's wireframe fills solid as it slams; one side lane stays permanently clear per row (flipping sides only when one beat-gap affords the crossing — otherwise the lane holds and widens), under-plate is the timed shortcut; the lane is rail-pinned, so the lead grows until a worst-case far-rail entry can afford the `2·halfW − gapW` transit — `canRun` declines decks where that runway would be degenerate | Vertical timing | 6+ |
 | `Rotor` | Near-center post + neon spinning blade; swept disc can't reach either rim — both rails are always-clear lanes, and a translucent danger disc tints the swept zone | Timing + bait gems | 6+ |
+| `HalfPipe` | Sway's bank pushed to pipe surf — alternating steep banks inside edge walls; gems ride both pipe faces, walls ease to flat at both seams | Wall surf | 6+ |
 
 **Obstacle rules (REA exit-line fairness)**
 - Every row of lethal geometry must leave ≥1 clear corridor ≥
@@ -534,11 +537,20 @@ narrow. Then the seeded generator takes over.
   settle back down), enough to sail over a shallow band unseen. PadHop rolls
   the pad's lane offset inside ±width/5 capped at `Pads.MaxOffset`, so
   wide decks can't park the pad outside readable-steer range.
+- `ChunkSpec.hoops` — faceted neon rings; each entry carries `t`, optional
+  `xOff` (steering offset inside the chunk) and `lift` (ring center above
+  the deck plane). `RampGap` keeps its single apex ring (`Hoop.ApexLift`);
+  `HoopRun` stands 2–3 deck-level rings on steer lines. Threading pays
+  gems (§10); missing is free.
+- `ChunkSpec.magnets` — violet `MagnetRail` strips (tagged `RoBallMagnet`,
+  `PullK` attribute; `Magnet.Width`/`LenFrac`/`Color`). The client's
+  `MagnetController` folds `pull = −lp.X·K` into the drive loop's
+  `targetLat` while the ball overlaps, clamped to `Magnet.Cap` — under
+  `MaxLateralSpeed`, so steering always wins; it guides, never grabs.
+  `MagnetLane` pins one rail through a block field — the rail's line is
+  the corridor.
 - `ChunkSpec.dim` (Blackout) dims grid/center neon to `Blackout.GridScale`
   — edges + gems stay lit.
-- `ChunkSpec.hoop` — `RampGap` carries a faceted neon ring at the void's
-  flight apex (`Hoop.Radius`/`Tube`, center `Hoop.ApexLift` above the
-  launch plane). Threading it mid-air pays gems (§10).
 
 ### 8.4 Gem placement
 
@@ -638,7 +650,8 @@ banner: the `NEW ▸ LABEL` flash was cut as screen clutter.
 
 Ramp (spaced wide — features come late): Terrace 400m · SnakeField 800m ·
 Blackout 900m · Chicane 1300m · Fork 1500m ·
-PadHop 1700m · PadVoid 2100m · DropGate 2300m · PressRow 2600m · Pacer 2700m ·
+PadHop 1700m · MagnetLane 1800m · HoopRun 1900m · PadVoid 2100m ·
+DropGate 2300m · HalfPipe 2400m · PressRow 2600m · Pacer 2700m ·
 Rotor 2900m · FullTilt 3000m · LeftTilt 3200m · RightTilt 3400m · OrbHop
 3300m\* · FlipRide 3500m\* (\*flag-off stretches). Early
 game (0–800m) is core verbs only: steer, narrow, dodge, gems, Terrace.
