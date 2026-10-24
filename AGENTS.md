@@ -53,6 +53,11 @@ never inline magic numbers in gameplay code.
    `Config.Generation.FallenDestroyY` (-50000), applied declaratively via
    `default.project.json`. Context: the default -500 silently destroys the
    ball ~3.4km into a run.
+9. **All new player-facing text ships through the humanizer checklist**
+   (`.devin/skills/humanizer/`): terse fragments, no AI tells (not-X-but-Y,
+   staged openers, inflation, closers). `—`/`·` are the house delimiters —
+   keep them. Same bar covers prose an agent writes: menu copy, mission
+   lines, achievement/pack descriptions, death verdicts.
 
 ## Verify before done
 

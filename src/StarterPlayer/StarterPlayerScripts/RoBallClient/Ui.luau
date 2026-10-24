@@ -1745,7 +1745,7 @@ function Ui.new(): Ui
 	-- ◊500 buys 2× banked gems until the UTC reset, then it's buyable again.
 	packRow(pageBank, "boost", "2X BANK", "every gem banks double until tomorrow", 266)
 
-	local hint = label(pageBank, "gems bank on pickup — they're never score", 11, F_DATA, C_DIM, 0)
+	local hint = label(pageBank, "gems bank on pickup — never score", 11, F_DATA, C_DIM, 0)
 	hint.Position = UDim2.fromOffset(0, 312)
 	hint.TextTransparency = 0.3
 
@@ -3748,8 +3748,8 @@ function Ui:drawBoard()
 	elseif #rows == 0 then
 		self.boardRows[1].Text = if self.friendsOnly
 			then "  no friends ranked on this board yet"
-			elseif mode == "daily" then "  no daily runs yet — type 'daily' and set one."
-			else "  no saved runs yet — set one."
+			elseif mode == "daily" then "  no daily runs yet — type 'daily' and set one"
+			else "  no saved runs yet — set one"
 		self.boardRows[1].TextColor3 = C_DIM
 	end
 end
